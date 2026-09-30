@@ -8,6 +8,8 @@ import br.joao.agrosaldo.data.local.AgroSaldoDatabase
 import br.joao.agrosaldo.data.local.Semeador
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
+import br.joao.agrosaldo.data.local.dao.UsuarioDao
+import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -38,6 +41,7 @@ import java.time.LocalDate
 class AgroSaldoDatabaseTest {
 
     private lateinit var banco: AgroSaldoDatabase
+    private lateinit var usuarioDao: UsuarioDao
     private lateinit var propriedadeDao: PropriedadeDao
     private lateinit var lancamentoDao: LancamentoDao
 
@@ -47,6 +51,7 @@ class AgroSaldoDatabaseTest {
     fun abrir() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         banco = Room.inMemoryDatabaseBuilder(context, AgroSaldoDatabase::class.java).build()
+        usuarioDao = banco.usuarioDao()
         propriedadeDao = banco.propriedadeDao()
         lancamentoDao = banco.lancamentoDao()
     }
@@ -56,30 +61,38 @@ class AgroSaldoDatabaseTest {
         banco.close()
     }
 
+    private fun usuario(id: String, email: String) = UsuarioEntity(
+        id = id, nome = "Conta $id", email = email, senhaHash = "hash",
+        consentimentoEm = 1L, versaoTermo = 1, criadoEm = 1L
+    )
+
+    /** Cria a conta "u1" com as duas propriedades e os nove lançamentos de exemplo. */
     private suspend fun semearExemplos() {
-        DadosDeExemplo.propriedades().forEach { propriedadeDao.salvar(it.paraEntidade()) }
+        usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+        DadosDeExemplo.propriedades().forEach { propriedadeDao.salvar(it.paraEntidade(usuarioId = "u1")) }
         DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade()) }
     }
 
+    // ---------- propriedades e lançamentos (fase 3, agora com dono) ----------
+
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
-        val fazenda = DadosDeExemplo.propriedades().first().paraEntidade(agora = 1L)
+        usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+        val fazenda = DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 1L)
         propriedadeDao.salvar(fazenda)
 
-        assertEquals(fazenda, propriedadeDao.buscarPorId(fazenda.id))
-        assertEquals(1, propriedadeDao.contar())
+        assertEquals(fazenda, propriedadeDao.buscarPorId(fazenda.id, "u1"))
+        assertEquals(1, propriedadeDao.contarDoUsuario("u1"))
     }
 
     @Test
     fun listaDePropriedadesVemEmOrdemAlfabetica() = runBlocking {
         semearExemplos()
-        val nomes = propriedadeDao.observarTodas().first().map { it.nome }
+        val nomes = propriedadeDao.observarDoUsuario("u1").first().map { it.nome }
         assertEquals(listOf("Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
     }
 
     /**
-     * O teste mais importante deste arquivo.
-     *
      * Editar o nome de uma propriedade NÃO pode apagar os lançamentos dela.
      * Se o DAO usasse @Insert(onConflict = REPLACE), o SQLite apagaria a linha
      * antiga para inserir a nova, e o CASCADE levaria os lançamentos junto.
@@ -87,24 +100,23 @@ class AgroSaldoDatabaseTest {
     @Test
     fun editarPropriedadeNaoApagaOsLancamentos() = runBlocking {
         semearExemplos()
-        val antes = lancamentoDao.observarTodos().first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
+        val antes = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
 
-        val fazenda = checkNotNull(propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA))
+        val fazenda = checkNotNull(propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1"))
         propriedadeDao.salvar(fazenda.copy(nome = "Fazenda São João (editada)"))
 
-        val depois = lancamentoDao.observarTodos().first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
+        val depois = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
         assertEquals(antes, depois)
-        assertEquals("Fazenda São João (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA)?.nome)
+        assertEquals("Fazenda São João (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1")?.nome)
     }
 
     @Test
     fun excluirPropriedadeApagaOsLancamentosPeloCascade() = runBlocking {
         semearExemplos()
 
-        // Só a propriedade é excluída. Os lançamentos somem pela FOREIGN KEY.
-        propriedadeDao.excluir(DadosDeExemplo.ID_SITIO)
+        propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
 
-        val restantes = lancamentoDao.observarTodos().first()
+        val restantes = lancamentoDao.observarDoUsuario("u1").first()
         assertTrue(restantes.none { it.propriedadeId == DadosDeExemplo.ID_SITIO })
         assertEquals(6, restantes.size)
     }
@@ -126,17 +138,17 @@ class AgroSaldoDatabaseTest {
     @Test
     fun upsertAtualizaEmVezDeDuplicar() = runBlocking {
         semearExemplos()
-        val energia = checkNotNull(lancamentoDao.buscarPorId("exemplo-2"))
+        val energia = checkNotNull(lancamentoDao.buscarPorId("exemplo-2", "u1"))
         lancamentoDao.salvar(energia.copy(valorCentavos = 130_000L))
 
-        assertEquals(9, lancamentoDao.observarTodos().first().size)
-        assertEquals(130_000L, lancamentoDao.buscarPorId("exemplo-2")?.valorCentavos)
+        assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
+        assertEquals(130_000L, lancamentoDao.buscarPorId("exemplo-2", "u1")?.valorCentavos)
     }
 
     @Test
     fun lancamentosVemDoMaisRecenteParaOMaisAntigo() = runBlocking {
         semearExemplos()
-        val datas = lancamentoDao.observarTodos().first().map { it.data }
+        val datas = lancamentoDao.observarDoUsuario("u1").first().map { it.data }
         assertEquals(datas.sortedDescending(), datas)
     }
 
@@ -152,20 +164,68 @@ class AgroSaldoDatabaseTest {
     }
 
     @Test
-    fun semeadorGeraSqlValidoParaOBancoReal() {
+    fun excluirLancamento() = runBlocking {
+        semearExemplos()
+        lancamentoDao.excluir("exemplo-3", "u1")
+        assertNull(lancamentoDao.buscarPorId("exemplo-3", "u1"))
+    }
+
+    // ---------- contas (login e LGPD) ----------
+
+    @Test
+    fun semeadorGeraSqlValidoEAPrimeiraContaAdotaOsExemplos() {
         val sqlite = banco.openHelper.writableDatabase
         Semeador.semear(executar = { sql, args -> sqlite.execSQL(sql, args) }, hoje = hoje)
 
         runBlocking {
-            assertEquals(2, propriedadeDao.contar())
-            assertEquals(9, lancamentoDao.observarTodos().first().size)
+            usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+            assertEquals(2, usuarioDao.adotarPropriedadesSemDono("u1"))
+            assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
+            assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
         }
     }
 
     @Test
-    fun excluirLancamento() = runBlocking {
+    fun emailRepetidoNaoEntraEOIgnoreDevolveMenosUm() = runBlocking {
+        assertTrue(usuarioDao.inserir(usuario("u1", "fabio@exemplo.com")) != -1L)
+        assertEquals(-1L, usuarioDao.inserir(usuario("u2", "fabio@exemplo.com")))
+        assertNull(usuarioDao.buscarPorId("u2"))
+    }
+
+    @Test
+    fun cadaContaSoEnxergaOsPropriosDados() = runBlocking {
         semearExemplos()
-        lancamentoDao.excluir("exemplo-3")
-        assertNull(lancamentoDao.buscarPorId("exemplo-3"))
+        usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
+
+        assertEquals(0, propriedadeDao.observarDoUsuario("u2").first().size)
+        assertEquals(0, lancamentoDao.observarDoUsuario("u2").first().size)
+        assertNull(propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u2"))
+        assertNull(lancamentoDao.buscarPorId("exemplo-1", "u2"))
+        assertFalse(lancamentoDao.propriedadeEhDoUsuario(DadosDeExemplo.ID_FAZENDA, "u2"))
+
+        // Tentativas de apagar pela conta errada não fazem nada.
+        propriedadeDao.excluir(DadosDeExemplo.ID_FAZENDA, "u2")
+        lancamentoDao.excluir("exemplo-1", "u2")
+        assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
+        assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
+    }
+
+    /** Direito de exclusão da LGPD: a conta leva tudo junto, em dois níveis de CASCADE. */
+    @Test
+    fun excluirContaApagaPropriedadesELancamentos() = runBlocking {
+        semearExemplos()
+        usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
+
+        usuarioDao.excluir("u1")
+
+        assertNull(usuarioDao.buscarPorId("u1"))
+        assertEquals(0, propriedadeDao.contarDoUsuario("u1"))
+        val sqlite = banco.openHelper.readableDatabase
+        sqlite.query("SELECT COUNT(*) FROM lancamentos").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(0, cursor.getInt(0))
+        }
+        // A outra conta não foi tocada.
+        assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
     }
 }

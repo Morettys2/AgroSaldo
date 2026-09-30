@@ -5,7 +5,11 @@ import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import br.joao.agrosaldo.domain.repository.SessaoRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
@@ -13,25 +17,49 @@ import kotlinx.coroutines.flow.map
  *
  * Esta é a prova do padrão Repository: o ViewModel continua conversando com
  * a mesma interface PropriedadeRepository de antes. Ele não sabe — e não
- * precisa saber — que os dados agora vêm de um arquivo SQLite em vez da
- * memória. Nenhuma tela foi alterada para esta troca.
+ * precisa saber — que os dados vêm de um arquivo SQLite, nem que existe
+ * login. Nenhuma tela de propriedade foi alterada para o login entrar.
  *
- * Não precisa trocar de thread aqui: funções suspend e Flow do Room já rodam
- * fora da thread principal por conta própria.
+ * Quem sabe de quem são os dados é este repositório: ele lê o usuário da
+ * [sessao] e passa para o DAO em toda consulta.
  */
 class PropriedadeRepositoryRoom(
-    private val dao: PropriedadeDao
+    private val dao: PropriedadeDao,
+    private val sessao: SessaoRepository
 ) : PropriedadeRepository {
 
+    /**
+     * flatMapLatest: quando o usuário muda, a consulta do anterior é
+     * cancelada e começa a do novo. Quem estiver observando recebe a lista
+     * certa sem saber que houve troca.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodas(): Flow<List<Propriedade>> =
-        dao.observarTodas().map { entidades -> entidades.map { it.paraDominio() } }
+        sessao.usuarioId.flatMapLatest { usuarioId ->
+            if (usuarioId == null) {
+                flowOf(emptyList())
+            } else {
+                dao.observarDoUsuario(usuarioId).map { entidades -> entidades.map { it.paraDominio() } }
+            }
+        }
 
-    override suspend fun buscarPorId(id: String): Propriedade? =
-        dao.buscarPorId(id)?.paraDominio()
+    override suspend fun buscarPorId(id: String): Propriedade? {
+        val usuarioId = sessao.usuarioId.value ?: return null
+        return dao.buscarPorId(id, usuarioId)?.paraDominio()
+    }
 
-    override suspend fun salvar(propriedade: Propriedade) =
-        dao.salvar(propriedade.paraEntidade())
+    override suspend fun salvar(propriedade: Propriedade) {
+        val usuarioId = usuarioConectado()
+        // O upsert atualizaria a linha de qualquer dono se o id batesse.
+        // Esta checagem garante que uma conta não sobrescreve a da outra.
+        val dono = dao.donoDe(propriedade.id)
+        require(dono == null || dono == usuarioId) { "Esta propriedade pertence a outra conta." }
+        dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
+    }
 
     override suspend fun excluir(id: String) =
-        dao.excluir(id)
+        dao.excluir(id, usuarioConectado())
+
+    private fun usuarioConectado(): String =
+        checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

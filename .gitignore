@@ -16,3 +16,16 @@ local.properties
 .idea/deploymentTargetSelector.xml
 .idea/deviceManager.xml
 .idea/androidTestResultsUserPreferences.xml
+
+
+.kotlin/
+
+Thumbs.db
+
+
+*.jks
+*.keystore
+
+/app/release/
+*.apk
+*.aab

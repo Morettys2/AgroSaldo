@@ -1,19 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup na nuvem e transferência entre celulares, Android 12 em diante
+    (API 31+). Mesma regra do backup_rules.xml: o banco vai, a sessão e o
+    contador de senhas erradas ficam neste aparelho.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="sessao.xml" />
+        <exclude domain="sharedpref" path="seguranca.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="sessao.xml" />
+        <exclude domain="sharedpref" path="seguranca.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

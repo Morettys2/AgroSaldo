@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.Flow
  * da compilação (é isso que o KSP faz). E ele confere o SQL nesse momento:
  * se uma coluna estiver com nome errado, o erro aparece no build, não no
  * celular do produtor.
+ *
+ * Desde a chegada do login, toda consulta recebe o usuário. Não existe
+ * "buscar propriedade por id" sem dizer de quem: é o banco que garante que
+ * uma conta nunca enxerga os dados da outra.
  */
 @Dao
 interface PropriedadeDao {
@@ -23,11 +27,15 @@ interface PropriedadeDao {
      *
      * COLLATE NOCASE ordena ignorando maiúsculas: "sítio" e "Sítio" ficam juntos.
      */
-    @Query("SELECT * FROM propriedades ORDER BY nome COLLATE NOCASE")
-    fun observarTodas(): Flow<List<PropriedadeEntity>>
+    @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId ORDER BY nome COLLATE NOCASE")
+    fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>>
 
-    @Query("SELECT * FROM propriedades WHERE id = :id")
-    suspend fun buscarPorId(id: String): PropriedadeEntity?
+    @Query("SELECT * FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
+    suspend fun buscarPorId(id: String, usuarioId: String): PropriedadeEntity?
+
+    /** Dono atual da propriedade, ou null se ela não existe ou ainda não tem dono. */
+    @Query("SELECT usuario_id FROM propriedades WHERE id = :id")
+    suspend fun donoDe(id: String): String?
 
     /**
      * Upsert = insere se não existe, atualiza se já existe.
@@ -42,9 +50,9 @@ interface PropriedadeDao {
     @Upsert
     suspend fun salvar(propriedade: PropriedadeEntity)
 
-    @Query("DELETE FROM propriedades WHERE id = :id")
-    suspend fun excluir(id: String)
+    @Query("DELETE FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
+    suspend fun excluir(id: String, usuarioId: String)
 
-    @Query("SELECT COUNT(*) FROM propriedades")
-    suspend fun contar(): Int
+    @Query("SELECT COUNT(*) FROM propriedades WHERE usuario_id = :usuarioId")
+    suspend fun contarDoUsuario(usuarioId: String): Int
 }

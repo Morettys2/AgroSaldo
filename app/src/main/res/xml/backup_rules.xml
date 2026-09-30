@@ -1,13 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup automático do Android 6 a 11 (API 23 a 30).
+
+    O banco (conta, propriedades e lançamentos) VAI para o backup: trocar de
+    celular não pode apagar o histórico do produtor. A senha está lá só como
+    hash PBKDF2, e o backup do Google é criptografado com o bloqueio de tela.
+
+    A sessão e o contador de senhas erradas NÃO vão: no celular novo o app
+    pede a senha de novo, e um bloqueio antigo não viaja junto.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="sessao.xml" />
+    <exclude domain="sharedpref" path="seguranca.xml" />
 </full-backup-content>

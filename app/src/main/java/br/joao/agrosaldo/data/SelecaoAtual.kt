@@ -26,4 +26,9 @@ object SelecaoAtual {
     fun limparSeFor(id: String) {
         if (_propriedadeId.value == id) _propriedadeId.value = null
     }
+
+    /** Ao trocar de conta: a propriedade selecionada era do usuário anterior. */
+    fun limpar() {
+        _propriedadeId.value = null
+    }
 }

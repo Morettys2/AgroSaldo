@@ -20,7 +20,8 @@ object Semeador {
         // Propriedades antes dos lançamentos: com a chave estrangeira ligada,
         // a ordem contrária seria recusada pelo banco.
         DadosDeExemplo.propriedades().forEach { p ->
-            val e = p.paraEntidade(agora)
+            // Sem dono: a primeira conta criada no aparelho fica com elas.
+            val e = p.paraEntidade(usuarioId = null, agora = agora)
             executar(
                 "INSERT INTO propriedades " +
                     "(id, nome, cultura, area_hectares, latitude, longitude, atualizado_em) " +

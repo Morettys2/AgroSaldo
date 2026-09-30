@@ -1,0 +1,193 @@
+package br.joao.agrosaldo.feature.conta
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import br.joao.agrosaldo.core.ui.CampoSenha
+import br.joao.agrosaldo.core.ui.CampoTexto
+import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
+import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+
+/**
+ * Tela 03 — Criar conta (RF01).
+ *
+ * O ViewModel vem de fora (AppNavegacao) porque ele é compartilhado com a
+ * tela de consentimento. Por isso não há valor padrão no parâmetro.
+ */
+@Composable
+fun CadastroRoute(
+    viewModel: CadastroViewModel,
+    aoIrParaConsentimento: () -> Unit,
+    aoVoltarParaLogin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Evento de navegação: dispara uma vez e é "consumido" logo em seguida,
+    // senão voltar do consentimento abriria o consentimento de novo.
+    LaunchedEffect(uiState.irParaConsentimento) {
+        if (uiState.irParaConsentimento) {
+            viewModel.aoAbrirConsentimento()
+            aoIrParaConsentimento()
+        }
+    }
+
+    CadastroScreen(
+        uiState = uiState,
+        aoMudarNome = viewModel::aoMudarNome,
+        aoMudarEmail = viewModel::aoMudarEmail,
+        aoMudarSenha = viewModel::aoMudarSenha,
+        aoMudarConfirmacao = viewModel::aoMudarConfirmacao,
+        aoContinuar = viewModel::aoContinuar,
+        aoVoltarParaLogin = aoVoltarParaLogin,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun CadastroScreen(
+    uiState: CadastroUiState,
+    aoMudarNome: (String) -> Unit,
+    aoMudarEmail: (String) -> Unit,
+    aoMudarSenha: (String) -> Unit,
+    aoMudarConfirmacao: (String) -> Unit,
+    aoContinuar: () -> Unit,
+    aoVoltarParaLogin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            // Com o teclado aberto, a área visível encolhe e o campo em foco
+            // continua alcançável pela rolagem, sem ficar escondido.
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Leva menos de um minuto. Os dados ficam no seu aparelho.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        CampoTexto(
+            valor = uiState.nome,
+            aoMudar = aoMudarNome,
+            rotulo = "Nome completo",
+            erro = uiState.erroNome != null,
+            apoio = uiState.erroNome
+        )
+
+        CampoTexto(
+            valor = uiState.email,
+            aoMudar = aoMudarEmail,
+            rotulo = "E-mail",
+            erro = uiState.erroEmail != null,
+            apoio = uiState.erroEmail,
+            teclado = KeyboardType.Email
+        )
+
+        CampoSenha(
+            valor = uiState.senha,
+            aoMudar = aoMudarSenha,
+            rotulo = "Senha",
+            erro = uiState.erroSenha != null,
+            apoio = uiState.erroSenha
+        )
+
+        CampoSenha(
+            valor = uiState.confirmacao,
+            aoMudar = aoMudarConfirmacao,
+            rotulo = "Confirmar senha",
+            erro = uiState.erroConfirmacao != null,
+            apoio = uiState.erroConfirmacao,
+            ultimoCampo = true,
+            aoConfirmar = aoContinuar
+        )
+
+        CartaoRequisitosSenha(requisitos = uiState.requisitos)
+
+        Button(
+            onClick = aoContinuar,
+            enabled = !uiState.verificando,
+            shape = CircleShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            if (uiState.verificando) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Text(text = "Continuar", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+
+        TextButton(onClick = aoVoltarParaLogin, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Já tenho conta",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+private fun CadastroPreview() {
+    AgroSaldoTheme {
+        CadastroScreen(
+            uiState = CadastroUiState(
+                nome = "Fábio Moretti",
+                email = "fabio@exemplo.com",
+                senha = "milho20",
+                confirmacao = ""
+            ),
+            aoMudarNome = {}, aoMudarEmail = {}, aoMudarSenha = {}, aoMudarConfirmacao = {},
+            aoContinuar = {}, aoVoltarParaLogin = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+private fun CadastroComErrosPreview() {
+    AgroSaldoTheme {
+        CadastroScreen(
+            uiState = CadastroUiState(
+                erroNome = "Informe seu nome.",
+                erroEmail = "Informe um e-mail válido, como nome@exemplo.com.",
+                erroSenha = "A senha não cumpre os requisitos abaixo."
+            ),
+            aoMudarNome = {}, aoMudarEmail = {}, aoMudarSenha = {}, aoMudarConfirmacao = {},
+            aoContinuar = {}, aoVoltarParaLogin = {}
+        )
+    }
+}

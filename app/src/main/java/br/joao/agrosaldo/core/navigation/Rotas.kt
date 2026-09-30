@@ -10,6 +10,17 @@ package br.joao.agrosaldo.core.navigation
  * criar (sem id) e para editar (com id).
  */
 object Rotas {
+    // Entrada: antes de haver alguém conectado.
+    const val LOGIN = "login"
+    const val CRIAR_CONTA = "criar_conta"
+    const val CONSENTIMENTO = "consentimento"
+
+    // Abre com ou sem conta (vem do consentimento e da tela de conta).
+    const val POLITICA = "politica"
+
+    const val CONTA = "conta"
+    const val ALTERAR_SENHA = "conta/senha"
+
     const val INICIO = "inicio"
     const val LANCAMENTOS = "lancamentos"
     const val CLIMA = "clima"
@@ -19,6 +30,12 @@ object Rotas {
 
     const val FORM_LANCAMENTO = "lancamento/form?$ARG_ID={$ARG_ID}"
     const val FORM_PROPRIEDADE = "propriedade/form?$ARG_ID={$ARG_ID}"
+
+    /** Telas de quem ainda não entrou. Conectado, o app sai delas. */
+    val DE_ENTRADA = setOf(LOGIN, CRIAR_CONTA, CONSENTIMENTO)
+
+    /** Telas que não exigem conta. Desconectado, o app só pode estar nelas. */
+    val PUBLICAS = DE_ENTRADA + POLITICA
 
     fun formLancamento(id: String? = null): String =
         if (id == null) "lancamento/form" else "lancamento/form?$ARG_ID=$id"

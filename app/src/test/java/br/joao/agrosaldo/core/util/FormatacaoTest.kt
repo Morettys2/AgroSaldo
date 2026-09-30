@@ -87,4 +87,14 @@ class FormatacaoTest {
         assertTrue(LocalDate.of(2026, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
         assertFalse(LocalDate.of(2025, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
     }
+
+    @Test
+    fun `espera do bloqueio aparece em minutos e segundos`() {
+        assertEquals("30 segundos", formatarEspera(30))
+        assertEquals("1 segundo", formatarEspera(1))
+        assertEquals("1 segundo", formatarEspera(0))
+        assertEquals("1 minuto", formatarEspera(60))
+        assertEquals("2 minutos e 30 segundos", formatarEspera(150))
+        assertEquals("15 minutos", formatarEspera(900))
+    }
 }
