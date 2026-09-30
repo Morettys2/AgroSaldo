@@ -1,0 +1,279 @@
+package br.joao.agrosaldo.feature.propriedade
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.CampoTexto
+import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.agro
+
+@Composable
+fun PropriedadeFormRoute(
+    propriedadeId: String?,
+    aoConcluir: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: PropriedadeFormViewModel = viewModel(
+        // A key força um ViewModel novo quando o id muda. Sem ela, abrir
+        // "editar" logo após "nova" reaproveitaria o estado antigo.
+        key = "propriedade-form-${propriedadeId.orEmpty()}",
+        factory = PropriedadeFormViewModel.Factory(propriedadeId)
+    )
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    /**
+     * LaunchedEffect é o lugar certo pra reagir a uma mudança de estado com
+     * um efeito colateral. Chamar aoConcluir() direto no corpo do composable
+     * dispararia a navegação a cada recomposição.
+     */
+    LaunchedEffect(uiState.salvo, uiState.excluido) {
+        if (uiState.salvo || uiState.excluido) aoConcluir()
+    }
+
+    PropriedadeFormScreen(
+        uiState = uiState,
+        aoMudarNome = viewModel::aoMudarNome,
+        aoMudarCultura = viewModel::aoMudarCultura,
+        aoMudarArea = viewModel::aoMudarArea,
+        aoMudarLatitude = viewModel::aoMudarLatitude,
+        aoMudarLongitude = viewModel::aoMudarLongitude,
+        aoSalvar = viewModel::aoSalvar,
+        aoExcluir = viewModel::aoExcluir,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun PropriedadeFormScreen(
+    uiState: PropriedadeFormUiState,
+    aoMudarNome: (String) -> Unit,
+    aoMudarCultura: (String) -> Unit,
+    aoMudarArea: (String) -> Unit,
+    aoMudarLatitude: (String) -> Unit,
+    aoMudarLongitude: (String) -> Unit,
+    aoSalvar: () -> Unit,
+    aoExcluir: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Estado puramente visual (diálogo aberto ou fechado) fica na tela mesmo.
+    // Só estado de negócio sobe pro ViewModel — abrir um diálogo não é regra.
+    var confirmandoExclusao by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+
+        CampoTexto(
+            valor = uiState.nome,
+            aoMudar = aoMudarNome,
+            rotulo = "Nome da propriedade",
+            erro = uiState.erroNome != null,
+            apoio = uiState.erroNome
+        )
+
+        CampoTexto(
+            valor = uiState.cultura,
+            aoMudar = aoMudarCultura,
+            rotulo = "Cultura plantada"
+        )
+
+        CampoTexto(
+            valor = uiState.area,
+            aoMudar = aoMudarArea,
+            rotulo = "Área em hectares",
+            erro = uiState.erroArea != null,
+            apoio = uiState.erroArea,
+            teclado = KeyboardType.Decimal
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CampoTexto(
+                valor = uiState.latitude,
+                aoMudar = aoMudarLatitude,
+                rotulo = "Latitude",
+                erro = uiState.erroCoordenadas != null,
+                teclado = KeyboardType.Decimal,
+                modifier = Modifier.weight(1f)
+            )
+            CampoTexto(
+                valor = uiState.longitude,
+                aoMudar = aoMudarLongitude,
+                rotulo = "Longitude",
+                erro = uiState.erroCoordenadas != null,
+                teclado = KeyboardType.Decimal,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        uiState.erroCoordenadas?.let { mensagem ->
+            Text(
+                text = mensagem,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Place,
+                    contentDescription = null,
+                    tint = MaterialTheme.agro.sobreClimaContainer
+                )
+                Text(
+                    text = "As coordenadas buscam a previsão do tempo desta propriedade. " +
+                        "Dá pra copiar do Google Maps segurando o dedo sobre o local.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.agro.sobreClimaContainer
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = aoSalvar,
+            shape = CircleShape,
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+        ) {
+            Text(
+                text = if (uiState.ehEdicao) "Salvar alterações" else "Salvar propriedade",
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+
+        if (uiState.ehEdicao) {
+            OutlinedButton(
+                onClick = { confirmandoExclusao = true },
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.agro.despesa
+                )
+                Text(
+                    text = "Excluir propriedade",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.agro.despesa,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+    }
+
+    if (confirmandoExclusao) {
+        AlertDialog(
+            onDismissRequest = { confirmandoExclusao = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.agro.despesa
+                )
+            },
+            title = { Text("Excluir esta propriedade?") },
+            text = {
+                Text(
+                    "Todos os lançamentos dela também serão apagados. " +
+                        "Essa ação não pode ser desfeita."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmandoExclusao = false
+                    aoExcluir()
+                }) {
+                    Text("Excluir", color = MaterialTheme.agro.despesa)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmandoExclusao = false }) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 850)
+@Composable
+private fun PropriedadeFormNovaPreview() {
+    AgroSaldoTheme {
+        PropriedadeFormScreen(
+            uiState = PropriedadeFormUiState(),
+            aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
+            aoMudarLatitude = {}, aoMudarLongitude = {},
+            aoSalvar = {}, aoExcluir = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 850)
+@Composable
+private fun PropriedadeFormComErroPreview() {
+    AgroSaldoTheme {
+        PropriedadeFormScreen(
+            uiState = PropriedadeFormUiState(
+                nome = "",
+                cultura = "Milho",
+                area = "abc",
+                latitude = "-21,7333",
+                longitude = "-46,9667",
+                erroNome = "Informe o nome da propriedade.",
+                erroArea = "A área deve ser um número maior que zero.",
+                ehEdicao = true
+            ),
+            aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
+            aoMudarLatitude = {}, aoMudarLongitude = {},
+            aoSalvar = {}, aoExcluir = {}
+        )
+    }
+}
