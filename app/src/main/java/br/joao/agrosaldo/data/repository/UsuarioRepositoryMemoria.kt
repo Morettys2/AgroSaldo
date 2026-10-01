@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import java.time.Instant
 
 /** Fake para os testes, no mesmo estilo dos outros repositórios em memória. */
 class UsuarioRepositoryMemoria(
@@ -33,6 +34,12 @@ class UsuarioRepositoryMemoria(
 
     override suspend fun atualizarSenha(id: String, senhaHash: String) {
         _usuarios.update { lista -> lista.map { if (it.id == id) it.copy(senhaHash = senhaHash) else it } }
+    }
+
+    override suspend fun registrarConsentimento(id: String, em: Instant, versao: Int) {
+        _usuarios.update { lista ->
+            lista.map { if (it.id == id) it.copy(consentimentoEm = em, versaoTermo = versao) else it }
+        }
     }
 
     override suspend fun excluir(id: String) {

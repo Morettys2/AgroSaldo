@@ -8,16 +8,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.localizacao.rememberBuscaDeLocalizacao
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
@@ -53,6 +57,17 @@ fun PropriedadeFormRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // O GPS mora na Route porque precisa da Activity (permissão). A Screen
+    // só recebe "está buscando?" e "o que mostrar" — e o @Preview continua funcionando.
+    var mensagemLocalizacao by remember { mutableStateOf<String?>(null) }
+    val busca = rememberBuscaDeLocalizacao(
+        aoEncontrar = { latitude, longitude ->
+            mensagemLocalizacao = "Coordenadas preenchidas com a sua localização atual."
+            viewModel.aoUsarLocalizacao(latitude, longitude)
+        },
+        aoFalhar = { mensagem -> mensagemLocalizacao = mensagem }
+    )
+
     /**
      * LaunchedEffect é o lugar certo pra reagir a uma mudança de estado com
      * um efeito colateral. Chamar aoConcluir() direto no corpo do composable
@@ -69,6 +84,12 @@ fun PropriedadeFormRoute(
         aoMudarArea = viewModel::aoMudarArea,
         aoMudarLatitude = viewModel::aoMudarLatitude,
         aoMudarLongitude = viewModel::aoMudarLongitude,
+        buscandoLocalizacao = busca.buscando,
+        mensagemLocalizacao = mensagemLocalizacao,
+        aoUsarMinhaLocalizacao = {
+            mensagemLocalizacao = null
+            busca.buscar()
+        },
         aoSalvar = viewModel::aoSalvar,
         aoExcluir = viewModel::aoExcluir,
         modifier = modifier
@@ -83,6 +104,9 @@ fun PropriedadeFormScreen(
     aoMudarArea: (String) -> Unit,
     aoMudarLatitude: (String) -> Unit,
     aoMudarLongitude: (String) -> Unit,
+    buscandoLocalizacao: Boolean,
+    mensagemLocalizacao: String?,
+    aoUsarMinhaLocalizacao: () -> Unit,
     aoSalvar: () -> Unit,
     aoExcluir: () -> Unit,
     modifier: Modifier = Modifier
@@ -142,6 +166,29 @@ fun PropriedadeFormScreen(
             )
         }
 
+        OutlinedButton(
+            onClick = aoUsarMinhaLocalizacao,
+            enabled = !buscandoLocalizacao,
+            shape = CircleShape,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (buscandoLocalizacao) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                Text("Procurando…", modifier = Modifier.padding(start = 8.dp))
+            } else {
+                Icon(Icons.Outlined.MyLocation, contentDescription = null)
+                Text("Usar minha localização", modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+
+        mensagemLocalizacao?.let { mensagem ->
+            Text(
+                text = mensagem,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         uiState.erroCoordenadas?.let { mensagem ->
             Text(
                 text = mensagem,
@@ -165,7 +212,8 @@ fun PropriedadeFormScreen(
                 )
                 Text(
                     text = "As coordenadas buscam a previsão do tempo desta propriedade. " +
-                        "Dá pra copiar do Google Maps segurando o dedo sobre o local.",
+                        "Estando no sítio, toque em \"Usar minha localização\". Longe dele, dá pra " +
+                        "copiar do Google Maps segurando o dedo sobre o local.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.agro.sobreClimaContainer
                 )
@@ -251,6 +299,7 @@ private fun PropriedadeFormNovaPreview() {
             uiState = PropriedadeFormUiState(),
             aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
             aoMudarLatitude = {}, aoMudarLongitude = {},
+            buscandoLocalizacao = false, mensagemLocalizacao = null, aoUsarMinhaLocalizacao = {},
             aoSalvar = {}, aoExcluir = {}
         )
     }
@@ -273,6 +322,7 @@ private fun PropriedadeFormComErroPreview() {
             ),
             aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
             aoMudarLatitude = {}, aoMudarLongitude = {},
+            buscandoLocalizacao = false, mensagemLocalizacao = null, aoUsarMinhaLocalizacao = {},
             aoSalvar = {}, aoExcluir = {}
         )
     }

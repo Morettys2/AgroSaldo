@@ -11,8 +11,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
@@ -80,6 +82,22 @@ class ContaService(
         sessao.usuarioId.flatMapLatest { id ->
             if (id == null) flowOf(null) else usuarios.observar(id)
         }
+
+    /**
+     * true quando a pessoa conectada aceitou uma versão antiga do termo de
+     * privacidade. A navegação mostra o termo novo antes de qualquer tela.
+     */
+    fun precisaNovoAceite(): Flow<Boolean> =
+        observarUsuarioLogado()
+            .map { usuario -> usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL }
+            .distinctUntilChanged()
+
+    /** O usuário conectado aceitou o termo atual. */
+    suspend fun registrarNovoAceite(): Boolean {
+        val usuario = usuarioConectado() ?: return false
+        usuarios.registrarConsentimento(usuario.id, Instant.ofEpochMilli(relogio()), TermoDePrivacidade.VERSAO_ATUAL)
+        return true
+    }
 
     suspend fun emailEmUso(email: String): Boolean =
         usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email)) != null

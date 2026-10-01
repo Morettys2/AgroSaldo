@@ -7,6 +7,7 @@ import br.joao.agrosaldo.domain.model.Usuario
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 
 class UsuarioRepositoryRoom(
     private val dao: UsuarioDao
@@ -30,6 +31,9 @@ class UsuarioRepositoryRoom(
 
     override suspend fun atualizarSenha(id: String, senhaHash: String) =
         dao.atualizarSenha(id, senhaHash)
+
+    override suspend fun registrarConsentimento(id: String, em: Instant, versao: Int) =
+        dao.registrarConsentimento(id, em.toEpochMilli(), versao)
 
     override suspend fun excluir(id: String) =
         dao.excluir(id)

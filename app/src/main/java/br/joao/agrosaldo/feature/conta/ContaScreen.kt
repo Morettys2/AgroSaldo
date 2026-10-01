@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature.conta
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,14 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Grass
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -30,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,11 +45,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.seguranca.Biometria
+import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
@@ -60,16 +69,44 @@ import br.joao.agrosaldo.ui.theme.agro
 fun ContaRoute(
     aoAbrirPrivacidade: () -> Unit,
     aoAlterarSenha: () -> Unit,
+    aoAbrirAvisoChuva: () -> Unit,
     aoAbrirPropriedades: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ContaViewModel = viewModel(factory = ContaViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // Ligar E desligar pedem a digital: ligar confirma que ela funciona
+    // (senão a pessoa se trancaria fora); desligar impede que outra pessoa,
+    // com o celular destravado na mão, tire a proteção.
+    val aoMudarBloqueio: (Boolean) -> Unit = { ativar ->
+        val activity = context.acharFragmentActivity()
+        if (activity == null || !Biometria.disponivel(context)) {
+            Toast.makeText(
+                context,
+                "Cadastre uma digital ou um PIN nas configurações do celular primeiro.",
+                Toast.LENGTH_LONG
+            ).show()
+        } else {
+            Biometria.autenticar(
+                activity = activity,
+                titulo = if (ativar) "Ligar o bloqueio" else "Desligar o bloqueio",
+                subtitulo = "Confirme com a digital ou o PIN do celular",
+                aoSucesso = { viewModel.aoDefinirBloqueio(ativar) },
+                aoFalhar = { mensagem ->
+                    mensagem?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                }
+            )
+        }
+    }
 
     ContaScreen(
         uiState = uiState,
+        aoMudarBloqueio = aoMudarBloqueio,
         aoAbrirPrivacidade = aoAbrirPrivacidade,
         aoAlterarSenha = aoAlterarSenha,
+        aoAbrirAvisoChuva = aoAbrirAvisoChuva,
         aoAbrirPropriedades = aoAbrirPropriedades,
         aoSair = viewModel::aoSair,
         aoExcluirConta = viewModel::aoExcluirConta,
@@ -81,8 +118,10 @@ fun ContaRoute(
 @Composable
 fun ContaScreen(
     uiState: ContaUiState,
+    aoMudarBloqueio: (ativar: Boolean) -> Unit,
     aoAbrirPrivacidade: () -> Unit,
     aoAlterarSenha: () -> Unit,
+    aoAbrirAvisoChuva: () -> Unit,
     aoAbrirPropriedades: () -> Unit,
     aoSair: () -> Unit,
     aoExcluirConta: (senha: String) -> Unit,
@@ -105,11 +144,21 @@ fun ContaScreen(
         )
 
         ItemConta(
+            icone = Icons.Outlined.NotificationsActive,
+            titulo = "Aviso de chuva",
+            apoio = "Limites e notificação",
+            aoClicar = aoAbrirAvisoChuva
+        )
+        ItemConta(
             icone = Icons.Outlined.Shield,
             titulo = "Privacidade e dados",
             apoio = if (uiState.consentimentoEm.isBlank()) "O que o app guarda"
             else "Termo aceito em ${uiState.consentimentoEm}",
             aoClicar = aoAbrirPrivacidade
+        )
+        ItemBloqueio(
+            ativo = uiState.bloqueioAtivo,
+            aoMudar = aoMudarBloqueio
         )
         ItemConta(
             icone = Icons.Outlined.Lock,
@@ -266,6 +315,49 @@ private fun ItemConta(
     }
 }
 
+/** Mesma cara dos outros itens, com um interruptor no lugar da seta. */
+@Composable
+private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                // toggleable na linha toda: dá para tocar no texto, e o leitor
+                // de tela anuncia "interruptor, ligado".
+                .toggleable(value = ativo, role = Role.Switch, onValueChange = aoMudar)
+                .padding(vertical = 12.dp)
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Fingerprint,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(text = "Bloquear com digital ou PIN", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = if (ativo) "Pede ao abrir e após 2 min fora" else "Desligado",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.agro.tintaApagada
+                )
+            }
+            // onCheckedChange = null: quem trata o toque é a linha inteira.
+            Switch(checked = ativo, onCheckedChange = null)
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
 /**
  * Pede a senha antes de apagar. Um celular esquecido na mesa da cozinha não
  * pode perder o histórico inteiro com dois toques de outra pessoa.
@@ -328,9 +420,11 @@ private fun ContaPreview() {
                 iniciais = "FM",
                 consentimentoEm = "30/09/2026 às 19:40",
                 versaoTermo = 1,
-                quantidadePropriedades = 2
+                quantidadePropriedades = 2,
+                bloqueioAtivo = true
             ),
-            aoAbrirPrivacidade = {}, aoAlterarSenha = {}, aoAbrirPropriedades = {}, aoSair = {},
+            aoMudarBloqueio = {},
+            aoAbrirPrivacidade = {}, aoAlterarSenha = {}, aoAbrirAvisoChuva = {}, aoAbrirPropriedades = {}, aoSair = {},
             aoExcluirConta = {}, aoCancelarExclusao = {}
         )
     }

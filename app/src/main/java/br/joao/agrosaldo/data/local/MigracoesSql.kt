@@ -38,4 +38,16 @@ object MigracoesSql {
             "REFERENCES `usuarios`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE",
         "CREATE INDEX IF NOT EXISTS `index_propriedades_usuario_id` ON `propriedades` (`usuario_id`)"
     )
+
+    /**
+     * Versão 2 → 3: entra o cache da previsão do tempo.
+     *
+     * Só cria uma tabela nova; nenhuma linha existente é tocada.
+     */
+    val DE_2_PARA_3: List<String> = listOf(
+        "CREATE TABLE IF NOT EXISTS `previsoes` (`propriedade_id` TEXT NOT NULL, `latitude` REAL NOT NULL, " +
+            "`longitude` REAL NOT NULL, `resposta_json` TEXT NOT NULL, `obtida_em` INTEGER NOT NULL, " +
+            "PRIMARY KEY(`propriedade_id`), FOREIGN KEY(`propriedade_id`) REFERENCES `propriedades`(`id`) " +
+            "ON UPDATE NO ACTION ON DELETE CASCADE )"
+    )
 }

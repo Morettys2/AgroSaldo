@@ -4,15 +4,19 @@ import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.core.navigation.SessaoViewModel
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryMemoria
+import br.joao.agrosaldo.data.sessao.BloqueioMemoria
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.data.sessao.TentativasMemoria
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.HashDeSenha
+import br.joao.agrosaldo.domain.conta.ResultadoCadastro
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
+import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.feature.conta.AlterarSenhaViewModel
 import br.joao.agrosaldo.feature.conta.CadastroViewModel
 import br.joao.agrosaldo.feature.conta.ContaViewModel
 import br.joao.agrosaldo.feature.conta.LoginViewModel
+import br.joao.agrosaldo.feature.conta.NovoConsentimentoViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,6 +26,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
 import java.time.ZoneOffset
 
 /**
@@ -195,7 +200,8 @@ class ContaViewModelsTest {
 
     // ---------- conta ----------
 
-    private fun contaViewModel() = ContaViewModel(conta, PropriedadeRepositoryMemoria(), zona = ZoneOffset.UTC)
+    private val bloqueio = BloqueioMemoria()
+    private fun contaViewModel() = ContaViewModel(conta, PropriedadeRepositoryMemoria(), bloqueio, zona = ZoneOffset.UTC)
 
     @Test
     fun `tela de conta mostra nome email iniciais e data do aceite`() = runTest {
@@ -248,7 +254,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `navegacao acompanha entrar e sair`() = runTest {
-        val vm = SessaoViewModel(conta)
+        val vm = SessaoViewModel(conta, BloqueioMemoria())
         assertFalse(vm.logado.value)
 
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
@@ -256,6 +262,171 @@ class ContaViewModelsTest {
 
         conta.sair()
         assertFalse(vm.logado.value)
+    }
+
+    @Test
+    fun `tela de conta liga e desliga o bloqueio`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = contaViewModel()
+        assertFalse(vm.uiState.value.bloqueioAtivo)
+
+        vm.aoDefinirBloqueio(true)
+        assertTrue(bloqueio.ativo.value)
+        assertTrue(vm.uiState.value.bloqueioAtivo)
+
+        vm.aoDefinirBloqueio(false)
+        assertFalse(vm.uiState.value.bloqueioAtivo)
+    }
+
+    // ---------- bloqueio com digital ----------
+
+    private var agora = 1_790_808_000_000L
+
+    private fun sessaoComBloqueio(ativo: Boolean = true) =
+        SessaoViewModel(conta, BloqueioMemoria(ativo), relogio = { agora })
+
+    @Test
+    fun `abrir o app com sessao gravada e bloqueio ligado pede a digital`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoComBloqueio()
+
+        assertTrue(vm.precisaDesbloquear.value)
+        vm.aoDesbloquear()
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `com o bloqueio desligado nunca trava`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoComBloqueio(ativo = false)
+        vm.aoIrParaSegundoPlano()
+        agora += 10 * 60_000L
+        vm.aoVoltarParaPrimeiroPlano()
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `entrar com e-mail e senha ja conta como desbloqueado`() = runTest {
+        contaCriadaESaiu()
+        val vm = sessaoComBloqueio()
+        assertFalse(vm.precisaDesbloquear.value)
+
+        conta.entrar("fabio@exemplo.com", "milho2026")
+
+        assertTrue(vm.logado.value)
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `trava de novo depois de 2 minutos fora, nao antes`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoComBloqueio()
+        vm.aoDesbloquear()
+
+        vm.aoIrParaSegundoPlano()
+        agora += 119_000L
+        vm.aoVoltarParaPrimeiroPlano()
+        assertFalse(vm.precisaDesbloquear.value)
+
+        vm.aoIrParaSegundoPlano()
+        agora += SessaoViewModel.TEMPO_PARA_TRAVAR_MS
+        vm.aoVoltarParaPrimeiroPlano()
+        assertTrue(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `digitar o PIN numa tela do sistema nao trava de novo`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoComBloqueio()
+
+        // O PIN abre outra tela: o app recebe ON_STOP, a pessoa demora, desbloqueia...
+        vm.aoIrParaSegundoPlano()
+        agora += 3 * 60_000L
+        vm.aoDesbloquear()
+        // ...e só então o app volta para a frente.
+        vm.aoVoltarParaPrimeiroPlano()
+
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `ligar o bloqueio na tela de conta nao trava na cara da pessoa`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val bloqueioDoApp = BloqueioMemoria(false)
+        val vm = SessaoViewModel(conta, bloqueioDoApp, relogio = { agora })
+
+        bloqueioDoApp.definir(true)
+
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `usar a senha na tela de bloqueio sai da conta`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoComBloqueio()
+
+        vm.aoUsarSenha()
+
+        assertFalse(vm.logado.value)
+        assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    // ---------- novo aceite (política mudou) ----------
+
+    private suspend fun contaQueAceitouVersao1(): String {
+        val criada = conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val id = (criada as ResultadoCadastro.Sucesso).usuario.id
+        usuarios.registrarConsentimento(id, Instant.ofEpochMilli(1_000L), versao = 1)
+        return id
+    }
+
+    @Test
+    fun `conta nova ja nasce com a versao atual e nao pede aceite`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = SessaoViewModel(conta, BloqueioMemoria())
+        assertFalse(vm.precisaNovoAceite.value)
+    }
+
+    @Test
+    fun `quem aceitou a versao antiga precisa aceitar de novo`() = runTest {
+        contaQueAceitouVersao1()
+        val vm = SessaoViewModel(conta, BloqueioMemoria())
+        assertTrue(vm.precisaNovoAceite.value)
+    }
+
+    @Test
+    fun `aceitar a politica nova grava a versao e a data`() = runTest {
+        val id = contaQueAceitouVersao1()
+        val sessaoVm = SessaoViewModel(conta, BloqueioMemoria())
+        val vm = NovoConsentimentoViewModel(conta)
+
+        vm.aoAceitar()
+
+        assertFalse(sessaoVm.precisaNovoAceite.value)
+        val gravado = usuarios.buscarPorId(id)
+        assertEquals(TermoDePrivacidade.VERSAO_ATUAL, gravado?.versaoTermo)
+        assertEquals(Instant.ofEpochMilli(1_790_808_000_000L), gravado?.consentimentoEm)
+        assertFalse(vm.uiState.value.processando)
+        assertNull(vm.uiState.value.erro)
+    }
+
+    @Test
+    fun `recusar a politica nova sai da conta sem apagar nada`() = runTest {
+        contaQueAceitouVersao1()
+        val vm = NovoConsentimentoViewModel(conta)
+
+        vm.aoRecusar()
+
+        assertNull(sessao.usuarioId.value)
+        assertEquals(1, usuarios.todos.size)
+        assertEquals(1, usuarios.todos.single().versaoTermo)
+    }
+
+    @Test
+    fun `sem ninguem conectado o aceite nao grava e mostra erro`() = runTest {
+        val vm = NovoConsentimentoViewModel(conta)
+        vm.aoAceitar()
+        assertNotNull(vm.uiState.value.erro)
     }
 
     // ---------- alterar senha ----------

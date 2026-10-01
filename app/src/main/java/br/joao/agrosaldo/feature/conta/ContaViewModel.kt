@@ -11,6 +11,7 @@ import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
+import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,8 @@ data class ContaUiState(
     val consentimentoEm: String = "",
     val versaoTermo: Int = 0,
     val quantidadePropriedades: Int = 0,
+    /** Pede digital ou PIN ao abrir o app. */
+    val bloqueioAtivo: Boolean = false,
     val excluindo: Boolean = false,
     val erroExclusao: String? = null
 ) {
@@ -49,6 +52,7 @@ data class ContaUiState(
 class ContaViewModel(
     private val conta: ContaService,
     private val propriedadeRepository: PropriedadeRepository,
+    private val bloqueio: BloqueioRepository,
     private val zona: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
 
@@ -62,8 +66,9 @@ class ContaViewModel(
             combine(
                 conta.observarUsuarioLogado(),
                 propriedadeRepository.observarTodas(),
+                bloqueio.ativo,
                 _exclusao
-            ) { usuario, propriedades, exclusao ->
+            ) { usuario, propriedades, bloqueioAtivo, exclusao ->
                 if (usuario == null) {
                     // Acontece por um instante depois de sair ou excluir,
                     // antes de a navegação trocar de tela.
@@ -77,6 +82,7 @@ class ContaViewModel(
                         consentimentoEm = usuario.consentimentoEm.formatarDataHoraBr(zona),
                         versaoTermo = usuario.versaoTermo,
                         quantidadePropriedades = propriedades.size,
+                        bloqueioAtivo = bloqueioAtivo,
                         excluindo = exclusao.excluindo,
                         erroExclusao = exclusao.erro
                     )
@@ -86,6 +92,13 @@ class ContaViewModel(
     }
 
     fun aoSair() = conta.sair()
+
+    /**
+     * Chamado só depois que a digital ou o PIN foram confirmados, para ligar
+     * e para desligar. Quem confere é a tela, porque a janela da digital é
+     * do Android; o ViewModel só guarda a escolha.
+     */
+    fun aoDefinirBloqueio(ativo: Boolean) = bloqueio.definir(ativo)
 
     fun aoExcluirConta(senha: String) {
         if (_exclusao.value.excluindo) return
@@ -115,7 +128,7 @@ class ContaViewModel(
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { ContaViewModel(Repositorios.conta, Repositorios.propriedades) }
+            initializer { ContaViewModel(Repositorios.conta, Repositorios.propriedades, Repositorios.bloqueio) }
         }
     }
 }

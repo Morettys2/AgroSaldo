@@ -215,6 +215,9 @@ class CamadaDeDadosTest {
         override suspend fun atualizarSenha(id: String, senhaHash: String) = tabela.update { lista ->
             lista.map { if (it.id == id) it.copy(senhaHash = senhaHash) else it }
         }
+        override suspend fun registrarConsentimento(id: String, em: Long, versao: Int) = tabela.update { lista ->
+            lista.map { if (it.id == id) it.copy(consentimentoEm = em, versaoTermo = versao) else it }
+        }
         override suspend fun excluir(id: String) = tabela.update { it.filterNot { u -> u.id == id } }
         override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int {
             val orfas = propriedades.tabela.value.count { it.usuarioId == null }
@@ -365,5 +368,17 @@ class CamadaDeDadosTest {
 
         assertNull(repositorio.buscarPorId("u2"))
         assertNull(propriedades.tabela.value.single().usuarioId)
+    }
+
+    @Test
+    fun `novo aceite grava a data e a versao do termo`() = runTest {
+        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(PropriedadeDaoFalso()))
+        repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+
+        repositorio.registrarConsentimento("u1", Instant.ofEpochMilli(5_000L), versao = 2)
+
+        val gravado = repositorio.buscarPorId("u1")
+        assertEquals(2, gravado?.versaoTermo)
+        assertEquals(Instant.ofEpochMilli(5_000L), gravado?.consentimentoEm)
     }
 }

@@ -2,6 +2,7 @@ package br.joao.agrosaldo.domain.repository
 
 import br.joao.agrosaldo.domain.model.Usuario
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 /** Contrato de acesso às contas de usuário guardadas no aparelho. */
 interface UsuarioRepository {
@@ -25,6 +26,9 @@ interface UsuarioRepository {
 
     /** Troca só o hash da senha (alteração de senha e atualização do custo do hash). */
     suspend fun atualizarSenha(id: String, senhaHash: String)
+
+    /** Grava um novo aceite do termo (quando a política muda de versão). */
+    suspend fun registrarConsentimento(id: String, em: Instant, versao: Int)
 
     /** Apaga a conta e, em cascata, as propriedades e os lançamentos dela. */
     suspend fun excluir(id: String)

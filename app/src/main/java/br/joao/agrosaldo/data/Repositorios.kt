@@ -2,13 +2,24 @@ package br.joao.agrosaldo.data
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.os.SystemClock
+import br.joao.agrosaldo.aviso.AgendaWorkManager
+import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
+import br.joao.agrosaldo.data.preferencias.AjustesAvisoPreferencias
+import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
+import br.joao.agrosaldo.data.sessao.BloqueioPreferencias
 import br.joao.agrosaldo.data.sessao.SessaoPreferencias
 import br.joao.agrosaldo.data.sessao.TentativasPreferencias
+import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.conta.ContaService
+import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
+import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
+import br.joao.agrosaldo.domain.repository.BloqueioRepository
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
@@ -53,6 +64,11 @@ object Repositorios {
 
     val sessao: SessaoRepository by lazy { SessaoPreferencias(contextoAberto) }
 
+    val bloqueio: BloqueioRepository by lazy { BloqueioPreferencias(contextoAberto) }
+
+    /** Milissegundos desde que o celular ligou. Não muda se alguém mexer na hora do celular. */
+    val relogioMonotonico: () -> Long = { SystemClock.elapsedRealtime() }
+
     val usuarios: UsuarioRepository by lazy {
         UsuarioRepositoryRoom(bancoAberto.usuarioDao())
     }
@@ -72,6 +88,20 @@ object Repositorios {
 
     val lancamentos: LancamentoRepository by lazy {
         LancamentoRepositoryRoom(bancoAberto.lancamentoDao(), sessao)
+    }
+
+    // ---------- clima e aviso de chuva ----------
+
+    val clima: ClimaRepository by lazy {
+        ClimaRepositoryRoom(OpenMeteoHttp(), bancoAberto.previsaoDao())
+    }
+
+    val ajustesAviso: AjustesAvisoRepository by lazy { AjustesAvisoPreferencias(contextoAberto) }
+
+    val agendaAviso: AgendaDeVerificacao by lazy { AgendaWorkManager(contextoAberto) }
+
+    val verificadorDeChuva: VerificadorDeChuva by lazy {
+        VerificadorDeChuva(sessao, propriedades, clima, ajustesAviso)
     }
 
     private const val MENSAGEM_SEM_INICIALIZAR =

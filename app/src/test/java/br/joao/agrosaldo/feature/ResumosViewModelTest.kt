@@ -3,6 +3,8 @@ package br.joao.agrosaldo.feature
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -53,7 +55,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
-        val estado = InicioViewModel(lancamentos, propriedades).uiState.value
+        val estado = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria()).uiState.value
 
         assertFalse(estado.carregando)
         assertEquals("Fazenda São João da Serra", estado.nomePropriedade)
@@ -64,7 +66,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `pra onde foi o dinheiro ordena do maior gasto para o menor`() {
-        val gastos = InicioViewModel(lancamentos, propriedades).uiState.value.gastosPorCategoria
+        val gastos = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria()).uiState.value.gastosPorCategoria
 
         assertEquals(
             listOf(CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO, CategoriaLancamento.COMBUSTIVEL),
@@ -76,7 +78,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `RF10 - voltar um mes mostra o historico do mes anterior`() {
-        val vm = InicioViewModel(lancamentos, propriedades)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
         vm.aoVoltarMes()
 
         val estado = vm.uiState.value
@@ -87,7 +89,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `trocar de propriedade recalcula tudo`() {
-        val vm = InicioViewModel(lancamentos, propriedades)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
         val estado = vm.uiState.value
@@ -97,7 +99,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `lancamento novo aparece no inicio sem ninguem pedir`() = runTest {
-        val vm = InicioViewModel(lancamentos, propriedades)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
         lancamentos.salvar(
             Lancamento(
                 propriedadeId = DadosDeExemplo.ID_FAZENDA,
@@ -111,7 +113,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `mes sem movimento deixa a barra meio a meio`() {
-        val vm = InicioViewModel(lancamentos, propriedades)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
         repeat(3) { vm.aoAvancarMes() }
 
         assertEquals(0L, vm.uiState.value.saldoCentavos)
@@ -120,7 +122,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `sem nenhuma propriedade o inicio pede para cadastrar`() {
-        val vm = InicioViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()))
+        val vm = InicioViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), ClimaRepositoryMemoria(), AjustesAvisoMemoria())
         assertFalse(vm.uiState.value.temPropriedade)
         assertFalse(vm.uiState.value.carregando)
     }

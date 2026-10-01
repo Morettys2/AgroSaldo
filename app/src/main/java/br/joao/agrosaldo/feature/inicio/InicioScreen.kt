@@ -19,15 +19,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Grass
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,9 +33,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,11 +43,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.LinhaLancamento
 import br.joao.agrosaldo.core.ui.SeletorMes
+import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
-import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
@@ -140,6 +134,7 @@ fun InicioScreen(
 
                 item {
                     CartaoChuva(
+                        chuva = uiState.chuva,
                         aoClicar = aoAbrirClima,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -279,11 +274,11 @@ private fun CartaoSaldo(uiState: InicioUiState, modifier: Modifier = Modifier) {
 }
 
 /**
- * Por enquanto o aviso é fixo. Na fase 6 ele passa a vir do ViewModel,
- * alimentado pela Open-Meteo, e some quando não houver chuva prevista.
+ * Resumo da chuva das próximas horas, lido do cache da previsão. Sem
+ * previsão guardada ainda, mostra o convite para abrir a tela de clima.
  */
 @Composable
-private fun CartaoChuva(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
+private fun CartaoChuva(chuva: CartaoChuvaUi?, aoClicar: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer),
@@ -311,12 +306,12 @@ private fun CartaoChuva(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = "Previsão de chuva",
+                    text = chuva?.titulo ?: "Previsão de chuva",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.agro.sobreClimaContainer
                 )
                 Text(
-                    text = "Toque para ver os próximos dias",
+                    text = chuva?.detalhe ?: "Toque para ver os próximos dias",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.agro.sobreClimaContainer
                 )
@@ -370,41 +365,6 @@ private fun Secao(titulo: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
     )
-}
-
-@Composable
-private fun SeletorPropriedade(
-    nome: String,
-    propriedades: List<Propriedade>,
-    aoSelecionar: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var aberto by remember { mutableStateOf(false) }
-
-    Box(modifier = modifier) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { aberto = true }
-        ) {
-            Text(text = nome, style = MaterialTheme.typography.titleLarge)
-            Icon(
-                imageVector = Icons.Filled.ArrowDropDown,
-                contentDescription = "Trocar propriedade",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-            propriedades.forEach { propriedade ->
-                DropdownMenuItem(
-                    text = { Text(propriedade.nome) },
-                    onClick = {
-                        aoSelecionar(propriedade.id)
-                        aberto = false
-                    }
-                )
-            }
-        }
-    }
 }
 
 /** Tela 05 do Figma — primeiro acesso, antes de existir qualquer propriedade. */
@@ -477,6 +437,11 @@ private fun InicioPreview() {
                     GastoPorCategoria(CategoriaLancamento.ENERGIA, 125_000L, 1f),
                     GastoPorCategoria(CategoriaLancamento.ADUBO, 78_000L, 0.62f),
                     GastoPorCategoria(CategoriaLancamento.COMBUSTIVEL, 32_000L, 0.26f)
+                ),
+                chuva = CartaoChuvaUi(
+                    titulo = "Chuva prevista a partir das 18h",
+                    detalhe = "80% de chance · 6 mm · dá para adiar o pivô",
+                    vaiChover = true
                 ),
                 ultimosLancamentos = listOf(
                     Lancamento(

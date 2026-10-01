@@ -11,19 +11,21 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 
 /**
- * Simula quem já usava o app da fase 3 e atualizou para a versão com login.
+ * Simula quem já usava o app da fase 3 e atualizou direto para a versão
+ * mais nova: o banco passa pela migração 1→2 (login) e depois 2→3 (clima).
  *
  * 1. Cria no emulador um arquivo SQLite exatamente como o da versão 1, com
  *    as propriedades e os lançamentos de exemplo.
- * 2. Abre esse arquivo com o Room da versão 2.
+ * 2. Abre esse arquivo com o Room atual.
  *
- * Ao abrir, o Room roda a MIGRACAO_1_2 e depois CONFERE o banco resultante
+ * Ao abrir, o Room roda as migrações em ordem e depois CONFERE o banco resultante
  * contra as entidades: se faltar uma coluna, um índice ou uma chave, ele
  * lança erro aqui — e não no celular do produtor.
  */
@@ -54,7 +56,7 @@ class MigracaoTest {
     )
 
     @Test
-    fun migracao1Para2MantemTodosOsDadosEPassaNaConferenciaDoRoom() {
+    fun migracaoDaVersao1AteAAtualMantemTodosOsDadosEPassaNaConferenciaDoRoom() {
         // 1. Banco da versão 1, com dados.
         val caminho = context.getDatabasePath(arquivo)
         caminho.parentFile?.mkdirs()
@@ -67,9 +69,9 @@ class MigracaoTest {
             antigo.version = 1
         }
 
-        // 2. Abre com o Room da versão 2. A migração roda aqui.
+        // 2. Abre com o Room atual. As migrações rodam aqui.
         val banco = Room.databaseBuilder(context, AgroSaldoDatabase::class.java, arquivo)
-            .addMigrations(AgroSaldoDatabase.MIGRACAO_1_2)
+            .addMigrations(*AgroSaldoDatabase.MIGRACOES)
             .build()
 
         try {
@@ -87,6 +89,9 @@ class MigracaoTest {
                 // Nenhum lançamento se perdeu na migração.
                 assertEquals(9, banco.lancamentoDao().observarDoUsuario("u1").first().size)
                 assertEquals(2, banco.propriedadeDao().contarDoUsuario("u1"))
+
+                // A tabela do clima (versão 3) existe e começa vazia.
+                assertNull(banco.previsaoDao().buscar(DadosDeExemplo.ID_FAZENDA))
             }
         } finally {
             banco.close()

@@ -66,7 +66,10 @@ fun ConsentimentoScreen(
     aoAceitar: () -> Unit,
     aoLerPolitica: () -> Unit,
     aoRecusar: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    titulo: String = "Seus dados são seus",
+    introducao: String = "Antes de começar, precisamos do seu aceite — exigência da LGPD (Lei 13.709/2018).",
+    textoRecusar: String = "Não aceito"
 ) {
     Column(
         modifier = modifier
@@ -95,9 +98,9 @@ fun ConsentimentoScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        Text(text = "Seus dados são seus", style = MaterialTheme.typography.headlineMedium)
+        Text(text = titulo, style = MaterialTheme.typography.headlineMedium)
         Text(
-            text = "Antes de começar, precisamos do seu aceite — exigência da LGPD (Lei 13.709/2018).",
+            text = introducao,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -111,6 +114,11 @@ fun ConsentimentoScreen(
         CartaoPonto(
             titulo = "A previsão do tempo usa só as coordenadas",
             texto = "Enviamos latitude e longitude para a Open-Meteo. Nada além disso."
+        )
+        CartaoPonto(
+            titulo = "Localização só quando você pede",
+            texto = "O GPS é usado apenas para preencher as coordenadas do sítio, quando você toca no botão. " +
+                "Nada é rastreado nem guardado além das coordenadas que você salvar."
         )
         CartaoPonto(
             titulo = "Você apaga quando quiser",
@@ -152,7 +160,7 @@ fun ConsentimentoScreen(
 
         TextButton(onClick = aoRecusar, enabled = !criando, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = "Não aceito",
+                text = textoRecusar,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

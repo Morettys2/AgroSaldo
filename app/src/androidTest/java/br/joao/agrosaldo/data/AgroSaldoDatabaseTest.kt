@@ -9,6 +9,7 @@ import br.joao.agrosaldo.data.local.Semeador
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.dao.UsuarioDao
+import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -227,5 +228,21 @@ class AgroSaldoDatabaseTest {
         }
         // A outra conta não foi tocada.
         assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
+    }
+
+    // ---------- cache do clima ----------
+
+    @Test
+    fun previsaoGuardadaSomeJuntoComAPropriedade() = runBlocking {
+        semearExemplos()
+        val previsaoDao = banco.previsaoDao()
+        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
+        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{\"nova\":1}", 2L))
+
+        // Upsert: a segunda gravação substitui a primeira, sem duplicar.
+        assertEquals(2L, previsaoDao.buscar(DadosDeExemplo.ID_SITIO)?.obtidaEm)
+
+        propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
+        assertNull(previsaoDao.buscar(DadosDeExemplo.ID_SITIO))
     }
 }

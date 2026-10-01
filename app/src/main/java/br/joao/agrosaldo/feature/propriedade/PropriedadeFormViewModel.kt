@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -87,6 +88,22 @@ class PropriedadeFormViewModel(
     fun aoMudarArea(v: String) = _uiState.update { it.copy(area = v, erroArea = null) }
     fun aoMudarLatitude(v: String) = _uiState.update { it.copy(latitude = v, erroCoordenadas = null) }
     fun aoMudarLongitude(v: String) = _uiState.update { it.copy(longitude = v, erroCoordenadas = null) }
+
+    /**
+     * O GPS do celular encontrou onde a pessoa está. Preenche os dois campos
+     * com 6 casas (≈ 10 cm de precisão — mais que suficiente) e com vírgula,
+     * que é como o produtor leria e editaria.
+     */
+    fun aoUsarLocalizacao(latitude: Double, longitude: Double) = _uiState.update {
+        it.copy(
+            latitude = formatarCoordenada(latitude),
+            longitude = formatarCoordenada(longitude),
+            erroCoordenadas = null
+        )
+    }
+
+    private fun formatarCoordenada(valor: Double): String =
+        String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
     fun aoSalvar() {
         val estado = _uiState.value

@@ -1,0 +1,43 @@
+package br.joao.agrosaldo.data.repository
+
+import br.joao.agrosaldo.domain.clima.Previsao
+import br.joao.agrosaldo.domain.model.Propriedade
+import br.joao.agrosaldo.domain.repository.ClimaRepository
+import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+
+/**
+ * Fake para os testes: as previsões ficam num mapa, e [proximaAtualizacao]
+ * define o que a "internet" responde (por padrão, falta de conexão).
+ */
+class ClimaRepositoryMemoria(
+    iniciais: Map<String, Previsao> = emptyMap()
+) : ClimaRepository {
+
+    private val _previsoes = MutableStateFlow(iniciais)
+
+    /** O que a próxima busca "na internet" devolve, por propriedade. */
+    var respostas: Map<String, Previsao> = emptyMap()
+    var semInternet: Boolean = false
+    var atualizacoes: Int = 0
+        private set
+
+    override fun observar(propriedade: Propriedade): Flow<Previsao?> =
+        _previsoes.map { it[propriedade.id] }
+
+    override suspend fun emCache(propriedade: Propriedade): Previsao? = _previsoes.value[propriedade.id]
+
+    override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
+        atualizacoes++
+        if (semInternet) return ResultadoAtualizacao.SemConexao
+        val nova = respostas[propriedade.id] ?: return ResultadoAtualizacao.Falha("sem resposta de teste")
+        _previsoes.update { it + (propriedade.id to nova) }
+        return ResultadoAtualizacao.Sucesso(nova)
+    }
+
+    override suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao? =
+        if (_previsoes.value.containsKey(propriedade.id)) null else atualizar(propriedade)
+}

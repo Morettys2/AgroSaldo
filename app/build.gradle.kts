@@ -14,8 +14,8 @@ android {
         applicationId = "br.joao.agrosaldo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -43,7 +43,14 @@ ksp {
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
+    // O BOM ("bill of materials") escolhe a versão de todas as bibliotecas do
+    // Compose de uma vez. Guardado numa variável e usado nos dois lugares que
+    // precisam dele (app e testes do emulador) — é o padrão da documentação
+    // do Google e acaba com o aviso "declared multiple times".
+    val composeBom = platform(libs.androidx.compose.bom)
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
@@ -60,9 +67,19 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
+    // Fase B: roda a verificação de chuva com o app fechado, 2x por dia.
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Refinamento: bloqueio com digital ou PIN do celular.
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.fragment.ktx)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
+    // O org.json que vem no Android é só "casca" nos testes do computador.
+    // Este é o de verdade, para testar a leitura da resposta da Open-Meteo.
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

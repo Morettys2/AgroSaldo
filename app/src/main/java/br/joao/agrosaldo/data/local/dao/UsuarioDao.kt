@@ -27,6 +27,9 @@ interface UsuarioDao {
     @Query("SELECT * FROM usuarios WHERE email = :email")
     suspend fun buscarPorEmail(email: String): UsuarioEntity?
 
+    @Query("UPDATE usuarios SET consentimento_em = :em, versao_termo = :versao WHERE id = :id")
+    suspend fun registrarConsentimento(id: String, em: Long, versao: Int)
+
     @Query("UPDATE usuarios SET senha_hash = :senhaHash WHERE id = :id")
     suspend fun atualizarSenha(id: String, senhaHash: String)
 

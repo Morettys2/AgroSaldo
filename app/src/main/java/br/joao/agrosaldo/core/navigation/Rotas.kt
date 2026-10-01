@@ -18,8 +18,12 @@ object Rotas {
     // Abre com ou sem conta (vem do consentimento e da tela de conta).
     const val POLITICA = "politica"
 
+    // Conectado, mas a política mudou: precisa aceitar de novo para seguir.
+    const val NOVO_CONSENTIMENTO = "novo_consentimento"
+
     const val CONTA = "conta"
     const val ALTERAR_SENHA = "conta/senha"
+    const val AJUSTES_AVISO = "clima/aviso"
 
     const val INICIO = "inicio"
     const val LANCAMENTOS = "lancamentos"
@@ -34,8 +38,6 @@ object Rotas {
     /** Telas de quem ainda não entrou. Conectado, o app sai delas. */
     val DE_ENTRADA = setOf(LOGIN, CRIAR_CONTA, CONSENTIMENTO)
 
-    /** Telas que não exigem conta. Desconectado, o app só pode estar nelas. */
-    val PUBLICAS = DE_ENTRADA + POLITICA
 
     fun formLancamento(id: String? = null): String =
         if (id == null) "lancamento/form" else "lancamento/form?$ARG_ID=$id"

@@ -2,6 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Fase B: buscar a previsão na Open-Meteo -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Fase B: aviso de chuva (Android 13+ pergunta ao usuário) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Refinamento: botão "Usar minha localização" no cadastro do sítio.
+         Pedidas só quando a pessoa toca no botão. Sem ACCESS_BACKGROUND_LOCATION:
+         o app nunca usa a localização com a tela fechada. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Celular sem GPS também pode instalar (usa a rede, ou digita à mão). -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+
     <application
         android:name=".AgroSaldoApp"
         android:allowBackup="true"
@@ -11,13 +26,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AgroSaldo">
+        android:theme="@style/Theme.AgroSaldo"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="31">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.AgroSaldo"
-            android:windowSoftInputMode="adjustResize">
+            android:theme="@style/Theme.AgroSaldo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

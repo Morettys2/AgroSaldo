@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+        As cores e fontes do app vêm do Compose (ui/theme). Este tema só
+        vale para o que o Android desenha por fora do Compose.
 
-    <style name="Theme.AgroSaldo" parent="android:Theme.Material.Light.NoActionBar" />
+        Herda do AppCompat por causa da digital: nos Android 8.0 e 8.1, a
+        janela da digital é desenhada pela biblioteca androidx.biometric com
+        componentes do AppCompat, e eles fecham o app se o tema não for
+        AppCompat. DayNight deixa o fundo escuro no modo escuro do celular,
+        sem aquele clarão branco ao abrir.
+    -->
+    <style name="Theme.AgroSaldo" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

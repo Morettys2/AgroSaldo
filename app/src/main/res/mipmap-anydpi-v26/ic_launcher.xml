@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone adaptativo: o Android recorta no formato do celular (círculo,
+     gota, quadrado). O "monochrome" é usado nos ícones temáticos do Android 13+.
+     Mesmo arquivo em mipmap-anydpi e mipmap-anydpi-v26: assim ele vence o
+     ícone padrão do Android Studio, esteja ele em qualquer uma das duas pastas. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_agrosaldo_fundo" />
+    <foreground android:drawable="@drawable/ic_agrosaldo_broto" />
+    <monochrome android:drawable="@drawable/ic_agrosaldo_broto" />
+</adaptive-icon>

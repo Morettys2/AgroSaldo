@@ -45,6 +45,12 @@ private val SECOES = listOf(
             "propriedade para o serviço Open-Meteo. Nenhum nome, e-mail ou valor financeiro é enviado."
     ),
     Secao(
+        "Localização do celular",
+        "O app só usa o GPS quando você toca em \"Usar minha localização\" no cadastro de uma " +
+            "propriedade, e só para preencher a latitude e a longitude dela. A localização não é " +
+            "acompanhada, não roda em segundo plano e não é guardada além das coordenadas que você salvar."
+    ),
+    Secao(
         "Por que tratamos esses dados",
         "Com base no seu consentimento (art. 7º, I, da LGPD), dado ao criar a conta, e só para " +
             "as funções do app: controlar receitas e despesas e avisar sobre chuva."

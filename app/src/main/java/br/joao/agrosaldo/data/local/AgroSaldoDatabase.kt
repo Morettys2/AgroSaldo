@@ -7,9 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
+import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.dao.UsuarioDao
 import br.joao.agrosaldo.data.local.entidade.LancamentoEntity
+import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 
@@ -23,14 +25,20 @@ import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
  * Versões:
  *   1 — propriedades e lançamentos (fase 3)
  *   2 — usuários, e cada propriedade passa a ter dono (login e LGPD)
+ *   3 — cache da previsão do tempo (clima e aviso de chuva)
  *
  * Toda vez que uma tabela muda, [version] sobe e entra uma [Migration]
  * dizendo como converter o banco antigo SEM perder dado. O exportSchema gera
  * um JSON por versão em app/schemas — versione essa pasta no Git.
  */
 @Database(
-    entities = [UsuarioEntity::class, PropriedadeEntity::class, LancamentoEntity::class],
-    version = 2,
+    entities = [
+        UsuarioEntity::class,
+        PropriedadeEntity::class,
+        LancamentoEntity::class,
+        PrevisaoEntity::class
+    ],
+    version = 3,
     exportSchema = true
 )
 abstract class AgroSaldoDatabase : RoomDatabase() {
@@ -38,6 +46,7 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
     abstract fun usuarioDao(): UsuarioDao
     abstract fun propriedadeDao(): PropriedadeDao
     abstract fun lancamentoDao(): LancamentoDao
+    abstract fun previsaoDao(): PrevisaoDao
 
     companion object {
         const val NOME_ARQUIVO = "agrosaldo.db"
@@ -48,6 +57,15 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
                 MigracoesSql.DE_1_PARA_2.forEach { sql -> db.execSQL(sql) }
             }
         }
+
+        val MIGRACAO_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MigracoesSql.DE_2_PARA_3.forEach { sql -> db.execSQL(sql) }
+            }
+        }
+
+        /** Todas, em ordem. Quem está na versão 1 passa pelas duas. */
+        val MIGRACOES: Array<Migration> = arrayOf(MIGRACAO_1_2, MIGRACAO_2_3)
 
         /**
          * Cria o banco. Deve ser chamado uma vez só no app inteiro — abrir o
@@ -66,7 +84,7 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
                 // Sem fallbackToDestructiveMigration de propósito: se faltar
                 // uma migração, o app avisa com erro em vez de apagar os
                 // dados do produtor em silêncio.
-                .addMigrations(MIGRACAO_1_2)
+                .addMigrations(*MIGRACOES)
                 .addCallback(object : Callback() {
                     /**
                      * Roda UMA vez: quando o arquivo do banco é criado.

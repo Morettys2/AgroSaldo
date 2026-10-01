@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Frente do ícone: um broto com uma gota de chuva — saldo e clima.
+     Fica dentro da "zona segura" central de 66dp, que nenhum formato de
+     ícone (círculo, gota, quadrado) corta. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="58"
+        android:scaleX="1.25"
+        android:scaleY="1.25"
+        android:translateY="-4">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M53,50h2.4v24h-2.4z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54.2,64C45,64 38.5,57.5 37.5,47.5C46.5,47.5 53.5,53.5 54.2,64z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54.2,57C55,46 62.5,38.5 72.5,38C72,48.5 64.5,56 54.2,57z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M38,76Q54,70 70,76L70,78.6Q54,72.6 38,78.6z" />
+        <path
+            android:fillColor="#D8E6ED"
+            android:pathData="M66.5,62c0,0 -4.2,4.8 -4.2,7.5a4.2,4.2 0,0 0,8.4 0c0,-2.7 -4.2,-7.5 -4.2,-7.5z" />
+    </group>
+</vector>

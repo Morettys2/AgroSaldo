@@ -132,4 +132,17 @@ class PropriedadeFormViewModelTest {
         assertTrue(restantes.none { it.propriedadeId == DadosDeExemplo.ID_SITIO })
         assertEquals("os da fazenda continuam", 6, restantes.size)
     }
+
+    @Test
+    fun `usar minha localizacao preenche as coordenadas com virgula`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Teste")
+        vm.aoSalvar()  // força os erros aparecerem
+
+        vm.aoUsarLocalizacao(latitude = -21.73694049, longitude = -46.9316)
+
+        assertEquals("-21,736940", vm.uiState.value.latitude)
+        assertEquals("-46,931600", vm.uiState.value.longitude)
+        assertNull(vm.uiState.value.erroCoordenadas)
+    }
 }

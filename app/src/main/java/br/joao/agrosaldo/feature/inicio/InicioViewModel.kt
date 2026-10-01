@@ -5,20 +5,34 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.emMilimetros
+import br.joao.agrosaldo.core.util.horaCurta
 import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.clima.LimitesChuva
+import br.joao.agrosaldo.domain.clima.Previsao
+import br.joao.agrosaldo.domain.clima.RegraDeChuva
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.YearMonth
 
 /** Uma fatia do gasto do mês, já com a proporção calculada para a barra. */
@@ -40,7 +54,16 @@ data class InicioUiState(
     /** Fatia da barra que representa entradas, de 0 a 1. */
     val proporcaoReceitas: Float = 0.5f,
     val gastosPorCategoria: List<GastoPorCategoria> = emptyList(),
-    val ultimosLancamentos: List<Lancamento> = emptyList()
+    val ultimosLancamentos: List<Lancamento> = emptyList(),
+    /** Null enquanto não há previsão guardada para a propriedade. */
+    val chuva: CartaoChuvaUi? = null
+)
+
+/** O cartão azul do Início, agora com a previsão de verdade. */
+data class CartaoChuvaUi(
+    val titulo: String,
+    val detalhe: String,
+    val vaiChover: Boolean
 )
 
 /**
@@ -57,9 +80,13 @@ data class InicioUiState(
  * Nota para a fase 5: com o Room, a soma vira SUM no SQL. Com poucos milhares
  * de lançamentos em memória a diferença não aparece, mas o banco faz melhor.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class InicioViewModel(
     private val lancamentoRepository: LancamentoRepository,
-    private val propriedadeRepository: PropriedadeRepository
+    private val propriedadeRepository: PropriedadeRepository,
+    private val clima: ClimaRepository,
+    private val ajustes: AjustesAvisoRepository,
+    private val relogio: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val _mes = MutableStateFlow(YearMonth.now())
@@ -77,8 +104,52 @@ class InicioViewModel(
             ) { lancamentos, propriedades, selecionadaId, mes ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
             }.collect { estado ->
-                _uiState.value = estado
+                // O cartão de chuva vem de outro fluxo (abaixo); preserva o que já estava.
+                _uiState.value = estado.copy(chuva = _uiState.value.chuva)
             }
+        }
+
+        // Previsão da propriedade selecionada, lida do cache. Se estiver velha
+        // (mais de 1 h), busca uma nova em segundo plano.
+        val propriedadeAtual = combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
+            lista.firstOrNull { it.id == id } ?: lista.firstOrNull()
+        }.distinctUntilChanged()
+
+        viewModelScope.launch {
+            propriedadeAtual.collectLatest { propriedade ->
+                if (propriedade != null) clima.atualizarSeNecessario(propriedade)
+            }
+        }
+
+        viewModelScope.launch {
+            propriedadeAtual
+                .flatMapLatest { propriedade -> if (propriedade == null) flowOf(null) else clima.observar(propriedade) }
+                .combine(ajustes.ajustes) { previsao, aj ->
+                    previsao?.let { cartaoChuva(it, aj.limites) }
+                }
+                .collect { cartao -> _uiState.update { it.copy(chuva = cartao) } }
+        }
+    }
+
+    private fun cartaoChuva(previsao: Previsao, limites: LimitesChuva): CartaoChuvaUi {
+        val avaliacao = RegraDeChuva.avaliar(previsao, Instant.ofEpochMilli(relogio()), limites)
+        return when {
+            !avaliacao.temDados -> CartaoChuvaUi(
+                titulo = "Previsão de chuva",
+                detalhe = "Toque para atualizar a previsão",
+                vaiChover = false
+            )
+            avaliacao.vaiChover -> CartaoChuvaUi(
+                titulo = "Chuva prevista" + (avaliacao.inicioPrevisto?.let { " a partir das ${it.horaCurta()}" } ?: ""),
+                detalhe = "${avaliacao.probabilidadeMaxima}% de chance · ${avaliacao.chuvaTotalMm.emMilimetros()} · " +
+                    "dá para adiar o pivô",
+                vaiChover = true
+            )
+            else -> CartaoChuvaUi(
+                titulo = "Sem chuva nas próximas ${limites.janelaHoras} horas",
+                detalhe = "Até ${avaliacao.probabilidadeMaxima}% de chance · toque para ver os próximos dias",
+                vaiChover = false
+            )
         }
     }
 
@@ -152,7 +223,9 @@ class InicioViewModel(
             initializer {
                 InicioViewModel(
                     lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeRepository = Repositorios.propriedades
+                    propriedadeRepository = Repositorios.propriedades,
+                    clima = Repositorios.clima,
+                    ajustes = Repositorios.ajustesAviso
                 )
             }
         }

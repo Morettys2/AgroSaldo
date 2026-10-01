@@ -1,6 +1,5 @@
 package br.joao.agrosaldo.feature.lancamento
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,12 +13,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -27,9 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.LinhaLancamento
 import br.joao.agrosaldo.core.ui.SeletorMes
+import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -163,51 +157,6 @@ fun LancamentoListaScreen(
                     text = "Novo lançamento",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = 10.dp)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Trocar a propriedade sem sair da tela.
- *
- * DropdownMenu é estável no Material 3 — ExposedDropdownMenuBox daria um
- * visual mais próximo do Figma, mas ainda é API experimental.
- */
-@Composable
-private fun SeletorPropriedade(
-    nome: String,
-    propriedades: List<Propriedade>,
-    aoSelecionar: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var aberto by remember { mutableStateOf(false) }
-
-    Box(modifier = modifier) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { aberto = true }
-        ) {
-            Text(
-                text = nome.ifBlank { "Nenhuma propriedade" },
-                style = MaterialTheme.typography.titleLarge
-            )
-            Icon(
-                imageVector = Icons.Filled.ArrowDropDown,
-                contentDescription = "Trocar propriedade",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-            propriedades.forEach { propriedade ->
-                DropdownMenuItem(
-                    text = { Text(propriedade.nome) },
-                    onClick = {
-                        aoSelecionar(propriedade.id)
-                        aberto = false
-                    }
                 )
             }
         }

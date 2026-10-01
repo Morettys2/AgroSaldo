@@ -30,7 +30,16 @@ data class Usuario(
     }
 }
 
-/** Versão do texto de privacidade que o usuário aceita ao criar a conta. */
+/**
+ * Versão do texto de privacidade.
+ *
+ * Toda vez que o texto muda de um jeito que importa para o usuário, a versão
+ * sobe — e quem aceitou a anterior vê o termo de novo no próximo acesso.
+ *
+ *   1 — texto inicial (login e LGPD)
+ *   2 — o app passa a poder usar a localização do celular, só quando a
+ *       pessoa toca em "Usar minha localização" no cadastro do sítio
+ */
 object TermoDePrivacidade {
-    const val VERSAO_ATUAL = 1
+    const val VERSAO_ATUAL = 2
 }
