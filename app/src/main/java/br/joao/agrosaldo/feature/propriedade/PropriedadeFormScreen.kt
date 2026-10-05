@@ -268,7 +268,7 @@ fun PropriedadeFormScreen(
             text = {
                 Text(
                     "Todos os lançamentos dela também serão apagados. " +
-                        "Essa ação não pode ser desfeita."
+                        "Logo depois, dá para desfazer pela barra que aparece embaixo."
                 )
             },
             confirmButton = {

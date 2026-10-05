@@ -6,8 +6,16 @@ import java.time.Instant
 
 data class AjustesAviso(
     val ativo: Boolean = true,
-    val limites: LimitesChuva = LimitesChuva()
-)
+    val limites: LimitesChuva = LimitesChuva(),
+    /**
+     * Sítios que o produtor desligou do aviso. Guarda os desligados, e não os
+     * ligados, de propósito: uma propriedade nova já nasce avisando, sem
+     * ninguém precisar lembrar de marcar.
+     */
+    val propriedadesSemAviso: Set<String> = emptySet()
+) {
+    fun avisaSobre(propriedadeId: String): Boolean = propriedadeId !in propriedadesSemAviso
+}
 
 /** Ajustes do aviso de chuva (tela 18) e a hora do último aviso de cada propriedade. */
 interface AjustesAvisoRepository {

@@ -355,6 +355,17 @@ class ClimaTest {
     private val comChuva = previsao(mapOf(18 to (85 to 6.0)))
 
     @Test
+    fun `sitio desligado na tela de ajustes nao recebe aviso nem consulta a previsao`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+        val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf("p1")))
+
+        val r = verificador(clima, ajustes).verificar()
+
+        assertEquals(listOf("p2"), r.avisos.map { it.propriedadeId })
+        assertEquals("só o sítio ligado foi consultado", 1, clima.atualizacoes)
+    }
+
+    @Test
     fun `RF14 - avisa so a propriedade onde vai chover`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to previsao()) }
 

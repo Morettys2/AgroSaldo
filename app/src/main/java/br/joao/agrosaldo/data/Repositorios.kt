@@ -3,10 +3,12 @@ package br.joao.agrosaldo.data
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.SystemClock
+import androidx.core.content.edit
 import br.joao.agrosaldo.aviso.AgendaWorkManager
 import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoPreferencias
+import br.joao.agrosaldo.data.preferencias.PrivacidadePreferencias
 import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
@@ -21,6 +23,7 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
+import br.joao.agrosaldo.domain.repository.PrivacidadeRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
@@ -53,6 +56,20 @@ object Repositorios {
             val ehDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
             contexto = context.applicationContext
             banco = AgroSaldoDatabase.criar(context, comDadosDeExemplo = ehDebug)
+            lembrarPropriedadeEscolhida(context.applicationContext)
+        }
+    }
+
+    /**
+     * Quem tem dois sítios não quer escolher o mesmo toda vez que abre o app.
+     * Guarda só o id (um texto aleatório), nada que identifique a propriedade.
+     */
+    private fun lembrarPropriedadeEscolhida(context: Context) {
+        val preferencias = context.getSharedPreferences(ARQUIVO_SELECAO, Context.MODE_PRIVATE)
+        SelecaoAtual.configurar(inicial = preferencias.getString(CHAVE_PROPRIEDADE, null)) { id ->
+            preferencias.edit {
+                if (id == null) remove(CHAVE_PROPRIEDADE) else putString(CHAVE_PROPRIEDADE, id)
+            }
         }
     }
 
@@ -78,7 +95,12 @@ object Repositorios {
             usuarios = usuarios,
             sessao = sessao,
             tentativas = TentativasPreferencias(contextoAberto),
-            aoTrocarDeUsuario = SelecaoAtual::limpar
+            // Trocou de conta: esquece a propriedade escolhida e a exclusão
+            // que ainda dava para desfazer — as duas eram da conta anterior.
+            aoTrocarDeUsuario = {
+                SelecaoAtual.limpar()
+                desfazer.esquecer()
+            }
         )
     }
 
@@ -103,6 +125,15 @@ object Repositorios {
     val verificadorDeChuva: VerificadorDeChuva by lazy {
         VerificadorDeChuva(sessao, propriedades, clima, ajustesAviso)
     }
+
+    /** O "olho" do Início: valores escondidos no app inteiro. */
+    val privacidade: PrivacidadeRepository by lazy { PrivacidadePreferencias(contextoAberto) }
+
+    /** A última exclusão, que ainda pode ser desfeita pela barra de baixo. */
+    val desfazer: Desfazer by lazy { Desfazer(relogioMonotonico) }
+
+    private const val ARQUIVO_SELECAO = "selecao"
+    private const val CHAVE_PROPRIEDADE = "propriedade_id"
 
     private const val MENSAGEM_SEM_INICIALIZAR =
         "O banco não foi inicializado. Confira se o AndroidManifest.xml tem " +

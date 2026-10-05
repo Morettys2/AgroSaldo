@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,6 +67,7 @@ fun AjustesAvisoRoute(
         aoMudarAtivo = viewModel::aoMudarAtivo,
         aoMudarProbabilidade = viewModel::aoMudarProbabilidade,
         aoMudarChuva = viewModel::aoMudarChuva,
+        aoMudarSitio = viewModel::aoMudarSitio,
         aoSalvar = viewModel::aoSalvar,
         modifier = modifier,
         ferramentasDeTeste = if (ehDebug) {
@@ -94,6 +97,7 @@ fun AjustesAvisoScreen(
     aoMudarAtivo: (Boolean) -> Unit,
     aoMudarProbabilidade: (Float) -> Unit,
     aoMudarChuva: (Float) -> Unit,
+    aoMudarSitio: (id: String, avisa: Boolean) -> Unit,
     aoSalvar: () -> Unit,
     modifier: Modifier = Modifier,
     ferramentasDeTeste: FerramentasDeTeste? = null
@@ -183,6 +187,34 @@ fun AjustesAvisoScreen(
             aoMudar = aoMudarChuva
         )
 
+        if (uiState.mostrarSitios) {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = "Avisar sobre",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            uiState.sitios.forEach { sitio ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // A linha toda liga e desliga, e o leitor de tela diz "interruptor".
+                        .toggleable(
+                            value = sitio.avisa,
+                            enabled = uiState.ativo,
+                            role = Role.Switch,
+                            onValueChange = { aoMudarSitio(sitio.id, it) }
+                        )
+                        .padding(vertical = 10.dp)
+                ) {
+                    Text(sitio.nome, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Switch(checked = sitio.avisa, onCheckedChange = null, enabled = uiState.ativo)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+
         Spacer(Modifier.height(20.dp))
 
         Text(
@@ -231,7 +263,7 @@ private fun CartaoLimite(
 ) {
     Card(
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -256,9 +288,14 @@ private fun CartaoLimite(
 private fun AjustesAvisoPreview() {
     AgroSaldoTheme {
         AjustesAvisoScreen(
-            uiState = AjustesAvisoUiState(),
+            uiState = AjustesAvisoUiState(
+                sitios = listOf(
+                    SitioDoAviso("1", "Fazenda São João da Serra", avisa = true),
+                    SitioDoAviso("2", "Sítio Boa Vista", avisa = false)
+                )
+            ),
             permissao = PermissaoNotificacao(concedida = false, podePedir = true, pedir = {}),
-            aoMudarAtivo = {}, aoMudarProbabilidade = {}, aoMudarChuva = {}, aoSalvar = {}
+            aoMudarAtivo = {}, aoMudarProbabilidade = {}, aoMudarChuva = {}, aoMudarSitio = { _, _ -> }, aoSalvar = {}
         )
     }
 }

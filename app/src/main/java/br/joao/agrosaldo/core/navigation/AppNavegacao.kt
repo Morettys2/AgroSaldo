@@ -1,45 +1,70 @@
 package br.joao.agrosaldo.core.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Grass
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Grass
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider
@@ -55,6 +80,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
+import br.joao.agrosaldo.core.ui.LocalValoresOcultos
+import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.feature.clima.AjustesAvisoRoute
 import br.joao.agrosaldo.feature.clima.ClimaRoute
 import br.joao.agrosaldo.feature.conta.AlterarSenhaRoute
@@ -66,26 +94,28 @@ import br.joao.agrosaldo.feature.conta.LoginRoute
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoRoute
 import br.joao.agrosaldo.feature.conta.PoliticaScreen
 import br.joao.agrosaldo.feature.conta.TelaBloqueioRoute
+import br.joao.agrosaldo.feature.historico.HistoricoRoute
 import br.joao.agrosaldo.feature.inicio.InicioRoute
 import br.joao.agrosaldo.feature.lancamento.LancamentoFormRoute
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaRoute
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormRoute
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
+import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
 
 /** Uma aba da barra inferior. */
 private data class Aba(
     val rota: String,
     val rotulo: String,
-    val icone: ImageVector,
-    val iconeSelecionado: ImageVector
+    val icone: ImageVector
 )
 
 private val ABAS = listOf(
-    Aba(Rotas.INICIO, "Início", Icons.Outlined.Home, Icons.Filled.Home),
-    Aba(Rotas.LANCAMENTOS, "Lançamentos", Icons.AutoMirrored.Outlined.List, Icons.AutoMirrored.Filled.List),
-    Aba(Rotas.CLIMA, "Clima", Icons.Outlined.Cloud, Icons.Filled.Cloud),
-    Aba(Rotas.PROPRIEDADES, "Sítios", Icons.Outlined.Grass, Icons.Filled.Grass)
+    Aba(Rotas.INICIO, "Início", IconesAgro.Inicio),
+    Aba(Rotas.LANCAMENTOS, "Lançamentos", IconesAgro.Lista),
+    Aba(Rotas.CLIMA, "Clima", IconesAgro.Nuvem),
+    Aba(Rotas.PROPRIEDADES, "Sítios", IconesAgro.Sitio)
 )
 
 /**
@@ -106,8 +136,11 @@ private val ABAS = listOf(
 fun AppNavegacao(
     abrirClima: Boolean = false,
     navController: NavHostController = rememberNavController(),
-    sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory)
+    sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
+    privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory),
+    desfazer: Desfazer = Repositorios.desfazer
 ) {
+    val valoresOcultos by privacidadeViewModel.valoresOcultos.collectAsStateWithLifecycle()
     val logado by sessaoViewModel.logado.collectAsStateWithLifecycle()
     val precisaNovoAceite by sessaoViewModel.precisaNovoAceite.collectAsStateWithLifecycle()
     val precisaDesbloquear by sessaoViewModel.precisaDesbloquear.collectAsStateWithLifecycle()
@@ -162,7 +195,7 @@ fun AppNavegacao(
     LaunchedEffect(abrirClima) {
         if (abrirClima && logado && !jaAbriuClima) {
             // Espera o NavHost montar a primeira tela antes de navegar.
-            snapshotFlow { navController.currentBackStackEntry }.first { it != null }
+            navController.currentBackStackEntryFlow.first()
             jaAbriuClima = true
             navegarParaAba(navController, Rotas.CLIMA)
         }
@@ -176,245 +209,358 @@ fun AppNavegacao(
         if (precisaDesbloquear) foco.clearFocus(force = true)
     }
 
+    /**
+     * "Lançamento excluído — Desfazer". A barra fica aqui, e não na tela que
+     * excluiu, porque essa tela já fechou quando a barra aparece.
+     *
+     * Se a exclusão pendente mudar (outra exclusão, ou trocou de conta), o
+     * LaunchedEffect reinicia e a barra antiga some sozinha.
+     */
+    val estadoDaBarra = remember { SnackbarHostState() }
+    val exclusaoPendente by desfazer.pendente.collectAsStateWithLifecycle()
+    LaunchedEffect(exclusaoPendente) {
+        val exclusao = exclusaoPendente ?: return@LaunchedEffect
+        // Reabriu o app muito depois: a oferta antiga não volta.
+        if (desfazer.expirou(exclusao)) {
+            desfazer.dispensar(exclusao)
+            return@LaunchedEffect
+        }
+        val resultado = estadoDaBarra.showSnackbar(
+            message = exclusao.mensagem,
+            actionLabel = "Desfazer",
+            withDismissAction = true,
+            duration = SnackbarDuration.Long
+        )
+        if (resultado == SnackbarResult.ActionPerformed) {
+            if (!desfazer.desfazer(exclusao)) {
+                estadoDaBarra.showSnackbar("Não foi possível desfazer.")
+            }
+        } else {
+            desfazer.dispensar(exclusao)
+        }
+    }
+
     val entradaAtual by navController.currentBackStackEntryAsState()
     val rotaAtual = entradaAtual?.destination?.route
 
-    val ehAbaPrincipal = ABAS.any { it.rota == rotaAtual }
+    val ehAbaPrincipal = rotaAtual in Rotas.ABAS
+    val cabecalhoEscuro = rotaAtual in Rotas.COM_CABECALHO_ESCURO
+
+    // Ícones da barra de status (relógio, bateria): claros sobre o cabeçalho
+    // verde-noite e no modo escuro; escuros nas telas claras. Sem isto, o
+    // relógio ficaria preto sobre o verde-escuro, quase invisível.
+    val modoEscuro = isSystemInDarkTheme()
+    val vista = LocalView.current
+    if (!vista.isInEditMode) {
+        SideEffect {
+            contexto.acharFragmentActivity()?.window?.let { janela ->
+                // A tela de bloqueio é clara e fica por cima de tudo.
+                WindowCompat.getInsetsController(janela, vista).isAppearanceLightStatusBars =
+                    !modoEscuro && (precisaDesbloquear || !cabecalhoEscuro)
+            }
+        }
+    }
 
     val titulo = when (rotaAtual) {
-        Rotas.PROPRIEDADES -> "Propriedades"
         Rotas.CRIAR_CONTA -> "Criar conta"
         Rotas.CONTA -> "Conta"
         Rotas.ALTERAR_SENHA -> "Alterar senha"
         Rotas.AJUSTES_AVISO -> "Aviso de chuva"
         Rotas.POLITICA -> "Privacidade e dados"
-        Rotas.FORM_LANCAMENTO ->
-            if (entradaAtual?.arguments?.getString(Rotas.ARG_ID) == null) "Novo lançamento"
-            else "Editar lançamento"
+        Rotas.HISTORICO -> "Histórico"
         Rotas.FORM_PROPRIEDADE ->
             if (entradaAtual?.arguments?.getString(Rotas.ARG_ID) == null) "Nova propriedade"
             else "Editar propriedade"
-        // Início, Lançamentos e Clima têm o seletor de propriedade como cabeçalho.
+        // As abas e o novo lançamento têm o próprio cabeçalho verde-noite.
         // Login e consentimento têm a marca do app no lugar da barra.
         else -> null
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            // Travado: o conteúdo continua montado embaixo (para voltar na mesma
-            // tela, com o que estava digitado), mas some para o leitor de tela.
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (precisaDesbloquear) Modifier.clearAndSetSemantics { } else Modifier),
-            topBar = {
-                if (titulo != null) {
-                    TopAppBar(
-                        title = { Text(titulo, style = MaterialTheme.typography.titleLarge) },
-                        navigationIcon = {
-                            if (!ehAbaPrincipal) {
-                                IconButton(onClick = { navController.popBackStack() }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Voltar"
-                                    )
+    /**
+     * Abre o formulário de lançamento, se ele já não estiver aberto. Dois
+     * toques rápidos no "+" (ou num atalho) empilhariam dois formulários.
+     */
+    val abrirFormulario: (String) -> Unit = { rota ->
+        if (navController.currentDestination?.route != Rotas.FORM_LANCAMENTO) navController.navigate(rota)
+    }
+    val abrirNovoLancamento = { abrirFormulario(Rotas.formLancamento()) }
+
+    // O "olho" do Início vale para o app inteiro: toda tela que mostra
+    // dinheiro lê LocalValoresOcultos.
+    CompositionLocalProvider(LocalValoresOcultos provides valoresOcultos) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                // Travado: o conteúdo continua montado embaixo (para voltar na mesma
+                // tela, com o que estava digitado), mas some para o leitor de tela.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (precisaDesbloquear) Modifier.clearAndSetSemantics { } else Modifier),
+                // O Scaffold já põe a barra do "Desfazer" acima da barra de baixo.
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = estadoDaBarra,
+                        // No formulário não há barra de baixo: sem isto, o "Desfazer"
+                        // ficaria em cima do botão de salvar.
+                        modifier = if (rotaAtual == Rotas.FORM_LANCAMENTO) {
+                            Modifier
+                                .navigationBarsPadding()
+                                .padding(bottom = 84.dp)
+                        } else {
+                            Modifier
+                        }
+                    )
+                },
+                // Com o cabeçalho verde-noite, a tela vai até o topo e o próprio
+                // cabeçalho se afasta do relógio. Nas outras, o Scaffold reserva o espaço.
+                // Os lados continuam valendo: deitado, com a barra de navegação ou
+                // o recorte da câmera do lado, nada fica escondido embaixo deles.
+                contentWindowInsets = if (cabecalhoEscuro) {
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                } else {
+                    ScaffoldDefaults.contentWindowInsets
+                },
+                topBar = {
+                    if (titulo != null) {
+                        TopAppBar(
+                            title = { Text(titulo, style = MaterialTheme.typography.titleLarge) },
+                            navigationIcon = {
+                                if (!ehAbaPrincipal) {
+                                    IconButton(onClick = { navController.popBackStack() }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Voltar"
+                                        )
+                                    }
                                 }
-                            }
-                        },
-                        actions = {
-                            // Tela 12 do Figma: a conta abre pelo canto da lista de propriedades.
-                            if (rotaAtual == Rotas.PROPRIEDADES) {
-                                IconButton(onClick = { navController.navigate(Rotas.CONTA) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.AccountCircle,
-                                        contentDescription = "Abrir conta"
-                                    )
-                                }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background
+                            )
                         )
-                    )
-                }
-            },
-            bottomBar = {
-                // Formulários escondem a barra inferior: é uma tarefa que precisa
-                // ser concluída ou cancelada, não um lugar pra onde se navega.
-                if (ehAbaPrincipal) {
-                    BarraInferior(
-                        rotaAtual = entradaAtual?.destination,
-                        aoSelecionar = { rota -> navegarParaAba(navController, rota) }
-                    )
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { espacoInterno ->
-
-            NavHost(
-                navController = navController,
-                startDestination = destinoInicial,
-                modifier = Modifier.padding(espacoInterno)
-            ) {
-
-                // ---------- entrada ----------
-
-                composable(Rotas.LOGIN) {
-                    LoginRoute(aoCriarConta = { navController.navigate(Rotas.CRIAR_CONTA) })
-                }
-
-                composable(Rotas.CRIAR_CONTA) {
-                    // Este ViewModel fica guardado na entrada CRIAR_CONTA da
-                    // pilha. O consentimento, logo abaixo, pega o mesmo.
-                    val cadastroViewModel: CadastroViewModel = viewModel(factory = CadastroViewModel.Factory)
-                    CadastroRoute(
-                        viewModel = cadastroViewModel,
-                        aoIrParaConsentimento = { navController.navigate(Rotas.CONSENTIMENTO) },
-                        aoVoltarParaLogin = { navController.popBackStack() }
-                    )
-                }
-
-                composable(Rotas.CONSENTIMENTO) { entrada ->
-                    // Duas telas dividindo um ViewModel: pedimos o dono dele — a
-                    // entrada CRIAR_CONTA, que continua na pilha por baixo — e o
-                    // ViewModel guardado nela. Como ele já existe lá, vem o mesmo
-                    // objeto, com o formulário preenchido.
-                    //
-                    // Fica dentro de remember de propósito: depois que a conta é
-                    // criada, a pilha inteira é limpa e a entrada CRIAR_CONTA deixa
-                    // de existir enquanto esta tela ainda anima a saída. Buscar de
-                    // novo nesse instante derrubaria o app; com remember, a busca
-                    // acontece uma vez só.
-                    val cadastroViewModel = remember(entrada) {
-                        val donoDoCadastro = navController.getBackStackEntry(Rotas.CRIAR_CONTA)
-                        ViewModelProvider(donoDoCadastro, CadastroViewModel.Factory)[CadastroViewModel::class.java]
                     }
-                    ConsentimentoRoute(
-                        viewModel = cadastroViewModel,
-                        aoLerPolitica = { navController.navigate(Rotas.POLITICA) },
-                        // Recusar volta para o login sem ter gravado nada.
-                        aoRecusar = { navController.popBackStack(Rotas.LOGIN, inclusive = false) }
-                    )
-                }
+                },
+                bottomBar = {
+                    // Formulários escondem a barra inferior: é uma tarefa que precisa
+                    // ser concluída ou cancelada, não um lugar pra onde se navega.
+                    if (ehAbaPrincipal) {
+                        BarraInferior(
+                            rotaAtual = entradaAtual?.destination,
+                            aoSelecionar = { rota -> navegarParaAba(navController, rota) },
+                            aoNovoLancamento = abrirNovoLancamento
+                        )
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.background
+            ) { espacoInterno ->
 
-                composable(Rotas.POLITICA) {
-                    PoliticaScreen()
-                }
+                NavHost(
+                    navController = navController,
+                    startDestination = destinoInicial,
+                    modifier = Modifier.padding(espacoInterno)
+                ) {
 
-                composable(Rotas.NOVO_CONSENTIMENTO) {
-                    // Aceitar ou recusar só mexe na sessão; o LaunchedEffect lá
-                    // em cima leva para o Início ou para o login.
-                    NovoConsentimentoRoute(aoLerPolitica = { navController.navigate(Rotas.POLITICA) })
-                }
+                    // ---------- entrada ----------
 
-                // ---------- dentro da conta ----------
+                    composable(Rotas.LOGIN) {
+                        LoginRoute(aoCriarConta = { navController.navigate(Rotas.CRIAR_CONTA) })
+                    }
 
-                composable(Rotas.CONTA) {
-                    ContaRoute(
-                        aoAbrirPrivacidade = { navController.navigate(Rotas.POLITICA) },
-                        aoAlterarSenha = { navController.navigate(Rotas.ALTERAR_SENHA) },
-                        aoAbrirAvisoChuva = { navController.navigate(Rotas.AJUSTES_AVISO) },
-                        aoAbrirPropriedades = { navegarParaAba(navController, Rotas.PROPRIEDADES) }
-                    )
-                }
+                    composable(Rotas.CRIAR_CONTA) {
+                        // Este ViewModel fica guardado na entrada CRIAR_CONTA da
+                        // pilha. O consentimento, logo abaixo, pega o mesmo.
+                        val cadastroViewModel: CadastroViewModel = viewModel(factory = CadastroViewModel.Factory)
+                        CadastroRoute(
+                            viewModel = cadastroViewModel,
+                            aoIrParaConsentimento = { navController.navigate(Rotas.CONSENTIMENTO) },
+                            aoVoltarParaLogin = { navController.popBackStack() }
+                        )
+                    }
 
-                composable(Rotas.ALTERAR_SENHA) {
-                    AlterarSenhaRoute(
-                        aoConcluir = {
-                            // Só volta se ainda estiver nesta tela: se a pessoa já
-                            // tocou em voltar, um segundo pop fecharia a Conta também.
-                            if (navController.currentDestination?.route == Rotas.ALTERAR_SENHA) {
-                                navController.popBackStack()
+                    composable(Rotas.CONSENTIMENTO) { entrada ->
+                        // Duas telas dividindo um ViewModel: pedimos o dono dele — a
+                        // entrada CRIAR_CONTA, que continua na pilha por baixo — e o
+                        // ViewModel guardado nela. Como ele já existe lá, vem o mesmo
+                        // objeto, com o formulário preenchido.
+                        //
+                        // Fica dentro de remember de propósito: depois que a conta é
+                        // criada, a pilha inteira é limpa e a entrada CRIAR_CONTA deixa
+                        // de existir enquanto esta tela ainda anima a saída. Buscar de
+                        // novo nesse instante derrubaria o app; com remember, a busca
+                        // acontece uma vez só.
+                        val cadastroViewModel = remember(entrada) {
+                            val donoDoCadastro = navController.getBackStackEntry(Rotas.CRIAR_CONTA)
+                            ViewModelProvider(donoDoCadastro, CadastroViewModel.Factory)[CadastroViewModel::class.java]
+                        }
+                        ConsentimentoRoute(
+                            viewModel = cadastroViewModel,
+                            aoLerPolitica = { navController.navigate(Rotas.POLITICA) },
+                            // Recusar volta para o login sem ter gravado nada.
+                            aoRecusar = { navController.popBackStack(Rotas.LOGIN, inclusive = false) }
+                        )
+                    }
+
+                    composable(Rotas.POLITICA) {
+                        PoliticaScreen()
+                    }
+
+                    composable(Rotas.NOVO_CONSENTIMENTO) {
+                        // Aceitar ou recusar só mexe na sessão; o LaunchedEffect lá
+                        // em cima leva para o Início ou para o login.
+                        NovoConsentimentoRoute(aoLerPolitica = { navController.navigate(Rotas.POLITICA) })
+                    }
+
+                    // ---------- dentro da conta ----------
+
+                    composable(Rotas.CONTA) {
+                        ContaRoute(
+                            aoAbrirPrivacidade = { navController.navigate(Rotas.POLITICA) },
+                            aoAlterarSenha = { navController.navigate(Rotas.ALTERAR_SENHA) },
+                            aoAbrirAvisoChuva = { navController.navigate(Rotas.AJUSTES_AVISO) },
+                            aoAbrirPropriedades = { navegarParaAba(navController, Rotas.PROPRIEDADES) }
+                        )
+                    }
+
+                    composable(Rotas.ALTERAR_SENHA) {
+                        AlterarSenhaRoute(
+                            aoConcluir = {
+                                // Só volta se ainda estiver nesta tela: se a pessoa já
+                                // tocou em voltar, um segundo pop fecharia a Conta também.
+                                if (navController.currentDestination?.route == Rotas.ALTERAR_SENHA) {
+                                    navController.popBackStack()
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
 
-                composable(Rotas.INICIO) {
-                    InicioRoute(
-                        aoNovoLancamento = { navController.navigate(Rotas.formLancamento()) },
-                        aoEditarLancamento = { id -> navController.navigate(Rotas.formLancamento(id)) },
-                        aoAbrirClima = { navegarParaAba(navController, Rotas.CLIMA) },
-                        aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
-                    )
-                }
+                    composable(Rotas.INICIO) {
+                        InicioRoute(
+                            aoNovoLancamento = { tipo -> abrirFormulario(Rotas.formLancamento(tipo = tipo)) },
+                            aoEditarLancamento = { id -> abrirFormulario(Rotas.formLancamento(id)) },
+                            aoAbrirClima = { navegarParaAba(navController, Rotas.CLIMA) },
+                            aoAbrirHistorico = { navController.navigate(Rotas.HISTORICO) },
+                            aoAbrirLancamentos = { navegarParaAba(navController, Rotas.LANCAMENTOS) },
+                            aoAbrirConta = { navController.navigate(Rotas.CONTA) },
+                            aoAlternarValores = privacidadeViewModel::aoAlternar,
+                            aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
+                        )
+                    }
 
-                composable(Rotas.LANCAMENTOS) {
-                    LancamentoListaRoute(
-                        aoNovoLancamento = { navController.navigate(Rotas.formLancamento()) },
-                        aoEditarLancamento = { id -> navController.navigate(Rotas.formLancamento(id)) }
-                    )
-                }
+                    composable(Rotas.HISTORICO) {
+                        // Tocar num mês abre a aba Lançamentos naquele mês: o
+                        // ViewModel já deixou o mês escolhido em SelecaoAtual.
+                        HistoricoRoute(aoAbrirMes = { navegarParaAba(navController, Rotas.LANCAMENTOS) })
+                    }
 
-                composable(Rotas.CLIMA) {
-                    ClimaRoute(
-                        aoAbrirAjustes = { navController.navigate(Rotas.AJUSTES_AVISO) },
-                        aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
-                    )
-                }
+                    composable(Rotas.LANCAMENTOS) {
+                        LancamentoListaRoute(
+                            aoEditarLancamento = { id -> abrirFormulario(Rotas.formLancamento(id)) }
+                        )
+                    }
 
-                composable(Rotas.AJUSTES_AVISO) {
-                    AjustesAvisoRoute(
-                        aoConcluir = {
-                            if (navController.currentDestination?.route == Rotas.AJUSTES_AVISO) {
-                                navController.popBackStack()
+                    composable(Rotas.CLIMA) {
+                        ClimaRoute(
+                            aoAbrirAjustes = { navController.navigate(Rotas.AJUSTES_AVISO) },
+                            aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
+                        )
+                    }
+
+                    composable(Rotas.AJUSTES_AVISO) {
+                        AjustesAvisoRoute(
+                            aoConcluir = {
+                                if (navController.currentDestination?.route == Rotas.AJUSTES_AVISO) {
+                                    navController.popBackStack()
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+
+                    composable(Rotas.PROPRIEDADES) {
+                        PropriedadeListaRoute(
+                            aoAbrirNova = { navController.navigate(Rotas.formPropriedade()) },
+                            aoAbrirPropriedade = { id -> navController.navigate(Rotas.formPropriedade(id)) },
+                            // Tela 12 do Figma: a conta abre pelo canto da lista de propriedades.
+                            aoAbrirConta = { navController.navigate(Rotas.CONTA) }
+                        )
+                    }
+
+                    composable(
+                        route = Rotas.FORM_LANCAMENTO,
+                        arguments = listOf(
+                            navArgument(Rotas.ARG_ID) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument(Rotas.ARG_COPIA) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument(Rotas.ARG_TIPO) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
+                        )
+                    ) { entrada ->
+                        LancamentoFormRoute(
+                            lancamentoId = entrada.arguments?.getString(Rotas.ARG_ID),
+                            copiaDe = entrada.arguments?.getString(Rotas.ARG_COPIA),
+                            tipoInicial = Rotas.tipoDaRota(entrada.arguments?.getString(Rotas.ARG_TIPO)),
+                            // Só fecha se ainda estiver nele: o X tocado duas vezes durante a
+                            // animação de saída fecharia também a aba de baixo.
+                            aoConcluir = {
+                                if (navController.currentDestination?.route == Rotas.FORM_LANCAMENTO) {
+                                    navController.popBackStack()
+                                }
+                            },
+                            // Sem nenhum sítio: troca o formulário pelo cadastro do sítio.
+                            aoCadastrarPropriedade = {
+                                navController.navigate(Rotas.formPropriedade()) {
+                                    popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
+                                }
+                            },
+                            // Troca a edição pela cópia: o "voltar" da cópia leva
+                            // para a lista, não de volta para a edição.
+                            aoLancarDeNovo = { id ->
+                                navController.navigate(Rotas.formLancamento(copiaDe = id)) {
+                                    popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
+                    composable(
+                        route = Rotas.FORM_PROPRIEDADE,
+                        arguments = listOf(
+                            navArgument(Rotas.ARG_ID) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
+                        )
+                    ) { entrada ->
+                        PropriedadeFormRoute(
+                            propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
+                            aoConcluir = { navController.popBackStack() }
+                        )
+                    }
                 }
 
-                composable(Rotas.PROPRIEDADES) {
-                    PropriedadeListaRoute(
-                        aoAbrirNova = { navController.navigate(Rotas.formPropriedade()) },
-                        aoAbrirPropriedade = { id -> navController.navigate(Rotas.formPropriedade(id)) }
-                    )
-                }
-
-                composable(
-                    route = Rotas.FORM_LANCAMENTO,
-                    arguments = listOf(
-                        navArgument(Rotas.ARG_ID) {
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        }
-                    )
-                ) { entrada ->
-                    LancamentoFormRoute(
-                        lancamentoId = entrada.arguments?.getString(Rotas.ARG_ID),
-                        aoConcluir = { navController.popBackStack() }
-                    )
-                }
-
-                composable(
-                    route = Rotas.FORM_PROPRIEDADE,
-                    arguments = listOf(
-                        navArgument(Rotas.ARG_ID) {
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        }
-                    )
-                ) { entrada ->
-                    PropriedadeFormRoute(
-                        propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
-                        aoConcluir = { navController.popBackStack() }
-                    )
+                // Voltar com o app travado manda o app para o fundo. Fica aqui,
+                // depois do NavHost, para ter prioridade sobre o "voltar" dele
+                // mesmo quando o app já abre travado.
+                BackHandler(enabled = precisaDesbloquear) {
+                    contexto.acharFragmentActivity()?.moveTaskToBack(true)
                 }
             }
 
-            // Voltar com o app travado manda o app para o fundo. Fica aqui,
-            // depois do NavHost, para ter prioridade sobre o "voltar" dele
-            // mesmo quando o app já abre travado.
-            BackHandler(enabled = precisaDesbloquear) {
-                contexto.acharFragmentActivity()?.moveTaskToBack(true)
+            if (precisaDesbloquear) {
+                TelaBloqueioRoute(
+                    aoDesbloquear = sessaoViewModel::aoDesbloquear,
+                    aoUsarSenha = sessaoViewModel::aoUsarSenha
+                )
             }
-        }
-
-        if (precisaDesbloquear) {
-            TelaBloqueioRoute(
-                aoDesbloquear = sessaoViewModel::aoDesbloquear,
-                aoUsarSenha = sessaoViewModel::aoUsarSenha
-            )
         }
     }
 }
@@ -442,31 +588,90 @@ private fun navegarParaAba(navController: NavHostController, rota: String) {
     }
 }
 
+/**
+ * A barra de baixo da direção "Safra": uma pílula verde-noite que flutua
+ * sobre a tela, com o "+" verde-limão no meio.
+ *
+ * Cada aba tem ícone E nome embaixo. Só ícone seria mais bonito, mas o
+ * produtor precisaria adivinhar o que é a nuvem e o broto; com o nome, não.
+ * O nome encolhe um pouco se não couber ("Lançamentos" num celular
+ * estreito), em vez de ser cortado.
+ */
 @Composable
 private fun BarraInferior(
     rotaAtual: androidx.navigation.NavDestination?,
-    aoSelecionar: (String) -> Unit
+    aoSelecionar: (String) -> Unit,
+    aoNovoLancamento: () -> Unit
 ) {
-    // NavigationBar do Material 3 já desenha o indicador em pílula atrás do
-    // ícone selecionado — é o mesmo elemento que desenhamos no Figma.
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-        ABAS.forEach { aba ->
-            val selecionada = rotaAtual?.hierarchy?.any { it.route == aba.rota } == true
-            NavigationBarItem(
-                selected = selecionada,
-                onClick = { aoSelecionar(aba.rota) },
-                icon = {
-                    Icon(
-                        imageVector = if (selecionada) aba.iconeSelecionado else aba.icone,
-                        contentDescription = null
-                    )
-                },
-                label = { Text(aba.rotulo, style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(elevation = 8.dp, shape = CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.agro.cabecalho)
+                .padding(6.dp)
+                .selectableGroup()
+        ) {
+            ABAS.forEachIndexed { indice, aba ->
+                // O "+" fica no meio, entre a segunda e a terceira aba.
+                if (indice == ABAS.size / 2) BotaoNovoLancamento(aoNovoLancamento)
+                ItemDaBarra(
+                    aba = aba,
+                    selecionada = rotaAtual?.hierarchy?.any { it.route == aba.rota } == true,
+                    aoClicar = { aoSelecionar(aba.rota) }
                 )
-            )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.ItemDaBarra(aba: Aba, selecionada: Boolean, aoClicar: () -> Unit) {
+    val corDoIcone = if (selecionada) MaterialTheme.agro.destaque else MaterialTheme.agro.sobreCabecalho
+    val corDoNome = if (selecionada) MaterialTheme.agro.destaque else MaterialTheme.agro.sobreCabecalhoSecundario
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .weight(1f)
+            .heightIn(min = 56.dp)
+            .clip(CircleShape)
+            .background(if (selecionada) MaterialTheme.agro.cabecalhoElevado else Color.Transparent)
+            .selectable(selected = selecionada, role = Role.Tab, onClick = aoClicar)
+    ) {
+        Icon(aba.icone, contentDescription = null, tint = corDoIcone, modifier = Modifier.size(22.dp))
+        BasicText(
+            text = aba.rotulo,
+            style = MaterialTheme.typography.labelSmall.copy(color = corDoNome),
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 12.sp),
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun BotaoNovoLancamento(aoClicar: () -> Unit) {
+    Surface(
+        onClick = aoClicar,
+        shape = CircleShape,
+        color = MaterialTheme.agro.destaque,
+        contentColor = MaterialTheme.agro.sobreDestaque,
+        modifier = Modifier
+            .size(width = 60.dp, height = 52.dp)
+            .semantics { contentDescription = "Novo lançamento" }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(IconesAgro.Mais, contentDescription = null, modifier = Modifier.size(26.dp))
         }
     }
 }

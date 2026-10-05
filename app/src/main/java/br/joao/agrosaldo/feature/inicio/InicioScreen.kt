@@ -1,7 +1,7 @@
 package br.joao.agrosaldo.feature.inicio
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,22 +12,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Grass
-import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,33 +30,62 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.CartaoNoCabecalho
+import br.joao.agrosaldo.core.ui.CartaoSafra
 import br.joao.agrosaldo.core.ui.LinhaLancamento
-import br.joao.agrosaldo.core.ui.SeletorMes
-import br.joao.agrosaldo.core.ui.SeletorPropriedade
+import br.joao.agrosaldo.core.ui.LocalValoresOcultos
+import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.TituloDeCartao
+import br.joao.agrosaldo.core.ui.ValorGrande
+import br.joao.agrosaldo.core.ui.apoioComData
+import br.joao.agrosaldo.core.ui.valorEscondido
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
+import br.joao.agrosaldo.core.util.nomeDoMes
+import br.joao.agrosaldo.core.util.rotulo
+import br.joao.agrosaldo.core.util.rotuloRelativoCurto
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
 fun InicioRoute(
-    aoNovoLancamento: () -> Unit,
+    aoNovoLancamento: (TipoLancamento) -> Unit,
     aoEditarLancamento: (String) -> Unit,
     aoAbrirClima: () -> Unit,
+    aoAbrirHistorico: () -> Unit,
+    aoAbrirLancamentos: () -> Unit,
+    aoAbrirConta: () -> Unit,
+    aoAlternarValores: () -> Unit,
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: InicioViewModel = viewModel(factory = InicioViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Voltou para a tela (abriu o app de manhã, voltou de outra aba):
+    // "Hoje", "Ontem" e a frase da chuva são refeitos com a hora de agora.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.aoVoltarParaATela() }
 
     InicioScreen(
         uiState = uiState,
@@ -72,26 +95,47 @@ fun InicioRoute(
         aoNovoLancamento = aoNovoLancamento,
         aoEditarLancamento = aoEditarLancamento,
         aoAbrirClima = aoAbrirClima,
+        aoAbrirHistorico = aoAbrirHistorico,
+        aoAbrirLancamentos = aoAbrirLancamentos,
+        aoAbrirConta = aoAbrirConta,
+        aoAlternarValores = aoAlternarValores,
         aoCadastrarPropriedade = aoCadastrarPropriedade,
         modifier = modifier
     )
 }
 
+/**
+ * Início na direção "Safra": o saldo em branco no cabeçalho verde-noite,
+ * e embaixo, em cartões, o que o produtor faz e consulta todo dia.
+ *
+ * O botão de novo lançamento saiu daqui: agora é o "+" verde-limão no meio
+ * da barra de baixo, igual em todas as abas. Os atalhos "Despesa" e
+ * "Receita" abrem o formulário já no tipo certo — um toque a menos.
+ */
 @Composable
 fun InicioScreen(
     uiState: InicioUiState,
     aoVoltarMes: () -> Unit,
     aoAvancarMes: () -> Unit,
     aoSelecionarPropriedade: (String) -> Unit,
-    aoNovoLancamento: () -> Unit,
+    aoNovoLancamento: (TipoLancamento) -> Unit,
     aoEditarLancamento: (String) -> Unit,
     aoAbrirClima: () -> Unit,
+    aoAbrirHistorico: () -> Unit,
+    aoAbrirLancamentos: () -> Unit,
+    aoAbrirConta: () -> Unit,
+    aoAlternarValores: () -> Unit,
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when {
-        uiState.carregando -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        // O cabeçalho já aparece vazio enquanto carrega: a barra de status
+        // fica com os ícones claros desde o primeiro instante.
+        uiState.carregando -> Column(modifier.fillMaxSize()) {
+            CabecalhoSafra { Spacer(Modifier.height(48.dp)) }
+            Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
 
         !uiState.temPropriedade -> InicioVazio(
@@ -99,375 +143,518 @@ fun InicioScreen(
             modifier = modifier
         )
 
-        else -> Box(modifier = modifier.fillMaxSize()) {
+        else -> LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            item(key = "cabecalho") {
+                Cabecalho(
+                    uiState = uiState,
+                    aoVoltarMes = aoVoltarMes,
+                    aoAvancarMes = aoAvancarMes,
+                    aoSelecionarPropriedade = aoSelecionarPropriedade,
+                    aoAbrirConta = aoAbrirConta,
+                    aoAlternarValores = aoAlternarValores
+                )
+            }
 
-            // Tela inteira numa LazyColumn só. Uma Column com verticalScroll
-            // também funcionaria, mas a Lazy só desenha o que está visível —
-            // quando a lista de últimos lançamentos crescer, faz diferença.
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    SeletorPropriedade(
-                        nome = uiState.nomePropriedade,
-                        propriedades = uiState.propriedades,
-                        aoSelecionar = aoSelecionarPropriedade,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
+            item(key = "atalhos") {
+                Atalhos(
+                    aoNovaDespesa = { aoNovoLancamento(TipoLancamento.DESPESA) },
+                    aoNovaReceita = { aoNovoLancamento(TipoLancamento.RECEITA) },
+                    aoAbrirHistorico = aoAbrirHistorico
+                )
+            }
+
+            item(key = "chuva") {
+                CartaoChuva(
+                    chuva = uiState.chuva,
+                    aoClicar = aoAbrirClima,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+            }
+
+            if (uiState.gastosPorCategoria.isNotEmpty()) {
+                item(key = "gastos") {
+                    CartaoGastos(
+                        gastos = uiState.gastosPorCategoria,
+                        modifier = Modifier.padding(horizontal = 20.dp)
                     )
-                }
-
-                item {
-                    SeletorMes(
-                        mes = uiState.mes,
-                        aoVoltar = aoVoltarMes,
-                        aoAvancar = aoAvancarMes
-                    )
-                }
-
-                item {
-                    CartaoSaldo(
-                        uiState = uiState,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-
-                item {
-                    CartaoChuva(
-                        chuva = uiState.chuva,
-                        aoClicar = aoAbrirClima,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-
-                if (uiState.gastosPorCategoria.isNotEmpty()) {
-                    item { Secao("Pra onde foi o dinheiro") }
-                    item {
-                        CartaoCategorias(
-                            gastos = uiState.gastosPorCategoria,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                }
-
-                item { Secao("Últimos lançamentos") }
-
-                if (uiState.ultimosLancamentos.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Nenhum lançamento neste mês.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 20.dp)
-                        )
-                    }
-                } else {
-                    items(items = uiState.ultimosLancamentos, key = { it.id }) { lancamento ->
-                        LinhaLancamento(
-                            lancamento = lancamento,
-                            aoClicar = { aoEditarLancamento(lancamento.id) },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
                 }
             }
 
-            ExtendedFloatingActionButton(
-                onClick = aoNovoLancamento,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(20.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(
-                    text = "Novo lançamento",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 10.dp)
+            item(key = "ultimos") {
+                CartaoUltimos(
+                    lancamentos = uiState.ultimosLancamentos,
+                    hoje = uiState.hoje,
+                    aoEditarLancamento = aoEditarLancamento,
+                    aoVerTodos = aoAbrirLancamentos,
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
         }
     }
 }
 
-/**
- * O cartão principal da tela. O saldo é o maior elemento dela — se algo
- * competir com ele em tamanho, a hierarquia quebrou.
- */
 @Composable
-private fun CartaoSaldo(uiState: InicioUiState, modifier: Modifier = Modifier) {
-    val negativo = uiState.saldoCentavos < 0
+private fun Cabecalho(
+    uiState: InicioUiState,
+    aoVoltarMes: () -> Unit,
+    aoAvancarMes: () -> Unit,
+    aoSelecionarPropriedade: (String) -> Unit,
+    aoAbrirConta: () -> Unit,
+    aoAlternarValores: () -> Unit
+) {
+    val oculto = LocalValoresOcultos.current
+    val saldoNegativo = uiState.saldoCentavos < 0
 
-    Card(
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = if (negativo) MaterialTheme.agro.despesaContainer
-            else MaterialTheme.agro.receitaContainer
-        ),
-        modifier = modifier.fillMaxWidth()
+    CabecalhoSafra {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            BotaoConta(iniciais = uiState.iniciais, aoClicar = aoAbrirConta)
+            SeletorPropriedadeCabecalho(
+                nome = uiState.nomePropriedade,
+                propriedades = uiState.propriedades,
+                aoSelecionar = aoSelecionarPropriedade,
+                modifier = Modifier.weight(1f)
+            )
+            BotaoCabecalho(
+                icone = if (oculto) IconesAgro.OlhoFechado else IconesAgro.Olho,
+                descricao = if (oculto) "Mostrar valores" else "Esconder valores",
+                aoClicar = aoAlternarValores
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Saldo de " + rotuloDoMes(uiState.mes, uiState.hoje),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.agro.sobreCabecalhoSecundario,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() }
+                )
+                // Os dois botões de mês ficam juntos, à direita, longe do olho:
+                // tocar no errado não pode esconder os valores sem querer.
+                BotaoMes(IconesAgro.SetaEsquerda, "Mês anterior", aoVoltarMes)
+                Spacer(Modifier.size(8.dp))
+                BotaoMes(IconesAgro.SetaDireita, "Próximo mês", aoAvancarMes)
+            }
+            ValorGrande(
+                texto = uiState.saldoCentavos.emReal(oculto),
+                estilo = MaterialTheme.typography.displayLarge,
+                // Negativo fica salmão, além do sinal de menos: dá para ver de longe.
+                cor = if (saldoNegativo && !oculto) {
+                    MaterialTheme.agro.despesaNoCabecalho
+                } else {
+                    MaterialTheme.agro.sobreCabecalho
+                },
+                modifier = Modifier.valorEscondido(oculto)
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CartaoNoCabecalho(
+                rotulo = "Entrou",
+                valor = uiState.receitasCentavos.emRealCurto(oculto),
+                corDoValor = MaterialTheme.agro.receitaNoCabecalho,
+                oculto = oculto,
+                modifier = Modifier.weight(1f)
+            )
+            CartaoNoCabecalho(
+                rotulo = "Saiu",
+                valor = uiState.despesasCentavos.emRealCurto(oculto),
+                corDoValor = MaterialTheme.agro.despesaNoCabecalho,
+                oculto = oculto,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+/** "outubro", ou "outubro de 2025" quando não é o ano corrente. */
+private fun rotuloDoMes(mes: YearMonth, hoje: LocalDate): String =
+    if (mes.year == hoje.year) mes.nomeDoMes().lowercase() else mes.rotulo().lowercase()
+
+/** O círculo verde-limão com as iniciais. Abre a tela de conta. */
+@Composable
+private fun BotaoConta(iniciais: String, aoClicar: () -> Unit) {
+    Surface(
+        onClick = aoClicar,
+        shape = CircleShape,
+        color = MaterialTheme.agro.destaque,
+        contentColor = MaterialTheme.agro.sobreDestaque,
+        modifier = Modifier
+            .size(48.dp)
+            .semantics { contentDescription = "Abrir conta" }
     ) {
-        val corTexto = if (negativo) MaterialTheme.agro.sobreDespesaContainer
-        else MaterialTheme.agro.sobreReceitaContainer
-
-        Column(modifier = Modifier.padding(24.dp)) {
+        Box(contentAlignment = Alignment.Center) {
             Text(
-                text = "Saldo do mês",
-                style = MaterialTheme.typography.labelLarge,
-                color = corTexto
+                text = iniciais.ifBlank { "?" },
+                style = MaterialTheme.typography.titleSmall
             )
-            Text(
-                text = uiState.saldoCentavos.emReal(),
-                style = MaterialTheme.typography.displayLarge,
-                color = corTexto
-            )
+        }
+    }
+}
 
-            Spacer(Modifier.height(18.dp))
+@Composable
+private fun BotaoMes(icone: ImageVector, descricao: String, aoClicar: () -> Unit) {
+    BotaoCabecalho(icone = icone, descricao = descricao, aoClicar = aoClicar)
+}
 
-            // Barra proporcional de entradas contra saídas. Desenhada com dois
-            // Box de peso diferente em vez de LinearProgressIndicator, porque
-            // aqui as duas partes têm cor própria e significado próprio.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(CircleShape),
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                val entrada = uiState.proporcaoReceitas.coerceIn(0.02f, 0.98f)
-                Box(
-                    Modifier
-                        .weight(entrada)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(MaterialTheme.agro.receita)
-                )
-                Box(
-                    Modifier
-                        .weight(1f - entrada)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(MaterialTheme.agro.despesa)
-                )
-            }
+/** Os três atalhos em pílula. Roláveis de lado para caber com fonte grande. */
+@Composable
+private fun Atalhos(
+    aoNovaDespesa: () -> Unit,
+    aoNovaReceita: () -> Unit,
+    aoAbrirHistorico: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Atalho(
+            rotulo = "Despesa",
+            descricao = "Nova despesa",
+            icone = IconesAgro.Mais,
+            corDoIcone = MaterialTheme.agro.despesa,
+            aoClicar = aoNovaDespesa
+        )
+        Atalho(
+            rotulo = "Receita",
+            descricao = "Nova receita",
+            icone = IconesAgro.Mais,
+            corDoIcone = MaterialTheme.agro.receita,
+            aoClicar = aoNovaReceita
+        )
+        Atalho(
+            rotulo = "Histórico",
+            descricao = "Histórico do ano",
+            icone = IconesAgro.Historico,
+            corDoIcone = MaterialTheme.colorScheme.onSurface,
+            aoClicar = aoAbrirHistorico
+        )
+    }
+}
 
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Entrou  " + uiState.receitasCentavos.emRealCurto(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = corTexto
-                )
-                Text(
-                    text = "Saiu  " + uiState.despesasCentavos.emRealCurto(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = corTexto
-                )
-            }
+@Composable
+private fun Atalho(
+    rotulo: String,
+    descricao: String,
+    icone: ImageVector,
+    corDoIcone: Color,
+    aoClicar: () -> Unit
+) {
+    Surface(
+        onClick = aoClicar,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .semantics { contentDescription = descricao }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(icone, contentDescription = null, tint = corDoIcone, modifier = Modifier.size(18.dp))
+            Text(rotulo, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
 
 /**
- * Resumo da chuva das próximas horas, lido do cache da previsão. Sem
- * previsão guardada ainda, mostra o convite para abrir a tela de clima.
+ * O cartão azul da previsão. A frase do meio é o que importa ("Chuva às 18h.
+ * Dá para adiar o pivô."); o resto é contexto. Sem previsão guardada ainda,
+ * vira um convite para abrir o Clima.
  */
 @Composable
 private fun CartaoChuva(chuva: CartaoChuvaUi?, aoClicar: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
+    Surface(
+        onClick = aoClicar,
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = aoClicar)
-    ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.WaterDrop,
-                        contentDescription = null,
-                        tint = MaterialTheme.agro.clima
-                    )
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = chuva?.titulo ?: "Previsão de chuva",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.agro.sobreClimaContainer
-                )
-                Text(
-                    text = chuva?.detalhe ?: "Toque para ver os próximos dias",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.agro.sobreClimaContainer
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CartaoCategorias(gastos: List<GastoPorCategoria>, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
+        color = MaterialTheme.agro.cartaoClima,
+        contentColor = MaterialTheme.agro.sobreCartaoClima,
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = chuva?.rotulo ?: "Previsão do tempo",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.agro.sobreCartaoClimaSecundario
+                )
+                Text(
+                    text = chuva?.frase ?: "Veja a chuva dos próximos dias.",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = chuva?.detalhe ?: "Toque para abrir o clima",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.agro.sobreCartaoClimaSecundario
+                )
+            }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.agro.cartaoClimaElevado)
+            ) {
+                Icon(
+                    imageVector = if (chuva?.vaiChover == false) IconesAgro.Nuvem else IconesAgro.Chuva,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+/** "Pra onde foi o dinheiro": as três maiores despesas do mês, em barras. */
+@Composable
+private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = Modifier) {
+    val oculto = LocalValoresOcultos.current
+    CartaoSafra(modifier = modifier) {
+        TituloDeCartao("Pra onde foi o dinheiro")
+        Spacer(Modifier.height(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             gastos.forEach { gasto ->
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(gasto.categoria.rotulo, style = MaterialTheme.typography.bodyMedium)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    // Lido como uma frase só: "Energia elétrica, R$ 1.250".
+                    modifier = Modifier.semantics(mergeDescendants = true) {}
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = gasto.totalCentavos.emRealCurto(),
-                            style = MaterialTheme.typography.labelLarge
+                            text = gasto.categoria.rotulo,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = gasto.totalCentavos.emRealCurto(oculto),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.valorEscondido(oculto)
                         )
                     }
-                    LinearProgressIndicator(
-                        progress = { gasto.proporcao },
-                        color = MaterialTheme.agro.despesa,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Barra(proporcao = gasto.proporcao)
                 }
             }
         }
     }
 }
 
+/**
+ * Barra arredondada desenhada com dois Box. O LinearProgressIndicator do
+ * Material deixa um vão e um ponto no fim da trilha, que aqui só atrapalham.
+ */
 @Composable
-private fun Secao(titulo: String) {
-    Text(
-        text = titulo,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
-    )
+private fun Barra(proporcao: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(proporcao.coerceIn(0.03f, 1f))
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondary)
+        )
+    }
 }
 
-/** Tela 05 do Figma — primeiro acesso, antes de existir qualquer propriedade. */
+@Composable
+private fun CartaoUltimos(
+    lancamentos: List<Lancamento>,
+    hoje: LocalDate,
+    aoEditarLancamento: (String) -> Unit,
+    aoVerTodos: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CartaoSafra(modifier = modifier, preenchimento = 0.dp) {
+        TituloDeCartao(
+            titulo = "Últimos lançamentos",
+            acao = if (lancamentos.isEmpty()) null else "Ver todos",
+            aoClicarAcao = aoVerTodos,
+            modifier = Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 2.dp)
+        )
+        if (lancamentos.isEmpty()) {
+            Text(
+                text = "Nenhum lançamento neste mês. Toque no + verde-limão lá embaixo para lançar o primeiro.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp)
+            )
+        } else {
+            lancamentos.forEach { lancamento ->
+                LinhaLancamento(
+                    lancamento = lancamento,
+                    apoio = apoioComData(lancamento.data.rotuloRelativoCurto(hoje), lancamento.descricao),
+                    aoClicar = { aoEditarLancamento(lancamento.id) }
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+/**
+ * Primeiro acesso, antes de existir qualquer propriedade. Usa o mesmo
+ * cabeçalho verde-noite das outras abas para o app não parecer outro.
+ */
 @Composable
 private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(40.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.size(120.dp)
+    Column(modifier = modifier.fillMaxSize()) {
+        CabecalhoSafra {
+            Text(
+                text = "Bem-vindo ao AgroSaldo",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.agro.sobreCabecalho,
+                modifier = Modifier.semantics { heading() }
+            )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
                 Icon(
-                    imageVector = Icons.Outlined.Grass,
+                    imageVector = IconesAgro.Sitio,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(56.dp)
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(52.dp)
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = "Comece cadastrando um sítio",
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Cada propriedade tem seus próprios lançamentos e sua própria previsão do tempo.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = aoCadastrarPropriedade,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.agro.destaque,
+                    contentColor = MaterialTheme.agro.sobreDestaque
+                ),
+                modifier = Modifier.heightIn(min = 56.dp)
+            ) {
+                Icon(IconesAgro.Mais, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(
+                    text = "Cadastrar propriedade",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = "Comece cadastrando um sítio",
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Cada propriedade tem seus próprios lançamentos e sua própria previsão do tempo.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = aoCadastrarPropriedade,
-            shape = CircleShape,
-            modifier = Modifier.height(56.dp)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Text(
-                text = "Cadastrar propriedade",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
     }
+}
+
+// ---------- prévias ----------
+
+private val ESTADO_DE_EXEMPLO = InicioUiState(
+    carregando = false,
+    temPropriedade = true,
+    nomePropriedade = "Fazenda São João da Serra",
+    iniciais = "FM",
+    saldoCentavos = 1_565_000L,
+    receitasCentavos = 1_800_000L,
+    despesasCentavos = 235_000L,
+    proporcaoReceitas = 0.88f,
+    gastosPorCategoria = listOf(
+        GastoPorCategoria(CategoriaLancamento.ENERGIA, 125_000L, 1f),
+        GastoPorCategoria(CategoriaLancamento.ADUBO, 78_000L, 0.62f),
+        GastoPorCategoria(CategoriaLancamento.COMBUSTIVEL, 32_000L, 0.26f)
+    ),
+    chuva = CartaoChuvaUi(
+        rotulo = "Previsão · próximas 12 h",
+        frase = "Chuva às 18h. Dá para adiar o pivô.",
+        detalhe = "92% de chance · 5 mm",
+        vaiChover = true
+    ),
+    ultimosLancamentos = listOf(
+        Lancamento(
+            propriedadeId = "p1", tipo = TipoLancamento.RECEITA,
+            categoria = CategoriaLancamento.VENDA_SAFRA,
+            valorCentavos = 1_800_000L, data = LocalDate.now().minusDays(1),
+            descricao = "Venda de milho"
+        ),
+        Lancamento(
+            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ENERGIA,
+            valorCentavos = 125_000L, data = LocalDate.now().minusDays(2),
+            descricao = "Conta do pivô"
+        )
+    )
+)
+
+@Composable
+private fun InicioDeExemplo(uiState: InicioUiState) {
+    InicioScreen(
+        uiState = uiState,
+        aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
+        aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {}, aoAbrirHistorico = {},
+        aoAbrirLancamentos = {}, aoAbrirConta = {}, aoAlternarValores = {}, aoCadastrarPropriedade = {},
+        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+    )
 }
 
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 private fun InicioPreview() {
-    AgroSaldoTheme {
-        InicioScreen(
-            uiState = InicioUiState(
-                carregando = false,
-                temPropriedade = true,
-                nomePropriedade = "Fazenda São João da Serra",
-                saldoCentavos = 1_247_000L,
-                receitasCentavos = 1_800_000L,
-                despesasCentavos = 553_000L,
-                proporcaoReceitas = 0.76f,
-                gastosPorCategoria = listOf(
-                    GastoPorCategoria(CategoriaLancamento.ENERGIA, 125_000L, 1f),
-                    GastoPorCategoria(CategoriaLancamento.ADUBO, 78_000L, 0.62f),
-                    GastoPorCategoria(CategoriaLancamento.COMBUSTIVEL, 32_000L, 0.26f)
-                ),
-                chuva = CartaoChuvaUi(
-                    titulo = "Chuva prevista a partir das 18h",
-                    detalhe = "80% de chance · 6 mm · dá para adiar o pivô",
-                    vaiChover = true
-                ),
-                ultimosLancamentos = listOf(
-                    Lancamento(
-                        propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
-                        categoria = CategoriaLancamento.COMBUSTIVEL,
-                        valorCentavos = 32_000L, data = LocalDate.now(),
-                        descricao = "Abastecimento do trator"
-                    )
-                )
-            ),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
-            aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {},
-            aoCadastrarPropriedade = {}
-        )
-    }
+    AgroSaldoTheme { InicioDeExemplo(ESTADO_DE_EXEMPLO) }
+}
+
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+private fun InicioEscuroPreview() {
+    AgroSaldoTheme(escuro = true) { InicioDeExemplo(ESTADO_DE_EXEMPLO) }
 }
 
 @Preview(showBackground = true, heightDp = 700)
 @Composable
 private fun InicioVazioPreview() {
-    AgroSaldoTheme {
-        InicioScreen(
-            uiState = InicioUiState(carregando = false, temPropriedade = false),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
-            aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {},
-            aoCadastrarPropriedade = {}
-        )
-    }
+    AgroSaldoTheme { InicioDeExemplo(InicioUiState(carregando = false, temPropriedade = false)) }
 }

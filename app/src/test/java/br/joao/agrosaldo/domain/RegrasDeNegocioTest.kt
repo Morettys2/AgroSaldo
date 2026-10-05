@@ -72,10 +72,23 @@ class RegrasDeNegocioTest {
     }
 
     @Test
-    fun `RF06 - existem exatamente as 7 categorias de despesa da proposta`() {
+    fun `RF06 - as 7 despesas da proposta e mais Outras despesas, por ultimo`() {
         val despesas = CategoriaLancamento.porTipo(TipoLancamento.DESPESA)
-        assertEquals(7, despesas.size)
+        assertEquals(8, despesas.size)
         assertTrue(despesas.all { it.tipo == TipoLancamento.DESPESA })
+        assertEquals(CategoriaLancamento.OUTRAS_DESPESAS, despesas.last())
+        // A primeira continua sendo a sugerida no formulário novo.
+        assertEquals(CategoriaLancamento.ENERGIA, despesas.first())
+    }
+
+    @Test
+    fun `cada lado tem a sua categoria Outras e elas nao se misturam`() {
+        assertTrue(recusa {
+            lancamento(tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.OUTRAS_DESPESAS)
+        })
+        assertTrue(recusa {
+            lancamento(tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.OUTROS)
+        })
     }
 
     @Test

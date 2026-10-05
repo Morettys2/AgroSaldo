@@ -29,7 +29,13 @@ class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
                 janelaHoras = preferencias.getInt(CHAVE_JANELA, padrao.janelaHoras)
             )
         }.getOrDefault(padrao)
-        return AjustesAviso(ativo = preferencias.getBoolean(CHAVE_ATIVO, true), limites = limites)
+        return AjustesAviso(
+            ativo = preferencias.getBoolean(CHAVE_ATIVO, true),
+            limites = limites,
+            // getStringSet devolve o conjunto interno do Android, que não pode
+            // ser alterado: toSet() faz uma cópia nossa.
+            propriedadesSemAviso = preferencias.getStringSet(CHAVE_SEM_AVISO, null)?.toSet().orEmpty()
+        )
     }
 
     override fun salvar(ajustes: AjustesAviso) {
@@ -38,6 +44,7 @@ class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
             putInt(CHAVE_PROBABILIDADE, ajustes.limites.probabilidadeMinima)
             putFloat(CHAVE_CHUVA, ajustes.limites.chuvaMinimaMm.toFloat())
             putInt(CHAVE_JANELA, ajustes.limites.janelaHoras)
+            putStringSet(CHAVE_SEM_AVISO, ajustes.propriedadesSemAviso.toSet())
         }
         _ajustes.value = ajustes
     }
@@ -57,6 +64,7 @@ class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
         const val CHAVE_PROBABILIDADE = "probabilidade_minima"
         const val CHAVE_CHUVA = "chuva_minima_mm"
         const val CHAVE_JANELA = "janela_horas"
+        const val CHAVE_SEM_AVISO = "propriedades_sem_aviso"
         const val PREFIXO_ULTIMO = "ultimo_aviso_"
     }
 }

@@ -1,27 +1,23 @@
 package br.joao.agrosaldo.feature.propriedade
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Grass
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,17 +25,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import br.joao.agrosaldo.core.ui.SeletorMes
+import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.CartaoSafra
+import br.joao.agrosaldo.core.ui.LocalValoresOcultos
+import br.joao.agrosaldo.core.ui.ValorGrande
+import br.joao.agrosaldo.core.ui.valorEscondido
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
+import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
+import kotlin.math.abs
 
 /**
  * VIEW — parte que conhece o ViewModel.
@@ -52,6 +60,7 @@ import br.joao.agrosaldo.ui.theme.agro
 fun PropriedadeListaRoute(
     aoAbrirNova: () -> Unit,
     aoAbrirPropriedade: (String) -> Unit,
+    aoAbrirConta: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PropriedadeListaViewModel = viewModel(factory = PropriedadeListaViewModel.Factory)
 ) {
@@ -63,11 +72,17 @@ fun PropriedadeListaRoute(
         aoAvancarMes = viewModel::aoAvancarMes,
         aoAbrirNova = aoAbrirNova,
         aoAbrirPropriedade = aoAbrirPropriedade,
+        aoAbrirConta = aoAbrirConta,
         modifier = modifier
     )
 }
 
-/** VIEW — parte stateless. Não sabe que ViewModel existe. */
+/**
+ * VIEW — parte stateless. Não sabe que ViewModel existe.
+ *
+ * Sítios na direção "Safra": o total de todas as propriedades no cabeçalho
+ * verde-noite e, embaixo, um cartão por sítio com a barra do comparativo.
+ */
 @Composable
 fun PropriedadeListaScreen(
     uiState: PropriedadeListaUiState,
@@ -75,103 +90,130 @@ fun PropriedadeListaScreen(
     aoAvancarMes: () -> Unit,
     aoAbrirNova: () -> Unit,
     aoAbrirPropriedade: (String) -> Unit,
+    aoAbrirConta: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(key = "cabecalho") {
+            Cabecalho(
+                uiState = uiState,
+                aoVoltarMes = aoVoltarMes,
+                aoAvancarMes = aoAvancarMes,
+                aoAbrirConta = aoAbrirConta
+            )
+        }
+
+        item(key = "nova") {
+            BotaoNova(aoClicar = aoAbrirNova, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
+        }
+
         when {
-            uiState.carregando ->
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
-
-            uiState.erro != null ->
-                Text(
-                    text = uiState.erro,
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center).padding(32.dp)
-                )
-
-            uiState.itens.isEmpty() ->
-                Text(
-                    text = "Nenhuma propriedade cadastrada.\nToque no botão para começar.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center).padding(32.dp)
-                )
-
-            else -> LazyColumn(
-                contentPadding = PaddingValues(bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                item {
-                    SeletorMes(mes = uiState.mes, aoVoltar = aoVoltarMes, aoAvancar = aoAvancarMes)
+            uiState.carregando -> item(key = "carregando") {
+                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
 
-                item {
-                    CartaoTotal(
-                        totalCentavos = uiState.totalCentavos,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
+            uiState.erro != null -> item(key = "erro") {
+                Aviso(uiState.erro)
+            }
 
-                item {
+            uiState.itens.isEmpty() -> item(key = "vazio") {
+                Aviso("Nenhuma propriedade cadastrada ainda. Toque em \"Nova propriedade\" para começar.")
+            }
+
+            else -> {
+                item(key = "titulo") {
                     Text(
                         text = "Comparativo do mês",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp)
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .padding(start = 24.dp, end = 24.dp, top = 8.dp)
+                            .semantics { heading() }
                     )
                 }
-
                 // A key faz o Compose reaproveitar o item certo quando a lista
                 // muda. Sem ela, apagar um item pode redesenhar todos os outros.
                 items(items = uiState.itens, key = { it.propriedade.id }) { item ->
                     CartaoPropriedade(
                         item = item,
                         aoClicar = { aoAbrirPropriedade(item.propriedade.id) },
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp)
                     )
                 }
             }
-        }
-
-        ExtendedFloatingActionButton(
-            onClick = aoAbrirNova,
-            shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(20.dp)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Text(
-                text = "Nova propriedade",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 10.dp)
-            )
         }
     }
 }
 
 @Composable
-private fun CartaoTotal(totalCentavos: Long, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        modifier = modifier.fillMaxWidth()
+private fun Cabecalho(
+    uiState: PropriedadeListaUiState,
+    aoVoltarMes: () -> Unit,
+    aoAvancarMes: () -> Unit,
+    aoAbrirConta: () -> Unit
+) {
+    val oculto = LocalValoresOcultos.current
+    val negativo = uiState.totalCentavos < 0
+
+    CabecalhoSafra {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Sítios",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.agro.sobreCabecalho,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() }
+            )
+            // A conta abre pelo canto desta aba (tela 12 do Figma) e pelo Início.
+            BotaoCabecalho(icone = IconesAgro.Conta, descricao = "Abrir conta", aoClicar = aoAbrirConta)
+        }
+
+        if (uiState.itens.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Somando todos em " + uiState.mes.rotulo().lowercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.agro.sobreCabecalhoSecundario,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BotaoCabecalho(icone = IconesAgro.SetaEsquerda, descricao = "Mês anterior", aoClicar = aoVoltarMes)
+                    Spacer(Modifier.size(8.dp))
+                    BotaoCabecalho(icone = IconesAgro.SetaDireita, descricao = "Próximo mês", aoClicar = aoAvancarMes)
+                }
+                ValorGrande(
+                    texto = uiState.totalCentavos.emReal(oculto),
+                    estilo = MaterialTheme.typography.displayMedium,
+                    cor = if (negativo && !oculto) MaterialTheme.agro.despesaNoCabecalho else MaterialTheme.agro.sobreCabecalho,
+                    modifier = Modifier.valorEscondido(oculto)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BotaoNova(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = aoClicar,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.heightIn(min = 48.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Somando todas as propriedades",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = totalCentavos.emReal(),
-                style = MaterialTheme.typography.displayMedium,
-                color = if (totalCentavos < 0) MaterialTheme.agro.despesa else MaterialTheme.agro.receita
-            )
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(IconesAgro.Mais, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text("Nova propriedade", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -182,60 +224,97 @@ private fun CartaoPropriedade(
     aoClicar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val oculto = LocalValoresOcultos.current
     val negativo = item.saldoCentavos < 0
-    val cor = if (negativo) MaterialTheme.agro.despesa else MaterialTheme.agro.receita
+    // Com os valores escondidos, nem a cor nem o sinal contam qual sítio
+    // está no prejuízo: tudo fica neutro.
+    val cor = when {
+        oculto -> MaterialTheme.colorScheme.secondary
+        negativo -> MaterialTheme.agro.despesa
+        else -> MaterialTheme.agro.receita
+    }
 
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier.fillMaxWidth().clickable(onClick = aoClicar)
+    Surface(
+        onClick = aoClicar,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.agro.receitaContainer,
-                    modifier = Modifier.size(44.dp)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.agro.receitaContainer)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Outlined.Grass,
-                            contentDescription = null,
-                            tint = MaterialTheme.agro.sobreReceitaContainer,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = IconesAgro.Sitio,
+                        contentDescription = null,
+                        tint = MaterialTheme.agro.sobreReceitaContainer,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
 
                 Column(
                     modifier = Modifier.weight(1f).padding(start = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(item.propriedade.nome, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = item.propriedade.nome,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(
                         text = "${item.propriedade.cultura} · ${formatarArea(item.propriedade.areaHectares)} ha",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Text(
-                    text = item.saldoCentavos.emRealCurto(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = cor
+                    // Sinal sempre visível: no prejuízo, o "−" diz o que a cor sozinha não diz.
+                    text = (if (negativo && !oculto) "− " else "") + abs(item.saldoCentavos).emRealCurto(oculto),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = cor,
+                    modifier = Modifier.valorEscondido(oculto)
                 )
             }
 
-            LinearProgressIndicator(
-                progress = { item.proporcao },
-                color = cor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(item.proporcao.coerceIn(0.03f, 1f))
+                        .height(10.dp)
+                        .clip(CircleShape)
+                        .background(cor)
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun Aviso(texto: String) {
+    CartaoSafra(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Text(
+            text = texto,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -273,7 +352,7 @@ private fun PreviewComDados() {
                     )
                 )
             ),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}
+            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
         )
     }
 }
@@ -284,7 +363,7 @@ private fun PreviewVazio() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(carregando = false),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}
+            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
         )
     }
 }
@@ -295,7 +374,7 @@ private fun PreviewCarregando() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(carregando = true),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}
+            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
         )
     }
 }

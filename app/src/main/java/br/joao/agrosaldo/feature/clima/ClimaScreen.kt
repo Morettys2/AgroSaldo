@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature.clima
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,44 +10,43 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.CartaoSafra
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
-import br.joao.agrosaldo.core.ui.SeletorPropriedade
+import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.TituloDeCartao
 import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
@@ -83,87 +83,89 @@ fun ClimaScreen(
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    when {
-        uiState.carregando -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item(key = "cabecalho") {
+            Cabecalho(
+                uiState = uiState,
+                aoSelecionarPropriedade = aoSelecionarPropriedade,
+                aoAtualizar = aoAtualizar,
+                aoAbrirAjustes = aoAbrirAjustes
+            )
         }
 
-        !uiState.temPropriedade -> EstadoVazio(
-            icone = Icons.Outlined.WaterDrop,
-            titulo = "Previsão por propriedade",
-            texto = "Cadastre um sítio com as coordenadas para ver a chuva prevista e receber o aviso.",
-            botao = "Cadastrar propriedade",
-            aoClicar = aoCadastrarPropriedade,
-            modifier = modifier
-        )
+        when {
+            uiState.carregando -> item(key = "carregando") {
+                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
 
-        else -> LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Cabecalho(
-                    uiState = uiState,
-                    aoSelecionarPropriedade = aoSelecionarPropriedade,
-                    aoAtualizar = aoAtualizar,
-                    aoAbrirAjustes = aoAbrirAjustes
+            !uiState.temPropriedade -> item(key = "sem_propriedade") {
+                EstadoVazio(
+                    icone = IconesAgro.Gota,
+                    titulo = "Previsão por propriedade",
+                    texto = "Cadastre um sítio com as coordenadas para ver a chuva prevista e receber o aviso.",
+                    botao = "Cadastrar propriedade",
+                    aoClicar = aoCadastrarPropriedade,
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
 
-            uiState.mensagem?.let { mensagem ->
-                item { Faixa(texto = mensagem, modifier = Modifier.padding(horizontal = 16.dp)) }
-            }
-
-            if (uiState.avisoAtivo && !permissao.concedida && permissao.podePedir) {
-                item {
-                    CartaoPermissao(aoPermitir = permissao.pedir, modifier = Modifier.padding(horizontal = 16.dp))
+            else -> {
+                uiState.mensagem?.let { mensagem ->
+                    item(key = "mensagem") { Faixa(texto = mensagem, modifier = Modifier.padding(horizontal = 20.dp)) }
                 }
-            }
 
-            if (!uiState.temPrevisao) {
-                item {
-                    if (uiState.atualizando) {
-                        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        EstadoVazio(
-                            icone = Icons.Outlined.CloudOff,
-                            titulo = "Ainda sem previsão",
-                            texto = "Conecte o celular à internet uma vez para baixar a previsão. " +
-                                "Depois ela fica salva e aparece mesmo sem sinal.",
-                            botao = "Tentar de novo",
-                            aoClicar = aoAtualizar
-                        )
+                if (uiState.avisoAtivo && !permissao.concedida && permissao.podePedir) {
+                    item(key = "permissao") {
+                        CartaoPermissao(aoPermitir = permissao.pedir, modifier = Modifier.padding(horizontal = 20.dp))
                     }
                 }
-            } else {
-                item { CartaoAgora(uiState, Modifier.padding(horizontal = 16.dp)) }
-                item { CartaoRecomendacao(uiState, Modifier.padding(horizontal = 16.dp)) }
-                item {
-                    Text(
-                        text = "Próximos 7 dias",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
-                    )
-                }
-                item { CartaoDias(uiState.dias, Modifier.padding(horizontal = 16.dp)) }
-                item {
-                    Text(
-                        text = listOfNotNull(uiState.atualizadaEm, "Fonte: Open-Meteo").joinToString(" · "),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.agro.tintaApagada,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
-                    )
+
+                if (!uiState.temPrevisao) {
+                    item(key = "sem_previsao") {
+                        if (uiState.atualizando) {
+                            Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            EstadoVazio(
+                                icone = IconesAgro.Nuvem,
+                                titulo = "Ainda sem previsão",
+                                texto = "Conecte o celular à internet uma vez para baixar a previsão. " +
+                                    "Depois ela fica salva e aparece mesmo sem sinal.",
+                                botao = "Tentar de novo",
+                                aoClicar = aoAtualizar,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    item(key = "recomendacao") { CartaoRecomendacao(uiState, Modifier.padding(horizontal = 20.dp)) }
+                    item(key = "dias") { CartaoDias(uiState.dias, Modifier.padding(horizontal = 20.dp)) }
+                    item(key = "fonte") {
+                        Text(
+                            text = listOfNotNull(uiState.atualizadaEm, "Fonte: Open-Meteo").joinToString(" · "),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.agro.tintaApagada,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * O cabeçalho verde-noite: sítio, atualizar e o sininho em cima; a
+ * temperatura grande; e a chuva das próximas horas numa barra verde-limão.
+ */
 @Composable
 private fun Cabecalho(
     uiState: ClimaUiState,
@@ -171,87 +173,114 @@ private fun Cabecalho(
     aoAtualizar: () -> Unit,
     aoAbrirAjustes: () -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 8.dp)
-    ) {
-        SeletorPropriedade(
-            nome = uiState.nomePropriedade,
-            propriedades = uiState.propriedades,
-            aoSelecionar = aoSelecionarPropriedade,
-            modifier = Modifier.weight(1f)
-        )
-        if (uiState.atualizando) {
-            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+    CabecalhoSafra {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (uiState.temPropriedade) {
+                SeletorPropriedadeCabecalho(
+                    nome = uiState.nomePropriedade,
+                    propriedades = uiState.propriedades,
+                    aoSelecionar = aoSelecionarPropriedade,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                Text(
+                    text = "Clima",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.agro.sobreCabecalho,
+                    modifier = Modifier.weight(1f).semantics { heading() }
+                )
             }
-        } else {
-            IconButton(onClick = aoAtualizar) {
-                Icon(Icons.Outlined.Refresh, contentDescription = "Atualizar previsão")
+            if (uiState.temPropriedade) {
+                if (uiState.atualizando) {
+                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.agro.sobreCabecalho,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                } else {
+                    BotaoCabecalho(icone = IconesAgro.Atualizar, descricao = "Atualizar previsão", aoClicar = aoAtualizar)
+                }
             }
+            BotaoCabecalho(icone = IconesAgro.Sino, descricao = "Ajustes do aviso de chuva", aoClicar = aoAbrirAjustes)
         }
-        IconButton(onClick = aoAbrirAjustes) {
-            Icon(Icons.Outlined.NotificationsActive, contentDescription = "Ajustes do aviso de chuva")
-        }
-    }
-}
 
-/** O cartão grande: agora, e a chance de chuva nas próximas horas. */
-@Composable
-private fun CartaoAgora(uiState: ClimaUiState, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-        ) {
-            Icon(
-                imageVector = uiState.condicaoAtual.icone(),
-                contentDescription = uiState.condicaoAtual.rotulo,
-                tint = MaterialTheme.agro.clima,
-                modifier = Modifier.size(56.dp)
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = uiState.temperaturaAtual ?: "–",
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.agro.sobreClimaContainer
-            )
+        if (uiState.temPrevisao) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
+                    Text(
+                        text = uiState.temperaturaAtual ?: "–",
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.agro.sobreCabecalho
+                    )
+                    Text(
+                        text = uiState.condicaoAtual.rotulo,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.agro.sobreCabecalhoSecundario
+                    )
+                }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.agro.cabecalhoElevado)
+                ) {
+                    Icon(
+                        imageVector = uiState.condicaoAtual.icone(),
+                        contentDescription = null,
+                        tint = MaterialTheme.agro.sobreCabecalho,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+
             Text(
                 text = uiState.resumo,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.agro.sobreClimaContainer,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.agro.sobreCabecalho
             )
-            Spacer(Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = "Próximas ${uiState.janelaHoras}h (${uiState.janelaAte})",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.agro.sobreClimaContainer
-                )
-                Text(
-                    text = "${uiState.probabilidadeJanela}% · ${uiState.chuvaJanela}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.agro.sobreClimaContainer
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { uiState.probabilidadeJanela / 100f },
-                color = MaterialTheme.agro.clima,
-                trackColor = MaterialTheme.colorScheme.surface,
+
+            // Chance de chuva na janela do aviso, numa barra: dá para ler de longe.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
-            )
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.agro.cabecalhoElevado)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .semantics(mergeDescendants = true) {}
+            ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Próximas ${uiState.janelaHoras} h (${uiState.janelaAte})",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.agro.sobreCabecalhoSecundario,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "${uiState.probabilidadeJanela}% · ${uiState.chuvaJanela}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.agro.destaque
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.agro.cabecalho)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth((uiState.probabilidadeJanela / 100f).coerceIn(0.02f, 1f))
+                            .height(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.agro.destaque)
+                    )
+                }
+            }
         }
     }
 }
@@ -259,42 +288,53 @@ private fun CartaoAgora(uiState: ClimaUiState, modifier: Modifier = Modifier) {
 /** O que fazer com o pivô — a pergunta que o produtor tem quando abre esta tela. */
 @Composable
 private fun CartaoRecomendacao(uiState: ClimaUiState, modifier: Modifier = Modifier) {
-    Card(
+    Surface(
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        color = MaterialTheme.agro.cartaoClima,
+        contentColor = MaterialTheme.agro.sobreCartaoClima,
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.agro.cartaoClimaElevado)
+            ) {
                 Icon(
-                    imageVector = if (uiState.vaiChover) Icons.Outlined.WaterDrop else Icons.Outlined.CheckCircle,
+                    imageVector = if (uiState.vaiChover) IconesAgro.Chuva else IconesAgro.Confirmado,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = uiState.recomendacaoTitulo,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    modifier = Modifier.semantics { heading() }
+                )
+                Text(
+                    text = uiState.recomendacaoTexto,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.agro.sobreCartaoClimaSecundario
                 )
             }
-            Text(
-                text = uiState.recomendacaoTexto,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
         }
     }
 }
 
 @Composable
 private fun CartaoDias(dias: List<DiaUi>, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+    CartaoSafra(modifier = modifier, preenchimento = 0.dp) {
+        TituloDeCartao(
+            titulo = "Próximos 7 dias",
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp)
+        )
+        Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
             dias.forEachIndexed { indice, dia ->
                 if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 LinhaDia(dia)
@@ -311,8 +351,10 @@ private fun LinhaDia(dia: DiaUi) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 12.dp)
+            // Uma frase só para o leitor de tela: "Amanhã, 65%, 6 mm, Pancadas, 21° 29°".
+            .semantics(mergeDescendants = true) {}
     ) {
-        Text(text = dia.rotulo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(text = dia.rotulo, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
         // Chance e milímetros do dia, um embaixo do outro: "81%" sozinho não
         // diz se é garoa ou chuva de molhar a lavoura.
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(56.dp)) {
@@ -331,7 +373,7 @@ private fun LinhaDia(dia: DiaUi) {
             imageVector = dia.condicao.icone(),
             contentDescription = dia.condicao.rotulo,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(22.dp)
         )
         Text(
             text = "${dia.minima}  ${dia.maxima}",
@@ -344,21 +386,16 @@ private fun LinhaDia(dia: DiaUi) {
 
 @Composable
 private fun Faixa(texto: String, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = modifier.fillMaxWidth()
-    ) {
+    CartaoSafra(modifier = modifier, preenchimento = 16.dp) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                Icons.Outlined.CloudOff,
+                IconesAgro.Nuvem,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
             Text(texto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -367,23 +404,30 @@ private fun Faixa(texto: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CartaoPermissao(aoPermitir: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "Receba o aviso de chuva",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.agro.sobreClimaContainer
-            )
-            Text(
-                text = "Para avisar quando a chuva chegar perto, o app precisa da sua permissão para mandar notificações.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.agro.sobreClimaContainer
-            )
-            TextButton(onClick = aoPermitir) { Text("Permitir notificações") }
+    CartaoSafra(modifier = modifier) {
+        Text(
+            text = "Receba o aviso de chuva",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.semantics { heading() }
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Para avisar quando a chuva chegar perto, o app precisa da sua permissão para mandar notificações.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = aoPermitir,
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            ),
+            modifier = Modifier.heightIn(min = 48.dp)
+        ) {
+            Icon(IconesAgro.Sino, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text("Permitir notificações", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
@@ -397,24 +441,39 @@ private fun EstadoVazio(
     aoClicar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(icone, contentDescription = null, tint = MaterialTheme.agro.clima, modifier = Modifier.size(56.dp))
-        Text(titulo, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
-        Text(
-            texto,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Button(onClick = aoClicar, shape = CircleShape) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Text(botao, modifier = Modifier.padding(start = 8.dp))
+    CartaoSafra(modifier = modifier, preenchimento = 28.dp) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.agro.climaContainer)
+            ) {
+                Icon(icone, contentDescription = null, tint = MaterialTheme.agro.clima, modifier = Modifier.size(36.dp))
+            }
+            Text(titulo, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(
+                texto,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = aoClicar,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.agro.destaque,
+                    contentColor = MaterialTheme.agro.sobreDestaque
+                ),
+                modifier = Modifier.heightIn(min = 52.dp)
+            ) {
+                Text(botao, style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }
@@ -451,7 +510,15 @@ private val ESTADO_EXEMPLO = ClimaUiState(
 @Composable
 private fun ClimaPreview() {
     AgroSaldoTheme {
-        ClimaScreen(ESTADO_EXEMPLO, PERMISSAO_OK, {}, {}, {}, {})
+        ClimaScreen(ESTADO_EXEMPLO, PERMISSAO_OK, {}, {}, {}, {}, Modifier.background(MaterialTheme.colorScheme.background))
+    }
+}
+
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+private fun ClimaEscuroPreview() {
+    AgroSaldoTheme(escuro = true) {
+        ClimaScreen(ESTADO_EXEMPLO, PERMISSAO_OK, {}, {}, {}, {}, Modifier.background(MaterialTheme.colorScheme.background))
     }
 }
 

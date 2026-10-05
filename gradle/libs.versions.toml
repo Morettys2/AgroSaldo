@@ -22,6 +22,8 @@ orgJson = "20250517"
 biometric = "1.1.0"
 appcompat = "1.8.0"
 fragment = "1.9.1"
+# --- R4: tela de abertura ---
+splashscreen = "1.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -55,6 +57,8 @@ androidx-biometric = { group = "androidx.biometric", name = "biometric", version
 # O biometric 1.1.0 traz versões antigas destes dois; declarar deixa as atuais.
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment" }
+# --- R4: tela de abertura ---
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

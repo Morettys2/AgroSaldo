@@ -16,6 +16,7 @@ import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.feature.clima.AjustesAvisoViewModel
 import br.joao.agrosaldo.feature.clima.ClimaViewModel
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -23,6 +24,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
@@ -139,7 +142,7 @@ class ClimaViewModelsTest {
     fun `ajustes so gravam ao salvar e religam o agendamento`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()
-        val vm = AjustesAvisoViewModel(ajustes, agenda)
+        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria())
 
         vm.aoMudarProbabilidade(72f)    // vira 70
         vm.aoMudarChuva(3.3f)           // vira 3,5
@@ -157,7 +160,7 @@ class ClimaViewModelsTest {
     fun `desligar o aviso cancela a verificacao em segundo plano`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()
-        val vm = AjustesAvisoViewModel(ajustes, agenda)
+        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria())
 
         vm.aoMudarAtivo(false)
         vm.aoSalvar()
@@ -169,36 +172,140 @@ class ClimaViewModelsTest {
     @Test
     fun `ferramenta de teste dispara a verificacao na hora`() {
         val agenda = AgendaFalsa()
-        AjustesAvisoViewModel(AjustesAvisoMemoria(), agenda).aoVerificarAgora()
+        AjustesAvisoViewModel(AjustesAvisoMemoria(), agenda, PropriedadeRepositoryMemoria()).aoVerificarAgora()
         assertEquals(1, agenda.verificacoesManuais)
     }
 
     @Test
     fun `controles nao saem da faixa permitida`() {
-        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa())
+        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), PropriedadeRepositoryMemoria())
         vm.aoMudarProbabilidade(5f)
         vm.aoMudarChuva(99f)
         assertEquals(AjustesAvisoViewModel.PROBABILIDADE_MIN, vm.uiState.value.probabilidadeMinima)
         assertEquals(AjustesAvisoViewModel.CHUVA_MAX, vm.uiState.value.chuvaMinimaMm, 0.0)
     }
 
+    @Test
+    fun `cada sitio pode ficar sem aviso, e o desligado e gravado`() {
+        val ajustes = AjustesAvisoMemoria()
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria())
+
+        assertTrue("dois sítios: a lista aparece", vm.uiState.value.mostrarSitios)
+        assertTrue("sítio novo já nasce avisando", vm.uiState.value.sitios.all { it.avisa })
+
+        vm.aoMudarSitio(DadosDeExemplo.ID_SITIO, false)
+        assertTrue("só grava ao salvar", ajustes.ajustes.value.propriedadesSemAviso.isEmpty())
+        vm.aoSalvar()
+
+        assertEquals(setOf(DadosDeExemplo.ID_SITIO), ajustes.ajustes.value.propriedadesSemAviso)
+        assertFalse(ajustes.ajustes.value.avisaSobre(DadosDeExemplo.ID_SITIO))
+        assertTrue(ajustes.ajustes.value.avisaSobre(DadosDeExemplo.ID_FAZENDA))
+    }
+
+    @Test
+    fun `ajuste de um sitio fora da lista nao se perde ao salvar`() {
+        val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf("sitio-de-outra-conta")))
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria())
+
+        vm.aoMudarSitio(DadosDeExemplo.ID_FAZENDA, false)
+        vm.aoSalvar()
+
+        assertEquals(setOf("sitio-de-outra-conta", DadosDeExemplo.ID_FAZENDA), ajustes.ajustes.value.propriedadesSemAviso)
+    }
+
+    @Test
+    fun `religar um sitio tira ele da lista de desligados`() {
+        val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf(DadosDeExemplo.ID_SITIO)))
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria())
+        assertFalse(vm.uiState.value.sitios.first { it.id == DadosDeExemplo.ID_SITIO }.avisa)
+
+        vm.aoMudarSitio(DadosDeExemplo.ID_SITIO, true)
+        vm.aoSalvar()
+
+        assertTrue(ajustes.ajustes.value.propriedadesSemAviso.isEmpty())
+    }
+
+    @Test
+    fun `com um sitio so a lista de sitios nao aparece`() {
+        val um = PropriedadeRepositoryMemoria(DadosDeExemplo.propriedades().take(1))
+        assertFalse(AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), um).uiState.value.mostrarSitios)
+    }
+
+    @Test
+    fun `sitio que sobrou desligado continua com a lista, para dar para religar`() {
+        val um = PropriedadeRepositoryMemoria(DadosDeExemplo.propriedades().take(1))
+        val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf(DadosDeExemplo.ID_FAZENDA)))
+        assertTrue(AjustesAvisoViewModel(ajustes, AgendaFalsa(), um).uiState.value.mostrarSitios)
+    }
+
     // ---------- cartão do Início ----------
 
-    private fun inicio(clima: ClimaRepositoryMemoria) = InicioViewModel(
+    private fun inicio(
+        clima: ClimaRepositoryMemoria,
+        agora: Instant = AGORA,
+        nome: String? = null
+    ) = InicioViewModel(
         LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))),
         PropriedadeRepositoryMemoria(),
         clima,
         AjustesAvisoMemoria(),
-        relogio = { AGORA.toEpochMilli() }
+        relogio = { agora.toEpochMilli() },
+        nomeDoUsuario = flowOf(nome)
     )
+
+    private fun cartaoCom(chuvaPorHora: Map<Int, Pair<Int, Double>>) =
+        inicio(ClimaRepositoryMemoria(mapOf(fazendaId to previsao(chuvaPorHora)))).uiState.value.chuva
 
     @Test
     fun `inicio mostra a chuva prevista no cartao azul`() {
         val cartao = inicio(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva))).uiState.value.chuva
 
         assertTrue(cartao?.vaiChover == true)
-        assertEquals("Chuva prevista a partir das 18h", cartao?.titulo)
-        assertEquals("85% de chance · 6 mm · dá para adiar o pivô", cartao?.detalhe)
+        assertEquals("Previsão · próximas 12 h", cartao?.rotulo)
+        assertEquals("Chuva às 18h. Dá para adiar o pivô.", cartao?.frase)
+        assertEquals("85% de chance · 6 mm", cartao?.detalhe)
+    }
+
+    @Test
+    fun `chuva na hora de agora nao diz uma hora que ja comecou`() {
+        // Agora são 14:40; chuva às 14h.
+        assertEquals("Chuva já nesta hora. Dá para adiar o pivô.", cartaoCom(mapOf(14 to (90 to 4.0)))?.frase)
+    }
+
+    @Test
+    fun `chuva depois da meia-noite avisa que e amanha`() {
+        // Hora 25 = 1h do dia 2, ainda dentro da janela de 12 h.
+        assertEquals("Chuva amanhã às 1h. Dá para adiar o pivô.", cartaoCom(mapOf(25 to (90 to 4.0)))?.frase)
+    }
+
+    @Test
+    fun `sem chuva o cartao diz isso com a maior chance da janela`() {
+        val cartao = cartaoCom(mapOf(20 to (30 to 0.0)))
+        assertFalse(cartao?.vaiChover == true)
+        assertEquals("Sem chuva nas próximas 12 h.", cartao?.frase)
+        assertEquals("Até 30% de chance · toque para ver a semana", cartao?.detalhe)
+    }
+
+    @Test
+    fun `previsao que nao cobre as proximas horas pede para atualizar`() {
+        val tresDiasDepois = AGORA.plus(Duration.ofDays(3))
+        val cartao = inicio(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)), agora = tresDiasDepois).uiState.value.chuva
+        assertEquals("Previsão desatualizada.", cartao?.frase)
+        assertEquals("Toque para atualizar", cartao?.detalhe)
+        assertFalse(cartao?.vaiChover == true)
+    }
+
+    @Test
+    fun `botao da conta mostra as iniciais de quem esta conectado`() {
+        assertEquals("MS", inicio(ClimaRepositoryMemoria(), nome = "Maria da Silva Souza").uiState.value.iniciais)
+        assertEquals("", inicio(ClimaRepositoryMemoria(), nome = null).uiState.value.iniciais)
+    }
+
+    @Test
+    fun `iniciais continuam quando o mes muda`() {
+        val vm = inicio(ClimaRepositoryMemoria(), nome = "Maria Souza")
+        vm.aoVoltarMes()
+        assertEquals("MS", vm.uiState.value.iniciais)
     }
 
     @Test
@@ -211,5 +318,38 @@ class ClimaViewModelsTest {
         val vm = inicio(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)))
         vm.aoVoltarMes()
         assertTrue(vm.uiState.value.chuva?.vaiChover == true)
+    }
+
+    @Test
+    fun `voltar para a tela refaz a frase da chuva com a hora nova`() {
+        var agora = AGORA // 14h40 do dia 1
+        val vm = InicioViewModel(
+            LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))),
+            PropriedadeRepositoryMemoria(),
+            ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0))))),
+            AjustesAvisoMemoria(),
+            relogio = { agora.toEpochMilli() }
+        )
+        assertEquals("Chuva amanhã às 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
+
+        vm.aoVoltarParaATela() // a primeira vez é a própria abertura
+        agora = Instant.parse("2026-10-02T04:20:00Z") // 1h20 do dia 2
+        assertEquals("sem voltar para a tela, nada muda", "Chuva amanhã às 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
+
+        vm.aoVoltarParaATela()
+        assertEquals("Chuva já nesta hora. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
+    }
+
+    @Test
+    fun `voltar para a tela confere se a previsao precisa ser baixada de novo`() {
+        val clima = ClimaRepositoryMemoria().apply { semInternet = true }
+        val vm = inicio(clima)
+        val naAbertura = clima.atualizacoes
+
+        vm.aoVoltarParaATela()
+        assertEquals("a abertura já buscou: não busca duas vezes", naAbertura, clima.atualizacoes)
+
+        vm.aoVoltarParaATela()
+        assertEquals(naAbertura + 1, clima.atualizacoes)
     }
 }

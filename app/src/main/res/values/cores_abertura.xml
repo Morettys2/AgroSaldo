@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- O verde-noite do cabeçalho (ui/theme/Color.kt, VerdeNoite).
+         Repetido aqui porque a abertura aparece antes do Compose existir. -->
+    <color name="abertura_fundo">#163A2A</color>
+</resources>

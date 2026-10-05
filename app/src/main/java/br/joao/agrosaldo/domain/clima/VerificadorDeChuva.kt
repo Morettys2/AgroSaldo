@@ -49,7 +49,10 @@ class VerificadorDeChuva(
         var faltouConexao = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
-        for (propriedade in propriedades.observarTodas().first()) {
+        // Só os sítios que o produtor deixou ligados na tela de ajustes.
+        val monitoradas = propriedades.observarTodas().first().filter { ajustesAtuais.avisaSobre(it.id) }
+
+        for (propriedade in monitoradas) {
             val previsao = when (val resultado = clima.atualizar(propriedade)) {
                 is ResultadoAtualizacao.Sucesso -> resultado.previsao
                 // Sem internet, ainda dá para avisar com a previsão guardada,

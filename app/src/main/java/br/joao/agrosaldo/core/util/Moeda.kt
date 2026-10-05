@@ -35,3 +35,13 @@ fun String.digitosParaCentavos(): Long? {
     if (digitos.isEmpty()) return null
     return digitos.toLongOrNull()
 }
+
+/**
+ * O que aparece no lugar do dinheiro quando o "olho" do Início está fechado.
+ * Mesmo tamanho para qualquer valor: nem a quantidade de dígitos vaza.
+ */
+const val VALOR_ESCONDIDO = "R$ ••••"
+
+fun Long.emReal(oculto: Boolean): String = if (oculto) VALOR_ESCONDIDO else emReal()
+
+fun Long.emRealCurto(oculto: Boolean): String = if (oculto) VALOR_ESCONDIDO else emRealCurto()

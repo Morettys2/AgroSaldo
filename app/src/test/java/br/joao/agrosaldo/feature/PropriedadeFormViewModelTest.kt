@@ -2,6 +2,7 @@ package br.joao.agrosaldo.feature
 
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormViewModel
@@ -131,6 +132,25 @@ class PropriedadeFormViewModelTest {
         val restantes = lancamentos.observarTodos().first()
         assertTrue(restantes.none { it.propriedadeId == DadosDeExemplo.ID_SITIO })
         assertEquals("os da fazenda continuam", 6, restantes.size)
+    }
+
+    @Test
+    fun `desfazer a exclusao traz a propriedade e todos os lancamentos dela`() = runTest {
+        val desfazer = Desfazer()
+        val antes = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
+        val propriedadeAntes = propriedades.buscarPorId(DadosDeExemplo.ID_SITIO)
+        val vm = PropriedadeFormViewModel(propriedades, lancamentos, DadosDeExemplo.ID_SITIO, desfazer)
+
+        vm.aoExcluir()
+        val oferta = checkNotNull(desfazer.pendente.value)
+        assertEquals("Propriedade excluída", oferta.mensagem)
+
+        desfazer.desfazer(oferta)
+
+        assertEquals(propriedadeAntes, propriedades.buscarPorId(DadosDeExemplo.ID_SITIO))
+        val depois = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
+        assertEquals(antes.toSet(), depois.toSet())
+        assertEquals(3, depois.size)
     }
 
     @Test

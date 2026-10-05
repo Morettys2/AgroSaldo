@@ -7,8 +7,9 @@ import java.util.UUID
 enum class TipoLancamento { RECEITA, DESPESA }
 
 /**
- * Categorias fixas do domínio, exatamente as sete despesas e as receitas
- * definidas na proposta do trabalho (RF06).
+ * Categorias fixas do domínio: as sete despesas e as receitas definidas na
+ * proposta do trabalho (RF06), mais "Outras" de cada lado — sem elas, um
+ * gasto como imposto ou frete não teria onde ser lançado.
  *
  * Cada categoria carrega o próprio [tipo]. Isso torna impossível cadastrar
  * "Venda de safra" como despesa — o init do [Lancamento] barra.
@@ -26,10 +27,14 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
     COMBUSTIVEL(TipoLancamento.DESPESA, "Combustível"),
     MAO_DE_OBRA(TipoLancamento.DESPESA, "Mão de obra"),
     MANUTENCAO(TipoLancamento.DESPESA, "Manutenção"),
+    // Entrou depois da proposta. Fica no fim da lista de despesas de propósito:
+    // é a última opção, para quando nenhuma outra serve.
+    OUTRAS_DESPESAS(TipoLancamento.DESPESA, "Outras despesas"),
 
     VENDA_SAFRA(TipoLancamento.RECEITA, "Venda de safra"),
     ARRENDAMENTO(TipoLancamento.RECEITA, "Arrendamento"),
-    OUTROS(TipoLancamento.RECEITA, "Outros");
+    // O nome OUTROS fica como está: é ele que está gravado no banco.
+    OUTROS(TipoLancamento.RECEITA, "Outras receitas");
 
     companion object {
         /** Alimenta o seletor de categoria do formulário. */
@@ -38,7 +43,16 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
     }
 }
 
-
+/**
+ * MODEL — lançamento financeiro de uma propriedade.
+ *
+ * RN01 — todo lançamento pertence a exatamente uma propriedade.
+ * RN06 — o valor é sempre positivo; quem define o sinal é o [tipo].
+ *
+ * As validações ficam no init: um objeto inválido simplesmente não chega a
+ * existir. A tela valida antes só pra mostrar mensagem amigável — mas mesmo
+ * que ela falhe, o modelo se defende.
+ */
 data class Lancamento(
     val id: String = UUID.randomUUID().toString(),
     val propriedadeId: String,
@@ -63,7 +77,7 @@ data class Lancamento(
         }
     }
 
-
+    /** Valor com sinal, usado no cálculo de saldo do período (RN03). */
     val valorComSinal: Long
         get() = if (tipo == TipoLancamento.RECEITA) valorCentavos else -valorCentavos
 

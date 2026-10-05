@@ -14,8 +14,8 @@ android {
         applicationId = "br.joao.agrosaldo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 5
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -74,6 +74,9 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.fragment.ktx)
+
+    // R4: tela de abertura com o broto, igual em todo Android a partir do 8.0.
+    implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

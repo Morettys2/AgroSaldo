@@ -1,8 +1,10 @@
 package br.joao.agrosaldo.core.navigation
 
 import br.joao.agrosaldo.core.navigation.RegrasDeNavegacao.destino
+import br.joao.agrosaldo.domain.model.TipoLancamento
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Para onde o app vai quando a pessoa entra, sai ou a política muda. */
@@ -87,5 +89,41 @@ class RegrasDeNavegacaoTest {
             Rotas.INICIO,
             destino(Rotas.NOVO_CONSENTIMENTO, null, logado = true, precisaNovoAceite = false)
         )
+    }
+
+    // ---------- rotas do lançamento (R4) ----------
+
+    @Test
+    fun `rota do formulario leva o tipo dos atalhos do inicio`() {
+        assertEquals("lancamento/form?tipo=RECEITA", Rotas.formLancamento(tipo = TipoLancamento.RECEITA))
+        assertEquals("lancamento/form?tipo=DESPESA", Rotas.formLancamento(tipo = TipoLancamento.DESPESA))
+        assertEquals("lancamento/form", Rotas.formLancamento())
+    }
+
+    @Test
+    fun `editar e copiar ignoram o tipo`() {
+        assertEquals("lancamento/form?id=abc", Rotas.formLancamento(id = "abc", tipo = TipoLancamento.RECEITA))
+        assertEquals("lancamento/form?copia=abc", Rotas.formLancamento(copiaDe = "abc", tipo = TipoLancamento.RECEITA))
+    }
+
+    @Test
+    fun `tipo lido da rota volta ao mesmo, e texto estranho vira nulo`() {
+        TipoLancamento.entries.forEach { tipo ->
+            val rota = Rotas.formLancamento(tipo = tipo)
+            assertEquals(tipo, Rotas.tipoDaRota(rota.substringAfter("tipo=")))
+        }
+        assertNull(Rotas.tipoDaRota(null))
+        assertNull(Rotas.tipoDaRota("receita"))
+        assertNull(Rotas.tipoDaRota(""))
+    }
+
+    @Test
+    fun `cabecalho escuro so nas abas e no novo lancamento`() {
+        assertEquals(
+            setOf(Rotas.INICIO, Rotas.LANCAMENTOS, Rotas.CLIMA, Rotas.PROPRIEDADES, Rotas.FORM_LANCAMENTO),
+            Rotas.COM_CABECALHO_ESCURO
+        )
+        assertTrue(Rotas.LOGIN !in Rotas.COM_CABECALHO_ESCURO)
+        assertTrue(Rotas.CONTA !in Rotas.COM_CABECALHO_ESCURO)
     }
 }

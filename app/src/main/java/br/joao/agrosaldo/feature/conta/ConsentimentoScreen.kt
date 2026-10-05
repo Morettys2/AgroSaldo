@@ -172,7 +172,7 @@ fun ConsentimentoScreen(
 private fun CartaoPonto(titulo: String, texto: String, modifier: Modifier = Modifier) {
     Card(
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(

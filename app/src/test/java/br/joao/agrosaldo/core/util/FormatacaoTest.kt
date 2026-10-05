@@ -97,4 +97,60 @@ class FormatacaoTest {
         assertEquals("2 minutos e 30 segundos", formatarEspera(150))
         assertEquals("15 minutos", formatarEspera(900))
     }
+
+    // ---------- calendário e histórico ----------
+
+    @Test
+    fun `calendario - o dia escolhido nao volta um dia no fuso do Brasil`() {
+        val dia = LocalDate.of(2026, 10, 4)
+        // Meia-noite de 04/10 em UTC: o que o DatePicker do Material devolve.
+        assertEquals(1_791_072_000_000L, dia.emMillisUtc())
+        assertEquals(dia, dia.emMillisUtc().paraLocalDateUtc())
+        // Qualquer hora do mesmo dia em UTC continua sendo o mesmo dia.
+        assertEquals(dia, (dia.emMillisUtc() + 23 * 3_600_000L).paraLocalDateUtc())
+    }
+
+    @Test
+    fun `siglas e nomes dos meses em portugues`() {
+        assertEquals("Jan", YearMonth.of(2026, 1).siglaDoMes())
+        assertEquals("Set", YearMonth.of(2026, 9).siglaDoMes())
+        assertEquals("Mai", YearMonth.of(2026, 5).siglaDoMes())
+        assertEquals("Março", YearMonth.of(2026, 3).nomeDoMes())
+    }
+
+    // ---------- R4: dias com nome e valores escondidos ----------
+
+    @Test
+    fun `dia relativo usa hoje, ontem, amanha e o nome do mes`() {
+        val hoje = LocalDate.of(2026, 10, 4)
+        assertEquals("Hoje", hoje.rotuloRelativo(hoje))
+        assertEquals("Ontem", hoje.minusDays(1).rotuloRelativo(hoje))
+        assertEquals("Amanhã", hoje.plusDays(1).rotuloRelativo(hoje))
+        assertEquals("2 de outubro", LocalDate.of(2026, 10, 2).rotuloRelativo(hoje))
+        assertEquals("o ano aparece se for outro", "2 de outubro de 2025", LocalDate.of(2025, 10, 2).rotuloRelativo(hoje))
+        assertEquals("virada de ano: 31/12 é ontem", "Ontem", LocalDate.of(2025, 12, 31).rotuloRelativo(LocalDate.of(2026, 1, 1)))
+    }
+
+    @Test
+    fun `dia relativo curto usa a sigla do mes sem ponto`() {
+        val hoje = LocalDate.of(2026, 10, 4)
+        assertEquals("Hoje", hoje.rotuloRelativoCurto(hoje))
+        assertEquals("Ontem", hoje.minusDays(1).rotuloRelativoCurto(hoje))
+        assertEquals("Amanhã", hoje.plusDays(1).rotuloRelativoCurto(hoje))
+        assertEquals("2 out", LocalDate.of(2026, 10, 2).rotuloRelativoCurto(hoje))
+        assertEquals("2 out 2025", LocalDate.of(2025, 10, 2).rotuloRelativoCurto(hoje))
+    }
+
+    @Test
+    fun `valor escondido tem sempre o mesmo tamanho, qualquer que seja o valor`() {
+        assertEquals(VALOR_ESCONDIDO, 5L.emReal(oculto = true))
+        assertEquals(VALOR_ESCONDIDO, 1_800_000_00L.emReal(oculto = true))
+        assertEquals(VALOR_ESCONDIDO, 125_000L.emRealCurto(oculto = true))
+    }
+
+    @Test
+    fun `com o olho aberto o valor aparece normal`() {
+        assertEquals(125_050L.emReal(), 125_050L.emReal(oculto = false))
+        assertEquals(125_000L.emRealCurto(), 125_000L.emRealCurto(oculto = false))
+    }
 }

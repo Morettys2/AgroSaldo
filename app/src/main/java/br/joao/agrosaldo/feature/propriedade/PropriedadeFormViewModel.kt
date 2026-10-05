@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -13,6 +14,7 @@ import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -55,7 +57,8 @@ data class PropriedadeFormUiState(
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     private val lancamentoRepository: LancamentoRepository,
-    private val propriedadeId: String?
+    private val propriedadeId: String?,
+    private val desfazer: Desfazer = Desfazer()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PropriedadeFormUiState(ehEdicao = propriedadeId != null))
@@ -160,15 +163,27 @@ class PropriedadeFormViewModel(
     /**
      * RN02 — excluir propriedade leva junto os lançamentos dela.
      *
-     * A decisão é explícita e não silenciosa: a tela confirma com o usuário
-     * antes de chamar esta função.
+     * A tela confirma antes (é muita coisa de uma vez) e, mesmo assim, a barra
+     * de baixo oferece "Desfazer": a propriedade e todos os lançamentos dela
+     * voltam, com os mesmos ids.
      */
     fun aoExcluir() {
         val id = propriedadeId ?: return
         viewModelScope.launch {
+            val propriedade = propriedadeRepository.buscarPorId(id)
+            val lancamentosDela = lancamentoRepository.observarTodos().first().filter { it.propriedadeId == id }
+
             lancamentoRepository.excluirDaPropriedade(id)
             propriedadeRepository.excluir(id)
             SelecaoAtual.limparSeFor(id)
+
+            if (propriedade != null) {
+                desfazer.oferecer("Propriedade excluída") {
+                    // A propriedade primeiro: os lançamentos dependem dela.
+                    propriedadeRepository.salvar(propriedade)
+                    lancamentosDela.forEach { lancamentoRepository.salvar(it) }
+                }
+            }
             _uiState.update { it.copy(excluido = true) }
         }
     }
@@ -183,7 +198,8 @@ class PropriedadeFormViewModel(
                 PropriedadeFormViewModel(
                     propriedadeRepository = Repositorios.propriedades,
                     lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeId = propriedadeId
+                    propriedadeId = propriedadeId,
+                    desfazer = Repositorios.desfazer
                 )
             }
         }

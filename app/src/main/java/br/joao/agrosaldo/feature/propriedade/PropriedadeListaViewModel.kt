@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
@@ -51,8 +52,6 @@ class PropriedadeListaViewModel(
     private val lancamentoRepository: LancamentoRepository
 ) : ViewModel() {
 
-    private val _mes = MutableStateFlow(YearMonth.now())
-
     private val _uiState = MutableStateFlow(PropriedadeListaUiState())
     val uiState: StateFlow<PropriedadeListaUiState> = _uiState.asStateFlow()
 
@@ -61,7 +60,7 @@ class PropriedadeListaViewModel(
             combine(
                 propriedadeRepository.observarTodas(),
                 lancamentoRepository.observarTodos(),
-                _mes
+                SelecaoAtual.mes
             ) { propriedades, lancamentos, mes ->
 
                 val saldos = propriedades.map { propriedade ->
@@ -94,8 +93,9 @@ class PropriedadeListaViewModel(
         }
     }
 
-    fun aoAvancarMes() { _mes.value = _mes.value.plusMonths(1) }
-    fun aoVoltarMes() { _mes.value = _mes.value.minusMonths(1) }
+    // O mês é o mesmo em todas as abas: mudar aqui muda lá também.
+    fun aoAvancarMes() = SelecaoAtual.avancarMes()
+    fun aoVoltarMes() = SelecaoAtual.voltarMes()
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {

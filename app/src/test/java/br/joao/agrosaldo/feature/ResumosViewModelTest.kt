@@ -48,6 +48,8 @@ class ResumosViewModelTest {
         propriedades = PropriedadeRepositoryMemoria()
         // Relativo a hoje, porque as telas abrem sempre no mês corrente.
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.now()))
+        // Mês e propriedade são compartilhados entre as abas: cada teste começa do zero.
+        SelecaoAtual.limpar()
         SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
     }
 
@@ -173,5 +175,108 @@ class ResumosViewModelTest {
 
         assertTrue(sitio.saldoCentavos < 0)
         assertEquals(1f, sitio.proporcao, 0.0001f)
+    }
+
+    // ---------- filtro por categoria (RF09) ----------
+
+    @Test
+    fun `RF09 - filtrar por categoria mostra so ela e soma o que aparece`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.ENERGIA)
+
+        val estado = vm.uiState.value
+        assertEquals(1, estado.quantidade)
+        assertTrue(estado.lancamentos.all { it.categoria == CategoriaLancamento.ENERGIA })
+        assertEquals("quanto saiu de energia no mês", -125_000L, estado.totalFiltradoCentavos)
+        assertEquals("o saldo continua o do mês", 1_565_000L, estado.saldoCentavos)
+        assertTrue(estado.temFiltro)
+    }
+
+    @Test
+    fun `chips mostram so as categorias que tem lancamento no mes, na ordem do cadastro`() {
+        val categorias = LancamentoListaViewModel(lancamentos, propriedades).uiState.value.categoriasDoMes
+        assertEquals(
+            listOf(
+                CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO,
+                CategoriaLancamento.COMBUSTIVEL, CategoriaLancamento.VENDA_SAFRA
+            ),
+            categorias
+        )
+    }
+
+    @Test
+    fun `com filtro de despesas os chips nao oferecem categorias de receita`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
+        assertTrue(vm.uiState.value.categoriasDoMes.none { it.tipo == TipoLancamento.RECEITA })
+    }
+
+    @Test
+    fun `trocar para receitas desmarca uma categoria de despesa`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        vm.aoMudarFiltro(FiltroLancamento.RECEITAS)
+
+        assertEquals(null, vm.uiState.value.categoria)
+        assertEquals(1, vm.uiState.value.quantidade)
+    }
+
+    @Test
+    fun `trocar para despesas desmarca uma categoria de receita`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.VENDA_SAFRA)
+        vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
+
+        assertEquals(null, vm.uiState.value.categoria)
+        assertEquals(3, vm.uiState.value.quantidade)
+    }
+
+    @Test
+    fun `trocar para despesas mantem uma categoria de despesa marcada`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
+        assertEquals(CategoriaLancamento.ADUBO, vm.uiState.value.categoria)
+    }
+
+    @Test
+    fun `tocar de novo na categoria marcada desmarca, e limpar tira tudo`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        assertEquals(null, vm.uiState.value.categoria)
+
+        vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        vm.aoLimparFiltros()
+        assertFalse(vm.uiState.value.temFiltro)
+        assertEquals(4, vm.uiState.value.quantidade)
+    }
+
+    @Test
+    fun `categoria marcada continua no chip mesmo num mes sem ela`() {
+        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
+        vm.aoVoltarMes()
+
+        val estado = vm.uiState.value
+        assertEquals(0, estado.quantidade)
+        assertTrue("senão não daria para desmarcar", CategoriaLancamento.ADUBO in estado.categoriasDoMes)
+    }
+
+    // ---------- mês compartilhado ----------
+
+    @Test
+    fun `o mes escolhido no inicio e o mesmo em lancamentos e sitios`() {
+        val inicio = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val lista = LancamentoListaViewModel(lancamentos, propriedades)
+        val sitios = PropriedadeListaViewModel(propriedades, lancamentos)
+
+        inicio.aoVoltarMes()
+
+        val mesPassado = YearMonth.now().minusMonths(1)
+        assertEquals(mesPassado, lista.uiState.value.mes)
+        assertEquals(mesPassado, sitios.uiState.value.mes)
+        assertEquals(2, lista.uiState.value.quantidade)
     }
 }

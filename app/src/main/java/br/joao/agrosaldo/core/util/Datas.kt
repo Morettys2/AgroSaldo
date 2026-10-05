@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.format.ResolverStyle
@@ -58,6 +59,61 @@ fun YearMonth.rotulo(): String {
 
 fun LocalDate.pertenceAo(mes: YearMonth): Boolean =
     YearMonth.from(this) == mes
+
+/**
+ * O calendário do Material (DatePicker) trabalha com milissegundos em UTC.
+ * Converter usando o fuso do celular faria o dia escolhido "voltar um dia"
+ * no Brasil (UTC−3): meia-noite em UTC ainda é o dia anterior aqui.
+ */
+fun LocalDate.emMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+fun Long.paraLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+
+/** "Jan", "Fev"... para o eixo do gráfico do histórico. */
+fun YearMonth.siglaDoMes(): String =
+    month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).replaceFirstChar { it.uppercase(BRASIL) }
+
+/**
+ * O dia como a gente fala: "Hoje", "Ontem", "Amanhã", "2 de outubro" e, se
+ * for de outro ano, "2 de outubro de 2025". Usado nos grupos da lista.
+ */
+fun LocalDate.rotuloRelativo(hoje: LocalDate): String = when (this) {
+    hoje -> "Hoje"
+    hoje.minusDays(1) -> "Ontem"
+    hoje.plusDays(1) -> "Amanhã"
+    else -> {
+        val mes = month.getDisplayName(TextStyle.FULL, BRASIL)
+        if (year == hoje.year) "$dayOfMonth de $mes" else "$dayOfMonth de $mes de $year"
+    }
+}
+
+/** A versão curta, para a linha do Início: "Hoje", "Ontem", "2 out", "2 out 2025". */
+fun LocalDate.rotuloRelativoCurto(hoje: LocalDate): String = when (this) {
+    hoje -> "Hoje"
+    hoje.minusDays(1) -> "Ontem"
+    hoje.plusDays(1) -> "Amanhã"
+    else -> if (year == hoje.year) diaEMesCurto() else "${diaEMesCurto()} $year"
+}
+
+/**
+ * O que aparece no campo de data do formulário: "Hoje, 4 out",
+ * "Ontem, 3 out", "Amanhã, 5 out", ou só "28 set" (e o ano, se for outro).
+ */
+fun LocalDate.rotuloDeData(hoje: LocalDate): String = when (this) {
+    hoje, hoje.minusDays(1), hoje.plusDays(1) -> "${rotuloRelativoCurto(hoje)}, ${diaEMesCurto()}"
+    else -> rotuloRelativoCurto(hoje)
+}
+
+/**
+ * "4 out". O Java escreve "out." com ponto em algumas versões; as três
+ * letras bastam.
+ */
+private fun LocalDate.diaEMesCurto(): String =
+    "$dayOfMonth " + month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).lowercase(BRASIL)
+
+/** "Setembro", sem o ano. */
+fun YearMonth.nomeDoMes(): String =
+    month.getDisplayName(TextStyle.FULL, BRASIL).replaceFirstChar { it.uppercase(BRASIL) }
 
 /**
  * "30 segundos", "1 minuto", "2 minutos e 30 segundos". Arredonda para cima:

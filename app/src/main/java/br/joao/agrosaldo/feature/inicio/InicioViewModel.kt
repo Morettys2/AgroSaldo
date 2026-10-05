@@ -13,6 +13,7 @@ import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
+import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -22,6 +23,7 @@ import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,10 +32,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 
 /** Uma fatia do gasto do mês, já com a proporção calculada para a barra. */
 data class GastoPorCategoria(
@@ -56,12 +61,23 @@ data class InicioUiState(
     val gastosPorCategoria: List<GastoPorCategoria> = emptyList(),
     val ultimosLancamentos: List<Lancamento> = emptyList(),
     /** Null enquanto não há previsão guardada para a propriedade. */
-    val chuva: CartaoChuvaUi? = null
+    val chuva: CartaoChuvaUi? = null,
+    /** "FM", no botão redondo da conta. Vazio enquanto o nome não chegou. */
+    val iniciais: String = "",
+    /** Para escrever "Hoje" e "Ontem" nos últimos lançamentos. */
+    val hoje: LocalDate = LocalDate.now()
 )
 
-/** O cartão azul do Início, agora com a previsão de verdade. */
+/**
+ * O cartão azul do Início, em três linhas:
+ *
+ *   Previsão · próximas 12 h              ← rotulo
+ *   Chuva às 18h. Dá para adiar o pivô.   ← frase (a que importa)
+ *   92% de chance · 5 mm                  ← detalhe
+ */
 data class CartaoChuvaUi(
-    val titulo: String,
+    val rotulo: String,
+    val frase: String,
     val detalhe: String,
     val vaiChover: Boolean
 )
@@ -86,13 +102,23 @@ class InicioViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
-    private val relogio: () -> Long = System::currentTimeMillis
+    private val relogio: () -> Long = System::currentTimeMillis,
+    /** O nome de quem está conectado, para as iniciais do botão da conta. */
+    nomeDoUsuario: Flow<String?> = flowOf(null),
+    private val hoje: () -> LocalDate = LocalDate::now
 ) : ViewModel() {
-
-    private val _mes = MutableStateFlow(YearMonth.now())
 
     private val _uiState = MutableStateFlow(InicioUiState())
     val uiState: StateFlow<InicioUiState> = _uiState.asStateFlow()
+
+    /**
+     * Sobe a cada vez que a pessoa volta para a tela. "Hoje", "Ontem" e a
+     * frase da chuva dependem da hora: sem isto, o cartão montado às 23h30
+     * ("Chuva amanhã às 1h") continuaria igual de manhã, um dia errado.
+     */
+    private val _voltas = MutableStateFlow(0)
+    private var jaApareceu = false
+    private var propriedadeDaPrevisao: Propriedade? = null
 
     init {
         viewModelScope.launch {
@@ -100,13 +126,22 @@ class InicioViewModel(
                 lancamentoRepository.observarTodos(),
                 propriedadeRepository.observarTodas(),
                 SelecaoAtual.propriedadeId,
-                _mes
-            ) { lancamentos, propriedades, selecionadaId, mes ->
+                SelecaoAtual.mes,
+                _voltas
+            ) { lancamentos, propriedades, selecionadaId, mes, _ ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
             }.collect { estado ->
-                // O cartão de chuva vem de outro fluxo (abaixo); preserva o que já estava.
-                _uiState.value = estado.copy(chuva = _uiState.value.chuva)
+                // O cartão de chuva e as iniciais vêm de outros fluxos (abaixo);
+                // preserva o que já estava.
+                val atual = _uiState.value
+                _uiState.value = estado.copy(chuva = atual.chuva, iniciais = atual.iniciais)
             }
+        }
+
+        viewModelScope.launch {
+            nomeDoUsuario
+                .map { nome -> if (nome.isNullOrBlank()) "" else RegrasDeConta.iniciais(nome) }
+                .collect { iniciais -> _uiState.update { it.copy(iniciais = iniciais) } }
         }
 
         // Previsão da propriedade selecionada, lida do cache. Se estiver velha
@@ -117,6 +152,7 @@ class InicioViewModel(
 
         viewModelScope.launch {
             propriedadeAtual.collectLatest { propriedade ->
+                propriedadeDaPrevisao = propriedade
                 if (propriedade != null) clima.atualizarSeNecessario(propriedade)
             }
         }
@@ -124,30 +160,60 @@ class InicioViewModel(
         viewModelScope.launch {
             propriedadeAtual
                 .flatMapLatest { propriedade -> if (propriedade == null) flowOf(null) else clima.observar(propriedade) }
-                .combine(ajustes.ajustes) { previsao, aj ->
-                    previsao?.let { cartaoChuva(it, aj.limites) }
-                }
+                .combine(ajustes.ajustes) { previsao, aj -> previsao to aj }
+                .combine(_voltas) { (previsao, aj), _ -> previsao?.let { cartaoChuva(it, aj.limites) } }
                 .collect { cartao -> _uiState.update { it.copy(chuva = cartao) } }
         }
     }
 
+    /**
+     * A tela voltou a aparecer (abriu o app de novo, voltou de outra aba).
+     * Refaz o que depende da hora e, se a previsão tiver mais de 1 h, busca
+     * outra. A primeira vez é ignorada: ao abrir, o init já fez as duas coisas.
+     */
+    fun aoVoltarParaATela() {
+        if (!jaApareceu) {
+            jaApareceu = true
+            return
+        }
+        _voltas.update { it + 1 }
+        val propriedade = propriedadeDaPrevisao ?: return
+        viewModelScope.launch { clima.atualizarSeNecessario(propriedade) }
+    }
+
     private fun cartaoChuva(previsao: Previsao, limites: LimitesChuva): CartaoChuvaUi {
-        val avaliacao = RegraDeChuva.avaliar(previsao, Instant.ofEpochMilli(relogio()), limites)
+        val instante = Instant.ofEpochMilli(relogio())
+        val avaliacao = RegraDeChuva.avaliar(previsao, instante, limites)
+        val rotulo = "Previsão · próximas ${limites.janelaHoras} h"
         return when {
             !avaliacao.temDados -> CartaoChuvaUi(
-                titulo = "Previsão de chuva",
-                detalhe = "Toque para atualizar a previsão",
+                rotulo = rotulo,
+                frase = "Previsão desatualizada.",
+                detalhe = "Toque para atualizar",
                 vaiChover = false
             )
-            avaliacao.vaiChover -> CartaoChuvaUi(
-                titulo = "Chuva prevista" + (avaliacao.inicioPrevisto?.let { " a partir das ${it.horaCurta()}" } ?: ""),
-                detalhe = "${avaliacao.probabilidadeMaxima}% de chance · ${avaliacao.chuvaTotalMm.emMilimetros()} · " +
-                    "dá para adiar o pivô",
-                vaiChover = true
-            )
+            avaliacao.vaiChover -> {
+                val agora = previsao.horaLocal(instante)
+                val quando = avaliacao.inicioPrevisto?.let { inicio ->
+                    // A janela pode passar da meia-noite (e ir até 48 h):
+                    // "às 2h" sozinho confundiria com a madrugada de hoje.
+                    when (ChronoUnit.DAYS.between(agora.toLocalDate(), inicio.toLocalDate())) {
+                        0L -> if (inicio.hour == agora.hour) "Chuva já nesta hora" else "Chuva às ${inicio.horaCurta()}"
+                        1L -> "Chuva amanhã às ${inicio.horaCurta()}"
+                        else -> "Chuva depois de amanhã às ${inicio.horaCurta()}"
+                    }
+                } ?: "Chuva prevista"
+                CartaoChuvaUi(
+                    rotulo = rotulo,
+                    frase = "$quando. Dá para adiar o pivô.",
+                    detalhe = "${avaliacao.probabilidadeMaxima}% de chance · ${avaliacao.chuvaTotalMm.emMilimetros()}",
+                    vaiChover = true
+                )
+            }
             else -> CartaoChuvaUi(
-                titulo = "Sem chuva nas próximas ${limites.janelaHoras} horas",
-                detalhe = "Até ${avaliacao.probabilidadeMaxima}% de chance · toque para ver os próximos dias",
+                rotulo = rotulo,
+                frase = "Sem chuva nas próximas ${limites.janelaHoras} h.",
+                detalhe = "Até ${avaliacao.probabilidadeMaxima}% de chance · toque para ver a semana",
                 vaiChover = false
             )
         }
@@ -164,7 +230,7 @@ class InicioViewModel(
             ?: propriedades.firstOrNull()
 
         if (propriedade == null) {
-            return InicioUiState(carregando = false, temPropriedade = false, mes = mes)
+            return InicioUiState(carregando = false, temPropriedade = false, mes = mes, hoje = hoje())
         }
 
         val doMes = todosLancamentos
@@ -210,12 +276,14 @@ class InicioViewModel(
             despesasCentavos = despesas,
             proporcaoReceitas = proporcao,
             gastosPorCategoria = gastos,
-            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(4)
+            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(4),
+            hoje = hoje()
         )
     }
 
-    fun aoAvancarMes() { _mes.value = _mes.value.plusMonths(1) }
-    fun aoVoltarMes() { _mes.value = _mes.value.minusMonths(1) }
+    // O mês é o mesmo em todas as abas: mudar aqui muda lá também.
+    fun aoAvancarMes() = SelecaoAtual.avancarMes()
+    fun aoVoltarMes() = SelecaoAtual.voltarMes()
     fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
 
     companion object {
@@ -225,7 +293,8 @@ class InicioViewModel(
                     lancamentoRepository = Repositorios.lancamentos,
                     propriedadeRepository = Repositorios.propriedades,
                     clima = Repositorios.clima,
-                    ajustes = Repositorios.ajustesAviso
+                    ajustes = Repositorios.ajustesAviso,
+                    nomeDoUsuario = Repositorios.conta.observarUsuarioLogado().map { it?.nome }
                 )
             }
         }

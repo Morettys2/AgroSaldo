@@ -1,5 +1,7 @@
 package br.joao.agrosaldo.core.navigation
 
+import br.joao.agrosaldo.domain.model.TipoLancamento
+
 /**
  * Todas as rotas do app num lugar só.
  *
@@ -30,17 +32,44 @@ object Rotas {
     const val CLIMA = "clima"
     const val PROPRIEDADES = "propriedades"
 
-    const val ARG_ID = "id"
+    // Histórico do ano (RF10), aberto pelo Início.
+    const val HISTORICO = "historico"
 
-    const val FORM_LANCAMENTO = "lancamento/form?$ARG_ID={$ARG_ID}"
+    const val ARG_ID = "id"
+    const val ARG_COPIA = "copia"
+    const val ARG_TIPO = "tipo"
+
+    const val FORM_LANCAMENTO = "lancamento/form?$ARG_ID={$ARG_ID}&$ARG_COPIA={$ARG_COPIA}&$ARG_TIPO={$ARG_TIPO}"
     const val FORM_PROPRIEDADE = "propriedade/form?$ARG_ID={$ARG_ID}"
 
     /** Telas de quem ainda não entrou. Conectado, o app sai delas. */
     val DE_ENTRADA = setOf(LOGIN, CRIAR_CONTA, CONSENTIMENTO)
 
+    /** As quatro abas da barra de baixo. */
+    val ABAS = setOf(INICIO, LANCAMENTOS, CLIMA, PROPRIEDADES)
 
-    fun formLancamento(id: String? = null): String =
-        if (id == null) "lancamento/form" else "lancamento/form?$ARG_ID=$id"
+    /**
+     * Telas com o cabeçalho verde-noite indo até o topo, por trás do relógio:
+     * nelas a barra de status usa ícones claros, e o app não reserva o espaço
+     * dela (o próprio cabeçalho faz isso).
+     */
+    val COM_CABECALHO_ESCURO = ABAS + FORM_LANCAMENTO
+
+
+    /**
+     * @param id para editar um lançamento.
+     * @param copiaDe para "lançar de novo": um lançamento novo, preenchido com os dados deste.
+     * @param tipo para os atalhos "Despesa" e "Receita" do Início: um lançamento novo já nesse tipo.
+     */
+    fun formLancamento(id: String? = null, copiaDe: String? = null, tipo: TipoLancamento? = null): String = when {
+        id != null -> "lancamento/form?$ARG_ID=$id"
+        copiaDe != null -> "lancamento/form?$ARG_COPIA=$copiaDe"
+        tipo != null -> "lancamento/form?$ARG_TIPO=${tipo.name}"
+        else -> "lancamento/form"
+    }
+
+    /** O contrário do [formLancamento]: lê o tipo que veio na rota. Texto estranho vira null. */
+    fun tipoDaRota(texto: String?): TipoLancamento? = TipoLancamento.entries.firstOrNull { it.name == texto }
 
     fun formPropriedade(id: String? = null): String =
         if (id == null) "propriedade/form" else "propriedade/form?$ARG_ID=$id"

@@ -1,269 +1,713 @@
 package br.joao.agrosaldo.feature.lancamento
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.CartaoSafra
+import br.joao.agrosaldo.core.ui.ChipSafra
 import br.joao.agrosaldo.core.ui.LinhaLancamento
-import br.joao.agrosaldo.core.ui.SeletorMes
-import br.joao.agrosaldo.core.ui.SeletorPropriedade
+import br.joao.agrosaldo.core.ui.LocalValoresOcultos
+import br.joao.agrosaldo.core.ui.MARGEM_DO_CABECALHO
+import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.ValorGrande
+import br.joao.agrosaldo.core.ui.icone
+import br.joao.agrosaldo.core.ui.sangrarNasLaterais
+import br.joao.agrosaldo.core.ui.valorEscondido
+import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
+import br.joao.agrosaldo.core.util.rotulo
+import br.joao.agrosaldo.core.util.siglaDoMes
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
+import java.time.Month
+import java.time.YearMonth
+import kotlin.math.abs
 
 @Composable
 fun LancamentoListaRoute(
-    aoNovoLancamento: () -> Unit,
     aoEditarLancamento: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LancamentoListaViewModel = viewModel(factory = LancamentoListaViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // "Hoje" e "Ontem" mudam à meia-noite: refaz ao voltar para a tela.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.aoVoltarParaATela() }
+
     LancamentoListaScreen(
         uiState = uiState,
-        aoVoltarMes = viewModel::aoVoltarMes,
-        aoAvancarMes = viewModel::aoAvancarMes,
+        aoSelecionarMes = viewModel::aoSelecionarMes,
         aoMudarFiltro = viewModel::aoMudarFiltro,
+        aoMudarCategoria = viewModel::aoMudarCategoria,
+        aoLimparFiltros = viewModel::aoLimparFiltros,
+        aoBuscar = viewModel::aoBuscar,
+        aoFecharBusca = viewModel::aoFecharBusca,
         aoSelecionarPropriedade = viewModel::aoSelecionarPropriedade,
-        aoNovoLancamento = aoNovoLancamento,
         aoEditarLancamento = aoEditarLancamento,
         modifier = modifier
     )
 }
 
+/**
+ * Lançamentos na direção "Safra".
+ *
+ * Cabeçalho verde-noite com os meses em pílulas (o mês escolhido em
+ * verde-limão) e o saldo; embaixo, os filtros e um cartão só com a lista,
+ * separada por dia. A lupa troca o título por um campo de busca que
+ * procura em todos os meses.
+ */
 @Composable
 fun LancamentoListaScreen(
     uiState: LancamentoListaUiState,
-    aoVoltarMes: () -> Unit,
-    aoAvancarMes: () -> Unit,
+    aoSelecionarMes: (YearMonth) -> Unit,
     aoMudarFiltro: (FiltroLancamento) -> Unit,
+    aoMudarCategoria: (CategoriaLancamento) -> Unit,
+    aoLimparFiltros: () -> Unit,
+    aoBuscar: (String) -> Unit,
+    aoFecharBusca: () -> Unit,
     aoSelecionarPropriedade: (String) -> Unit,
-    aoNovoLancamento: () -> Unit,
     aoEditarLancamento: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    // Aberta mesmo vazia: a pessoa tocou na lupa e ainda não digitou.
+    var buscaAberta by rememberSaveable { mutableStateOf(uiState.buscando) }
+    // O teclado sobe só logo depois do toque na lupa — e não toda vez que o
+    // campo volta à tela (ao voltar de um lançamento, ou rolando a lista).
+    var focarBusca by rememberSaveable { mutableStateOf(false) }
+    val fecharBusca = {
+        buscaAberta = false
+        aoFecharBusca()
+    }
+    // O mês mudou por fora (Histórico, Início): o ViewModel já limpou a
+    // busca, então o campo fecha e as pílulas de mês voltam.
+    LaunchedEffect(uiState.mes) {
+        if (!uiState.buscando) buscaAberta = false
+    }
+    // "Voltar" com a busca aberta fecha a busca, em vez de sair da aba.
+    BackHandler(enabled = buscaAberta) { fecharBusca() }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-
-            SeletorPropriedade(
-                nome = uiState.nomePropriedade,
-                propriedades = uiState.propriedades,
-                aoSelecionar = aoSelecionarPropriedade,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp)
+    ) {
+        item(key = "cabecalho") {
+            Cabecalho(
+                uiState = uiState,
+                buscaAberta = buscaAberta,
+                focarBusca = focarBusca,
+                aoFocarBusca = { focarBusca = false },
+                aoAbrirBusca = {
+                    buscaAberta = true
+                    focarBusca = true
+                },
+                aoFecharBusca = fecharBusca,
+                aoBuscar = aoBuscar,
+                aoSelecionarMes = aoSelecionarMes,
+                aoSelecionarPropriedade = aoSelecionarPropriedade
             )
-
-            SeletorMes(
-                mes = uiState.mes,
-                aoVoltar = aoVoltarMes,
-                aoAvancar = aoAvancarMes
-            )
-
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ChipFiltro("Tudo", uiState.filtro == FiltroLancamento.TUDO) {
-                    aoMudarFiltro(FiltroLancamento.TUDO)
-                }
-                ChipFiltro("Despesas", uiState.filtro == FiltroLancamento.DESPESAS) {
-                    aoMudarFiltro(FiltroLancamento.DESPESAS)
-                }
-                ChipFiltro("Receitas", uiState.filtro == FiltroLancamento.RECEITAS) {
-                    aoMudarFiltro(FiltroLancamento.RECEITAS)
-                }
-            }
-
-            if (uiState.temPropriedade) {
-                ResumoDoMes(
-                    quantidade = uiState.quantidade,
-                    saldoCentavos = uiState.saldoCentavos,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    uiState.carregando ->
-                        CircularProgressIndicator(Modifier.align(Alignment.Center))
-
-                    !uiState.temPropriedade ->
-                        Aviso("Cadastre uma propriedade antes de lançar receitas e despesas.")
-
-                    uiState.lancamentos.isEmpty() ->
-                        Aviso("Nenhum lançamento neste mês.\nToque no botão para registrar o primeiro.")
-
-                    else -> LazyColumn(
-                        contentPadding = PaddingValues(
-                            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(items = uiState.lancamentos, key = { it.id }) { lancamento ->
-                            LinhaLancamento(
-                                lancamento = lancamento,
-                                aoClicar = { aoEditarLancamento(lancamento.id) }
-                            )
-                        }
-                    }
-                }
-            }
         }
 
-        if (uiState.temPropriedade) {
-            ExtendedFloatingActionButton(
-                onClick = aoNovoLancamento,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(20.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(
-                    text = "Novo lançamento",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 10.dp)
-                )
+        when {
+            uiState.carregando -> item(key = "carregando") {
+                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            !uiState.temPropriedade -> item(key = "sem_propriedade") {
+                Aviso("Cadastre uma propriedade na aba Sítios antes de lançar receitas e despesas.")
+            }
+
+            else -> {
+                item(key = "filtros") {
+                    Filtros(
+                        uiState = uiState,
+                        aoMudarFiltro = aoMudarFiltro,
+                        aoMudarCategoria = aoMudarCategoria,
+                        aoLimparFiltros = aoLimparFiltros,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 16.dp)
+                    )
+                }
+
+                if (uiState.grupos.isEmpty()) {
+                    item(key = "vazio") {
+                        Aviso(
+                            texto = when {
+                                uiState.buscando -> "Nada encontrado para “${uiState.busca.trim()}”."
+                                uiState.temFiltro -> "Nenhum lançamento com esse filtro neste mês."
+                                else -> "Nenhum lançamento neste mês.\nToque no + verde-limão lá embaixo para lançar."
+                            },
+                            acao = if (uiState.temFiltro) "Limpar filtros" else null,
+                            aoAcao = aoLimparFiltros
+                        )
+                    }
+                } else {
+                    itensDaLista(uiState.grupos, aoEditarLancamento)
+                }
             }
         }
     }
 }
 
+// ---------- cabeçalho ----------
+
 @Composable
-private fun ChipFiltro(rotulo: String, selecionado: Boolean, aoClicar: () -> Unit) {
-    FilterChip(
-        selected = selecionado,
-        onClick = aoClicar,
-        label = { Text(rotulo, style = MaterialTheme.typography.labelLarge) },
-        shape = MaterialTheme.shapes.small
+private fun Cabecalho(
+    uiState: LancamentoListaUiState,
+    buscaAberta: Boolean,
+    focarBusca: Boolean,
+    aoFocarBusca: () -> Unit,
+    aoAbrirBusca: () -> Unit,
+    aoFecharBusca: () -> Unit,
+    aoBuscar: (String) -> Unit,
+    aoSelecionarMes: (YearMonth) -> Unit,
+    aoSelecionarPropriedade: (String) -> Unit
+) {
+    CabecalhoSafra {
+        if (buscaAberta) {
+            CampoDeBusca(
+                texto = uiState.busca,
+                focar = focarBusca,
+                aoFocar = aoFocarBusca,
+                aoMudar = aoBuscar,
+                aoFechar = aoFecharBusca
+            )
+            Text(
+                text = when {
+                    !uiState.buscando -> "Procure pelo nome da categoria ou pela descrição."
+                    uiState.quantidade == 1 -> "1 resultado em todos os meses"
+                    else -> "${uiState.quantidade} resultados em todos os meses"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.agro.sobreCabecalhoSecundario,
+                // O leitor de tela avisa quantos achou, sem a pessoa sair do campo.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Lançamentos",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.agro.sobreCabecalho,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() }
+                )
+                BotaoCabecalho(
+                    icone = IconesAgro.Busca,
+                    descricao = "Buscar lançamento",
+                    aoClicar = aoAbrirBusca,
+                    habilitado = uiState.temPropriedade
+                )
+            }
+            // Com um sítio só não há o que trocar; o nome já está no Início.
+            if (uiState.propriedades.size > 1) {
+                SeletorPropriedadeCabecalho(
+                    nome = uiState.nomePropriedade,
+                    propriedades = uiState.propriedades,
+                    aoSelecionar = aoSelecionarPropriedade
+                )
+            }
+            PilulasDeMes(meses = uiState.meses, selecionado = uiState.mes, aoSelecionar = aoSelecionarMes)
+            if (uiState.temPropriedade) ResumoDoMes(uiState)
+        }
+    }
+}
+
+@Composable
+private fun CampoDeBusca(
+    texto: String,
+    focar: Boolean,
+    aoFocar: () -> Unit,
+    aoMudar: (String) -> Unit,
+    aoFechar: () -> Unit
+) {
+    val foco = remember { FocusRequester() }
+    val gerenteDeFoco = LocalFocusManager.current
+    // Acabou de tocar na lupa: o teclado já sobe, sem precisar tocar no campo.
+    LaunchedEffect(focar) {
+        if (focar) {
+            foco.requestFocus()
+            aoFocar()
+        }
+    }
+
+    TextField(
+        value = texto,
+        onValueChange = aoMudar,
+        singleLine = true,
+        placeholder = { Text("Buscar lançamento", style = MaterialTheme.typography.bodyLarge) },
+        leadingIcon = { Icon(IconesAgro.Busca, contentDescription = null, modifier = Modifier.size(20.dp)) },
+        trailingIcon = {
+            IconButton(onClick = aoFechar) {
+                Icon(IconesAgro.Fechar, contentDescription = "Fechar busca", modifier = Modifier.size(20.dp))
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { gerenteDeFoco.clearFocus() }),
+        textStyle = MaterialTheme.typography.bodyLarge,
+        shape = CircleShape,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.agro.cabecalhoElevado,
+            unfocusedContainerColor = MaterialTheme.agro.cabecalhoElevado,
+            focusedTextColor = MaterialTheme.agro.sobreCabecalho,
+            unfocusedTextColor = MaterialTheme.agro.sobreCabecalho,
+            focusedPlaceholderColor = MaterialTheme.agro.sobreCabecalhoSecundario,
+            unfocusedPlaceholderColor = MaterialTheme.agro.sobreCabecalhoSecundario,
+            focusedLeadingIconColor = MaterialTheme.agro.sobreCabecalho,
+            unfocusedLeadingIconColor = MaterialTheme.agro.sobreCabecalho,
+            focusedTrailingIconColor = MaterialTheme.agro.sobreCabecalho,
+            unfocusedTrailingIconColor = MaterialTheme.agro.sobreCabecalho,
+            cursorColor = MaterialTheme.agro.destaque,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(foco)
     )
 }
 
+/**
+ * Os meses em pílulas, roláveis de lado. O escolhido aparece com o ano
+ * ("Out 2026"); janeiro também, para marcar a virada do ano.
+ */
 @Composable
-private fun ResumoDoMes(quantidade: Int, saldoCentavos: Long, modifier: Modifier = Modifier) {
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        modifier = modifier.fillMaxWidth()
+private fun PilulasDeMes(meses: List<YearMonth>, selecionado: YearMonth, aoSelecionar: (YearMonth) -> Unit) {
+    val indice = meses.indexOf(selecionado).coerceAtLeast(0)
+    // Deixa dois meses anteriores à vista, para dar contexto.
+    val estado = rememberLazyListState(initialFirstVisibleItemIndex = (indice - 2).coerceAtLeast(0))
+    LaunchedEffect(indice) { estado.animateScrollToItem((indice - 2).coerceAtLeast(0)) }
+
+    LazyRow(
+        state = estado,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // A fileira vai de borda a borda do cabeçalho, para a rolagem não
+        // parecer cortada; a primeira pílula continua alinhada com o título.
+        contentPadding = PaddingValues(horizontal = MARGEM_DO_CABECALHO),
+        modifier = Modifier
+            .fillMaxWidth()
+            .sangrarNasLaterais(MARGEM_DO_CABECALHO)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = if (quantidade == 1) "1 lançamento" else "$quantidade lançamentos",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Saldo  " + saldoCentavos.emRealCurto(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (saldoCentavos < 0) MaterialTheme.agro.despesa
-                else MaterialTheme.agro.receita
-            )
+        items(items = meses, key = { it.toString() }) { mes ->
+            val ativo = mes == selecionado
+            val texto = if (ativo || mes.month == Month.JANUARY) "${mes.siglaDoMes()} ${mes.year}" else mes.siglaDoMes()
+            Surface(
+                onClick = { aoSelecionar(mes) },
+                shape = CircleShape,
+                color = if (ativo) MaterialTheme.agro.destaque else MaterialTheme.agro.cabecalhoElevado,
+                contentColor = if (ativo) MaterialTheme.agro.sobreDestaque else MaterialTheme.agro.sobreCabecalho,
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .semantics {
+                        selected = ativo
+                        contentDescription = mes.rotulo()
+                    }
+            ) {
+                Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                    Text(texto, style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun Aviso(texto: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun ResumoDoMes(uiState: LancamentoListaUiState) {
+    val oculto = LocalValoresOcultos.current
+    Row(verticalAlignment = Alignment.Bottom) {
+        Column(modifier = Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
+            Text(
+                text = "Saldo do mês",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.agro.sobreCabecalhoSecundario
+            )
+            ValorGrande(
+                texto = uiState.saldoCentavos.emRealCurto(oculto),
+                estilo = MaterialTheme.typography.displaySmall,
+                cor = if (uiState.saldoCentavos < 0 && !oculto) {
+                    MaterialTheme.agro.despesaNoCabecalho
+                } else {
+                    MaterialTheme.agro.sobreCabecalho
+                },
+                tamanhoMinimo = 18.sp,
+                modifier = Modifier.valorEscondido(oculto)
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "+ " + uiState.receitasCentavos.emRealCurto(oculto),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.agro.receitaNoCabecalho,
+                modifier = Modifier.semantics {
+                    contentDescription = if (oculto) "Entrou: valor escondido" else "Entrou " + uiState.receitasCentavos.emRealCurto()
+                }
+            )
+            Text(
+                text = "− " + uiState.despesasCentavos.emRealCurto(oculto),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.agro.despesaNoCabecalho,
+                modifier = Modifier.semantics {
+                    contentDescription = if (oculto) "Saiu: valor escondido" else "Saiu " + uiState.despesasCentavos.emRealCurto()
+                }
+            )
+        }
+    }
+}
+
+// ---------- filtros ----------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Filtros(
+    uiState: LancamentoListaUiState,
+    aoMudarFiltro: (FiltroLancamento) -> Unit,
+    aoMudarCategoria: (CategoriaLancamento) -> Unit,
+    aoLimparFiltros: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Quebra de linha em vez de rolar de lado: com a fonte grande do
+        // celular, nenhum filtro fica escondido fora da tela.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ChipSafra("Tudo", uiState.filtro == FiltroLancamento.TUDO, { aoMudarFiltro(FiltroLancamento.TUDO) })
+            ChipSafra("Despesas", uiState.filtro == FiltroLancamento.DESPESAS, { aoMudarFiltro(FiltroLancamento.DESPESAS) })
+            ChipSafra("Receitas", uiState.filtro == FiltroLancamento.RECEITAS, { aoMudarFiltro(FiltroLancamento.RECEITAS) })
+            if (uiState.categoriasDoMes.isNotEmpty()) {
+                FiltroDeCategoria(
+                    categorias = uiState.categoriasDoMes,
+                    escolhida = uiState.categoria,
+                    aoEscolher = aoMudarCategoria
+                )
+            }
+        }
+
+        // Com filtro ou busca, mostra quanto somam os que aparecem: é a
+        // resposta para "quanto gastei de combustível em setembro?".
+        if (uiState.temFiltro || uiState.buscando) {
+            ResumoDoFiltro(
+                quantidade = uiState.quantidade,
+                totalCentavos = uiState.totalFiltradoCentavos,
+                mostrarLimpar = uiState.temFiltro,
+                aoLimpar = aoLimparFiltros
+            )
+        }
+    }
+}
+
+/** "Categoria ▾" que abre a lista das categorias do mês. Escolhida, mostra o nome dela. */
+@Composable
+private fun FiltroDeCategoria(
+    categorias: List<CategoriaLancamento>,
+    escolhida: CategoriaLancamento?,
+    aoEscolher: (CategoriaLancamento) -> Unit
+) {
+    var aberto by remember { mutableStateOf(false) }
+    Box {
+        ChipSafra(
+            rotulo = escolhida?.rotulo ?: "Categoria",
+            selecionado = escolhida != null,
+            aoClicar = { aberto = true },
+            iconeFinal = IconesAgro.SetaBaixo
+        )
+        DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
+            if (escolhida != null) {
+                DropdownMenuItem(
+                    text = { Text("Todas as categorias") },
+                    onClick = {
+                        aoEscolher(escolhida) // tocar na marcada desmarca
+                        aberto = false
+                    }
+                )
+            }
+            categorias.forEach { categoria ->
+                DropdownMenuItem(
+                    text = { Text(categoria.rotulo) },
+                    leadingIcon = { Icon(categoria.icone(), contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = if (categoria == escolhida) {
+                        { Icon(IconesAgro.Confirmado, contentDescription = "Marcada", modifier = Modifier.size(18.dp)) }
+                    } else {
+                        null
+                    },
+                    onClick = {
+                        if (categoria != escolhida) aoEscolher(categoria)
+                        aberto = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResumoDoFiltro(quantidade: Int, totalCentavos: Long, mostrarLimpar: Boolean, aoLimpar: () -> Unit) {
+    val oculto = LocalValoresOcultos.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val contagem = if (quantidade == 1) "1 lançamento" else "$quantidade lançamentos"
+        val total = (if (totalCentavos < 0) "− " else "+ ") + abs(totalCentavos).emReal(oculto)
+        Text(
+            text = "$contagem · $total",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .weight(1f)
+                .then(if (oculto) Modifier.semantics { contentDescription = "$contagem, valor escondido" } else Modifier)
+        )
+        if (mostrarLimpar) {
+            TextButton(onClick = aoLimpar) { Text("Limpar", style = MaterialTheme.typography.labelLarge) }
+        }
+    }
+}
+
+// ---------- lista ----------
+
+/**
+ * A lista inteira parece um cartão só, mas cada linha é um item da
+ * LazyColumn: só o que está na tela é desenhado, mesmo com uma busca que
+ * devolve centenas de lançamentos. O primeiro item arredonda em cima, o
+ * último embaixo.
+ */
+private fun LazyListScope.itensDaLista(
+    grupos: List<GrupoDoDia>,
+    aoEditarLancamento: (String) -> Unit
+) {
+    val total = grupos.sumOf { it.lancamentos.size + 1 }
+    var posicao = 0
+    grupos.forEachIndexed { indiceDoGrupo, grupo ->
+        val posicaoDoTitulo = posicao++
+        item(key = "dia-${grupo.data}") {
+            ItemDoCartao(posicaoDoTitulo, total) {
+                if (indiceDoGrupo > 0) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                }
+                Text(
+                    text = grupo.rotulo,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(start = 20.dp, end = 20.dp, top = if (indiceDoGrupo == 0) 16.dp else 12.dp, bottom = 2.dp)
+                        .semantics { heading() }
+                )
+            }
+        }
+        grupo.lancamentos.forEach { lancamento ->
+            val posicaoDaLinha = posicao++
+            item(key = lancamento.id) {
+                ItemDoCartao(posicaoDaLinha, total) {
+                    LinhaLancamento(
+                        lancamento = lancamento,
+                        // O dia já está no título do grupo: aqui vai só a descrição.
+                        apoio = lancamento.descricao,
+                        aoClicar = { aoEditarLancamento(lancamento.id) },
+                        margem = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 10.dp,
+                            bottom = if (posicaoDaLinha == total - 1) 16.dp else 10.dp
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ItemDoCartao(posicao: Int, total: Int, conteudo: @Composable () -> Unit) {
+    val raio = 28.dp
+    val forma: Shape = when {
+        total == 1 -> RoundedCornerShape(raio)
+        posicao == 0 -> RoundedCornerShape(topStart = raio, topEnd = raio)
+        posicao == total - 1 -> RoundedCornerShape(bottomStart = raio, bottomEnd = raio)
+        else -> RectangleShape
+    }
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth()
+            .clip(forma)
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        conteudo()
+    }
+}
+
+@Composable
+private fun Aviso(texto: String, acao: String? = null, aoAcao: () -> Unit = {}) {
+    CartaoSafra(modifier = Modifier.padding(horizontal = 20.dp)) {
         Text(
             text = texto,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.fillMaxWidth()
         )
+        if (acao != null) {
+            TextButton(onClick = aoAcao, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text(acao, style = MaterialTheme.typography.labelLarge)
+            }
+        }
     }
 }
 
-@Preview(showBackground = true, heightDp = 780)
+// ---------- prévias ----------
+
+private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
+    nome = "Fazenda São João da Serra", cultura = "Milho",
+    areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
+)
+
+private fun estadoDeExemplo(): LancamentoListaUiState {
+    val hoje = LocalDate.now()
+    val lancamentos = listOf(
+        Lancamento(
+            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ADUBO,
+            valorCentavos = 78_000L, data = hoje
+        ),
+        Lancamento(
+            propriedadeId = "p1", tipo = TipoLancamento.RECEITA,
+            categoria = CategoriaLancamento.VENDA_SAFRA,
+            valorCentavos = 1_800_000L, data = hoje.minusDays(1),
+            descricao = "Venda de milho"
+        ),
+        Lancamento(
+            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ENERGIA,
+            valorCentavos = 125_000L, data = hoje.minusDays(2),
+            descricao = "Conta do pivô"
+        )
+    )
+    return LancamentoListaUiState(
+        carregando = false,
+        nomePropriedade = PROPRIEDADE_DE_EXEMPLO.nome,
+        temPropriedade = true,
+        lancamentos = lancamentos,
+        grupos = listOf(
+            GrupoDoDia(hoje, "Hoje", lancamentos.take(1)),
+            GrupoDoDia(hoje.minusDays(1), "Ontem", lancamentos.drop(1).take(1)),
+            GrupoDoDia(hoje.minusDays(2), "2 de outubro", lancamentos.drop(2))
+        ),
+        categoriasDoMes = listOf(CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO, CategoriaLancamento.VENDA_SAFRA),
+        quantidade = 3,
+        saldoCentavos = 1_597_000L,
+        receitasCentavos = 1_800_000L,
+        despesasCentavos = 203_000L,
+        meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), hoje),
+        propriedades = listOf(PROPRIEDADE_DE_EXEMPLO)
+    )
+}
+
+@Composable
+private fun ListaDeExemplo(uiState: LancamentoListaUiState) {
+    LancamentoListaScreen(
+        uiState = uiState,
+        aoSelecionarMes = {}, aoMudarFiltro = {}, aoMudarCategoria = {}, aoLimparFiltros = {},
+        aoBuscar = {}, aoFecharBusca = {}, aoSelecionarPropriedade = {}, aoEditarLancamento = {},
+        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+    )
+}
+
+@Preview(showBackground = true, heightDp = 900)
 @Composable
 private fun LancamentoListaPreview() {
-    AgroSaldoTheme {
-        LancamentoListaScreen(
-            uiState = LancamentoListaUiState(
-                carregando = false,
-                nomePropriedade = "Fazenda São João da Serra",
-                temPropriedade = true,
-                lancamentos = listOf(
-                    Lancamento(
-                        propriedadeId = "p1", tipo = TipoLancamento.RECEITA,
-                        categoria = CategoriaLancamento.VENDA_SAFRA,
-                        valorCentavos = 1_800_000L, data = LocalDate.now(),
-                        descricao = "Venda de milho"
-                    ),
-                    Lancamento(
-                        propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
-                        categoria = CategoriaLancamento.ENERGIA,
-                        valorCentavos = 125_000L, data = LocalDate.now(),
-                        descricao = "Conta do pivô"
-                    )
-                ),
-                quantidade = 2,
-                saldoCentavos = 1_675_000L,
-                propriedades = listOf(
-                    Propriedade(
-                        nome = "Fazenda São João da Serra", cultura = "Milho",
-                        areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
-                    )
-                )
-            ),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoMudarFiltro = {},
-            aoSelecionarPropriedade = {}, aoNovoLancamento = {}, aoEditarLancamento = {}
-        )
-    }
+    AgroSaldoTheme { ListaDeExemplo(estadoDeExemplo()) }
 }
 
-@Preview(showBackground = true, heightDp = 500)
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+private fun LancamentoListaEscuroPreview() {
+    AgroSaldoTheme(escuro = true) { ListaDeExemplo(estadoDeExemplo()) }
+}
+
+@Preview(showBackground = true, heightDp = 600)
 @Composable
 private fun LancamentoListaVazioPreview() {
     AgroSaldoTheme {
-        LancamentoListaScreen(
-            uiState = LancamentoListaUiState(
+        ListaDeExemplo(
+            LancamentoListaUiState(
                 carregando = false,
                 nomePropriedade = "Sítio Boa Vista",
-                temPropriedade = true
-            ),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoMudarFiltro = {},
-            aoSelecionarPropriedade = {}, aoNovoLancamento = {}, aoEditarLancamento = {}
+                temPropriedade = true,
+                meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), LocalDate.now())
+            )
         )
     }
 }
