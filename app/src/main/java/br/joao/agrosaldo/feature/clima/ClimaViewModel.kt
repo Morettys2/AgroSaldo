@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
+import br.joao.agrosaldo.core.util.diaEHora
 import br.joao.agrosaldo.core.util.emGraus
 import br.joao.agrosaldo.core.util.emMilimetros
-import br.joao.agrosaldo.core.util.horaMinuto
 import br.joao.agrosaldo.core.util.rotuloDoDia
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
@@ -97,7 +97,9 @@ class ClimaViewModel(
 ) : ViewModel() {
 
     private val _atualizando = MutableStateFlow(false)
-    private val _mensagem = MutableStateFlow<String?>(null)
+
+    /** Motivo da última atualização ter falhado; o texto depende de haver previsão salva. */
+    private val _falha = MutableStateFlow<FalhaDeAtualizacao?>(null)
 
     /** Incrementado a cada retorno à tela para recalcular o que depende do relógio. */
     private val _voltas = MutableStateFlow(0)
@@ -124,7 +126,7 @@ class ClimaViewModel(
         viewModelScope.launch {
             selecao.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
                 // A mensagem pertencia à propriedade anterior.
-                _mensagem.value = null
+                _falha.value = null
                 if (propriedade != null) buscar(propriedade, forcar = false)
             }
         }
@@ -137,8 +139,8 @@ class ClimaViewModel(
                     clima.observar(propriedade).map { previsao -> Triple(lista, propriedade, previsao) }
                 }
             }
-            combine(comPrevisao, ajustes.ajustes, _atualizando, _mensagem, _voltas) { (lista, propriedade, previsao), aj, atualizando, mensagem, _ ->
-                montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, mensagem)
+            combine(comPrevisao, ajustes.ajustes, _atualizando, _falha, _voltas) { (lista, propriedade, previsao), aj, atualizando, falha, _ ->
+                montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha)
             }.collect { _uiState.value = it }
         }
     }
@@ -183,9 +185,9 @@ class ClimaViewModel(
             try {
                 val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
                 if (minha == geracao) {
-                    _mensagem.value = when (resultado) {
-                        ResultadoAtualizacao.SemConexao -> MENSAGEM_SEM_INTERNET
-                        is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> MENSAGEM_FALHA
+                    _falha.value = when (resultado) {
+                        ResultadoAtualizacao.SemConexao -> FalhaDeAtualizacao.SEM_INTERNET
+                        is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> FalhaDeAtualizacao.SERVICO
                         is ResultadoAtualizacao.Sucesso, null -> null
                     }
                 }
@@ -202,7 +204,7 @@ class ClimaViewModel(
         limites: LimitesChuva,
         avisoAtivo: Boolean,
         atualizando: Boolean,
-        mensagem: String?
+        falha: FalhaDeAtualizacao?
     ): ClimaUiState {
         if (propriedade == null) {
             return ClimaUiState(carregando = false, temPropriedade = false, propriedades = propriedades)
@@ -215,7 +217,12 @@ class ClimaViewModel(
             propriedades = propriedades,
             janelaHoras = limites.janelaHoras,
             atualizando = atualizando,
-            mensagem = mensagem,
+            mensagem = when (falha) {
+                FalhaDeAtualizacao.SEM_INTERNET ->
+                    if (previsao != null) MENSAGEM_SEM_INTERNET else MENSAGEM_SEM_INTERNET_SEM_PREVISAO
+                FalhaDeAtualizacao.SERVICO -> MENSAGEM_FALHA
+                null -> null
+            },
             avisoAtivo = avisoAtivo
         )
         if (previsao == null) return base
@@ -249,7 +256,8 @@ class ClimaViewModel(
                     chuva = dia.chuvaMm.emMilimetros()
                 )
             },
-            atualizadaEm = "Atualizada às ${previsao.obtidaEm.horaMinuto(zona)}"
+            // O cache vale até 2 dias: sem o dia, "às 14:05" de ontem pareceria de hoje.
+            atualizadaEm = "Atualizada ${previsao.obtidaEm.diaEHora(agora, zona)}"
         )
     }
 
@@ -283,8 +291,11 @@ class ClimaViewModel(
         }
     }
 
+    private enum class FalhaDeAtualizacao { SEM_INTERNET, SERVICO }
+
     companion object {
         const val MENSAGEM_SEM_INTERNET = "Sem internet. Mostrando a última previsão salva."
+        const val MENSAGEM_SEM_INTERNET_SEM_PREVISAO = "Sem internet. Tente de novo quando o celular tiver sinal."
         const val MENSAGEM_FALHA = "Não deu para atualizar a previsão agora. Tente de novo em instantes."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {

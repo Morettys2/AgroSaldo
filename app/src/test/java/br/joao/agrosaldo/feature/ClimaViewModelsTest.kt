@@ -114,6 +114,36 @@ class ClimaViewModelsTest {
     }
 
     @Test
+    fun `previsao salva de outro dia diz o dia em que foi atualizada`() {
+        fun atualizadaEm(obtidaEm: Instant) =
+            climaViewModel(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva.copy(obtidaEm = obtidaEm))))
+                .uiState.value.atualizadaEm
+
+        assertEquals("Atualizada às 14:40", atualizadaEm(AGORA))
+        assertEquals("Atualizada ontem às 14:40", atualizadaEm(AGORA.minus(Duration.ofDays(1))))
+        assertEquals("Atualizada em 29/09 às 14:40", atualizadaEm(AGORA.minus(Duration.ofDays(2))))
+    }
+
+    @Test
+    fun `sem internet e sem previsao salva nao promete mostrar a salva`() {
+        val vm = climaViewModel(ClimaRepositoryMemoria().apply { semInternet = true })
+
+        assertFalse(vm.uiState.value.temPrevisao)
+        assertEquals(ClimaViewModel.MENSAGEM_SEM_INTERNET_SEM_PREVISAO, vm.uiState.value.mensagem)
+    }
+
+    @Test
+    fun `servico fora do ar pede para tentar de novo`() {
+        val clima = ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)).apply { indisponivel = true }
+        val vm = climaViewModel(clima)
+
+        vm.aoAtualizar()
+
+        assertEquals(ClimaViewModel.MENSAGEM_FALHA, vm.uiState.value.mensagem)
+        assertTrue(vm.uiState.value.temPrevisao)
+    }
+
+    @Test
     fun `trocar de propriedade mostra a previsao dela`() {
         val clima = ClimaRepositoryMemoria(
             mapOf(fazendaId to comChuva, DadosDeExemplo.ID_SITIO to previsao())
