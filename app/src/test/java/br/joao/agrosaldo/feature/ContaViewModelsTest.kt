@@ -9,7 +9,6 @@ import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.data.sessao.TentativasMemoria
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.HashDeSenha
-import br.joao.agrosaldo.domain.conta.RequisitosSenha
 import br.joao.agrosaldo.domain.conta.ResultadoCadastro
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
@@ -434,16 +433,16 @@ class ContaViewModelsTest {
     }
 
     @Test
-    fun `nova senha com o proprio nome nao passa e o motivo aparece no campo`() = runTest {
+    fun `nova senha com o proprio nome nao passa e o campo mostra o erro`() = runTest {
         val vm = alterarSenhaViewModel()
         vm.aoMudarSenhaAtual("milho2026")
         vm.aoMudarNovaSenha("moretti2026")
         vm.aoMudarConfirmacao("moretti2026")
-        assertTrue(vm.uiState.value.requisitos.facilDeAdivinhar)
+        assertFalse(vm.uiState.value.requisitos.naoEhPrevisivel)
 
         vm.aoSalvar()
 
-        assertEquals(RequisitosSenha.MENSAGEM_FACIL, vm.uiState.value.erroNovaSenha)
+        assertEquals("A nova senha não cumpre os requisitos abaixo.", vm.uiState.value.erroNovaSenha)
         assertFalse(vm.uiState.value.concluido)
     }
 
