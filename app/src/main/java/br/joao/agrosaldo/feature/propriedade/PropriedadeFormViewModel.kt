@@ -34,6 +34,8 @@ data class PropriedadeFormUiState(
     val erroNome: String? = null,
     val erroArea: String? = null,
     val erroCoordenadas: String? = null,
+    /** Coordenadas fora do Brasil (provável sinal de menos esquecido); salvar de novo confirma. */
+    val avisoCoordenadas: String? = null,
     /** Erro não associado a um campo (falha de banco, sessão etc.). */
     val erroGeral: String? = null,
     val ehEdicao: Boolean = false,
@@ -100,6 +102,12 @@ class PropriedadeFormViewModel(
     private val _uiState = MutableStateFlow(PropriedadeFormUiState(ehEdicao = propriedadeId != null))
     val uiState: StateFlow<PropriedadeFormUiState> = _uiState.asStateFlow()
 
+    /**
+     * Texto das coordenadas que não pedem confirmação mesmo fora do Brasil: as já confirmadas
+     * pela pessoa e as que vieram do GPS ou do banco.
+     */
+    private var coordenadasConferidas: Pair<String, String>? = null
+
     init {
         if (propriedadeId != null) carregar(propriedadeId)
     }
@@ -107,13 +115,16 @@ class PropriedadeFormViewModel(
     private fun carregar(id: String) {
         viewModelScope.launch {
             propriedadeRepository.buscarPorId(id)?.let { propriedade ->
+                val latitude = propriedade.latitude.paraCampo()
+                val longitude = propriedade.longitude.paraCampo()
+                coordenadasConferidas = latitude to longitude
                 _uiState.update {
                     it.copy(
                         nome = propriedade.nome,
                         cultura = propriedade.cultura,
                         area = propriedade.areaHectares.paraCampo(),
-                        latitude = propriedade.latitude.paraCampo(),
-                        longitude = propriedade.longitude.paraCampo()
+                        latitude = latitude,
+                        longitude = longitude
                     )
                 }
             }
@@ -124,16 +135,34 @@ class PropriedadeFormViewModel(
     fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v, erroNome = null) }
     fun aoMudarCultura(v: String) = _uiState.update { it.copy(cultura = v) }
     fun aoMudarArea(v: String) = _uiState.update { it.copy(area = v, erroArea = null) }
-    fun aoMudarLatitude(v: String) = _uiState.update { it.copy(latitude = v, erroCoordenadas = null) }
-    fun aoMudarLongitude(v: String) = _uiState.update { it.copy(longitude = v, erroCoordenadas = null) }
+    fun aoMudarLatitude(v: String) =
+        _uiState.update { it.copy(latitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+
+    fun aoMudarLongitude(v: String) =
+        _uiState.update { it.copy(longitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+
+    /** Botão ±: o teclado numérico de alguns aparelhos não tem o sinal de menos. */
+    fun aoInverterSinalLatitude() = aoMudarLatitude(_uiState.value.latitude.comSinalInvertido())
+
+    fun aoInverterSinalLongitude() = aoMudarLongitude(_uiState.value.longitude.comSinalInvertido())
+
+    private fun String.comSinalInvertido(): String =
+        trim().let { if (it.startsWith("-")) it.removePrefix("-") else "-$it" }
 
     /** Preenche as coordenadas obtidas do GPS com 6 casas decimais (~10 cm) e vírgula decimal. */
-    fun aoUsarLocalizacao(latitude: Double, longitude: Double) = _uiState.update {
-        it.copy(
-            latitude = formatarCoordenada(latitude),
-            longitude = formatarCoordenada(longitude),
-            erroCoordenadas = null
-        )
+    fun aoUsarLocalizacao(latitude: Double, longitude: Double) {
+        val textoLatitude = formatarCoordenada(latitude)
+        val textoLongitude = formatarCoordenada(longitude)
+        // Vieram do aparelho: fora do Brasil, a pessoa está mesmo lá.
+        coordenadasConferidas = textoLatitude to textoLongitude
+        _uiState.update {
+            it.copy(
+                latitude = textoLatitude,
+                longitude = textoLongitude,
+                erroCoordenadas = null,
+                avisoCoordenadas = null
+            )
+        }
     }
 
     private fun formatarCoordenada(valor: Double): String =
@@ -186,6 +215,14 @@ class PropriedadeFormViewModel(
             return
         }
 
+        // Aviso, não bloqueio: há sítios do outro lado da fronteira. O segundo toque confirma.
+        val coordenadas = estado.latitude.trim() to estado.longitude.trim()
+        if (!ficaNoBrasil(lat, lon) && coordenadas != coordenadasConferidas) {
+            coordenadasConferidas = coordenadas
+            _uiState.update { it.copy(avisoCoordenadas = AVISO_FORA_DO_BRASIL) }
+            return
+        }
+
         _uiState.update { it.copy(salvando = true, erroGeral = null) }
         viewModelScope.launch {
             tentar {
@@ -235,6 +272,17 @@ class PropriedadeFormViewModel(
     }
 
     companion object {
+        private const val AVISO_FORA_DO_BRASIL =
+            "Essas coordenadas ficam fora do Brasil. Confira o sinal de menos: aqui a latitude e a " +
+                "longitude costumam ser negativas. Se estiverem certas, toque em salvar de novo."
+
+        /**
+         * Retângulo que cobre o território brasileiro, ilhas oceânicas incluídas. Abrange faixas
+         * dos países vizinhos: serve para pegar o sinal de menos esquecido, não para validar fronteira.
+         */
+        fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean =
+            latitude in -34.0..5.5 && longitude in -74.5..-28.5
+
         /** @param propriedadeId id vindo da rota de navegação; nulo para criação. */
         fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {

@@ -314,4 +314,92 @@ class PropriedadeFormViewModelTest {
         assertEquals(-21.7333, gravada().latitude, 0.00001)
         assertEquals(-46.9667, gravada().longitude, 0.00001)
     }
+
+    @Test
+    fun `botao de sinal poe e tira o menos da coordenada`() {
+        val vm = novo()
+        vm.aoMudarLatitude("21,73")
+        vm.aoInverterSinalLatitude()
+        assertEquals("-21,73", vm.uiState.value.latitude)
+        vm.aoInverterSinalLatitude()
+        assertEquals("21,73", vm.uiState.value.latitude)
+
+        vm.aoInverterSinalLongitude()
+        assertEquals("campo vazio recebe o sinal para digitar depois", "-", vm.uiState.value.longitude)
+    }
+
+    @Test
+    fun `limites do Brasil incluem as pontas e as ilhas, e nao o outro hemisferio`() {
+        val noBrasil = listOf(
+            -33.75 to -53.4, // Chuí
+            5.27 to -60.2, // Monte Caburaí
+            -7.5 to -73.9, // Serra do Divisor
+            -7.15 to -34.8, // Ponta do Seixas
+            -3.85 to -32.4, // Fernando de Noronha
+            -21.7333 to -46.9667
+        )
+        noBrasil.forEach { (lat, lon) -> assertTrue("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
+
+        val fora = listOf(21.7333 to 46.9667, -21.7333 to 46.9667, 21.7333 to -46.9667, 38.7 to -9.1)
+        fora.forEach { (lat, lon) -> assertFalse("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
+    }
+
+    @Test
+    fun `coordenada sem o sinal de menos avisa antes de salvar e o segundo toque confirma`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("21,73")
+        vm.aoMudarLongitude("46,93")
+
+        vm.aoSalvar()
+        assertNotNull(vm.uiState.value.avisoCoordenadas)
+        assertFalse(vm.uiState.value.salvo)
+        assertEquals(2, propriedades.observarTodas().first().size)
+
+        vm.aoSalvar()
+        assertTrue("é aviso, não bloqueio: pode haver sítio do outro lado da fronteira", vm.uiState.value.salvo)
+        assertEquals(21.73, gravada().latitude, 0.0001)
+    }
+
+    @Test
+    fun `corrigir a coordenada tira o aviso e coordenada do Brasil salva direto`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("21,73")
+        vm.aoMudarLongitude("46,93")
+        vm.aoSalvar()
+
+        vm.aoInverterSinalLatitude()
+        vm.aoInverterSinalLongitude()
+        assertNull(vm.uiState.value.avisoCoordenadas)
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(-46.93, gravada().longitude, 0.0001)
+    }
+
+    @Test
+    fun `coordenada do GPS fora do Brasil nao pede confirmacao`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoUsarLocalizacao(latitude = -25.3, longitude = -57.6) // Assunção, Paraguai.
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+    }
+
+    @Test
+    fun `editar propriedade ja salva fora do Brasil nao avisa de novo`() = runTest {
+        propriedades.salvar(
+            Propriedade(id = "paraguai", nome = "Estância", cultura = "Soja", areaHectares = 100.0, latitude = -25.3, longitude = -57.6)
+        )
+        val vm = editando("paraguai")
+        vm.aoMudarNome("Estância Nova")
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+    }
 }
