@@ -9,14 +9,21 @@ import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -166,6 +173,24 @@ class ResumosViewModelTest {
 
         assertTrue(sitio.saldoCentavos < 0)
         assertEquals(1f, sitio.proporcao, 0.0001f)
+    }
+
+    @Test
+    fun `erro ao ler as propriedades vira mensagem amigavel e a lista volta sozinha`() = runTest {
+        var leituras = 0
+        val instavel = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> = flow {
+                if (leituras++ == 0) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(propriedades.observarTodas())
+            }
+        }
+        val vm = PropriedadeListaViewModel(instavel, lancamentos)
+
+        assertEquals("Não foi possível carregar as propriedades. Tentando de novo…", vm.uiState.value.erro)
+
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertEquals(2, vm.uiState.value.itens.size)
     }
 
     @Test
