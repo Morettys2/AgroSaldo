@@ -29,7 +29,9 @@ import br.joao.agrosaldo.domain.clima.RegraDeChuva
 import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAviso
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
+import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -44,10 +47,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
-import org.json.JSONException
 import org.junit.Test
 import java.io.IOException
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
@@ -450,7 +453,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
         val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf("p1")))
 
-        val r = verificador(clima, ajustes).verificar()
+        val r = verificador(clima, ajustes).verificar { true }
 
         assertEquals(listOf("p2"), r.avisos.map { it.propriedadeId })
         assertEquals("só o sítio ligado foi consultado", 1, clima.atualizacoes)
@@ -460,7 +463,7 @@ class ClimaTest {
     fun `RF14 - avisa so a propriedade onde vai chover`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to previsao()) }
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
         assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
         assertEquals(85, r.avisos.single().avaliacao.probabilidadeMaxima)
@@ -473,9 +476,87 @@ class ClimaTest {
         var agora = AGORA.toEpochMilli()
         val v = verificador(clima, ajustes) { agora }
 
-        assertEquals(1, v.verificar().avisos.size)
+        assertEquals(1, v.verificar { true }.avisos.size)
         agora += Duration.ofHours(2).toMillis()
-        assertEquals(0, v.verificar().avisos.size)
+        assertEquals(0, v.verificar { true }.avisos.size)
+    }
+
+    @Test
+    fun `aviso so e registrado depois que a notificacao sai`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
+        val ajustes = AjustesAvisoMemoria()
+        val registradoAoNotificar = mutableListOf<Instant?>()
+
+        verificador(clima, ajustes).verificar { aviso ->
+            registradoAoNotificar += ajustes.ultimoAvisoEm(aviso.propriedadeId)
+            true
+        }
+
+        assertEquals("nada registrado antes de notificar", listOf<Instant?>(null), registradoAoNotificar)
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+    }
+
+    @Test
+    fun `verificacao interrompida depois do primeiro aviso guarda so o que foi notificado`() = runTest {
+        val memoria = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+        // O sinal cai e o WorkManager cancela o Worker durante o download do segundo sítio.
+        val clima = object : ClimaRepository by memoria {
+            override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
+                if (propriedade.id == "p2") throw CancellationException("Worker parado")
+                return memoria.atualizar(propriedade)
+            }
+        }
+        val ajustes = AjustesAvisoMemoria()
+        val notificados = mutableListOf<String>()
+
+        val interrompida = runCatching {
+            VerificadorDeChuva(SessaoMemoria("u1"), PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, ajustes) {
+                AGORA.toEpochMilli()
+            }.verificar { notificados += it.propriedadeId; true }
+        }
+
+        assertTrue(interrompida.exceptionOrNull() is CancellationException)
+        assertEquals(listOf("p1"), notificados)
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+        assertNull(ajustes.ultimoAvisoEm("p2"))
+    }
+
+    @Test
+    fun `aviso que nao pode ser notificado nao e registrado`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+        val ajustes = AjustesAvisoMemoria()
+
+        // As notificações foram desligadas no meio da verificação, antes do segundo sítio.
+        val r = verificador(clima, ajustes).verificar { it.propriedadeId == "p1" }
+
+        assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+        assertNull(ajustes.ultimoAvisoEm("p2"))
+    }
+
+    @Test
+    fun `logout ou troca de conta durante a verificacao nao notifica a conta anterior`() = runTest {
+        listOf<(SessaoMemoria) -> Unit>({ it.encerrar() }, { it.iniciar("u2") }).forEach { trocarConta ->
+            val sessao = SessaoMemoria("u1")
+            val memoria = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+            // A conta muda enquanto a previsão do primeiro sítio é baixada.
+            val clima = object : ClimaRepository by memoria {
+                override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
+                    trocarConta(sessao)
+                    return memoria.atualizar(propriedade)
+                }
+            }
+            val notificados = mutableListOf<String>()
+
+            val r = VerificadorDeChuva(sessao, PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, AjustesAvisoMemoria()) {
+                AGORA.toEpochMilli()
+            }.verificar { notificados += it.nomePropriedade; true }
+
+            assertTrue("notificou $notificados", notificados.isEmpty())
+            assertTrue(r.avisos.isEmpty())
+            assertEquals("não baixa a previsão do resto da conta anterior", 1, memoria.atualizacoes)
+            assertFalse(r.falhaPassageira)
+        }
     }
 
     @Test
@@ -484,18 +565,18 @@ class ClimaTest {
         val ajustes = AjustesAvisoMemoria()
         val v = verificador(clima, ajustes)
 
-        assertTrue(v.verificar(podeNotificar = false).avisos.isEmpty())
+        assertTrue(v.verificar { false }.avisos.isEmpty())
         assertEquals("a previsão foi atualizada mesmo assim", 2, clima.atualizacoes)
         // Sem notificação, o aviso não é registrado; ao liberar, sai sem esperar o intervalo de 11 h.
-        assertEquals(listOf("p1"), v.verificar(podeNotificar = true).avisos.map { it.propriedadeId })
+        assertEquals(listOf("p1"), v.verificar { true }.avisos.map { it.propriedadeId })
     }
 
     @Test
     fun `sem ninguem conectado ou com aviso desligado nada e verificado`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
 
-        assertTrue(verificador(clima, usuario = null).verificar().avisos.isEmpty())
-        assertTrue(verificador(clima, AjustesAvisoMemoria(AjustesAviso(ativo = false))).verificar().avisos.isEmpty())
+        assertTrue(verificador(clima, usuario = null).verificar { true }.avisos.isEmpty())
+        assertTrue(verificador(clima, AjustesAvisoMemoria(AjustesAviso(ativo = false))).verificar { true }.avisos.isEmpty())
         assertEquals(0, clima.atualizacoes)
     }
 
@@ -504,7 +585,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(2)))))
             .apply { semInternet = true }
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
         assertTrue(r.falhaPassageira)
         assertEquals(1, r.avisos.size)
@@ -515,7 +596,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(2)))))
             .apply { indisponivel = true }
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
         assertTrue(r.falhaPassageira)
         assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
@@ -527,7 +608,7 @@ class ClimaTest {
         // propriedade é excluída durante o download.
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva))
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
         assertFalse(r.falhaPassageira)
         assertTrue(r.avisos.isEmpty())
@@ -538,7 +619,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(13)))))
             .apply { semInternet = true }
 
-        assertTrue(verificador(clima).verificar().avisos.isEmpty())
+        assertTrue(verificador(clima).verificar { true }.avisos.isEmpty())
     }
 
     @Test

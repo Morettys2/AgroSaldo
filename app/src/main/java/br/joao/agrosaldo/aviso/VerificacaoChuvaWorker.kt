@@ -16,8 +16,8 @@ import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import java.util.concurrent.TimeUnit
 
 /**
- * Worker da verificação periódica de chuva. Apenas delega para o VerificadorDeChuva
- * (domínio) e exibe as notificações resultantes.
+ * Worker da verificação periódica de chuva. Delega para o VerificadorDeChuva (domínio),
+ * que chama de volta para exibir cada notificação.
  */
 class VerificacaoChuvaWorker(
     contexto: Context,
@@ -28,11 +28,13 @@ class VerificacaoChuvaWorker(
         // Idempotente; normalmente o AgroSaldoApp já inicializou.
         Repositorios.inicializar(applicationContext)
 
-        val resultado = Repositorios.verificadorDeChuva.verificar(
-            podeNotificar = NotificadorDeChuva.podeNotificar(applicationContext)
-        )
         val janela = Repositorios.ajustesAviso.ajustes.value.limites.janelaHoras
-        resultado.avisos.forEach { NotificadorDeChuva.mostrar(applicationContext, it, janela) }
+        val resultado = Repositorios.verificadorDeChuva.verificar { aviso ->
+            // Conferido a cada aviso: a permissão ou o canal podem mudar durante a verificação.
+            val pode = NotificadorDeChuva.podeNotificar(applicationContext)
+            if (pode) NotificadorDeChuva.mostrar(applicationContext, aviso, janela)
+            pode
+        }
 
         // Sem rede ou serviço fora do ar: retry com backoff, até 3 tentativas.
         return if (resultado.falhaPassageira && runAttemptCount < 3) Result.retry() else Result.success()
