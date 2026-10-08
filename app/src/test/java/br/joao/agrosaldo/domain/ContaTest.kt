@@ -340,6 +340,81 @@ class ContaTest {
         assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
+    private suspend fun cadastrarIntrusoESair() {
+        conta.cadastrar("Intruso", "intruso@exemplo.com", "trigo2026", aceitouTermo = true)
+        conta.sair()
+    }
+
+    @Test
+    fun `entrar na propria conta nao zera os erros no email de outra pessoa`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+        cadastrarIntrusoESair()
+
+        // Quem pega o celular erra no e-mail do dono e entra na própria conta, repetidas vezes.
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) { conta.entrar("fabio@exemplo.com", "errada123") }
+        assertTrue(conta.entrar("intruso@exemplo.com", "trigo2026") is ResultadoLogin.Sucesso)
+        conta.sair()
+        conta.entrar("fabio@exemplo.com", "errada123")
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+    }
+
+    @Test
+    fun `erros no email de uma conta nao bloqueiam outra`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+        cadastrarIntrusoESair()
+
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("intruso@exemplo.com", "trigo2026") is ResultadoLogin.Sucesso)
+    }
+
+    @Test
+    fun `email digitado de outro jeito conta no mesmo contador`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+
+        repeat(ContaService.MAXIMO_TENTATIVAS) { i ->
+            conta.entrar(if (i % 2 == 0) " FABIO@exemplo.com" else "fabio@Exemplo.com ", "errada123")
+        }
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+    }
+
+    @Test
+    fun `contador guarda so um resumo do email, nunca o email`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+        conta.entrar("fabio@exemplo.com", "errada123")
+
+        val chave = tentativas.chaves.single()
+        assertFalse(chave.contains("fabio"))
+        assertTrue(chave.matches(Regex("[0-9a-f]{64}")))
+    }
+
+    @Test
+    fun `acerto apaga o registro de tentativas do email`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+        repeat(2) { conta.entrar("fabio@exemplo.com", "errada123") }
+
+        conta.entrar("fabio@exemplo.com", "milho2026")
+
+        assertTrue(tentativas.chaves.isEmpty())
+    }
+
+    @Test
+    fun `erros na troca de senha bloqueiam o login da mesma conta`() = runTest {
+        cadastrarFabio()
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.alterarSenha("errada123", "colheita2026") }
+        conta.sair()
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+    }
+
     @Test
     fun `login refaz o hash antigo com o custo atual sem a pessoa perceber`() = runTest {
         val antigo = ContaService(usuarios, sessao, tentativas, hash = HashDeSenha(iteracoes = 500),

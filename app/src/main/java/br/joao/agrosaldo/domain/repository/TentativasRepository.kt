@@ -16,10 +16,13 @@ data class EstadoTentativas(
 )
 
 /**
- * Persistência do contador de tentativas. Deve sobreviver ao fechamento do
+ * Persistência dos contadores de tentativas, um por [chave] (resumo do e-mail; ver
+ * [br.joao.agrosaldo.domain.conta.ContaService]). Deve sobreviver ao fechamento do
  * app; caso contrário reiniciar o processo zeraria o bloqueio.
  */
 interface TentativasRepository {
-    fun ler(): EstadoTentativas
-    fun gravar(estado: EstadoTentativas)
+    fun ler(chave: String): EstadoTentativas
+
+    /** Gravar o estado inicial, `EstadoTentativas()`, apaga o registro da chave. */
+    fun gravar(chave: String, estado: EstadoTentativas)
 }

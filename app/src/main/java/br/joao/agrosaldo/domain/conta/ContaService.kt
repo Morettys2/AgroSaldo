@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 
@@ -147,7 +148,8 @@ class ContaService(
     // ---------- login ----------
 
     suspend fun entrar(email: String, senha: String): ResultadoLogin {
-        segundosDeBloqueio()?.let { return ResultadoLogin.Bloqueado(it) }
+        val chave = chaveDeTentativas(email)
+        segundosDeBloqueio(chave)?.let { return ResultadoLogin.Bloqueado(it) }
 
         val usuario = usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email))
 
@@ -156,11 +158,11 @@ class ContaService(
         val senhaConfere = conferir(senha, usuario?.senhaHash)
 
         if (usuario == null || !senhaConfere) {
-            registrarFalha()
+            registrarFalha(chave)
             return ResultadoLogin.CredenciaisInvalidas
         }
 
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         // Rehash transparente quando o hash gravado usa menos iterações que o padrão atual.
         if (hash.precisaAtualizar(usuario.senhaHash)) {
@@ -180,13 +182,14 @@ class ContaService(
 
     suspend fun alterarSenha(senhaAtual: String, novaSenha: String): ResultadoAlteracaoSenha {
         val usuario = usuarioConectado() ?: return ResultadoAlteracaoSenha.SemSessao
-        segundosDeBloqueio()?.let { return ResultadoAlteracaoSenha.Bloqueado(it) }
+        val chave = chaveDeTentativas(usuario.email)
+        segundosDeBloqueio(chave)?.let { return ResultadoAlteracaoSenha.Bloqueado(it) }
 
         if (!conferir(senhaAtual, usuario.senhaHash)) {
-            registrarFalha()
+            registrarFalha(chave)
             return ResultadoAlteracaoSenha.SenhaAtualIncorreta
         }
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         if (novaSenha == senhaAtual) return ResultadoAlteracaoSenha.NovaIgualAAtual
         if (!RegrasDeConta.senhaValida(novaSenha, usuario.email, usuario.nome)) {
@@ -205,13 +208,14 @@ class ContaService(
      */
     suspend fun excluirConta(senha: String): ResultadoExclusao {
         val usuario = usuarioConectado() ?: return ResultadoExclusao.SemSessao
-        segundosDeBloqueio()?.let { return ResultadoExclusao.Bloqueado(it) }
+        val chave = chaveDeTentativas(usuario.email)
+        segundosDeBloqueio(chave)?.let { return ResultadoExclusao.Bloqueado(it) }
 
         if (!conferir(senha, usuario.senhaHash)) {
-            registrarFalha()
+            registrarFalha(chave)
             return ResultadoExclusao.SenhaIncorreta
         }
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         usuarios.excluir(usuario.id)
         sair()
@@ -229,20 +233,26 @@ class ContaService(
     // ---------- bloqueio contra tentativa e erro ----------
 
     /**
-     * Contador único para login, troca de senha e exclusão de conta, para que
-     * nenhum fluxo sirva de atalho para força bruta.
+     * Um contador por e-mail ([chaveDeTentativas]), o mesmo para login, troca de senha e
+     * exclusão da conta, para que nenhum fluxo sirva de atalho para força bruta. Só o
+     * acerto da senha desse e-mail zera o contador: entrar em outra conta (o cadastro é
+     * livre) não devolve tentativas no e-mail atacado.
+     *
+     * Não há contador global: com ele, quem pega o celular bloquearia todas as contas
+     * errando em e-mails inventados, e o ganho seria só contra tentar a mesma senha nas
+     * poucas contas do aparelho, cada uma já com o próprio limite.
      *
      * A partir de [MAXIMO_TENTATIVAS] falhas seguidas bloqueia por [BLOQUEIO_MS],
      * dobrando a cada falha adicional até [BLOQUEIO_MAXIMO_MS]. Estado persistido.
      */
-    private fun registrarFalha() {
-        val falhas = tentativas.ler().falhasSeguidas + 1
+    private fun registrarFalha(chave: String) {
+        val falhas = tentativas.ler(chave).falhasSeguidas + 1
         if (falhas < MAXIMO_TENTATIVAS) {
-            tentativas.gravar(EstadoTentativas(falhasSeguidas = falhas))
+            tentativas.gravar(chave, EstadoTentativas(falhasSeguidas = falhas))
             return
         }
         val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
-        bloquear(falhas, duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS))
+        bloquear(chave, falhas, duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS))
     }
 
     /**
@@ -250,8 +260,9 @@ class ContaService(
      * aparelho não reinicia (alterar data/hora não tem efeito); o de parede é a
      * reserva depois de um reinício.
      */
-    private fun bloquear(falhas: Int, duracao: Long) {
+    private fun bloquear(chave: String, falhas: Int, duracao: Long) {
         tentativas.gravar(
+            chave,
             EstadoTentativas(
                 falhasSeguidas = falhas,
                 bloqueadoAte = relogio() + duracao,
@@ -261,8 +272,8 @@ class ContaService(
     }
 
     /** Segundos restantes de bloqueio (arredondados para cima), ou null se liberado. */
-    private fun segundosDeBloqueio(): Long? {
-        val estado = tentativas.ler()
+    private fun segundosDeBloqueio(chave: String): Long? {
+        val estado = tentativas.ler(chave)
         val fimMonotonico = estado.fimMonotonico
         val agoraMonotonico = relogioMonotonico()
         val restante = if (fimMonotonico != null && agoraMonotonico?.boot == fimMonotonico.boot) {
@@ -275,11 +286,17 @@ class ContaService(
         // Mais que o máximo só acontece se o relógio de parede mudou depois da
         // gravação: reancora no máximo para a espera não durar meses ou anos.
         if (restante > BLOQUEIO_MAXIMO_MS) {
-            bloquear(estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
+            bloquear(chave, estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
             return BLOQUEIO_MAXIMO_MS / 1000
         }
         return (restante + 999) / 1000
     }
+
+    /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */
+    private fun chaveDeTentativas(email: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(RegrasDeConta.normalizarEmail(email).toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
 
     // ---------- apoio ----------
 
