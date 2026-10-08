@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature
 
+import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
@@ -401,5 +402,51 @@ class PropriedadeFormViewModelTest {
 
         vm.aoSalvar()
         assertTrue(vm.uiState.value.salvo)
+    }
+
+    @Test
+    fun `o que foi digitado volta depois que o Android mata o processo`() {
+        val guardado = SavedStateHandle()
+        val antes = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+        antes.aoMudarNome("Chácara Três Irmãos")
+        antes.aoMudarCultura("Café")
+        antes.aoMudarArea("1.250,5")
+        antes.aoMudarLatitude("21,7")
+        antes.aoInverterSinalLatitude()
+        antes.aoMudarLongitude("-46,9")
+
+        // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
+        assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
+        val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = restaurado)
+
+        val estado = depois.uiState.value
+        assertEquals("Chácara Três Irmãos", estado.nome)
+        assertEquals("Café", estado.cultura)
+        assertEquals("1.250,5", estado.area)
+        assertEquals("-21,7", estado.latitude)
+        assertEquals("-46,9", estado.longitude)
+    }
+
+    @Test
+    fun `coordenadas do GPS tambem sobrevivem a morte do processo`() {
+        val guardado = SavedStateHandle()
+        PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+            .aoUsarLocalizacao(latitude = -21.7, longitude = -46.9)
+
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+
+        assertEquals("-21,700000", depois.uiState.value.latitude)
+        assertEquals("-46,900000", depois.uiState.value.longitude)
+    }
+
+    @Test
+    fun `na edicao o valor restaurado vale mais que o do banco`() {
+        val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
+        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado)
+
+        assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
+        assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)
+        assertTrue(vm.uiState.value.ehEdicao)
     }
 }

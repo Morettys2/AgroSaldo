@@ -1,7 +1,9 @@
 package br.joao.agrosaldo.feature.propriedade
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -92,14 +94,26 @@ private fun lerArea(texto: String): Area {
  * exibe os erros do estado.
  *
  * @param propriedadeId id em edição; nulo para criação.
+ * @param estadoSalvo guarda os campos digitados para sobreviverem à morte do processo; na
+ *   edição, o que foi restaurado vale mais que o que está no banco.
  */
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     private val propriedadeId: String?,
-    private val desfazer: Desfazer = Desfazer()
+    private val desfazer: Desfazer = Desfazer(),
+    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PropriedadeFormUiState(ehEdicao = propriedadeId != null))
+    private val _uiState = MutableStateFlow(
+        PropriedadeFormUiState(
+            nome = restaurado(CHAVE_NOME).orEmpty(),
+            cultura = restaurado(CHAVE_CULTURA).orEmpty(),
+            area = restaurado(CHAVE_AREA).orEmpty(),
+            latitude = restaurado(CHAVE_LATITUDE).orEmpty(),
+            longitude = restaurado(CHAVE_LONGITUDE).orEmpty(),
+            ehEdicao = propriedadeId != null
+        )
+    )
     val uiState: StateFlow<PropriedadeFormUiState> = _uiState.asStateFlow()
 
     /**
@@ -118,28 +132,47 @@ class PropriedadeFormViewModel(
                 val latitude = propriedade.latitude.paraCampo()
                 val longitude = propriedade.longitude.paraCampo()
                 coordenadasConferidas = latitude to longitude
+                // O que foi restaurado (ou digitado antes de carregar) vale mais que o banco.
                 _uiState.update {
                     it.copy(
-                        nome = propriedade.nome,
-                        cultura = propriedade.cultura,
-                        area = propriedade.areaHectares.paraCampo(),
-                        latitude = latitude,
-                        longitude = longitude
+                        nome = restaurado(CHAVE_NOME) ?: propriedade.nome,
+                        cultura = restaurado(CHAVE_CULTURA) ?: propriedade.cultura,
+                        area = restaurado(CHAVE_AREA) ?: propriedade.areaHectares.paraCampo(),
+                        latitude = restaurado(CHAVE_LATITUDE) ?: latitude,
+                        longitude = restaurado(CHAVE_LONGITUDE) ?: longitude
                     )
                 }
             }
         }
     }
 
-    // Editar um campo limpa o erro correspondente.
-    fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v, erroNome = null) }
-    fun aoMudarCultura(v: String) = _uiState.update { it.copy(cultura = v) }
-    fun aoMudarArea(v: String) = _uiState.update { it.copy(area = v, erroArea = null) }
-    fun aoMudarLatitude(v: String) =
-        _uiState.update { it.copy(latitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+    private fun restaurado(chave: String): String? = estadoSalvo.get<String>(chave)
 
-    fun aoMudarLongitude(v: String) =
+    // Editar um campo guarda o texto em [estadoSalvo] e limpa o erro correspondente.
+    fun aoMudarNome(v: String) {
+        estadoSalvo[CHAVE_NOME] = v
+        _uiState.update { it.copy(nome = v, erroNome = null) }
+    }
+
+    fun aoMudarCultura(v: String) {
+        estadoSalvo[CHAVE_CULTURA] = v
+        _uiState.update { it.copy(cultura = v) }
+    }
+
+    fun aoMudarArea(v: String) {
+        estadoSalvo[CHAVE_AREA] = v
+        _uiState.update { it.copy(area = v, erroArea = null) }
+    }
+
+    fun aoMudarLatitude(v: String) {
+        estadoSalvo[CHAVE_LATITUDE] = v
+        _uiState.update { it.copy(latitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+    }
+
+    fun aoMudarLongitude(v: String) {
+        estadoSalvo[CHAVE_LONGITUDE] = v
         _uiState.update { it.copy(longitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+    }
 
     /** Botão ±: o teclado numérico de alguns aparelhos não tem o sinal de menos. */
     fun aoInverterSinalLatitude() = aoMudarLatitude(_uiState.value.latitude.comSinalInvertido())
@@ -155,6 +188,8 @@ class PropriedadeFormViewModel(
         val textoLongitude = formatarCoordenada(longitude)
         // Vieram do aparelho: fora do Brasil, a pessoa está mesmo lá.
         coordenadasConferidas = textoLatitude to textoLongitude
+        estadoSalvo[CHAVE_LATITUDE] = textoLatitude
+        estadoSalvo[CHAVE_LONGITUDE] = textoLongitude
         _uiState.update {
             it.copy(
                 latitude = textoLatitude,
@@ -272,6 +307,13 @@ class PropriedadeFormViewModel(
     }
 
     companion object {
+        // Chaves do SavedStateHandle; os valores são o texto dos campos.
+        internal const val CHAVE_NOME = "nome"
+        internal const val CHAVE_CULTURA = "cultura"
+        internal const val CHAVE_AREA = "area"
+        internal const val CHAVE_LATITUDE = "latitude"
+        internal const val CHAVE_LONGITUDE = "longitude"
+
         private const val AVISO_FORA_DO_BRASIL =
             "Essas coordenadas ficam fora do Brasil. Confira o sinal de menos: aqui a latitude e a " +
                 "longitude costumam ser negativas. Se estiverem certas, toque em salvar de novo."
@@ -289,7 +331,8 @@ class PropriedadeFormViewModel(
                 PropriedadeFormViewModel(
                     propriedadeRepository = Repositorios.propriedades,
                     propriedadeId = propriedadeId,
-                    desfazer = Repositorios.desfazer
+                    desfazer = Repositorios.desfazer,
+                    estadoSalvo = createSavedStateHandle()
                 )
             }
         }
