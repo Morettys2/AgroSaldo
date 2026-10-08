@@ -52,8 +52,9 @@ data class HistoricoUiState(
     val despesasCentavos: Long = 0L,
     /** Maior receita ou despesa mensal do ano; define a escala (100%) do gráfico. */
     val maiorValorMensal: Long = 0L,
+    /** Entre os meses não futuros com movimento. */
     val melhorMes: MesDoHistorico? = null,
-    /** Nulo se houver menos de dois meses com movimento ou se o menor saldo empatar com o maior. */
+    /** Nulo se houver menos de dois meses não futuros com movimento ou se o menor saldo empatar com o maior. */
     val piorMes: MesDoHistorico? = null,
     val gastosDoAno: List<GastoDoAno> = emptyList(),
     val podeAvancar: Boolean = false
@@ -120,7 +121,8 @@ class HistoricoViewModel(
             )
         }
 
-        val comMovimento = meses.filter { it.temMovimento }
+        // Mês futuro só tem lançamentos agendados; não entra na comparação.
+        val comMovimento = meses.filter { it.temMovimento && !it.futuro }
         val melhor = comMovimento.maxByOrNull { it.saldoCentavos }
         val pior = if (comMovimento.size >= 2) {
             comMovimento.minByOrNull { it.saldoCentavos }?.takeIf { melhor != null && it.saldoCentavos < melhor.saldoCentavos }
