@@ -160,7 +160,7 @@ class ClimaViewModel(
                 if (minha == geracao) {
                     _mensagem.value = when (resultado) {
                         ResultadoAtualizacao.SemConexao -> MENSAGEM_SEM_INTERNET
-                        is ResultadoAtualizacao.Falha -> MENSAGEM_FALHA
+                        is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> MENSAGEM_FALHA
                         is ResultadoAtualizacao.Sucesso, null -> null
                     }
                 }

@@ -21,8 +21,8 @@ data class AvisoDeChuva(
 
 data class ResultadoVerificacao(
     val avisos: List<AvisoDeChuva>,
-    /** true se alguma atualização falhou por falta de conexão. */
-    val faltouConexao: Boolean
+    /** true se alguma atualização falhou por motivo passageiro (sem rede ou serviço fora do ar). */
+    val falhaPassageira: Boolean
 )
 
 /**
@@ -49,11 +49,11 @@ class VerificadorDeChuva(
         val ajustesAtuais = ajustes.ajustes.value
         // Sem sessão ativa não há dono dos dados; notificar exporia propriedades de outra conta.
         if (!ajustesAtuais.ativo || sessao.usuarioId.value == null) {
-            return ResultadoVerificacao(emptyList(), faltouConexao = false)
+            return ResultadoVerificacao(emptyList(), falhaPassageira = false)
         }
 
         val agora = Instant.ofEpochMilli(relogio())
-        var faltouConexao = false
+        var falhaPassageira = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
         val monitoradas = propriedades.observarTodas().first().filter { ajustesAtuais.avisaSobre(it.id) }
@@ -61,13 +61,15 @@ class VerificadorDeChuva(
         for (propriedade in monitoradas) {
             val previsao = when (val resultado = clima.atualizar(propriedade)) {
                 is ResultadoAtualizacao.Sucesso -> resultado.previsao
-                // Offline: usa o cache se tiver no máximo VALIDADE_PARA_AVISO.
-                ResultadoAtualizacao.SemConexao -> {
-                    faltouConexao = true
+                // Sem rede ou serviço fora do ar: usa o cache se tiver no máximo
+                // VALIDADE_PARA_AVISO e pede nova tentativa.
+                ResultadoAtualizacao.SemConexao, is ResultadoAtualizacao.Indisponivel -> {
+                    falhaPassageira = true
                     clima.emCache(propriedade)?.takeIf {
                         Duration.between(it.obtidaEm, agora) <= VALIDADE_PARA_AVISO
                     }
                 }
+                // Resposta inválida ou propriedade excluída: tentar de novo não resolve.
                 is ResultadoAtualizacao.Falha -> null
             } ?: continue
 
@@ -79,7 +81,7 @@ class VerificadorDeChuva(
             avisos += AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora))
         }
 
-        return ResultadoVerificacao(avisos, faltouConexao)
+        return ResultadoVerificacao(avisos, falhaPassageira)
     }
 
     private companion object {

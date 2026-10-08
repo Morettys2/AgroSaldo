@@ -4,6 +4,7 @@ import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
 import br.joao.agrosaldo.data.clima.RespostaInvalidaException
+import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.domain.clima.PoliticaDeAtualizacao
@@ -70,6 +71,8 @@ class ClimaRepositoryRoom(
             if (guardada) ResultadoAtualizacao.Sucesso(previsao) else ResultadoAtualizacao.Falha(MENSAGEM_PROPRIEDADE_EXCLUIDA)
         } catch (e: IOException) {
             ResultadoAtualizacao.SemConexao
+        } catch (e: ServicoIndisponivelException) {
+            ResultadoAtualizacao.Indisponivel(e.message ?: "Serviço indisponível.")
         } catch (e: RespostaInvalidaException) {
             ResultadoAtualizacao.Falha(e.message ?: "Resposta inválida.")
         }

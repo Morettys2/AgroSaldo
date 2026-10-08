@@ -11,6 +11,7 @@ import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
 import br.joao.agrosaldo.data.clima.RespostaInvalidaException
+import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
@@ -275,6 +276,15 @@ class ClimaTest {
         assertTrue("causa: ${erro?.cause}", erro?.cause is JSONException)
     }
 
+    @Test
+    fun `servidor sobrecarregado ou fora do ar e falha passageira, os demais erros nao`() {
+        assertTrue(OpenMeteo.erroHttp(429, "Too many requests") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(500, "") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(503, "") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(400, "Latitude must be in range") is RespostaInvalidaException)
+        assertTrue(OpenMeteo.erroHttp(404, "") is RespostaInvalidaException)
+    }
+
     // Repositório real sobre DAO em memória, com fonte e relógio controláveis.
     // Imita a chave estrangeira: gravar previsão de propriedade inexistente falha como no SQLite.
     private class PrevisaoDaoFalso : PrevisaoDao {
@@ -346,6 +356,16 @@ class ClimaTest {
 
         assertEquals(ResultadoAtualizacao.SemConexao, repositorio.atualizar(fazenda))
         assertNotNull(repositorio.observar(fazenda).first())
+    }
+
+    @Test
+    fun `servico fora do ar e indisponibilidade passageira e mantem a previsao guardada`() = runTest {
+        repositorio.atualizar(fazenda)
+        val boa = dao.tabela.value.getValue("p1")
+        resposta = { throw ServicoIndisponivelException("HTTP 503") }
+
+        assertEquals(ResultadoAtualizacao.Indisponivel("HTTP 503"), repositorio.atualizar(fazenda))
+        assertEquals(boa, dao.tabela.value.getValue("p1"))
     }
 
     @Test
@@ -460,8 +480,31 @@ class ClimaTest {
 
         val r = verificador(clima).verificar()
 
-        assertTrue(r.faltouConexao)
+        assertTrue(r.falhaPassageira)
         assertEquals(1, r.avisos.size)
+    }
+
+    @Test
+    fun `servico fora do ar avisa com a previsao guardada e pede nova tentativa`() = runTest {
+        val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(2)))))
+            .apply { indisponivel = true }
+
+        val r = verificador(clima).verificar()
+
+        assertTrue(r.falhaPassageira)
+        assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
+    }
+
+    @Test
+    fun `falha que nao passa tentando de novo nao pede nova tentativa`() = runTest {
+        // Sem resposta configurada o fake devolve Falha, como o repositório real quando a
+        // propriedade é excluída durante o download.
+        val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva))
+
+        val r = verificador(clima).verificar()
+
+        assertFalse(r.falhaPassageira)
+        assertTrue(r.avisos.isEmpty())
     }
 
     @Test

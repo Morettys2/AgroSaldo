@@ -10,7 +10,8 @@ import java.net.URL
 fun interface FontePrevisao {
     /**
      * @throws IOException falha de rede ou timeout.
-     * @throws RespostaInvalidaException resposta HTTP diferente de 200.
+     * @throws ServicoIndisponivelException HTTP 429 ou 5xx.
+     * @throws RespostaInvalidaException outra resposta HTTP diferente de 200.
      */
     suspend fun baixar(latitude: Double, longitude: Double): String
 }
@@ -32,9 +33,9 @@ class OpenMeteoHttp : FontePrevisao {
 
                 val codigo = conexao.responseCode
                 if (codigo != HttpURLConnection.HTTP_OK) {
-                    // Servidor respondeu: tratado como resposta inválida, não como falta de conexão.
+                    // Servidor respondeu: não é falta de conexão.
                     val corpo = conexao.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    throw RespostaInvalidaException("HTTP $codigo ${corpo.take(200)}")
+                    throw OpenMeteo.erroHttp(codigo, corpo)
                 }
                 conexao.inputStream.bufferedReader().use { it.readText() }
             } finally {

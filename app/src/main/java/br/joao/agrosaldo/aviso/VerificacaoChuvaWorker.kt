@@ -34,8 +34,8 @@ class VerificacaoChuvaWorker(
         val janela = Repositorios.ajustesAviso.ajustes.value.limites.janelaHoras
         resultado.avisos.forEach { NotificadorDeChuva.mostrar(applicationContext, it, janela) }
 
-        // Falha de rede: retry com backoff, até 3 tentativas.
-        return if (resultado.faltouConexao && runAttemptCount < 3) Result.retry() else Result.success()
+        // Sem rede ou serviço fora do ar: retry com backoff, até 3 tentativas.
+        return if (resultado.falhaPassageira && runAttemptCount < 3) Result.retry() else Result.success()
     }
 }
 
