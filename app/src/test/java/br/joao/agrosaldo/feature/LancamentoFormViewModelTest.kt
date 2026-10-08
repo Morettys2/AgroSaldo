@@ -159,6 +159,27 @@ class LancamentoFormViewModelTest {
     }
 
     @Test
+    fun `editar lancamento que nao existe mais avisa e salvar nao o recria`() = runTest {
+        val total = lancamentos.observarTodos().first().size
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "apagado", hoje = { hoje })
+
+        assertTrue(vm.uiState.value.naoEncontrado)
+
+        vm.aoTeclar("5000")
+        vm.aoSalvar()
+
+        assertFalse(vm.uiState.value.salvo)
+        assertNull(lancamentos.buscarPorId("apagado"))
+        assertEquals(total, lancamentos.observarTodos().first().size)
+    }
+
+    @Test
+    fun `lancamento existente nao e marcado como nao encontrado`() {
+        assertFalse(LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2").uiState.value.naoEncontrado)
+        assertFalse(novo().uiState.value.naoEncontrado)
+    }
+
+    @Test
     fun `excluir remove na hora e oferece desfazer, que traz de volta igual`() = runTest {
         val original = lancamentos.buscarPorId("exemplo-3")
         val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer)

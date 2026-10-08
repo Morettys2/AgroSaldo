@@ -50,6 +50,8 @@ data class LancamentoFormUiState(
     val salvando: Boolean = false,
     /** false até carregar as propriedades (e, na edição/cópia, o lançamento de origem). */
     val carregado: Boolean = false,
+    /** O lançamento em edição não existe mais (ex.: foi excluído); a tela avisa e fecha. */
+    val naoEncontrado: Boolean = false,
     /** Referência para os rótulos relativos de data ("Hoje", "Ontem"). */
     val hoje: LocalDate = LocalDate.now()
 ) {
@@ -113,6 +115,11 @@ class LancamentoFormViewModel(
                 ?: propriedades.firstOrNull()?.id.orEmpty()
 
             val origem = (lancamentoId ?: copiaDe)?.let { lancamentoRepository.buscarPorId(it) }
+            if (lancamentoId != null && origem == null) {
+                // Salvar recriaria o registro com o id antigo.
+                _uiState.update { it.copy(propriedades = propriedades, carregado = true, naoEncontrado = true) }
+                return@launch
+            }
             if (origem != null) {
                 val ehCopia = lancamentoId == null
                 if (!ehCopia) mesOriginal = YearMonth.from(origem.data)
@@ -183,7 +190,7 @@ class LancamentoFormViewModel(
     fun aoSalvar() {
         val estado = _uiState.value
         // Ignora toques repetidos durante ou após a gravação.
-        if (estado.salvando || estado.salvo) return
+        if (estado.salvando || estado.salvo || estado.naoEncontrado) return
         val centavos = estado.valorDigitos.digitosParaCentavos()
         val data = estado.data.paraLocalDateOuNulo()
 
@@ -265,6 +272,9 @@ class LancamentoFormViewModel(
     }
 
     companion object {
+        /** Aviso exibido quando [LancamentoFormUiState.naoEncontrado]. */
+        const val AVISO_NAO_ENCONTRADO = "Este lançamento não existe mais."
+
         /** RN07: limite de data futura, definido em [Lancamento]; usado para limitar o calendário. */
         const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO
 

@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature.lancamento
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -63,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -111,9 +113,17 @@ fun LancamentoFormRoute(
     )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val contexto = LocalContext.current
 
     LaunchedEffect(uiState.salvo, uiState.excluido) {
         if (uiState.salvo || uiState.excluido) aoConcluir()
+    }
+
+    LaunchedEffect(uiState.naoEncontrado) {
+        if (uiState.naoEncontrado) {
+            Toast.makeText(contexto, LancamentoFormViewModel.AVISO_NAO_ENCONTRADO, Toast.LENGTH_SHORT).show()
+            aoConcluir()
+        }
     }
 
     LancamentoFormScreen(
