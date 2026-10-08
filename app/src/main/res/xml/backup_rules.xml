@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Auto Backup para API 23 a 30. Manter em sincronia com data_extraction_rules.xml.
+    Auto Backup no Android 8.x (API 26 e 27). Da API 28 à 30 vale
+    xml-v28/backup_rules.xml; da API 31 em diante, data_extraction_rules.xml.
 
-    O banco entra no backup (senhas apenas como hash PBKDF2). Ficam de fora a
-    sessão (sessao.xml: exige novo login após restauração) e o estado de
-    segurança do aparelho (seguranca.xml: tentativas de senha e bloqueio biométrico).
+    Essas versões não criptografam o backup de ponta a ponta, e o adb backup
+    levaria o banco (e-mail, hash da senha, lançamentos e coordenadas) em claro:
+    nada do app entra no backup nem na transferência entre aparelhos.
 -->
 <full-backup-content>
-    <exclude domain="sharedpref" path="sessao.xml" />
-    <exclude domain="sharedpref" path="seguranca.xml" />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="." />
 </full-backup-content>

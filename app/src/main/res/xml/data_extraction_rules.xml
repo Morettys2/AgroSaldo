@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Backup em nuvem e transferência entre aparelhos (API 31+). Mesmas exclusões
-    de backup_rules.xml: sessao.xml e seguranca.xml não saem do aparelho.
+    Backup em nuvem e transferência entre aparelhos (API 31+; até a API 30 valem os
+    backup_rules.xml). A nuvem só recebe cópia criptografada de ponta a ponta (exige
+    bloqueio de tela); sem essa capacidade, o backup do app fica desligado. O adb backup
+    não leva dados de apps com targetSdk 31+. sessao.xml e seguranca.xml não saem do
+    aparelho.
 -->
 <data-extraction-rules>
-    <cloud-backup>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
         <exclude domain="sharedpref" path="sessao.xml" />
         <exclude domain="sharedpref" path="seguranca.xml" />
     </cloud-backup>
