@@ -68,7 +68,7 @@ data class LancamentoFormUiState(
     val valorCentavos: Long
         get() = valorDigitos.digitosParaCentavos() ?: 0L
 
-    /** "Hoje, 4 out", "Ontem, 3 out" ou "28 set"; data inválida é exibida como digitada. */
+    /** "Hoje, 4 out", "Ontem, 3 out" ou "28 set"; data inválida (estado restaurado) é exibida como está. */
     val rotuloData: String
         get() = data.paraLocalDateOuNulo()?.rotuloDeData(hoje) ?: data
 
@@ -201,10 +201,6 @@ class LancamentoFormViewModel(
     fun aoMudarCategoria(categoria: CategoriaLancamento) =
         editar { it.copy(categoria = categoria) }
 
-    fun aoMudarValor(entrada: String) = editar {
-        it.copy(valorDigitos = entrada.filter { c -> c.isDigit() }.take(MAXIMO_DE_DIGITOS), erroValor = null)
-    }
-
     /**
      * Tecla do teclado numérico ("1", "00"...). Os dígitos entram pela direita, nos centavos.
      * Zeros à esquerda são descartados e uma tecla que excederia [MAXIMO_DE_DIGITOS] é
@@ -223,8 +219,6 @@ class LancamentoFormViewModel(
 
     /** Long press no ⌫: zera o valor. */
     fun aoLimparValor() = editar { if (!it.carregado) it else it.copy(valorDigitos = "", erroValor = null) }
-
-    fun aoMudarData(v: String) = editar { it.copy(data = v, erroData = null) }
 
     fun aoEscolherData(data: LocalDate) = editar { it.copy(data = data.formatarBr(), erroData = null) }
 

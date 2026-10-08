@@ -75,25 +75,32 @@ class LancamentoFormViewModelTest {
     }
 
     @Test
-    fun `campo de valor aceita so digitos e mostra em centavos`() {
-        val vm = novo()
-        vm.aoMudarValor("R$ 1.250,50")
-
-        assertEquals("125050", vm.uiState.value.valorDigitos)
-        assertEquals(125_050L, vm.uiState.value.valorCentavos)
-    }
-
-    @Test
-    fun `valor vazio e data impossivel geram erro e nao gravam`() = runTest {
+    fun `valor vazio gera erro e nao grava`() = runTest {
         val antes = lancamentos.observarTodos().first().size
         val vm = novo()
-        vm.aoMudarData("31/02/2026")
         vm.aoSalvar()
 
         assertNotNull(vm.uiState.value.erroValor)
-        assertNotNull(vm.uiState.value.erroData)
         assertFalse(vm.uiState.value.salvo)
         assertEquals(antes, lancamentos.observarTodos().first().size)
+    }
+
+    @Test
+    fun `data invalida restaurada aparece como estava e salvar pede a data de novo`() = runTest {
+        val antes = lancamentos.observarTodos().first().size
+        val restaurado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_DATA to "31/02/2026"))
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+
+        assertEquals("31/02/2026", vm.uiState.value.rotuloData)
+        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda São João da Serra", vm.uiState.value.resumo)
+
+        vm.aoTeclar("1000")
+        vm.aoSalvar()
+        assertEquals("Data inválida. Escolha a data de novo.", vm.uiState.value.erroData)
+        assertEquals(antes, lancamentos.observarTodos().first().size)
+
+        vm.aoUsarHoje()
+        assertNull(vm.uiState.value.erroData)
     }
 
     @Test
@@ -101,8 +108,9 @@ class LancamentoFormViewModelTest {
         val vm = novo()
         vm.aoMudarPropriedade(DadosDeExemplo.ID_SITIO)
         vm.aoMudarCategoria(CategoriaLancamento.COMBUSTIVEL)
-        vm.aoMudarValor("32000")
-        vm.aoMudarData("28/09/2026")
+        vm.aoTeclar("320")
+        vm.aoTeclar("00")
+        vm.aoEscolherData(LocalDate.of(2026, 9, 28))
         vm.aoMudarDescricao("  Diesel do trator  ")
         vm.aoSalvar()
 
@@ -124,7 +132,9 @@ class LancamentoFormViewModelTest {
         assertEquals("125000", vm.uiState.value.valorDigitos)
         assertEquals(CategoriaLancamento.ENERGIA, vm.uiState.value.categoria)
 
-        vm.aoMudarValor("130000")
+        vm.aoLimparValor()
+        vm.aoTeclar("1300")
+        vm.aoTeclar("00")
         vm.aoSalvar()
 
         assertEquals(total, lancamentos.observarTodos().first().size)
@@ -208,7 +218,8 @@ class LancamentoFormViewModelTest {
     @Test
     fun `data escolhida no calendario limpa o erro da data`() {
         val vm = novo()
-        vm.aoMudarData("99/99/9999")
+        vm.aoTeclar("1000")
+        vm.aoEscolherData(hoje.plusMonths(13))
         vm.aoSalvar()
         assertNotNull(vm.uiState.value.erroData)
 
@@ -221,14 +232,14 @@ class LancamentoFormViewModelTest {
     @Test
     fun `RN07 - data alem de 12 meses mostra o erro no campo da data`() = runTest {
         val vm = novo()
-        vm.aoMudarValor("1000")
-        vm.aoMudarData("05/10/2027")
+        vm.aoTeclar("1000")
+        vm.aoEscolherData(LocalDate.of(2027, 10, 5))
         vm.aoSalvar()
 
         assertEquals("A data pode ser no máximo 12 meses à frente.", vm.uiState.value.erroData)
         assertFalse(vm.uiState.value.salvo)
 
-        vm.aoMudarData("04/10/2027")
+        vm.aoEscolherData(LocalDate.of(2027, 10, 4))
         vm.aoSalvar()
         assertTrue("exatamente 12 meses ainda vale", vm.uiState.value.salvo)
     }
@@ -375,14 +386,6 @@ class LancamentoFormViewModelTest {
         val vm = novo()
         vm.aoMudarCategoria(CategoriaLancamento.COMBUSTIVEL)
         assertEquals("Combustível · Hoje · Fazenda São João da Serra", vm.uiState.value.resumo)
-    }
-
-    @Test
-    fun `data digitada invalida aparece como foi escrita, sem quebrar`() {
-        val vm = novo()
-        vm.aoMudarData("31/02/2026")
-        assertEquals("31/02/2026", vm.uiState.value.rotuloData)
-        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda São João da Serra", vm.uiState.value.resumo)
     }
 
     /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
