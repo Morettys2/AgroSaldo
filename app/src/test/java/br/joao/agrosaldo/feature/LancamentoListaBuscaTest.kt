@@ -137,7 +137,14 @@ class LancamentoListaBuscaTest {
     fun `busca fica so na propriedade escolhida`() {
         val vm = lista()
         vm.aoBuscar("a")
-        assertTrue(vm.uiState.value.lancamentos.all { it.propriedadeId == DadosDeExemplo.ID_FAZENDA })
+        val resultado = vm.uiState.value.lancamentos
+        assertTrue("o termo precisa achar algo, senão o all passa vazio", resultado.isNotEmpty())
+        assertTrue(resultado.all { it.propriedadeId == DadosDeExemplo.ID_FAZENDA })
+
+        vm.aoBuscar("conserto") // "Conserto da bomba" é do Sítio.
+        assertTrue(vm.uiState.value.lancamentos.isEmpty())
+        vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
+        assertEquals(listOf("exemplo-9"), vm.uiState.value.lancamentos.map { it.id })
     }
 
     @Test
