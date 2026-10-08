@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
  * Fonte única do estado de sessão observado pela navegação:
  *
  * - [logado]: há usuário autenticado.
- * - [precisaNovoAceite]: a política mudou desde o último aceite.
+ * - [precisaNovoAceite]: a política mudou desde o último aceite (null enquanto a conta não foi lida).
  * - [precisaDesbloquear]: bloqueio biométrico ativo e app ainda não desbloqueado
  *   desde a abertura ou desde [TEMPO_PARA_TRAVAR_MS] em segundo plano.
  *
@@ -39,8 +40,12 @@ class SessaoViewModel(
         .map { id -> id != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, conta.estaLogado())
 
-    val precisaNovoAceite: StateFlow<Boolean> = conta.precisaNovoAceite()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /**
+     * Começa desconhecido (null), e não false: até a conta ser lida, a navegação não mostra
+     * nenhuma tela, para o Início não aparecer antes do desvio para o novo aceite.
+     */
+    val precisaNovoAceite: StateFlow<Boolean?> = conta.precisaNovoAceite()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // Começa bloqueado: sessão restaurada exige biometria.
     private val _desbloqueado = MutableStateFlow(false)
@@ -69,6 +74,16 @@ class SessaoViewModel(
         _desbloqueado.value = true
         // O prompt de PIN/credencial do sistema põe o app em segundo plano; descarta essa saída.
         foiParaSegundoPlanoEm = null
+    }
+
+    /**
+     * Pedido de fora do app para abrir o Clima (toque na notificação de chuva; a Activity é
+     * exportada, então pode vir de outro app). Espera a conta ser lida e só vale com sessão
+     * e sem novo aceite pendente, para o pedido não furar o aceite.
+     */
+    suspend fun podeAbrirClima(): Boolean {
+        val aceitePendente = precisaNovoAceite.first { it != null }
+        return logado.value && aceitePendente == false
     }
 
     /** Opção de senha na tela de bloqueio: encerra a sessão e leva ao login. */

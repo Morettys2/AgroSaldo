@@ -144,9 +144,13 @@ fun AppNavegacao(
     // Mudanças posteriores de sessão são tratadas pelo LaunchedEffect abaixo.
     val destinoInicial = remember { if (logado) Rotas.INICIO else Rotas.LOGIN }
 
+    val entradaAtual by navController.currentBackStackEntryAsState()
+    val rotaAtual = entradaAtual?.destination?.route
+
     // Redireciona conforme a sessão. popUpTo(graph.id, inclusive) limpa a back stack para
     // que "voltar" não cruze a fronteira login/área autenticada nem pule o novo aceite.
-    LaunchedEffect(logado, precisaNovoAceite) {
+    // A rota atual é chave para que nenhuma navegação (ex.: pedido externo) escape das regras.
+    LaunchedEffect(logado, precisaNovoAceite, rotaAtual) {
         val rota = navController.currentDestination?.route ?: return@LaunchedEffect
         val anterior = navController.previousBackStackEntry?.destination?.route
         val destino = RegrasDeNavegacao.destino(rota, anterior, logado, precisaNovoAceite)
@@ -173,14 +177,12 @@ fun AppNavegacao(
         onDispose { ciclo.removeObserver(observador) }
     }
 
-    // Toque na notificação de chuva: abre a aba Clima se houver sessão. O redirecionamento
-    // de novo aceite, acima, tem precedência.
+    // Toque na notificação de chuva: abre a aba Clima só com sessão e sem novo aceite pendente.
     LaunchedEffect(pedidosDoClima) {
-        if (pedidosDoClima > 0 && logado) {
-            // Aguarda o NavHost ter a primeira entrada na back stack.
-            navController.currentBackStackEntryFlow.first()
-            navegarParaAba(navController, Rotas.CLIMA)
-        }
+        if (pedidosDoClima == 0) return@LaunchedEffect
+        // Aguarda o NavHost ter a primeira entrada na back stack.
+        navController.currentBackStackEntryFlow.first()
+        if (sessaoViewModel.podeAbrirClima()) navegarParaAba(navController, Rotas.CLIMA)
     }
 
     // Limpa o foco ao bloquear para o teclado não reaparecer sobre a tela de bloqueio.
@@ -219,8 +221,13 @@ fun AppNavegacao(
         }
     }
 
-    val entradaAtual by navController.currentBackStackEntryAsState()
-    val rotaAtual = entradaAtual?.destination?.route
+    // Conta ainda sendo lida ou desvio pendente: a tela atual fica coberta até a navegação decidir.
+    val telaPodeAparecer = RegrasDeNavegacao.telaPodeAparecer(
+        rota = rotaAtual,
+        anterior = navController.previousBackStackEntry?.destination?.route,
+        logado = logado,
+        precisaNovoAceite = precisaNovoAceite
+    )
 
     val ehAbaPrincipal = rotaAtual in Rotas.ABAS
     val cabecalhoEscuro = rotaAtual in Rotas.COM_CABECALHO_ESCURO
@@ -263,10 +270,10 @@ fun AppNavegacao(
     CompositionLocalProvider(LocalValoresOcultos provides valoresOcultos) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
-                // Bloqueado: o conteúdo segue composto (preserva estado), mas oculto da acessibilidade.
+                // Bloqueado ou coberto: o conteúdo segue composto (preserva estado), mas oculto da acessibilidade.
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (precisaDesbloquear) Modifier.clearAndSetSemantics { } else Modifier),
+                    .then(if (precisaDesbloquear || !telaPodeAparecer) Modifier.clearAndSetSemantics { } else Modifier),
                 snackbarHost = {
                     SnackbarHost(
                         hostState = estadoDaBarra,
@@ -510,6 +517,11 @@ fun AppNavegacao(
                 BackHandler(enabled = precisaDesbloquear) {
                     contexto.acharFragmentActivity()?.moveTaskToBack(true)
                 }
+            }
+
+            // Surface opaca também consome os toques destinados à tela coberta.
+            if (!telaPodeAparecer) {
+                Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {}
             }
 
             if (precisaDesbloquear) {

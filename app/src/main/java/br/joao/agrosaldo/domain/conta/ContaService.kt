@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.time.Instant
@@ -87,10 +88,24 @@ class ContaService(
             if (id == null) flowOf(null) else usuarios.observar(id)
         }
 
-    /** true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL]. */
-    fun precisaNovoAceite(): Flow<Boolean> =
-        observarUsuarioLogado()
-            .map { usuario -> usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL }
+    /**
+     * true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL];
+     * false sem sessão; null enquanto a conta recém-conectada não foi lida do banco.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun precisaNovoAceite(): Flow<Boolean?> =
+        sessao.usuarioId
+            .flatMapLatest { id ->
+                if (id == null) {
+                    flowOf(false)
+                } else {
+                    usuarios.observar(id)
+                        .map<Usuario?, Boolean?> { usuario ->
+                            usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL
+                        }
+                        .onStart { emit(null) }
+                }
+            }
             .distinctUntilChanged()
 
     /** Registra o aceite da versão atual do termo. Retorna false sem sessão válida. */

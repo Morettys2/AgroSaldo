@@ -1,8 +1,10 @@
 package br.joao.agrosaldo.core.navigation
 
 import br.joao.agrosaldo.core.navigation.RegrasDeNavegacao.destino
+import br.joao.agrosaldo.core.navigation.RegrasDeNavegacao.telaPodeAparecer
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -83,6 +85,34 @@ class RegrasDeNavegacaoTest {
             Rotas.INICIO,
             destino(Rotas.NOVO_CONSENTIMENTO, null, logado = true, precisaNovoAceite = false)
         )
+    }
+
+    @Test
+    fun `sem saber ainda do novo aceite quem esta conectado espera`() {
+        assertNull(destino(Rotas.INICIO, null, logado = true, precisaNovoAceite = null))
+        assertNull(destino(Rotas.LOGIN, null, logado = true, precisaNovoAceite = null))
+        assertEquals(Rotas.LOGIN, destino(Rotas.CONTA, Rotas.INICIO, logado = false, precisaNovoAceite = null))
+    }
+
+    @Test
+    fun `clima aberto por fora antes do novo aceite volta para o aceite`() {
+        assertEquals(
+            Rotas.NOVO_CONSENTIMENTO,
+            destino(Rotas.CLIMA, Rotas.NOVO_CONSENTIMENTO, logado = true, precisaNovoAceite = true)
+        )
+    }
+
+    @Test
+    fun `tela so aparece com a sessao conhecida e sem desvio pendente`() {
+        assertTrue(telaPodeAparecer(Rotas.INICIO, null, logado = true, precisaNovoAceite = false))
+        assertTrue(telaPodeAparecer(Rotas.LOGIN, null, logado = false, precisaNovoAceite = false))
+        // NavHost ainda sem rota.
+        assertFalse(telaPodeAparecer(null, null, logado = true, precisaNovoAceite = false))
+        // Conta ainda sendo lida.
+        assertFalse(telaPodeAparecer(Rotas.INICIO, null, logado = true, precisaNovoAceite = null))
+        // Desvio para o novo aceite ainda não aconteceu.
+        assertFalse(telaPodeAparecer(Rotas.INICIO, null, logado = true, precisaNovoAceite = true))
+        assertTrue(telaPodeAparecer(Rotas.NOVO_CONSENTIMENTO, null, logado = true, precisaNovoAceite = true))
     }
 
     @Test
