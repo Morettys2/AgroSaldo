@@ -33,7 +33,8 @@ data class Usuario(
  * Histórico:
  * - 1: texto inicial (conta local e LGPD).
  * - 2: uso opcional da localização no cadastro da propriedade.
+ * - 3: backup do Android e o que a exclusão da conta apaga.
  */
 object TermoDePrivacidade {
-    const val VERSAO_ATUAL = 2
+    const val VERSAO_ATUAL = 3
 }

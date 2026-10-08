@@ -9,8 +9,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Exibida quando a versão da política mudou desde o último aceite. LGPD: nova
- * finalidade (uso de localização) exige novo consentimento. Reusa [ConsentimentoScreen].
+ * Exibida quando a versão da política mudou desde o último aceite. LGPD: mudança
+ * relevante (nova finalidade ou novo destino dos dados) exige novo consentimento.
+ * Reusa [ConsentimentoScreen].
  */
 @Composable
 fun NovoConsentimentoRoute(
@@ -45,8 +46,9 @@ fun NovoConsentimentoScreen(
         aoRecusar = aoRecusar,
         modifier = modifier,
         titulo = "A política de privacidade mudou",
-        introducao = "O app agora pode usar a localização do celular para preencher as coordenadas do sítio " +
-            "— só quando você tocar no botão. Para continuar, precisamos do seu aceite de novo.",
+        introducao = "A política agora explica o backup do Android e o uso da localização do celular para " +
+            "preencher as coordenadas do sítio — só quando você tocar no botão. Para continuar, precisamos " +
+            "do seu aceite de novo.",
         textoRecusar = "Não aceito e quero sair"
     )
 }
