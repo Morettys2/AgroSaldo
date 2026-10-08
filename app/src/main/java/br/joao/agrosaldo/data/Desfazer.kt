@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,7 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
      * não são a pendente ou que já foram usadas (toque duplo).
      *
      * @return false se a oferta não é válida ou a restauração falhou.
+     * @throws CancellationException repassada a quem chamou, como em [br.joao.agrosaldo.core.util.tentar].
      */
     suspend fun desfazer(exclusao: ExclusaoRecente): Boolean {
         if (_pendente.value !== exclusao || exclusao.usada) return false
@@ -53,6 +55,8 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
         return try {
             withContext(NonCancellable) { exclusao.restaurar() }
             true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             false
         } finally {
