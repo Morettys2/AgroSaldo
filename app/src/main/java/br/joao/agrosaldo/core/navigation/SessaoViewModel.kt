@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,8 +33,11 @@ import kotlinx.coroutines.launch
 class SessaoViewModel(
     private val conta: ContaService,
     private val bloqueio: BloqueioRepository,
+    /** Só encontra propriedades do usuário conectado. */
+    private val propriedades: PropriedadeRepository,
     /** Em milissegundos; deve ser monotônico (ver Factory). */
-    private val relogio: () -> Long = System::currentTimeMillis
+    private val relogio: () -> Long = System::currentTimeMillis,
+    private val selecionarPropriedade: (String) -> Unit = SelecaoAtual::selecionar
 ) : ViewModel() {
 
     /** Valor inicial lido da sessão gravada, para evitar um frame com a tela de login. */
@@ -79,11 +84,20 @@ class SessaoViewModel(
     /**
      * Pedido de fora do app para abrir o Clima (toque na notificação de chuva; a Activity é
      * exportada, então pode vir de outro app). Espera a conta ser lida e só vale com sessão
-     * e sem novo aceite pendente, para o pedido não furar o aceite.
+     * e sem novo aceite pendente, para o pedido não furar o aceite. Com [propriedadeId],
+     * seleciona a propriedade do aviso; um id que não é do usuário conectado invalida o
+     * pedido. Sem ele (notificação de versão anterior), o Clima abre na seleção atual.
+     *
+     * @return true se a navegação deve abrir o Clima.
      */
-    suspend fun podeAbrirClima(): Boolean {
+    suspend fun prepararAberturaDoClima(propriedadeId: String?): Boolean {
         val aceitePendente = precisaNovoAceite.first { it != null }
-        return logado.value && aceitePendente == false
+        if (!logado.value || aceitePendente == true) return false
+        if (propriedadeId != null) {
+            propriedades.buscarPorId(propriedadeId) ?: return false
+            selecionarPropriedade(propriedadeId)
+        }
+        return true
     }
 
     /** Opção de senha na tela de bloqueio: encerra a sessão e leva ao login. */
@@ -106,7 +120,12 @@ class SessaoViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 // Relógio monotônico (inclui deep sleep): imune a mudança da hora do sistema.
-                SessaoViewModel(Repositorios.conta, Repositorios.bloqueio, Repositorios.relogioMonotonico)
+                SessaoViewModel(
+                    Repositorios.conta,
+                    Repositorios.bloqueio,
+                    Repositorios.propriedades,
+                    Repositorios.relogioMonotonico
+                )
             }
         }
     }

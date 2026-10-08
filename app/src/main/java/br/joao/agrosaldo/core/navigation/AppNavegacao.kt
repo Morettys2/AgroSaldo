@@ -103,6 +103,13 @@ import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Pedido de fora do app (toque na notificação de chuva) para abrir o Clima, com a
+ * propriedade do aviso quando houver. Igualdade por identidade: cada toque é um pedido
+ * novo, mesmo que repita a propriedade.
+ */
+class PedidoDoClima(val propriedadeId: String?)
+
 private data class Aba(
     val rota: String,
     val rotulo: String,
@@ -124,12 +131,12 @@ private val ABAS = listOf(
  * desacopladas do grafo e compatíveis com @Preview. Mudanças de sessão (login, logout,
  * novo aceite) são observadas em [SessaoViewModel] e convertidas em navegação aqui.
  *
- * @param pedidosDoClima contador de toques na notificação de chuva; cada incremento abre a aba Clima.
+ * @param pedidoDoClima último toque na notificação de chuva; cada pedido novo abre a aba Clima.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavegacao(
-    pedidosDoClima: Int = 0,
+    pedidoDoClima: PedidoDoClima? = null,
     navController: NavHostController = rememberNavController(),
     sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
     privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory),
@@ -177,12 +184,13 @@ fun AppNavegacao(
         onDispose { ciclo.removeObserver(observador) }
     }
 
-    // Toque na notificação de chuva: abre a aba Clima só com sessão e sem novo aceite pendente.
-    LaunchedEffect(pedidosDoClima) {
-        if (pedidosDoClima == 0) return@LaunchedEffect
+    // Toque na notificação de chuva: seleciona a propriedade do aviso e abre a aba Clima, só com
+    // sessão e sem novo aceite pendente (ver SessaoViewModel.prepararAberturaDoClima).
+    LaunchedEffect(pedidoDoClima) {
+        val pedido = pedidoDoClima ?: return@LaunchedEffect
         // Aguarda o NavHost ter a primeira entrada na back stack.
         navController.currentBackStackEntryFlow.first()
-        if (sessaoViewModel.podeAbrirClima()) navegarParaAba(navController, Rotas.CLIMA)
+        if (sessaoViewModel.prepararAberturaDoClima(pedido.propriedadeId)) navegarParaAba(navController, Rotas.CLIMA)
     }
 
     // Limpa o foco ao bloquear para o teclado não reaparecer sobre a tela de bloqueio.

@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -12,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import br.joao.agrosaldo.MainActivity
 import br.joao.agrosaldo.R
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 import br.joao.agrosaldo.domain.clima.MotivoChuva
@@ -27,6 +29,13 @@ object NotificadorDeChuva {
     const val CANAL = "aviso_chuva"
     const val EXTRA_DESTINO = "destino"
     const val DESTINO_CLIMA = "clima"
+
+    /** Id da propriedade do aviso; a navegação só o usa se a propriedade for do usuário conectado. */
+    const val EXTRA_PROPRIEDADE = "propriedade_id"
+
+    /** Id comum a todos os avisos; cada propriedade é a tag da sua notificação. */
+    private const val ID_AVISO = 1
+    private const val ESQUEMA = "agrosaldo"
 
     fun criarCanal(context: Context) {
         val canal = NotificationChannelCompat.Builder(CANAL, NotificationManagerCompat.IMPORTANCE_DEFAULT)
@@ -60,11 +69,15 @@ object NotificadorDeChuva {
         val abrirClima = Intent(context, MainActivity::class.java).apply {
             // SINGLE_TOP: com o app aberto, entrega via onNewIntent em vez de recriar a Activity.
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            // data distinto por propriedade: PendingIntents que só diferem nos extras são o mesmo,
+            // e o FLAG_UPDATE_CURRENT faria o aviso de uma propriedade abrir a de outra.
+            data = Uri.Builder().scheme(ESQUEMA).authority(DESTINO_CLIMA).appendPath(aviso.propriedadeId).build()
             putExtra(EXTRA_DESTINO, DESTINO_CLIMA)
+            putExtra(EXTRA_PROPRIEDADE, aviso.propriedadeId)
         }
         val aoTocar = PendingIntent.getActivity(
             context,
-            aviso.propriedadeId.hashCode(),
+            0,
             abrirClima,
             // FLAG_IMMUTABLE é obrigatório a partir do API 31.
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -90,14 +103,19 @@ object NotificadorDeChuva {
             .setPublicVersion(versaoPublica)
             .build()
 
-        // Id fixo por propriedade: um aviso novo substitui o anterior.
-        NotificationManagerCompat.from(context).notify(aviso.propriedadeId.hashCode(), notificacao)
+        // Tag = propriedade: um aviso novo substitui o anterior da mesma propriedade, e
+        // propriedades diferentes nunca colidem (o hashCode do id podia colidir).
+        NotificationManagerCompat.from(context).notify(aviso.propriedadeId, ID_AVISO, notificacao)
     }
 
-    /** Exibe uma notificação com dados fictícios. Usado só pelas ferramentas de teste de builds debug. */
+    /**
+     * Exibe uma notificação com dados fictícios. Usado só pelas ferramentas de teste de builds debug.
+     * Leva a propriedade selecionada para o toque abrir o Clima como num aviso real (um id
+     * que não é do usuário conectado seria ignorado).
+     */
     fun mostrarExemplo(context: Context) {
         val aviso = AvisoDeChuva(
-            propriedadeId = "exemplo",
+            propriedadeId = SelecaoAtual.propriedadeId.value ?: "exemplo",
             nomePropriedade = "Propriedade de exemplo",
             avaliacao = AvaliacaoChuva(
                 vaiChover = true,

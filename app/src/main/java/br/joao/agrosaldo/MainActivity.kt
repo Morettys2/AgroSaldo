@@ -5,12 +5,13 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.navigation.AppNavegacao
+import br.joao.agrosaldo.core.navigation.PedidoDoClima
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import java.time.YearMonth
@@ -23,10 +24,10 @@ import java.time.YearMonth
 class MainActivity : FragmentActivity() {
 
     /**
-     * Contador de pedidos da notificação de chuva para abrir o Clima; a navegação reage
-     * a cada incremento. Contador (e não Boolean) para que dois pedidos seguidos disparem.
+     * Último pedido da notificação de chuva para abrir o Clima; a navegação reage a cada
+     * pedido novo (um objeto por toque, para que dois toques seguidos disparem).
      */
-    private var pedidosDoClima by mutableIntStateOf(0)
+    private var pedidoDoClima by mutableStateOf<PedidoDoClima?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Deve vir antes de super.onCreate, que troca o tema da splash pelo tema do app.
@@ -42,12 +43,12 @@ class MainActivity : FragmentActivity() {
             irParaOMesAtual()
             // Ignora o intent reentregue ao reabrir pelos recentes (LAUNCHED_FROM_HISTORY).
             val dosRecentes = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
-            if (intent.veioDaNotificacaoDeChuva() && !dosRecentes) pedidosDoClima++
+            if (!dosRecentes) receberPedidoDoClima(intent)
         }
 
         setContent {
             AgroSaldoTheme {
-                AppNavegacao(pedidosDoClima = pedidosDoClima)
+                AppNavegacao(pedidoDoClima = pedidoDoClima)
             }
         }
     }
@@ -59,7 +60,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.veioDaNotificacaoDeChuva()) pedidosDoClima++
+        receberPedidoDoClima(intent)
     }
 
     override fun onStart() {
@@ -75,8 +76,11 @@ class MainActivity : FragmentActivity() {
         SelecaoAtual.selecionarMes(agora)
     }
 
-    private fun Intent?.veioDaNotificacaoDeChuva(): Boolean =
-        this?.getStringExtra(NotificadorDeChuva.EXTRA_DESTINO) == NotificadorDeChuva.DESTINO_CLIMA
+    /** A propriedade vem de fora do app; a navegação só a seleciona se for do usuário conectado. */
+    private fun receberPedidoDoClima(intent: Intent) {
+        if (intent.getStringExtra(NotificadorDeChuva.EXTRA_DESTINO) != NotificadorDeChuva.DESTINO_CLIMA) return
+        pedidoDoClima = PedidoDoClima(intent.getStringExtra(NotificadorDeChuva.EXTRA_PROPRIEDADE))
+    }
 
     private companion object {
         /** No companion para sobreviver à recriação da Activity; dura o processo, como [SelecaoAtual]. */
