@@ -71,6 +71,13 @@ class AgroSaldoDatabaseTest {
         DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade()) }
     }
 
+    /** Conta as linhas direto no SQLite, sem passar pelos filtros dos DAOs. */
+    private fun contarLinhas(tabela: String): Int =
+        banco.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $tabela").use { cursor ->
+            cursor.moveToFirst()
+            cursor.getInt(0)
+        }
+
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
         usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
@@ -225,11 +232,7 @@ class AgroSaldoDatabaseTest {
 
         assertNull(usuarioDao.buscarPorId("u1"))
         assertEquals(0, propriedadeDao.contarDoUsuario("u1"))
-        val sqlite = banco.openHelper.readableDatabase
-        sqlite.query("SELECT COUNT(*) FROM lancamentos").use { cursor ->
-            cursor.moveToFirst()
-            assertEquals(0, cursor.getInt(0))
-        }
+        assertEquals(0, contarLinhas("lancamentos"))
         assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
     }
 
@@ -240,11 +243,13 @@ class AgroSaldoDatabaseTest {
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{\"nova\":1}", 2L))
 
-        // Upsert: a segunda gravação substitui a primeira.
+        // Upsert: a segunda gravação substitui a primeira, sem duplicar a linha.
         assertEquals(2L, previsaoDao.buscar(DadosDeExemplo.ID_SITIO)?.obtidaEm)
+        assertEquals(1, contarLinhas("previsoes"))
 
         propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
         assertNull(previsaoDao.buscar(DadosDeExemplo.ID_SITIO))
+        assertEquals(0, contarLinhas("previsoes"))
     }
 
     /** Contrato usado por ClimaRepositoryRoom ao descartar a previsão de uma propriedade excluída. */
