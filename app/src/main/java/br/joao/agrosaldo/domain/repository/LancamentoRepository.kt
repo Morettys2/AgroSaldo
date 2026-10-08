@@ -22,7 +22,4 @@ interface LancamentoRepository {
     suspend fun salvar(lancamento: Lancamento)
 
     suspend fun excluir(id: String)
-
-    /** Usado ao excluir uma propriedade: os lançamentos dela vão junto (RN02). */
-    suspend fun excluirDaPropriedade(propriedadeId: String)
 }

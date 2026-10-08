@@ -1,6 +1,7 @@
 package br.joao.agrosaldo.domain.repository
 
 import br.joao.agrosaldo.domain.model.Propriedade
+import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -23,4 +24,14 @@ interface PropriedadeRepository {
     suspend fun salvar(propriedade: Propriedade)
 
     suspend fun excluir(id: String)
+
+    /**
+     * RN02 — exclui a propriedade e os lançamentos dela de uma vez só (tudo
+     * ou nada). Devolve o que foi apagado, para o "Desfazer"; null se a
+     * propriedade não existe.
+     */
+    suspend fun excluirComLancamentos(id: String): PropriedadeExcluida?
+
+    /** Desfaz o [excluirComLancamentos]: volta tudo, também de uma vez só. */
+    suspend fun restaurar(excluida: PropriedadeExcluida)
 }

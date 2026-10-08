@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.emGraus
 import br.joao.agrosaldo.core.util.emMilimetros
-import br.joao.agrosaldo.core.util.horaCurta
 import br.joao.agrosaldo.core.util.horaMinuto
 import br.joao.agrosaldo.core.util.rotuloDoDia
 import br.joao.agrosaldo.data.Repositorios
@@ -23,6 +23,7 @@ import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -64,7 +66,8 @@ data class ClimaUiState(
     val janelaAte: String = "",
     /** 0 a 100 — a barra do cartão grande. */
     val probabilidadeJanela: Int = 0,
-    val chuvaJanela: String = "",
+    /** "85% · 6 mm", ou só "85%" quando não há volume previsto. */
+    val chanceEVolume: String = "",
     val vaiChover: Boolean = false,
     val recomendacaoTitulo: String = "",
     val recomendacaoTexto: String = "",
@@ -95,6 +98,15 @@ class ClimaViewModel(
     private val _atualizando = MutableStateFlow(false)
     private val _mensagem = MutableStateFlow<String?>(null)
 
+    /**
+     * A busca em andamento. Só existe uma por vez: trocar de propriedade
+     * cancela a busca da anterior, e a [geracao] garante que uma busca velha
+     * que termine atrasada não mexa no estado da nova (nem mostre o "sem
+     * internet" da propriedade errada).
+     */
+    private var busca: Job? = null
+    private var geracao = 0
+
     private val _uiState = MutableStateFlow(ClimaUiState())
     val uiState: StateFlow<ClimaUiState> = _uiState.asStateFlow()
 
@@ -110,7 +122,7 @@ class ClimaViewModel(
             selecao.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
                 // O aviso "sem internet" era da propriedade anterior.
                 _mensagem.value = null
-                if (propriedade != null) atualizar(propriedade, forcar = false)
+                if (propriedade != null) buscar(propriedade, forcar = false)
             }
         }
 
@@ -134,24 +146,31 @@ class ClimaViewModel(
     fun aoAtualizar() {
         val id = _uiState.value.propriedadeId
         val propriedade = _uiState.value.propriedades.firstOrNull { it.id == id } ?: return
-        viewModelScope.launch { atualizar(propriedade, forcar = true) }
+        // Dois toques seguidos no botão: a busca que já está rodando basta.
+        if (_atualizando.value) return
+        buscar(propriedade, forcar = true)
     }
 
-    private suspend fun atualizar(propriedade: Propriedade, forcar: Boolean) {
-        if (_atualizando.value) return
-        _atualizando.value = true
-        // finally: se a pessoa trocar de propriedade no meio da busca, esta
-        // busca é cancelada. Sem o finally, o "atualizando" ficaria ligado para
-        // sempre e o botão de atualizar pararia de funcionar.
-        try {
-            val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
-            _mensagem.value = when (resultado) {
-                ResultadoAtualizacao.SemConexao -> MENSAGEM_SEM_INTERNET
-                is ResultadoAtualizacao.Falha -> MENSAGEM_FALHA
-                is ResultadoAtualizacao.Sucesso, null -> null
+    private fun buscar(propriedade: Propriedade, forcar: Boolean) {
+        val minha = ++geracao
+        busca?.cancel()
+        busca = viewModelScope.launch {
+            _atualizando.value = true
+            // finally: se a pessoa trocar de propriedade no meio da busca, esta
+            // busca é cancelada. Sem o finally, o "atualizando" ficaria ligado
+            // para sempre e o botão de atualizar pararia de funcionar.
+            try {
+                val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
+                if (minha == geracao) {
+                    _mensagem.value = when (resultado) {
+                        ResultadoAtualizacao.SemConexao -> MENSAGEM_SEM_INTERNET
+                        is ResultadoAtualizacao.Falha -> MENSAGEM_FALHA
+                        is ResultadoAtualizacao.Sucesso, null -> null
+                    }
+                }
+            } finally {
+                if (minha == geracao) _atualizando.value = false
             }
-        } finally {
-            _atualizando.value = false
         }
     }
 
@@ -185,17 +204,17 @@ class ClimaViewModel(
         val agoraLocal = previsao.horaLocal(agora)
         val hoje = agoraLocal.toLocalDate()
         val fimJanela = agoraLocal.truncatedTo(ChronoUnit.HOURS).plusHours(limites.janelaHoras.toLong())
-        val janelaAte = "até as ${fimJanela.horaCurta()}" + if (fimJanela.toLocalDate().isAfter(hoje)) " de amanhã" else ""
+        val janelaAte = TextosDaChuva.ate(fimJanela, agoraLocal)
         val (titulo, texto) = recomendacao(avaliacao, limites)
 
         return base.copy(
             temPrevisao = true,
             temperaturaAtual = previsao.temperaturaAtual?.emGraus(),
             condicaoAtual = previsao.condicaoAtual,
-            resumo = resumo(avaliacao, previsao, limites),
+            resumo = resumo(avaliacao, previsao, limites, agoraLocal),
             janelaAte = janelaAte,
             probabilidadeJanela = avaliacao.probabilidadeMaxima,
-            chuvaJanela = avaliacao.chuvaTotalMm.emMilimetros(),
+            chanceEVolume = TextosDaChuva.chanceEVolumeCurto(avaliacao),
             vaiChover = avaliacao.vaiChover,
             recomendacaoTitulo = titulo,
             recomendacaoTexto = texto,
@@ -213,10 +232,10 @@ class ClimaViewModel(
         )
     }
 
-    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva): String = when {
+    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva, agora: LocalDateTime): String = when {
         !avaliacao.temDados -> "Previsão desatualizada"
         avaliacao.vaiChover && avaliacao.inicioPrevisto != null ->
-            "Chuva prevista a partir das ${avaliacao.inicioPrevisto.horaCurta()}"
+            "Chuva prevista ${TextosDaChuva.aPartirDe(avaliacao.inicioPrevisto, agora)}"
         avaliacao.vaiChover -> "Chuva prevista nas próximas ${limites.janelaHoras} horas"
         else -> previsao.condicaoAtual.rotulo
     }
@@ -224,7 +243,8 @@ class ClimaViewModel(
     /** A tela fala com o produtor: o que fazer com o pivô, e por quê. */
     private fun recomendacao(avaliacao: AvaliacaoChuva, limites: LimitesChuva): Pair<String, String> {
         val limitesTexto = "${limites.probabilidadeMinima}% de chance ou ${limites.chuvaMinimaMm.emMilimetros()}"
-        val previsto = "${avaliacao.probabilidadeMaxima}% de chance e ${avaliacao.chuvaTotalMm.emMilimetros()}"
+        // "85% de chance e 6 mm" — sem o "e 0 mm" quando não há volume.
+        val previsto = TextosDaChuva.chanceEVolume(avaliacao, separador = " e ")
         return when {
             !avaliacao.temDados ->
                 "Previsão desatualizada" to "Atualize para ver as próximas ${limites.janelaHoras} horas."
@@ -232,6 +252,10 @@ class ClimaViewModel(
                 "Dá para adiar a irrigação do pivô" to
                     "Previsão de $previsto nas próximas ${limites.janelaHoras} horas. " +
                     "Passou dos limites que você configurou ($limitesTexto)."
+            TextosDaChuva.podeChoverAbaixoDoLimite(avaliacao) ->
+                "Pode chover, mas abaixo do seu limite" to
+                    "Nas próximas ${limites.janelaHoras} horas: até $previsto. " +
+                    "O aviso só sai a partir dos limites que você configurou ($limitesTexto)."
             else ->
                 "Sem chuva relevante à vista" to
                     "Nas próximas ${limites.janelaHoras} horas: até $previsto. " +

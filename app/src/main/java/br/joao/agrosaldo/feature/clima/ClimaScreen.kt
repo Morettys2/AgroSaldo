@@ -32,7 +32,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -148,8 +154,21 @@ fun ClimaScreen(
                     item(key = "recomendacao") { CartaoRecomendacao(uiState, Modifier.padding(horizontal = 20.dp)) }
                     item(key = "dias") { CartaoDias(uiState.dias, Modifier.padding(horizontal = 20.dp)) }
                     item(key = "fonte") {
+                        // Os dados da Open-Meteo são CC BY 4.0: os termos pedem o
+                        // crédito com link para o site.
+                        val fonte = buildAnnotatedString {
+                            uiState.atualizadaEm?.let { append("$it · ") }
+                            append("Fonte: ")
+                            withLink(
+                                LinkAnnotation.Url(
+                                    url = "https://open-meteo.com/",
+                                    styles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
+                                )
+                            ) { append("Open-Meteo") }
+                            append(" (CC BY 4.0)")
+                        }
                         Text(
-                            text = listOfNotNull(uiState.atualizadaEm, "Fonte: Open-Meteo").joinToString(" · "),
+                            text = fonte,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.agro.tintaApagada,
                             textAlign = TextAlign.Center,
@@ -260,7 +279,7 @@ private fun Cabecalho(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "${uiState.probabilidadeJanela}% · ${uiState.chuvaJanela}",
+                        text = uiState.chanceEVolume,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.agro.destaque
                     )
@@ -492,7 +511,7 @@ private val ESTADO_EXEMPLO = ClimaUiState(
     resumo = "Chuva prevista a partir das 18h",
     janelaAte = "até as 2h de amanhã",
     probabilidadeJanela = 80,
-    chuvaJanela = "6 mm",
+    chanceEVolume = "80% · 6 mm",
     vaiChover = true,
     recomendacaoTitulo = "Dá para adiar a irrigação do pivô",
     recomendacaoTexto = "Previsão de 80% de chance e 6 mm nas próximas 12 horas. " +

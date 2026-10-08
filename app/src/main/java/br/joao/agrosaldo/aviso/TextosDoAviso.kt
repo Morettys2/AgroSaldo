@@ -1,7 +1,6 @@
 package br.joao.agrosaldo.aviso
 
-import br.joao.agrosaldo.core.util.emMilimetros
-import br.joao.agrosaldo.core.util.horaCurta
+import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 
 /**
@@ -15,8 +14,11 @@ object TextosDoAviso {
 
     fun corpo(aviso: AvisoDeChuva, janelaHoras: Int): String {
         val a = aviso.avaliacao
-        val volume = if (a.chuvaTotalMm >= 0.1) ", com ${a.chuvaTotalMm.emMilimetros()} previstos" else ""
-        val quando = a.inicioPrevisto?.let { " a partir das ${it.horaCurta()}" }.orEmpty()
+        val volume = TextosDaChuva.volume(a.chuvaTotalMm)?.let { ", com $it previstos" }.orEmpty()
+        val quando = a.inicioPrevisto?.let { inicio ->
+            val agora = aviso.verificadoEm
+            " " + if (agora != null) TextosDaChuva.aPartirDe(inicio, agora) else TextosDaChuva.aPartirDaHora(inicio)
+        }.orEmpty()
         return "${a.probabilidadeMaxima}% de chance de chuva nas próximas $janelaHoras horas$volume$quando. " +
             "Dá para adiar a irrigação do pivô e economizar energia."
     }

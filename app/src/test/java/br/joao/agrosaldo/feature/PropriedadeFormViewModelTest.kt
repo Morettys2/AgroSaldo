@@ -5,6 +5,8 @@ import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.model.Propriedade
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -35,12 +37,19 @@ class PropriedadeFormViewModelTest {
 
     @Before
     fun preparar() {
-        propriedades = PropriedadeRepositoryMemoria()
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)))
+        propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
     }
 
-    private fun novo() = PropriedadeFormViewModel(propriedades, lancamentos, propriedadeId = null)
-    private fun editando(id: String) = PropriedadeFormViewModel(propriedades, lancamentos, propriedadeId = id)
+    private fun novo() = PropriedadeFormViewModel(propriedades, propriedadeId = null)
+    private fun editando(id: String) = PropriedadeFormViewModel(propriedades, propriedadeId = id)
+
+    private fun preencher(vm: PropriedadeFormViewModel, area: String = "3") {
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea(area)
+        vm.aoMudarLatitude("-21")
+        vm.aoMudarLongitude("-46")
+    }
 
     @Test
     fun `salvar com tudo vazio marca os tres erros e nao grava nada`() = runTest {
@@ -111,7 +120,8 @@ class PropriedadeFormViewModelTest {
     fun `edicao carrega os dados e mantem o mesmo id ao salvar`() = runTest {
         val vm = editando(DadosDeExemplo.ID_SITIO)
         assertEquals("Sítio Boa Vista", vm.uiState.value.nome)
-        assertEquals("18,0", vm.uiState.value.area)
+        // Sem ",0" no fim: é o que a pessoa teria digitado.
+        assertEquals("18", vm.uiState.value.area)
         assertTrue(vm.uiState.value.ehEdicao)
 
         vm.aoMudarNome("Sítio Boa Vista II")
@@ -139,7 +149,7 @@ class PropriedadeFormViewModelTest {
         val desfazer = Desfazer()
         val antes = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
         val propriedadeAntes = propriedades.buscarPorId(DadosDeExemplo.ID_SITIO)
-        val vm = PropriedadeFormViewModel(propriedades, lancamentos, DadosDeExemplo.ID_SITIO, desfazer)
+        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, desfazer)
 
         vm.aoExcluir()
         val oferta = checkNotNull(desfazer.pendente.value)
@@ -164,5 +174,55 @@ class PropriedadeFormViewModelTest {
         assertEquals("-21,736940", vm.uiState.value.latitude)
         assertEquals("-46,931600", vm.uiState.value.longitude)
         assertNull(vm.uiState.value.erroCoordenadas)
+    }
+
+    @Test
+    fun `dois toques em salvar criam uma propriedade so`() = runTest {
+        val vm = novo()
+        preencher(vm)
+        vm.aoSalvar()
+        vm.aoSalvar()
+
+        assertEquals(3, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `area NaN ou Infinity e recusada no campo em vez de derrubar o app`() = runTest {
+        for (texto in listOf("NaN", "Infinity", "-Infinity")) {
+            val vm = novo()
+            preencher(vm, area = texto)
+            vm.aoSalvar()
+
+            assertNotNull("área $texto", vm.uiState.value.erroArea)
+            assertFalse(vm.uiState.value.salvo)
+        }
+        assertEquals(2, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `erro do banco ao salvar vira mensagem e libera o botao`() = runTest {
+        val quebrado = object : PropriedadeRepository by propriedades {
+            override suspend fun salvar(propriedade: Propriedade) = throw IllegalStateException("disco cheio")
+        }
+        val vm = PropriedadeFormViewModel(quebrado, propriedadeId = null)
+        preencher(vm)
+        vm.aoSalvar()
+
+        val estado = vm.uiState.value
+        assertFalse(estado.salvo)
+        assertFalse("o botão volta a funcionar", estado.salvando)
+        assertEquals("Não foi possível salvar. Tente de novo.", estado.erroGeral)
+    }
+
+    @Test
+    fun `numero grande na edicao aparece por extenso e nao como 1E7`() = runTest {
+        propriedades.salvar(
+            Propriedade(id = "grande", nome = "Latifúndio", cultura = "Soja", areaHectares = 12_000_000.0, latitude = -0.0001, longitude = -46.5)
+        )
+        val vm = editando("grande")
+
+        assertEquals("12000000", vm.uiState.value.area)
+        assertEquals("-0,0001", vm.uiState.value.latitude)
+        assertEquals("-46,5", vm.uiState.value.longitude)
     }
 }

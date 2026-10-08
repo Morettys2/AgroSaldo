@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -128,7 +129,8 @@ fun ContaScreen(
     aoCancelarExclusao: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var confirmandoExclusao by remember { mutableStateOf(false) }
+    // rememberSaveable: o diálogo continua aberto se o celular girar.
+    var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier

@@ -8,12 +8,15 @@ import br.joao.agrosaldo.domain.repository.SessaoRepository
 import kotlinx.coroutines.flow.first
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 
 /** Um aviso pronto para virar notificação. */
 data class AvisoDeChuva(
     val propriedadeId: String,
     val nomePropriedade: String,
-    val avaliacao: AvaliacaoChuva
+    val avaliacao: AvaliacaoChuva,
+    /** A hora da verificação no fuso da propriedade, para escrever "amanhã às 2h". */
+    val verificadoEm: LocalDateTime? = null
 )
 
 data class ResultadoVerificacao(
@@ -37,7 +40,14 @@ class VerificadorDeChuva(
     private val relogio: () -> Long = System::currentTimeMillis
 ) {
 
-    suspend fun verificar(): ResultadoVerificacao {
+    /**
+     * @param podeNotificar false quando o celular não deixa o app notificar
+     *   (permissão negada ou notificações desligadas). A previsão é
+     *   atualizada mesmo assim, mas nenhum aviso é registrado: se fosse, o
+     *   app "lembraria" de ter avisado e ficaria 11 h sem avisar de verdade
+     *   — mesmo que a pessoa liberasse a notificação logo depois.
+     */
+    suspend fun verificar(podeNotificar: Boolean = true): ResultadoVerificacao {
         val ajustesAtuais = ajustes.ajustes.value
         // Ninguém conectado: não há de quem mostrar dados. Uma notificação
         // com o nome da propriedade de outra conta seria vazamento.
@@ -67,11 +77,11 @@ class VerificadorDeChuva(
             } ?: continue
 
             val avaliacao = RegraDeChuva.avaliar(previsao, agora, ajustesAtuais.limites)
-            if (!avaliacao.vaiChover) continue
+            if (!avaliacao.vaiChover || !podeNotificar) continue
             if (!ControleDeAvisos.podeAvisar(ajustes.ultimoAvisoEm(propriedade.id), agora)) continue
 
             ajustes.registrarAviso(propriedade.id, agora)
-            avisos += AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao)
+            avisos += AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora))
         }
 
         return ResultadoVerificacao(avisos, faltouConexao)

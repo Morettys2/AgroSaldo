@@ -1,9 +1,12 @@
 package br.joao.agrosaldo.data.repository
 
+import br.joao.agrosaldo.data.local.Transacao
+import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.Propriedade
+import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,7 +28,9 @@ import kotlinx.coroutines.flow.map
  */
 class PropriedadeRepositoryRoom(
     private val dao: PropriedadeDao,
-    private val sessao: SessaoRepository
+    private val lancamentoDao: LancamentoDao,
+    private val sessao: SessaoRepository,
+    private val transacao: Transacao = Transacao.DIRETA
 ) : PropriedadeRepository {
 
     /**
@@ -59,6 +64,25 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun excluir(id: String) =
         dao.excluir(id, usuarioConectado())
+
+    override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {
+        val usuarioId = usuarioConectado()
+        return transacao.executar {
+            val propriedade = dao.buscarPorId(id, usuarioId) ?: return@executar null
+            val lancamentos = lancamentoDao.daPropriedade(id, usuarioId)
+            lancamentoDao.excluirDaPropriedade(id, usuarioId)
+            dao.excluir(id, usuarioId)
+            PropriedadeExcluida(propriedade.paraDominio(), lancamentos.map { it.paraDominio() })
+        }
+    }
+
+    override suspend fun restaurar(excluida: PropriedadeExcluida) {
+        transacao.executar {
+            // A propriedade primeiro: os lançamentos apontam para ela.
+            salvar(excluida.propriedade)
+            lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade() })
+        }
+    }
 
     private fun usuarioConectado(): String =
         checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }

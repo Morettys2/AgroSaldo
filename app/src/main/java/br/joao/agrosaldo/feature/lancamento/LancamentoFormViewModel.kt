@@ -7,9 +7,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.digitosParaCentavos
 import br.joao.agrosaldo.core.util.formatarBr
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
 import br.joao.agrosaldo.core.util.rotuloDeData
 import br.joao.agrosaldo.core.util.rotuloRelativoCurto
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
@@ -204,8 +206,7 @@ class LancamentoFormViewModel(
         if (data == null) {
             novo = novo.copy(erroData = "Data inválida. Escolha a data de novo.")
             houveErro = true
-        } else if (data.isAfter(hoje().plusMonths(MESES_NO_FUTURO))) {
-            // RN07 também está no modelo, mas aqui a mensagem sai no campo certo.
+        } else if (!Lancamento.dataDentroDoLimite(data, hoje())) {
             novo = novo.copy(erroData = "A data pode ser no máximo 12 meses à frente.")
             houveErro = true
         }
@@ -223,7 +224,7 @@ class LancamentoFormViewModel(
 
         _uiState.update { it.copy(salvando = true) }
         viewModelScope.launch {
-            try {
+            tentar {
                 val lancamento = Lancamento(
                     id = lancamentoId ?: UUID.randomUUID().toString(),
                     propriedadeId = estado.propriedadeId,
@@ -238,14 +239,15 @@ class LancamentoFormViewModel(
                 // de ser salvo: lançar em agosto olhando outubro não "some".
                 SelecaoAtual.selecionar(lancamento.propriedadeId)
                 SelecaoAtual.selecionarMes(YearMonth.from(lancamento.data))
+            }.onSuccess {
                 _uiState.update { it.copy(salvo = true, erroGeral = null) }
-            } catch (e: IllegalArgumentException) {
-                // Rede de segurança: se alguma regra do modelo passar batido
-                // na validação da tela, a mensagem dele aparece aqui.
-                _uiState.update { it.copy(erroGeral = e.message ?: "Dados inválidos.") }
-            } finally {
-                // Deu errado (ou o banco falhou): o botão volta a funcionar.
-                _uiState.update { if (it.salvo) it else it.copy(salvando = false) }
+            }.onFailure { erro ->
+                // Rede de segurança: uma regra do modelo que passou batido na
+                // validação da tela, ou o banco que falhou. A mensagem aparece
+                // acima do botão, e o botão volta a funcionar.
+                _uiState.update {
+                    it.copy(salvando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível salvar. Tente de novo."))
+                }
             }
         }
     }
@@ -258,18 +260,24 @@ class LancamentoFormViewModel(
     fun aoExcluir() {
         val id = lancamentoId ?: return
         viewModelScope.launch {
-            val apagado = lancamentoRepository.buscarPorId(id)
-            lancamentoRepository.excluir(id)
-            if (apagado != null) {
-                desfazer.oferecer("Lançamento excluído") { lancamentoRepository.salvar(apagado) }
+            tentar {
+                val apagado = lancamentoRepository.buscarPorId(id)
+                lancamentoRepository.excluir(id)
+                apagado
+            }.onSuccess { apagado ->
+                if (apagado != null) {
+                    desfazer.oferecer("Lançamento excluído") { lancamentoRepository.salvar(apagado) }
+                }
+                _uiState.update { it.copy(excluido = true) }
+            }.onFailure { erro ->
+                _uiState.update { it.copy(erroGeral = erro.mensagemParaUsuario("Não foi possível excluir. Tente de novo.")) }
             }
-            _uiState.update { it.copy(excluido = true) }
         }
     }
 
     companion object {
-        /** RN07: até 12 meses à frente (parcela de financiamento, arrendamento combinado). */
-        const val MESES_NO_FUTURO = 12L
+        /** RN07 — a regra mora no modelo; a tela usa este valor para limitar o calendário. */
+        const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO
 
         /** R$ 9.999.999,99 — mais que isso não cabe na tela nem faz sentido num sítio. */
         const val MAXIMO_DE_DIGITOS = 9

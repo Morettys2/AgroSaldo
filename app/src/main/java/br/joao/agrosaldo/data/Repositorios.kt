@@ -3,10 +3,13 @@ package br.joao.agrosaldo.data
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.SystemClock
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
+import androidx.room.withTransaction
 import br.joao.agrosaldo.aviso.AgendaWorkManager
 import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
+import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoPreferencias
 import br.joao.agrosaldo.data.preferencias.PrivacidadePreferencias
 import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
@@ -97,15 +100,26 @@ object Repositorios {
             tentativas = TentativasPreferencias(contextoAberto),
             // Trocou de conta: esquece a propriedade escolhida e a exclusão
             // que ainda dava para desfazer — as duas eram da conta anterior.
+            // E tira da barra os avisos de chuva já mostrados: eles têm o
+            // nome das propriedades de quem saiu.
             aoTrocarDeUsuario = {
                 SelecaoAtual.limpar()
                 desfazer.esquecer()
+                NotificationManagerCompat.from(contextoAberto).cancelAll()
             }
         )
     }
 
     val propriedades: PropriedadeRepository by lazy {
-        PropriedadeRepositoryRoom(bancoAberto.propriedadeDao(), sessao)
+        PropriedadeRepositoryRoom(
+            dao = bancoAberto.propriedadeDao(),
+            lancamentoDao = bancoAberto.lancamentoDao(),
+            sessao = sessao,
+            transacao = object : Transacao {
+                override suspend fun <R> executar(bloco: suspend () -> R): R =
+                    bancoAberto.withTransaction { bloco() }
+            }
+        )
     }
 
     val lancamentos: LancamentoRepository by lazy {

@@ -4,6 +4,7 @@ import br.joao.agrosaldo.aviso.TextosDoAviso
 import br.joao.agrosaldo.clima.ApoioClima.AGORA
 import br.joao.agrosaldo.clima.ApoioClima.jsonOpenMeteo
 import br.joao.agrosaldo.clima.ApoioClima.previsao
+import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.rotuloDoDia
 import br.joao.agrosaldo.data.clima.FontePrevisao
@@ -43,7 +44,6 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
 import java.time.Duration
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
@@ -388,6 +388,18 @@ class ClimaTest {
     }
 
     @Test
+    fun `sem permissao de notificar nao registra aviso que ninguem viu`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
+        val ajustes = AjustesAvisoMemoria()
+        val v = verificador(clima, ajustes)
+
+        assertTrue(v.verificar(podeNotificar = false).avisos.isEmpty())
+        assertEquals("a previsão foi atualizada mesmo assim", 2, clima.atualizacoes)
+        // Liberou a notificação logo depois: o aviso sai na hora, sem esperar 11 h.
+        assertEquals(listOf("p1"), v.verificar(podeNotificar = true).avisos.map { it.propriedadeId })
+    }
+
+    @Test
     fun `sem ninguem conectado ou com aviso desligado nada e verificado`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
 
@@ -445,6 +457,47 @@ class ClimaTest {
                 "Dá para adiar a irrigação do pivô e economizar energia.",
             TextosDoAviso.corpo(aviso, 12)
         )
+    }
+
+    @Test
+    fun `notificacao diz o dia quando a chuva comeca depois da meia-noite e nao fala 0 mm`() {
+        val madrugada = previsao(mapOf(25 to (90 to 0.0)))
+        val agoraLocal = madrugada.horaLocal(AGORA)
+        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(madrugada, AGORA), agoraLocal)
+
+        assertEquals(
+            "90% de chance de chuva nas próximas 12 horas a partir da 1h de amanhã. " +
+                "Dá para adiar a irrigação do pivô e economizar energia.",
+            TextosDoAviso.corpo(aviso, 12)
+        )
+    }
+
+    @Test
+    fun `frases de quando a chuva comeca`() {
+        val agora = LocalDateTime.of(2026, 10, 1, 14, 40)
+        assertTrue(TextosDaChuva.jaComecou(agora.withMinute(0), agora))
+        assertFalse(TextosDaChuva.jaComecou(agora.withHour(15), agora))
+        assertEquals("às 18h", TextosDaChuva.quando(agora.withHour(18), agora))
+        assertEquals("amanhã às 2h", TextosDaChuva.quando(agora.plusDays(1).withHour(2), agora))
+        assertEquals("depois de amanhã às 9h", TextosDaChuva.quando(agora.plusDays(2).withHour(9), agora))
+        assertEquals("a partir das 18h", TextosDaChuva.aPartirDe(agora.withHour(18), agora))
+        assertEquals("já nesta hora", TextosDaChuva.aPartirDe(agora.withMinute(0), agora))
+        assertEquals("a partir das 2h de amanhã", TextosDaChuva.aPartirDe(agora.plusDays(1).withHour(2), agora))
+        assertEquals("até as 2h de amanhã", TextosDaChuva.ate(agora.plusDays(1).withHour(2), agora))
+        assertEquals("até as 14h de depois de amanhã", TextosDaChuva.ate(agora.plusDays(2), agora))
+    }
+
+    @Test
+    fun `uma hora e meia-noite levam o artigo certo`() {
+        val agora = LocalDateTime.of(2026, 10, 1, 20, 0)
+        val meiaNoite = agora.plusDays(1).withHour(0)
+        val umaHora = agora.plusDays(1).withHour(1)
+        assertEquals("amanhã à 1h", TextosDaChuva.quando(umaHora, agora))
+        assertEquals("amanhã à meia-noite", TextosDaChuva.quando(meiaNoite, agora))
+        assertEquals("a partir da 1h de amanhã", TextosDaChuva.aPartirDe(umaHora, agora))
+        assertEquals("a partir da meia-noite de amanhã", TextosDaChuva.aPartirDe(meiaNoite, agora))
+        assertEquals("até a meia-noite de amanhã", TextosDaChuva.ate(meiaNoite, agora))
+        assertEquals("até a 1h de amanhã", TextosDaChuva.ate(umaHora, agora))
     }
 
     @Test

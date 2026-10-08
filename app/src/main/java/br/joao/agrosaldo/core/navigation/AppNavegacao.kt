@@ -45,10 +45,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,6 +101,7 @@ import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** Uma aba da barra inferior. */
 private data class Aba(
@@ -134,7 +133,7 @@ private val ABAS = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavegacao(
-    abrirClima: Boolean = false,
+    pedidosDoClima: Int = 0,
     navController: NavHostController = rememberNavController(),
     sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
     privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory),
@@ -189,14 +188,11 @@ fun AppNavegacao(
     // Veio do toque na notificação de chuva: vai direto para a aba Clima, se
     // houver alguém conectado (senão, o login aparece primeiro). Se a política
     // tiver mudado, o efeito de cima passa o novo aceite na frente.
-    // rememberSaveable: ao girar o celular a Activity é recriada com o mesmo
-    // intent, e sem isto a tela pularia de novo para o Clima.
-    var jaAbriuClima by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(abrirClima) {
-        if (abrirClima && logado && !jaAbriuClima) {
+    // Cada toque na notificação aumenta o número; girar o celular não.
+    LaunchedEffect(pedidosDoClima) {
+        if (pedidosDoClima > 0 && logado) {
             // Espera o NavHost montar a primeira tela antes de navegar.
             navController.currentBackStackEntryFlow.first()
-            jaAbriuClima = true
             navegarParaAba(navController, Rotas.CLIMA)
         }
     }
@@ -217,6 +213,9 @@ fun AppNavegacao(
      * LaunchedEffect reinicia e a barra antiga some sozinha.
      */
     val estadoDaBarra = remember { SnackbarHostState() }
+    // Escopo da tela inteira: o aviso de erro abaixo não pode morrer junto
+    // com o LaunchedEffect, que reinicia assim que a oferta sai de "pendente".
+    val escopoDaBarra = rememberCoroutineScope()
     val exclusaoPendente by desfazer.pendente.collectAsStateWithLifecycle()
     LaunchedEffect(exclusaoPendente) {
         val exclusao = exclusaoPendente ?: return@LaunchedEffect
@@ -233,7 +232,7 @@ fun AppNavegacao(
         )
         if (resultado == SnackbarResult.ActionPerformed) {
             if (!desfazer.desfazer(exclusao)) {
-                estadoDaBarra.showSnackbar("Não foi possível desfazer.")
+                escopoDaBarra.launch { estadoDaBarra.showSnackbar("Não foi possível desfazer.") }
             }
         } else {
             desfazer.dispensar(exclusao)
@@ -542,7 +541,13 @@ fun AppNavegacao(
                     ) { entrada ->
                         PropriedadeFormRoute(
                             propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
-                            aoConcluir = { navController.popBackStack() }
+                            // Mesma proteção do formulário de lançamento: salvar logo
+                            // depois de tocar em "voltar" não fecha a tela de baixo também.
+                            aoConcluir = {
+                                if (navController.currentDestination?.route == Rotas.FORM_PROPRIEDADE) {
+                                    navController.popBackStack()
+                                }
+                            }
                         )
                     }
                 }

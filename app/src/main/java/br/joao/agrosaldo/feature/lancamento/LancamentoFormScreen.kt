@@ -56,6 +56,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -174,7 +175,7 @@ fun LancamentoFormScreen(
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var escolhendoData by remember { mutableStateOf(false) }
+    var escolhendoData by rememberSaveable { mutableStateOf(false) }
     // Com o teclado do Android aberto (escrevendo a descrição), o teclado
     // numérico some: os dois juntos não caberiam na tela.
     val tecladoDoSistemaAberto = WindowInsets.isImeVisible

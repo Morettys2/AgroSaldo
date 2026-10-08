@@ -52,6 +52,12 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
  * As validações ficam no init: um objeto inválido simplesmente não chega a
  * existir. A tela valida antes só pra mostrar mensagem amigável — mas mesmo
  * que ela falhe, o modelo se defende.
+ *
+ * Só entra no init o que é verdade para sempre. O limite de 12 meses à
+ * frente (RN07) depende de QUANDO se olha — por isso ele fica em
+ * [dataDentroDoLimite] e é conferido na hora de salvar. Se ficasse no init,
+ * um lançamento já gravado viraria "inválido" quando o relógio do celular
+ * voltasse no tempo, e o app quebraria ao ler o banco.
  */
 data class Lancamento(
     val id: String = UUID.randomUUID().toString(),
@@ -72,9 +78,6 @@ data class Lancamento(
         require(categoria.tipo == tipo) {
             "A categoria ${categoria.rotulo} não pertence ao tipo $tipo."
         }
-        require(!data.isAfter(LocalDate.now().plusMonths(12))) {
-            "Não é permitido lançamento com data superior a 12 meses (RN07)."
-        }
     }
 
     /** Valor com sinal, usado no cálculo de saldo do período (RN03). */
@@ -82,4 +85,13 @@ data class Lancamento(
         get() = if (tipo == TipoLancamento.RECEITA) valorCentavos else -valorCentavos
 
     val ehReceita: Boolean get() = tipo == TipoLancamento.RECEITA
+
+    companion object {
+        /** RN07: até 12 meses à frente (parcela de financiamento, arrendamento combinado). */
+        const val MESES_NO_FUTURO = 12L
+
+        /** RN07 — a data pode ser no máximo [MESES_NO_FUTURO] meses depois de [hoje]. */
+        fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean =
+            !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
+    }
 }

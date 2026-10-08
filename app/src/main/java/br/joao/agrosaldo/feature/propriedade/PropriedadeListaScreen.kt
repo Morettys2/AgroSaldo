@@ -42,6 +42,7 @@ import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.valorEscondido
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
+import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
@@ -271,7 +272,7 @@ private fun CartaoPropriedade(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${item.propriedade.cultura} · ${formatarArea(item.propriedade.areaHectares)} ha",
+                        text = "${item.propriedade.cultura} · ${item.propriedade.areaHectares.numeroBr(agrupar = true)} ha",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -317,11 +318,6 @@ private fun Aviso(texto: String) {
         )
     }
 }
-
-/** 50.0 vira "50", 12.5 vira "12,5". Sem casa decimal quando ela não existe. */
-private fun formatarArea(area: Double): String =
-    if (area % 1.0 == 0.0) area.toLong().toString()
-    else area.toString().replace('.', ',')
 
 // ---------- Previews ----------
 

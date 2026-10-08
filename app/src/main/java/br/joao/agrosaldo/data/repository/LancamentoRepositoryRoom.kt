@@ -48,9 +48,6 @@ class LancamentoRepositoryRoom(
     override suspend fun excluir(id: String) =
         dao.excluir(id, usuarioConectado())
 
-    override suspend fun excluirDaPropriedade(propriedadeId: String) =
-        dao.excluirDaPropriedade(propriedadeId, usuarioConectado())
-
     private fun usuarioConectado(): String =
         checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

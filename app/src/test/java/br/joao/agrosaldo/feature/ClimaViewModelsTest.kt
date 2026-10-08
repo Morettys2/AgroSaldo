@@ -275,7 +275,7 @@ class ClimaViewModelsTest {
     @Test
     fun `chuva depois da meia-noite avisa que e amanha`() {
         // Hora 25 = 1h do dia 2, ainda dentro da janela de 12 h.
-        assertEquals("Chuva amanhã às 1h. Dá para adiar o pivô.", cartaoCom(mapOf(25 to (90 to 4.0)))?.frase)
+        assertEquals("Chuva amanhã à 1h. Dá para adiar o pivô.", cartaoCom(mapOf(25 to (90 to 4.0)))?.frase)
     }
 
     @Test
@@ -284,6 +284,23 @@ class ClimaViewModelsTest {
         assertFalse(cartao?.vaiChover == true)
         assertEquals("Sem chuva nas próximas 12 h.", cartao?.frase)
         assertEquals("Até 30% de chance · toque para ver a semana", cartao?.detalhe)
+    }
+
+    @Test
+    fun `chance alta abaixo do limite nao diz sem chuva`() {
+        // 55% fica abaixo do limite padrão (60%), mas "Sem chuva" do lado de
+        // "55% de chance" seria contraditório.
+        val cartao = cartaoCom(mapOf(20 to (55 to 0.0)))
+        assertFalse(cartao?.vaiChover == true)
+        assertEquals("Pode chover, mas abaixo do seu limite.", cartao?.frase)
+        assertEquals("Até 55% de chance · seu limite: 60% ou 2 mm", cartao?.detalhe)
+    }
+
+    @Test
+    fun `aviso so pela chance nao mostra 0 mm`() {
+        val cartao = cartaoCom(mapOf(18 to (85 to 0.0)))
+        assertTrue(cartao?.vaiChover == true)
+        assertEquals("85% de chance", cartao?.detalhe)
     }
 
     @Test
@@ -330,11 +347,11 @@ class ClimaViewModelsTest {
             AjustesAvisoMemoria(),
             relogio = { agora.toEpochMilli() }
         )
-        assertEquals("Chuva amanhã às 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
+        assertEquals("Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 
         vm.aoVoltarParaATela() // a primeira vez é a própria abertura
         agora = Instant.parse("2026-10-02T04:20:00Z") // 1h20 do dia 2
-        assertEquals("sem voltar para a tela, nada muda", "Chuva amanhã às 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
+        assertEquals("sem voltar para a tela, nada muda", "Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 
         vm.aoVoltarParaATela()
         assertEquals("Chuva já nesta hora. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)

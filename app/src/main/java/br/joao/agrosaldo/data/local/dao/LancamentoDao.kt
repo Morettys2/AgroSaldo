@@ -44,6 +44,20 @@ interface LancamentoDao {
     @Upsert
     suspend fun salvar(lancamento: LancamentoEntity)
 
+    /** Vários de uma vez — usado pelo "Desfazer" da exclusão de uma propriedade. */
+    @Upsert
+    suspend fun salvarTodos(lancamentos: List<LancamentoEntity>)
+
+    /** Os lançamentos de uma propriedade, para guardar antes de excluí-la. */
+    @Query(
+        """
+        SELECT lancamentos.* FROM lancamentos
+        INNER JOIN propriedades ON propriedades.id = lancamentos.propriedade_id
+        WHERE lancamentos.propriedade_id = :propriedadeId AND propriedades.usuario_id = :usuarioId
+        """
+    )
+    suspend fun daPropriedade(propriedadeId: String, usuarioId: String): List<LancamentoEntity>
+
     @Query(
         """
         DELETE FROM lancamentos
@@ -55,8 +69,8 @@ interface LancamentoDao {
 
     /**
      * O CASCADE da chave estrangeira já faz isso quando a propriedade é
-     * excluída. O método existe para cumprir o contrato do repositório — e
-     * deixar a intenção explícita no código, sem depender só da regra do banco.
+     * excluída. O repositório chama mesmo assim, dentro da mesma transação:
+     * deixa a intenção explícita no código, sem depender só da regra do banco.
      */
     @Query(
         """

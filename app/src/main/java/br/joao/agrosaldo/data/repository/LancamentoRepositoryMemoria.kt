@@ -34,7 +34,14 @@ class LancamentoRepositoryMemoria(
         _lancamentos.update { lista -> lista.filterNot { it.id == id } }
     }
 
-    override suspend fun excluirDaPropriedade(propriedadeId: String) {
+    /** Para o [PropriedadeRepositoryMemoria] imitar o CASCADE do banco. */
+    internal fun tirarDaPropriedade(propriedadeId: String): List<Lancamento> {
+        val daPropriedade = _lancamentos.value.filter { it.propriedadeId == propriedadeId }
         _lancamentos.update { lista -> lista.filterNot { it.propriedadeId == propriedadeId } }
+        return daPropriedade
+    }
+
+    internal fun devolver(lancamentos: List<Lancamento>) {
+        _lancamentos.update { lista -> lista.filterNot { l -> lancamentos.any { it.id == l.id } } + lancamentos }
     }
 }

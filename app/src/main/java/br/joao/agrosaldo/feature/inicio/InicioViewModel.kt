@@ -5,8 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.core.util.emMilimetros
-import br.joao.agrosaldo.core.util.horaCurta
+import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
@@ -38,7 +37,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.temporal.ChronoUnit
 
 /** Uma fatia do gasto do mês, já com a proporção calculada para a barra. */
 data class GastoPorCategoria(
@@ -195,21 +193,24 @@ class InicioViewModel(
             avaliacao.vaiChover -> {
                 val agora = previsao.horaLocal(instante)
                 val quando = avaliacao.inicioPrevisto?.let { inicio ->
-                    // A janela pode passar da meia-noite (e ir até 48 h):
-                    // "às 2h" sozinho confundiria com a madrugada de hoje.
-                    when (ChronoUnit.DAYS.between(agora.toLocalDate(), inicio.toLocalDate())) {
-                        0L -> if (inicio.hour == agora.hour) "Chuva já nesta hora" else "Chuva às ${inicio.horaCurta()}"
-                        1L -> "Chuva amanhã às ${inicio.horaCurta()}"
-                        else -> "Chuva depois de amanhã às ${inicio.horaCurta()}"
-                    }
+                    if (TextosDaChuva.jaComecou(inicio, agora)) "Chuva já nesta hora"
+                    else "Chuva ${TextosDaChuva.quando(inicio, agora)}"
                 } ?: "Chuva prevista"
                 CartaoChuvaUi(
                     rotulo = rotulo,
                     frase = "$quando. Dá para adiar o pivô.",
-                    detalhe = "${avaliacao.probabilidadeMaxima}% de chance · ${avaliacao.chuvaTotalMm.emMilimetros()}",
+                    detalhe = TextosDaChuva.chanceEVolume(avaliacao),
                     vaiChover = true
                 )
             }
+            // Abaixo do limite, mas com chance de verdade: "Sem chuva" do
+            // lado de "82% de chance" seria contraditório.
+            TextosDaChuva.podeChoverAbaixoDoLimite(avaliacao) -> CartaoChuvaUi(
+                rotulo = rotulo,
+                frase = "Pode chover, mas abaixo do seu limite.",
+                detalhe = "Até ${TextosDaChuva.chanceEVolume(avaliacao)} · seu limite: ${TextosDaChuva.limites(limites)}",
+                vaiChover = false
+            )
             else -> CartaoChuvaUi(
                 rotulo = rotulo,
                 frase = "Sem chuva nas próximas ${limites.janelaHoras} h.",

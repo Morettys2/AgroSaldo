@@ -33,7 +33,9 @@ class VerificacaoChuvaWorker(
         // Normalmente o AgroSaldoApp já inicializou; chamar de novo não faz nada.
         Repositorios.inicializar(applicationContext)
 
-        val resultado = Repositorios.verificadorDeChuva.verificar()
+        val resultado = Repositorios.verificadorDeChuva.verificar(
+            podeNotificar = NotificadorDeChuva.podeNotificar(applicationContext)
+        )
         val janela = Repositorios.ajustesAviso.ajustes.value.limites.janelaHoras
         resultado.avisos.forEach { NotificadorDeChuva.mostrar(applicationContext, it, janela) }
 

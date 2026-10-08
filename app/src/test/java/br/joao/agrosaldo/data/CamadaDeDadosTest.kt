@@ -2,6 +2,7 @@ package br.joao.agrosaldo.data
 
 import br.joao.agrosaldo.data.local.MigracoesSql
 import br.joao.agrosaldo.data.local.Semeador
+import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.dao.UsuarioDao
@@ -190,6 +191,9 @@ class CamadaDeDadosTest {
         override suspend fun salvar(lancamento: LancamentoEntity) = tabela.update { lista ->
             lista.filterNot { it.id == lancamento.id } + lancamento
         }
+        override suspend fun salvarTodos(lancamentos: List<LancamentoEntity>) = lancamentos.forEach { salvar(it) }
+        override suspend fun daPropriedade(propriedadeId: String, usuarioId: String) =
+            doUsuario(tabela.value, propriedades.tabela.value, usuarioId).filter { it.propriedadeId == propriedadeId }
         override suspend fun excluir(id: String, usuarioId: String) {
             val alvo = buscarPorId(id, usuarioId) ?: return
             tabela.update { it - alvo }
@@ -239,7 +243,7 @@ class CamadaDeDadosTest {
     @Test
     fun `repositorio Room entrega objetos de dominio a partir das entidades`() = runTest {
         val dao = PropriedadeDaoFalso()
-        val repositorio = PropriedadeRepositoryRoom(dao, SessaoMemoria("u1"))
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
         val fazenda = DadosDeExemplo.propriedades().first()
 
         repositorio.salvar(fazenda)
@@ -256,7 +260,7 @@ class CamadaDeDadosTest {
     fun `cada conta so enxerga as proprias propriedades`() = runTest {
         val dao = PropriedadeDaoFalso()
         val sessao = SessaoMemoria("u1")
-        val repositorio = PropriedadeRepositoryRoom(dao, sessao)
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao)
         val fazenda = DadosDeExemplo.propriedades().first()
         repositorio.salvar(fazenda)
 
@@ -276,7 +280,7 @@ class CamadaDeDadosTest {
     fun `uma conta nao sobrescreve a propriedade da outra`() = runTest {
         val dao = PropriedadeDaoFalso()
         val sessao = SessaoMemoria("u1")
-        val repositorio = PropriedadeRepositoryRoom(dao, sessao)
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao)
         val fazenda = DadosDeExemplo.propriedades().first()
         repositorio.salvar(fazenda)
 
@@ -293,7 +297,7 @@ class CamadaDeDadosTest {
     fun `sem ninguem conectado a lista vem vazia e gravar e recusado`() = runTest {
         val dao = PropriedadeDaoFalso()
         dao.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1"))
-        val repositorio = PropriedadeRepositoryRoom(dao, SessaoMemoria(null))
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria(null))
 
         assertEquals(emptyList<Any>(), repositorio.observarTodas().first())
         try {
@@ -313,15 +317,39 @@ class CamadaDeDadosTest {
     }
 
     @Test
-    fun `repositorio Room de lancamentos exclui por propriedade`() = runTest {
-        val (_, dao, sessao) = cenarioDeLancamentos()
-        val repositorio = LancamentoRepositoryRoom(dao, sessao)
+    fun `excluir propriedade leva os lancamentos dela e desfazer traz tudo de volta`() = runTest {
+        val (propriedadesDao, lancamentosDao, sessao) = cenarioDeLancamentos()
+        val transacoes = mutableListOf<String>()
+        val transacao = object : Transacao {
+            override suspend fun <R> executar(bloco: suspend () -> R): R {
+                transacoes += "transação"
+                return bloco()
+            }
+        }
+        val propriedades = PropriedadeRepositoryRoom(propriedadesDao, lancamentosDao, sessao, transacao)
+        val lancamentos = LancamentoRepositoryRoom(lancamentosDao, sessao)
 
-        repositorio.excluirDaPropriedade(DadosDeExemplo.ID_SITIO)
+        val excluida = checkNotNull(propriedades.excluirComLancamentos(DadosDeExemplo.ID_SITIO))
 
-        val restantes = repositorio.observarTodos().first()
-        assertEquals(6, restantes.size)
-        assertTrue(restantes.all { it.propriedadeId == DadosDeExemplo.ID_FAZENDA })
+        assertEquals(3, excluida.lancamentos.size)
+        assertNull(propriedades.buscarPorId(DadosDeExemplo.ID_SITIO))
+        assertTrue(lancamentos.observarTodos().first().all { it.propriedadeId == DadosDeExemplo.ID_FAZENDA })
+
+        propriedades.restaurar(excluida)
+
+        assertEquals(excluida.propriedade, propriedades.buscarPorId(DadosDeExemplo.ID_SITIO))
+        assertEquals(9, lancamentos.observarTodos().first().size)
+        assertEquals("excluir e restaurar, cada um numa transação", 2, transacoes.size)
+    }
+
+    @Test
+    fun `excluir propriedade de outra conta nao apaga nada`() = runTest {
+        val (propriedadesDao, lancamentosDao, _) = cenarioDeLancamentos()
+        val propriedades = PropriedadeRepositoryRoom(propriedadesDao, lancamentosDao, SessaoMemoria("u2"))
+
+        assertNull(propriedades.excluirComLancamentos(DadosDeExemplo.ID_SITIO))
+        assertEquals(9, lancamentosDao.tabela.value.size)
+        assertEquals(2, propriedadesDao.tabela.value.size)
     }
 
     @Test

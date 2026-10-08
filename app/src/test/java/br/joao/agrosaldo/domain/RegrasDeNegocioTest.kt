@@ -5,6 +5,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -49,10 +50,19 @@ class RegrasDeNegocioTest {
     }
 
     @Test
-    fun `RN07 - data mais de 12 meses no futuro e recusada`() {
-        assertTrue(recusa { lancamento(data = LocalDate.now().plusMonths(13)) })
-        // Dentro do limite passa normalmente.
-        lancamento(data = LocalDate.now().plusMonths(11))
+    fun `RN07 - data mais de 12 meses no futuro fica fora do limite`() {
+        val hoje = LocalDate.of(2026, 10, 7)
+        assertTrue(Lancamento.dataDentroDoLimite(hoje.plusMonths(12), hoje))
+        assertFalse(Lancamento.dataDentroDoLimite(hoje.plusMonths(12).plusDays(1), hoje))
+        assertTrue(Lancamento.dataDentroDoLimite(hoje.minusYears(3), hoje))
+    }
+
+    @Test
+    fun `lancamento ja gravado no futuro continua legivel se o relogio voltar`() {
+        // Antes o RN07 ficava no init: ler do banco um lançamento de daqui a
+        // 2 anos (relógio do celular atrasado) derrubava o app ao abrir.
+        val longe = lancamento(data = LocalDate.now().plusYears(2))
+        assertEquals(LocalDate.now().plusYears(2), longe.data)
     }
 
     @Test

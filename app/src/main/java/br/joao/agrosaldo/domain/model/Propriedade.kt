@@ -27,3 +27,14 @@ data class Propriedade(
         require(longitude in -180.0..180.0) { "Longitude inválida." }
     }
 }
+
+/**
+ * O que sumiu ao excluir uma propriedade: ela e os lançamentos dela (RN02).
+ *
+ * Guardar tudo junto é o que permite o "Desfazer" trazer de volta
+ * exatamente o que existia, com os mesmos ids.
+ */
+data class PropriedadeExcluida(
+    val propriedade: Propriedade,
+    val lancamentos: List<Lancamento>
+)

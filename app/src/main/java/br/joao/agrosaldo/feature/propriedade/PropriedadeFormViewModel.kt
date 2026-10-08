@@ -5,16 +5,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.numeroBr
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.model.Propriedade
-import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -39,7 +40,11 @@ data class PropriedadeFormUiState(
     val erroNome: String? = null,
     val erroArea: String? = null,
     val erroCoordenadas: String? = null,
+    /** Erro que não é de um campo (o banco falhou, a sessão caiu...). */
+    val erroGeral: String? = null,
     val ehEdicao: Boolean = false,
+    /** Gravando: o botão fica desligado, para dois toques não criarem duas propriedades. */
+    val salvando: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false
 )
@@ -56,7 +61,6 @@ data class PropriedadeFormUiState(
  */
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
-    private val lancamentoRepository: LancamentoRepository,
     private val propriedadeId: String?,
     private val desfazer: Desfazer = Desfazer()
 ) : ViewModel() {
@@ -71,15 +75,15 @@ class PropriedadeFormViewModel(
     private fun carregar(id: String) {
         viewModelScope.launch {
             propriedadeRepository.buscarPorId(id)?.let { propriedade ->
-                _uiState.value = PropriedadeFormUiState(
-                    nome = propriedade.nome,
-                    cultura = propriedade.cultura,
-                    // O usuário brasileiro digita vírgula, então mostramos vírgula.
-                    area = propriedade.areaHectares.toString().replace('.', ','),
-                    latitude = propriedade.latitude.toString().replace('.', ','),
-                    longitude = propriedade.longitude.toString().replace('.', ','),
-                    ehEdicao = true
-                )
+                _uiState.update {
+                    it.copy(
+                        nome = propriedade.nome,
+                        cultura = propriedade.cultura,
+                        area = propriedade.areaHectares.paraCampo(),
+                        latitude = propriedade.latitude.paraCampo(),
+                        longitude = propriedade.longitude.paraCampo()
+                    )
+                }
             }
         }
     }
@@ -108,13 +112,21 @@ class PropriedadeFormViewModel(
     private fun formatarCoordenada(valor: Double): String =
         String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
+    /** Número do banco para o campo: "18", "12,5", "-21,7333" — nunca "1.0E7". */
+    private fun Double.paraCampo(): String = numeroBr(agrupar = false)
+
+    /** "12,5" e "12.5" viram o mesmo número. "NaN" e "Infinity" não contam como número. */
+    private fun String.paraNumero(): Double? =
+        replace(',', '.').trim().toDoubleOrNull()?.takeIf { it.isFinite() }
+
     fun aoSalvar() {
         val estado = _uiState.value
+        // Segundo toque enquanto grava (ou depois de gravar): ignora.
+        if (estado.salvando || estado.salvo) return
 
-        // Aceita vírgula ou ponto: "12,5" e "12.5" viram o mesmo número.
-        val area = estado.area.replace(',', '.').toDoubleOrNull()
-        val lat = estado.latitude.replace(',', '.').toDoubleOrNull()
-        val lon = estado.longitude.replace(',', '.').toDoubleOrNull()
+        val area = estado.area.paraNumero()
+        val lat = estado.latitude.paraNumero()
+        val lon = estado.longitude.paraNumero()
 
         var houveErro = false
         var novo = estado
@@ -143,20 +155,29 @@ class PropriedadeFormViewModel(
             return
         }
 
+        _uiState.update { it.copy(salvando = true, erroGeral = null) }
         viewModelScope.launch {
-            val propriedade = Propriedade(
-                // Na edição mantém o mesmo id: é isso que faz o repositório
-                // atualizar o registro em vez de criar uma cópia.
-                id = propriedadeId ?: UUID.randomUUID().toString(),
-                nome = estado.nome.trim(),
-                cultura = estado.cultura.trim().ifBlank { "Não informada" },
-                areaHectares = area,
-                latitude = lat,
-                longitude = lon
-            )
-            propriedadeRepository.salvar(propriedade)
-            SelecaoAtual.selecionar(propriedade.id)
-            _uiState.update { it.copy(salvo = true) }
+            tentar {
+                val propriedade = Propriedade(
+                    // Na edição mantém o mesmo id: é isso que faz o repositório
+                    // atualizar o registro em vez de criar uma cópia.
+                    id = propriedadeId ?: UUID.randomUUID().toString(),
+                    nome = estado.nome.trim(),
+                    cultura = estado.cultura.trim().ifBlank { "Não informada" },
+                    areaHectares = area,
+                    latitude = lat,
+                    longitude = lon
+                )
+                propriedadeRepository.salvar(propriedade)
+                SelecaoAtual.selecionar(propriedade.id)
+            }.onSuccess {
+                _uiState.update { it.copy(salvo = true) }
+            }.onFailure { erro ->
+                // O botão volta a funcionar e a pessoa vê o que houve.
+                _uiState.update {
+                    it.copy(salvando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível salvar. Tente de novo."))
+                }
+            }
         }
     }
 
@@ -170,21 +191,21 @@ class PropriedadeFormViewModel(
     fun aoExcluir() {
         val id = propriedadeId ?: return
         viewModelScope.launch {
-            val propriedade = propriedadeRepository.buscarPorId(id)
-            val lancamentosDela = lancamentoRepository.observarTodos().first().filter { it.propriedadeId == id }
-
-            lancamentoRepository.excluirDaPropriedade(id)
-            propriedadeRepository.excluir(id)
-            SelecaoAtual.limparSeFor(id)
-
-            if (propriedade != null) {
-                desfazer.oferecer("Propriedade excluída") {
-                    // A propriedade primeiro: os lançamentos dependem dela.
-                    propriedadeRepository.salvar(propriedade)
-                    lancamentosDela.forEach { lancamentoRepository.salvar(it) }
+            // O repositório apaga tudo numa transação só e devolve o que
+            // apagou: é com isso que o "Desfazer" traz tudo de volta.
+            tentar { propriedadeRepository.excluirComLancamentos(id) }
+                .onSuccess { excluida ->
+                    SelecaoAtual.limparSeFor(id)
+                    if (excluida != null) {
+                        desfazer.oferecer("Propriedade excluída") { propriedadeRepository.restaurar(excluida) }
+                    }
+                    _uiState.update { it.copy(excluido = true) }
                 }
-            }
-            _uiState.update { it.copy(excluido = true) }
+                .onFailure { erro ->
+                    _uiState.update {
+                        it.copy(erroGeral = erro.mensagemParaUsuario("Não foi possível excluir. Tente de novo."))
+                    }
+                }
         }
     }
 
@@ -197,7 +218,6 @@ class PropriedadeFormViewModel(
             initializer {
                 PropriedadeFormViewModel(
                     propriedadeRepository = Repositorios.propriedades,
-                    lancamentoRepository = Repositorios.lancamentos,
                     propriedadeId = propriedadeId,
                     desfazer = Repositorios.desfazer
                 )

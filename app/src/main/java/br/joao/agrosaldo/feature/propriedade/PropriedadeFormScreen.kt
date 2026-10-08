@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -113,7 +114,8 @@ fun PropriedadeFormScreen(
 ) {
     // Estado puramente visual (diálogo aberto ou fechado) fica na tela mesmo.
     // Só estado de negócio sobe pro ViewModel — abrir um diálogo não é regra.
-    var confirmandoExclusao by remember { mutableStateOf(false) }
+    // rememberSaveable: o diálogo continua aberto se o celular girar.
+    var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -222,8 +224,19 @@ fun PropriedadeFormScreen(
 
         Spacer(Modifier.height(8.dp))
 
+        // Erro que não é de um campo: fica logo acima do botão, onde a pessoa está olhando.
+        uiState.erroGeral?.let { mensagem ->
+            Text(
+                text = mensagem,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
         Button(
             onClick = aoSalvar,
+            // Desligado enquanto grava: dois toques não criam duas propriedades.
+            enabled = !uiState.salvando,
             shape = CircleShape,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {

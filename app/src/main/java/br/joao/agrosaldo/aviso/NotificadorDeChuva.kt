@@ -44,7 +44,12 @@ object NotificadorDeChuva {
         val permitido = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-        return permitido && NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val gerenciador = NotificationManagerCompat.from(context)
+        // A pessoa pode desligar só o canal "Aviso de chuva" nos ajustes do
+        // Android, deixando o resto do app ligado.
+        val canal = gerenciador.getNotificationChannelCompat(CANAL)
+        val canalLigado = canal == null || canal.importance != NotificationManagerCompat.IMPORTANCE_NONE
+        return permitido && gerenciador.areNotificationsEnabled() && canalLigado
     }
 
     fun mostrar(context: Context, aviso: AvisoDeChuva, janelaHoras: Int) {
@@ -57,7 +62,9 @@ object NotificadorDeChuva {
         }
 
         val abrirClima = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // SINGLE_TOP: com o app aberto, a tela atual recebe o pedido
+            // (onNewIntent) em vez de ser fechada e criada de novo.
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_DESTINO, DESTINO_CLIMA)
         }
         val aoTocar = PendingIntent.getActivity(
