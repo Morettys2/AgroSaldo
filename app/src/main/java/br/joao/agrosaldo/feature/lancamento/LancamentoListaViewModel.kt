@@ -15,16 +15,20 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.Normalizer
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.coroutines.CoroutineContext
 
 /** Filtro por tipo (RF09). */
 enum class FiltroLancamento { TUDO, DESPESAS, RECEITAS }
@@ -66,6 +70,14 @@ data class LancamentoListaUiState(
     val buscando: Boolean get() = busca.isNotBlank()
 }
 
+/**
+ * Lançamento com a descrição já normalizada para a busca, calculada uma vez por emissão do
+ * repositório e não a cada tecla.
+ */
+private class LancamentoParaBusca(val lancamento: Lancamento) {
+    val descricao: String = LancamentoListaViewModel.normalizar(lancamento.descricao)
+}
+
 /** Filtros agrupados para atualização atômica. */
 private data class Filtros(
     val tipo: FiltroLancamento = FiltroLancamento.TUDO,
@@ -77,11 +89,14 @@ private data class Filtros(
  * Lista de lançamentos da propriedade e mês selecionados em [SelecaoAtual], com filtros
  * por tipo/categoria e busca textual. O estado é recalculado por inteiro a cada emissão
  * de qualquer fonte (lançamentos, propriedades, seleção, mês, filtros).
+ *
+ * @param processamento contexto em que o estado é montado, fora da main thread.
  */
 class LancamentoListaViewModel(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
-    private val hoje: () -> LocalDate = LocalDate::now
+    private val hoje: () -> LocalDate = LocalDate::now,
+    private val processamento: CoroutineContext = Dispatchers.Default
 ) : ViewModel() {
 
     private val _filtros = MutableStateFlow(Filtros())
@@ -95,16 +110,16 @@ class LancamentoListaViewModel(
     init {
         viewModelScope.launch {
             combine(
-                lancamentoRepository.observarTodos(),
+                lancamentoRepository.observarTodos().map { lista -> lista.map(::LancamentoParaBusca) },
                 propriedadeRepository.observarTodas(),
                 SelecaoAtual.propriedadeId,
                 SelecaoAtual.mes,
                 _filtros.combine(_voltas) { filtros, _ -> filtros }
             ) { lancamentos, propriedades, selecionadaId, mes, filtros ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes, filtros)
-            }.collect { estado ->
-                _uiState.value = estado
             }
+                .flowOn(processamento)
+                .collect { estado -> _uiState.value = estado }
         }
 
         // Mudança de mês (vinda de outra tela) limpa a busca, que ocultaria o mês escolhido.
@@ -117,7 +132,7 @@ class LancamentoListaViewModel(
     fun aoVoltarParaATela() = _voltas.update { it + 1 }
 
     private fun montarEstado(
-        todosLancamentos: List<Lancamento>,
+        todosLancamentos: List<LancamentoParaBusca>,
         propriedades: List<Propriedade>,
         selecionadaId: String?,
         mes: YearMonth,
@@ -141,12 +156,16 @@ class LancamentoListaViewModel(
             )
         }
 
-        val daPropriedade = todosLancamentos.filter { it.propriedadeId == propriedade.id }
-        val doMes = daPropriedade.filter { it.data.pertenceAo(mes) }
+        val daPropriedade = todosLancamentos.filter { it.lancamento.propriedadeId == propriedade.id }
+        val doMes = daPropriedade.map { it.lancamento }.filter { it.data.pertenceAo(mes) }
 
         // A busca ignora o mês e considera todos os lançamentos da propriedade.
         val termo = normalizar(filtros.busca)
-        val base = if (termo.isEmpty()) doMes else daPropriedade.filter { combinaComBusca(it, termo) }
+        val base = if (termo.isEmpty()) {
+            doMes
+        } else {
+            daPropriedade.filter { combinaComBusca(it, termo) }.map { it.lancamento }
+        }
 
         val doTipo = when (filtros.tipo) {
             FiltroLancamento.TUDO -> base
@@ -192,9 +211,9 @@ class LancamentoListaViewModel(
             GrupoDoDia(data = data, rotulo = data.rotuloRelativo(hoje), lancamentos = doDia)
         }
 
-    private fun combinaComBusca(lancamento: Lancamento, termo: String): Boolean =
-        normalizar(lancamento.descricao).contains(termo) ||
-            normalizar(lancamento.categoria.rotulo).contains(termo)
+    private fun combinaComBusca(item: LancamentoParaBusca, termo: String): Boolean =
+        item.descricao.contains(termo) ||
+            CATEGORIAS_NORMALIZADAS.getValue(item.lancamento.categoria).contains(termo)
 
     // Mês global em SelecaoAtual, compartilhado entre as abas.
     fun aoAvancarMes() = SelecaoAtual.avancarMes()
@@ -250,6 +269,9 @@ class LancamentoListaViewModel(
                 .lowercase()
 
         private val MARCAS_DE_ACENTO = Regex("\\p{Mn}+")
+
+        private val CATEGORIAS_NORMALIZADAS: Map<CategoriaLancamento, String> =
+            CategoriaLancamento.entries.associateWith { normalizar(it.rotulo) }
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

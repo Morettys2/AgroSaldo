@@ -30,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
@@ -64,7 +65,8 @@ class ResumosViewModelTest {
 
     private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje })
 
-    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje })
+    /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
+    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {

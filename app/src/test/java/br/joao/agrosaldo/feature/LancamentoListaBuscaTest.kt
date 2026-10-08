@@ -12,6 +12,9 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -20,6 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Lista de lançamentos: agrupamento por dia, busca em todos os meses, pílulas de mês do
@@ -46,7 +50,8 @@ class LancamentoListaBuscaTest {
         SelecaoAtual.selecionarMes(mesDeHoje)
     }
 
-    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje })
+    /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
+    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
 
     /** Dia fixo, para "Hoje" e "Ontem" não dependerem do dia em que o teste roda. */
     private val quinzeDeSetembro = LocalDate.of(2026, 9, 15)
@@ -70,7 +75,7 @@ class LancamentoListaBuscaTest {
             )
         )
         SelecaoAtual.selecionarMes(YearMonth.of(2026, 9))
-        return LancamentoListaViewModel(repo, propriedades, hoje = { quinzeDeSetembro })
+        return LancamentoListaViewModel(repo, propriedades, hoje = { quinzeDeSetembro }, processamento = EmptyCoroutineContext)
     }
 
     @Test
@@ -258,11 +263,26 @@ class LancamentoListaBuscaTest {
         var hoje = quinzeDeSetembro
         val repo = LancamentoRepositoryMemoria(listOf(lancamento("b", quinzeDeSetembro)))
         SelecaoAtual.selecionarMes(YearMonth.of(2026, 9))
-        val vm = LancamentoListaViewModel(repo, propriedades, hoje = { hoje })
+        val vm = LancamentoListaViewModel(repo, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
         assertEquals("Hoje", vm.uiState.value.grupos.single().rotulo)
 
         hoje = quinzeDeSetembro.plusDays(1)
         vm.aoVoltarParaATela()
         assertEquals("Ontem", vm.uiState.value.grupos.single().rotulo)
+    }
+
+    @Test
+    fun `lista e busca sao montadas no contexto de processamento, fora da main`() = runTest {
+        val processamento = StandardTestDispatcher(testScheduler)
+        val vm = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje }, processamento = processamento)
+        assertTrue("nada é calculado antes de o processamento rodar", vm.uiState.value.carregando)
+
+        runCurrent()
+        assertEquals(4, vm.uiState.value.quantidade)
+
+        vm.aoBuscar("diarista")
+        assertEquals(4, vm.uiState.value.quantidade)
+        runCurrent()
+        assertEquals(listOf("exemplo-5"), vm.uiState.value.lancamentos.map { it.id })
     }
 }
