@@ -136,7 +136,8 @@ fun PropriedadeFormScreen(
             aoMudar = aoMudarArea,
             rotulo = "Área em hectares",
             erro = uiState.erroArea != null,
-            apoio = uiState.erroArea,
+            // Sem erro, mostra como o número foi entendido ("= 1.000 ha").
+            apoio = uiState.erroArea ?: uiState.leituraDaArea,
             teclado = KeyboardType.Decimal
         )
 

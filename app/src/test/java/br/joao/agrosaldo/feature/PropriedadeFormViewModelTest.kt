@@ -233,4 +233,85 @@ class PropriedadeFormViewModelTest {
         assertEquals("-0,0001", vm.uiState.value.latitude)
         assertEquals("-46,5", vm.uiState.value.longitude)
     }
+
+    private suspend fun gravada(nome: String = "Sítio Novo") =
+        propriedades.observarTodas().first().first { it.nome == nome }
+
+    @Test
+    fun `area com ponto de milhar vale mil hectares, nao um`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "1.000")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(1_000.0, gravada().areaHectares, 0.0001)
+    }
+
+    @Test
+    fun `area no formato brasileiro com milhar e decimais`() = runTest {
+        for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "12.345.678,25" to 12_345_678.25, "1250,5" to 1_250.5)) {
+            val vm = novo()
+            preencher(vm, area = texto)
+            vm.aoSalvar()
+
+            assertTrue(texto, vm.uiState.value.salvo)
+            assertEquals(texto, esperado, propriedades.observarTodas().first().last().areaHectares, 0.0001)
+        }
+    }
+
+    @Test
+    fun `area com ponto decimal que nao pode ser milhar continua aceita`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "12.5")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(12.5, gravada().areaHectares, 0.0001)
+    }
+
+    @Test
+    fun `area em formato ambiguo e recusada com mensagem clara`() = runTest {
+        for (texto in listOf("1,000.5", "1000.000", "0.500", "1.000.5", "1,5,0", "1.00,5")) {
+            val vm = novo()
+            preencher(vm, area = texto)
+            vm.aoSalvar()
+
+            assertEquals(
+                texto,
+                "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5.",
+                vm.uiState.value.erroArea
+            )
+            assertFalse(vm.uiState.value.salvo)
+        }
+        assertEquals(2, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `campo de area mostra como o numero foi entendido`() {
+        val vm = novo()
+        vm.aoMudarArea("1.000")
+        assertEquals("= 1.000 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("1,000")
+        assertEquals("= 1 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("12,5")
+        assertEquals("= 12,5 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("1,000.5")
+        assertNull(vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("")
+        assertNull(vm.uiState.value.leituraDaArea)
+    }
+
+    @Test
+    fun `latitude e longitude continuam aceitando ponto decimal`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("-21.7333")
+        vm.aoMudarLongitude("-46.9667")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(-21.7333, gravada().latitude, 0.00001)
+        assertEquals(-46.9667, gravada().longitude, 0.00001)
+    }
 }

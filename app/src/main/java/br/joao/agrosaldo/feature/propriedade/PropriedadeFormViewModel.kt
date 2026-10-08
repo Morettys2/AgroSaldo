@@ -41,7 +41,49 @@ data class PropriedadeFormUiState(
     val salvando: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false
-)
+) {
+    /** Como a área digitada será gravada ("= 1.000 ha"); nulo se vazia ou não reconhecida. */
+    val leituraDaArea: String?
+        get() = (lerArea(area) as? Area.Valida)?.let { "= ${it.hectares.numeroBr(agrupar = true)} ha" }
+}
+
+/** Leitura da área digitada, no formato brasileiro. */
+private sealed interface Area {
+    data class Valida(val hectares: Double) : Area
+
+    /** Só dígitos, ponto e vírgula, mas numa combinação que não dá para ler sem chutar ("1,000.5"). */
+    data object Ambigua : Area
+
+    data object Invalida : Area
+}
+
+/** "1.000" e "1.250,5": ponto no milhar, vírgula nos decimais. O primeiro grupo não começa com 0. */
+private val AREA_COM_MILHAR = Regex("""^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$""")
+
+/** "1250" e "12,5". */
+private val AREA_COM_VIRGULA = Regex("""^\d+(,\d+)?$""")
+
+/** "12.5": ponto decimal, aceito só quando não é seguido de exatamente 3 dígitos (que indicariam milhar). */
+private val AREA_COM_PONTO_DECIMAL = Regex("""^\d+\.(\d{1,2}|\d{4,})$""")
+
+private val SO_DIGITOS_E_SEPARADORES = Regex("""^[\d.,]*\d[\d.,]*$""")
+
+/**
+ * Lê a área como a pessoa escreve no Brasil: "1.000" é mil, não um. O ponto decimal ("12.5")
+ * continua aceito quando não pode ser confundido com milhar; o que sobra é ambíguo.
+ */
+private fun lerArea(texto: String): Area {
+    val limpo = texto.trim()
+    val numero = when {
+        AREA_COM_MILHAR.matches(limpo) -> limpo.replace(".", "").replace(',', '.')
+        AREA_COM_VIRGULA.matches(limpo) -> limpo.replace(',', '.')
+        AREA_COM_PONTO_DECIMAL.matches(limpo) -> limpo
+        SO_DIGITOS_E_SEPARADORES.matches(limpo) -> return Area.Ambigua
+        else -> return Area.Invalida
+    }
+    val hectares = numero.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: return Area.Invalida
+    return Area.Valida(hectares)
+}
 
 /**
  * Formulário de criação/edição de propriedade. Toda a validação fica aqui; a tela só
@@ -100,7 +142,7 @@ class PropriedadeFormViewModel(
     /** Formata para o campo: "18", "12,5", "-21,7333" (sem notação científica nem agrupamento). */
     private fun Double.paraCampo(): String = numeroBr(agrupar = false)
 
-    /** Aceita vírgula ou ponto decimal; rejeita NaN e infinito. */
+    /** Coordenada: aceita vírgula ou ponto decimal; rejeita NaN e infinito. */
     private fun String.paraNumero(): Double? =
         replace(',', '.').trim().toDoubleOrNull()?.takeIf { it.isFinite() }
 
@@ -109,7 +151,8 @@ class PropriedadeFormViewModel(
         // Ignora toques repetidos durante ou após a gravação.
         if (estado.salvando || estado.salvo) return
 
-        val area = estado.area.paraNumero()
+        val leituraDaArea = lerArea(estado.area)
+        val area = (leituraDaArea as? Area.Valida)?.hectares
         val lat = estado.latitude.paraNumero()
         val lon = estado.longitude.paraNumero()
 
@@ -120,8 +163,13 @@ class PropriedadeFormViewModel(
             novo = novo.copy(erroNome = "Informe o nome da propriedade.")
             houveErro = true
         }
-        if (area == null || area <= 0.0) {
-            novo = novo.copy(erroArea = "A área deve ser um número maior que zero.")
+        if (area == null) {
+            val mensagem = if (leituraDaArea == Area.Ambigua) {
+                "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5."
+            } else {
+                "A área deve ser um número maior que zero."
+            }
+            novo = novo.copy(erroArea = mensagem)
             houveErro = true
         }
         if (lat == null || lon == null) {
