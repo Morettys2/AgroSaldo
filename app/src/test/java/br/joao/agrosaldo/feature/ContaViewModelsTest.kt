@@ -187,10 +187,15 @@ class ContaViewModelsTest {
         contaCriadaESaiu()
         val vm = LoginViewModel(conta)
         vm.aoMudarEmail("fabio@exemplo.com")
-        repeat(ContaService.MAXIMO_TENTATIVAS + 1) {
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
             vm.aoMudarSenha("errada123")
             vm.aoEntrar()
+            assertEquals("E-mail ou senha incorretos.", vm.uiState.value.erro)
         }
+
+        vm.aoMudarSenha("errada123")
+        vm.aoEntrar()
+
         assertEquals("Muitas tentativas. Tente de novo em 30 segundos.", vm.uiState.value.erro)
     }
 

@@ -158,8 +158,7 @@ class ContaService(
         val senhaConfere = conferir(senha, usuario?.senhaHash)
 
         if (usuario == null || !senhaConfere) {
-            registrarFalha(chave)
-            return ResultadoLogin.CredenciaisInvalidas
+            return registrarFalha(chave)?.let { ResultadoLogin.Bloqueado(it) } ?: ResultadoLogin.CredenciaisInvalidas
         }
 
         tentativas.gravar(chave, EstadoTentativas())
@@ -186,8 +185,8 @@ class ContaService(
         segundosDeBloqueio(chave)?.let { return ResultadoAlteracaoSenha.Bloqueado(it) }
 
         if (!conferir(senhaAtual, usuario.senhaHash)) {
-            registrarFalha(chave)
-            return ResultadoAlteracaoSenha.SenhaAtualIncorreta
+            return registrarFalha(chave)?.let { ResultadoAlteracaoSenha.Bloqueado(it) }
+                ?: ResultadoAlteracaoSenha.SenhaAtualIncorreta
         }
         tentativas.gravar(chave, EstadoTentativas())
 
@@ -212,8 +211,7 @@ class ContaService(
         segundosDeBloqueio(chave)?.let { return ResultadoExclusao.Bloqueado(it) }
 
         if (!conferir(senha, usuario.senhaHash)) {
-            registrarFalha(chave)
-            return ResultadoExclusao.SenhaIncorreta
+            return registrarFalha(chave)?.let { ResultadoExclusao.Bloqueado(it) } ?: ResultadoExclusao.SenhaIncorreta
         }
         tentativas.gravar(chave, EstadoTentativas())
 
@@ -244,15 +242,20 @@ class ContaService(
      *
      * A partir de [MAXIMO_TENTATIVAS] falhas seguidas bloqueia por [BLOQUEIO_MS],
      * dobrando a cada falha adicional até [BLOQUEIO_MAXIMO_MS]. Estado persistido.
+     *
+     * @return segundos do bloqueio iniciado por esta falha, ou null se ainda não bloqueou;
+     *   assim a resposta à falha que bloqueia já avisa a espera.
      */
-    private fun registrarFalha(chave: String) {
+    private fun registrarFalha(chave: String): Long? {
         val falhas = tentativas.ler(chave).falhasSeguidas + 1
         if (falhas < MAXIMO_TENTATIVAS) {
             tentativas.gravar(chave, EstadoTentativas(falhasSeguidas = falhas))
-            return
+            return null
         }
         val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
-        bloquear(chave, falhas, duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS))
+        val duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
+        bloquear(chave, falhas, duracao)
+        return duracao / 1000
     }
 
     /**

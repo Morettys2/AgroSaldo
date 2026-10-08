@@ -222,6 +222,31 @@ class ContaTest {
     }
 
     @Test
+    fun `a senha errada que bloqueia ja avisa o bloqueio`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
+            assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("fabio@exemplo.com", "errada123"))
+        }
+
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("fabio@exemplo.com", "errada123"))
+    }
+
+    @Test
+    fun `troca de senha e exclusao tambem avisam no erro que bloqueia`() = runTest {
+        cadastrarFabio()
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
+            assertEquals(ResultadoAlteracaoSenha.SenhaAtualIncorreta, conta.alterarSenha("errada123", "colheita2026"))
+        }
+        assertEquals(ResultadoAlteracaoSenha.Bloqueado(30), conta.alterarSenha("errada123", "colheita2026"))
+
+        agora += ContaService.BLOQUEIO_MS
+        // Já passou do limite: o próximo erro bloqueia de novo, agora pelo dobro.
+        assertEquals(ResultadoExclusao.Bloqueado(60), conta.excluirConta("errada123"))
+    }
+
+    @Test
     fun `fechar e abrir o app nao zera o bloqueio`() = runTest {
         cadastrarFabio()
         conta.sair()
