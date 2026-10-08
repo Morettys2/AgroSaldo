@@ -72,15 +72,12 @@ class MainActivity : FragmentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Virada de mês com o app vivo: avança para o mês novo. Uma seleção manual de
-        // outro mês só é sobrescrita na virada.
-        if (YearMonth.now() != mesMostradoAoAbrir) irParaOMesAtual()
+        // Virada do mês com o app vivo: segue o mês corrente, preservando um mês escolhido à mão.
+        SelecaoAtual.acompanharMesCorrente()
     }
 
     private fun irParaOMesAtual() {
-        val agora = YearMonth.now()
-        mesMostradoAoAbrir = agora
-        SelecaoAtual.selecionarMes(agora)
+        SelecaoAtual.selecionarMes(YearMonth.now())
     }
 
     /**
@@ -105,10 +102,5 @@ class MainActivity : FragmentActivity() {
     private fun receberPedidoDoClima(intent: Intent) {
         if (intent.getStringExtra(NotificadorDeChuva.EXTRA_DESTINO) != NotificadorDeChuva.DESTINO_CLIMA) return
         pedidoDoClima = PedidoDoClima(intent.getStringExtra(NotificadorDeChuva.EXTRA_PROPRIEDADE))
-    }
-
-    private companion object {
-        /** No companion para sobreviver à recriação da Activity; dura o processo, como [SelecaoAtual]. */
-        var mesMostradoAoAbrir: YearMonth? = null
     }
 }

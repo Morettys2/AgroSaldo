@@ -97,13 +97,15 @@ object Repositorios {
         bootAtual?.let { InstanteMonotonico(it, SystemClock.elapsedRealtime()) }
     }
 
+    /** Transação do Room para repositórios que combinam várias escritas e checagens. */
+    private val transacaoDoBanco: Transacao = object : Transacao {
+        override suspend fun <R> executar(bloco: suspend () -> R): R = bancoAberto.withTransaction { bloco() }
+    }
+
     val usuarios: UsuarioRepository by lazy {
         UsuarioRepositoryRoom(
             dao = bancoAberto.usuarioDao(),
-            transacao = object : Transacao {
-                override suspend fun <R> executar(bloco: suspend () -> R): R =
-                    bancoAberto.withTransaction { bloco() }
-            }
+            transacao = transacaoDoBanco
         )
     }
 
@@ -160,15 +162,12 @@ object Repositorios {
             dao = bancoAberto.propriedadeDao(),
             lancamentoDao = bancoAberto.lancamentoDao(),
             sessao = sessao,
-            transacao = object : Transacao {
-                override suspend fun <R> executar(bloco: suspend () -> R): R =
-                    bancoAberto.withTransaction { bloco() }
-            }
+            transacao = transacaoDoBanco
         )
     }
 
     val lancamentos: LancamentoRepository by lazy {
-        LancamentoRepositoryRoom(bancoAberto.lancamentoDao(), sessao)
+        LancamentoRepositoryRoom(bancoAberto.lancamentoDao(), sessao, transacaoDoBanco)
     }
 
     // Clima e aviso de chuva
