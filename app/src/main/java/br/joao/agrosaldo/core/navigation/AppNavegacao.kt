@@ -292,7 +292,11 @@ fun AppNavegacao(
             BackHandler { contexto.acharFragmentActivity()?.moveTaskToBack(true) }
             TelaBloqueioRoute(
                 aoDesbloquear = sessaoViewModel::aoDesbloquear,
-                aoUsarSenha = sessaoViewModel::aoUsarSenha
+                aoUsarSenha = {
+                    // Sai da conta: o estado guardado das telas (ex.: diálogo aberto) era dela.
+                    estadoDoConteudo.removeState(CHAVE_CONTEUDO)
+                    sessaoViewModel.aoUsarSenha()
+                }
             )
         } else {
             estadoDoConteudo.SaveableStateProvider(CHAVE_CONTEUDO) {
