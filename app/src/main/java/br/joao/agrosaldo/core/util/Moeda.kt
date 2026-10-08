@@ -24,14 +24,21 @@ fun Long.emReal(): String = MOEDA.format(BigDecimal.valueOf(this, 2))
  */
 fun Long.emRealCurto(): String = if (this % 100 == 0L) MOEDA_CURTA.format(this / 100) else emReal()
 
+/** Teto do campo de valor: 9 dígitos de centavos, R$ 9.999.999,99. */
+const val DIGITOS_MAXIMOS_DO_VALOR = 9
+
 /**
  * Converte a entrada do campo de valor em centavos: ignora não-dígitos e lê os
- * dígitos como centavos ("125050" = R$ 1.250,50). Limite de 9 dígitos; null se vazio.
+ * dígitos como centavos ("125050" = R$ 1.250,50). null se vazio ou acima de
+ * [DIGITOS_MAXIMOS_DO_VALOR] (zeros à esquerda não contam): cortar os dígitos
+ * excedentes gravaria um valor 10 vezes menor sem aviso.
  */
 fun String.digitosParaCentavos(): Long? {
-    val digitos = filter { it.isDigit() }.take(9)
+    val digitos = filter { it.isDigit() }
     if (digitos.isEmpty()) return null
-    return digitos.toLongOrNull()
+    val significativos = digitos.trimStart('0')
+    if (significativos.length > DIGITOS_MAXIMOS_DO_VALOR) return null
+    return significativos.toLongOrNull() ?: 0L
 }
 
 /** Substituto de valores ocultos; tamanho fixo para não revelar a magnitude. */

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.DIGITOS_MAXIMOS_DO_VALOR
 import br.joao.agrosaldo.core.util.digitosParaCentavos
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
@@ -279,7 +280,7 @@ class LancamentoFormViewModel(
         const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO
 
         /** Teto de entrada: R$ 9.999.999,99. */
-        const val MAXIMO_DE_DIGITOS = 9
+        const val MAXIMO_DE_DIGITOS = DIGITOS_MAXIMOS_DO_VALOR
 
         fun Factory(
             lancamentoId: String?,
