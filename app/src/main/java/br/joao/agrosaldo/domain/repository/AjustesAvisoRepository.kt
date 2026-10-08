@@ -16,12 +16,21 @@ data class AjustesAviso(
     fun avisaSobre(propriedadeId: String): Boolean = propriedadeId !in propriedadesSemAviso
 }
 
-/** Ajustes do aviso de chuva e instante do último aviso emitido por propriedade. */
+/**
+ * Ajustes do aviso de chuva e instante do último aviso emitido por propriedade, da conta
+ * conectada: [ajustes] acompanha as trocas de sessão e, sem sessão, traz os padrões.
+ */
 interface AjustesAvisoRepository {
     val ajustes: StateFlow<AjustesAviso>
     fun salvar(ajustes: AjustesAviso)
     fun ultimoAvisoEm(propriedadeId: String): Instant?
     fun registrarAviso(propriedadeId: String, em: Instant)
+
+    /** Esquece o último aviso das propriedades da conta que não estão em [existentes]. */
+    fun esquecerAvisosExceto(existentes: Set<String>)
+
+    /** Apaga os ajustes e os avisos registrados de [usuarioId] (exclusão da conta). */
+    fun excluirDadosDoUsuario(usuarioId: String)
 }
 
 /** Agendamento da verificação periódica; abstrai o WorkManager (que exige Context). */

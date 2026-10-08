@@ -560,6 +560,18 @@ class ClimaTest {
     }
 
     @Test
+    fun `verificacao esquece o ultimo aviso de propriedades excluidas`() = runTest {
+        val ajustes = AjustesAvisoMemoria()
+        ajustes.registrarAviso("excluida", AGORA.minus(Duration.ofDays(3)))
+        ajustes.registrarAviso("p2", AGORA.minus(Duration.ofHours(2)))
+
+        verificador(ClimaRepositoryMemoria(), ajustes).verificar { true }
+
+        assertNull(ajustes.ultimoAvisoEm("excluida"))
+        assertEquals(AGORA.minus(Duration.ofHours(2)), ajustes.ultimoAvisoEm("p2"))
+    }
+
+    @Test
     fun `sem permissao de notificar nao registra aviso que ninguem viu`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
         val ajustes = AjustesAvisoMemoria()

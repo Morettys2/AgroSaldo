@@ -30,8 +30,8 @@ data class ResultadoVerificacao(
  * Verificação periódica de chuva (RN04), executada a cada 12 h pelo Worker.
  *
  * Sem dependência de Android: o Worker chama [verificar] informando como exibir a
- * notificação. Atualiza a previsão, aplica [RegraDeChuva] e [ControleDeAvisos] e
- * registra cada aviso logo depois de exibido.
+ * notificação. Atualiza a previsão, aplica [RegraDeChuva] e [ControleDeAvisos],
+ * registra cada aviso logo depois de exibido e esquece o registro de propriedades excluídas.
  */
 class VerificadorDeChuva(
     private val sessao: SessaoRepository,
@@ -61,10 +61,12 @@ class VerificadorDeChuva(
         var falhaPassageira = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
-        val monitoradas = propriedades.observarTodas().first().filter { ajustesAtuais.avisaSobre(it.id) }
+        val todas = propriedades.observarTodas().first()
+        if (!mesmaConta()) return ResultadoVerificacao(emptyList(), falhaPassageira = false)
+        // O registro do último aviso de propriedades excluídas não serve mais.
+        ajustes.esquecerAvisosExceto(todas.map { it.id }.toSet())
 
-        for (propriedade in monitoradas) {
-            if (!mesmaConta()) break
+        for (propriedade in todas.filter { ajustesAtuais.avisaSobre(it.id) }) {
             val previsao = when (val resultado = clima.atualizar(propriedade)) {
                 is ResultadoAtualizacao.Sucesso -> resultado.previsao
                 // Sem rede ou serviço fora do ar: usa o cache se tiver no máximo
