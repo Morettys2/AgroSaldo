@@ -23,7 +23,38 @@ Caminhos relativos a `app/src/main/java/br/joao/agrosaldo/`, salvo indicação.
 | A1 Bloqueio de login × relógio do sistema | ✅ Corrigido | `ContaTest` (4 novos) |
 | A2 Valores arredondados | ✅ Corrigido | `FormatacaoTest` (3 novos) |
 | A3 Crash ao excluir propriedade durante o download | ✅ Corrigido | `ClimaTest` (2 novos) e `AgroSaldoDatabaseTest` (1 novo, instrumentado) |
-| M1–M12, B1–B27 | Pendente | — |
+| M1 Contador de tentativas por e-mail | ✅ Corrigido | `ContaTest` |
+| M2 Capa de bloqueio × diálogos e foco | ✅ Corrigido (conteúdo sai da composição enquanto bloqueado) | — (Compose) |
+| M3 Novo aceite LGPD pulável | ✅ Corrigido | `RegrasDeNavegacaoTest`, `ContaViewModelsTest` |
+| M4 FLAG_SECURE | ✅ Corrigido (com o bloqueio por digital ligado) | — (Activity) |
+| M5 Backup exposto | ✅ Corrigido (`xml-v28/backup_rules.xml`, nuvem só com criptografia) | — (XML) |
+| M6 Aviso registrado antes de notificar | ✅ Corrigido | `ClimaTest` |
+| M7 Notificação abre a propriedade errada | ✅ Corrigido | `ContaViewModelsTest` |
+| M8 Tela de Clima congelada | ✅ Corrigido | `ClimaViewModelsTest` |
+| M9 Botão de permissão sem efeito | ✅ Corrigido | `PermissaoNotificacaoTest` |
+| M10 Sinal de menos nas coordenadas | ✅ Corrigido (botão ± e aviso fora do Brasil) | `PropriedadeFormViewModelTest` |
+| M11 Área "1.000" | ✅ Corrigido | `PropriedadeFormViewModelTest` |
+| M12 Formulários × morte do processo | ✅ Corrigido (SavedStateHandle) | `LancamentoFormViewModelTest`, `PropriedadeFormViewModelTest` |
+| B1–B27 | ✅ Corrigidos (B14 e B27: código removido) | Testes nas suítes de cada área |
+| Testes fracos listados em "Testes" | ✅ Corrigidos | — |
+| Teste desatualizado em `ContaViewModelsTest` (não compilava) | ✅ Corrigido | — |
+| Editar propriedade excluída recriava o registro (análogo ao B20) | ✅ Corrigido | `PropriedadeFormViewModelTest` |
+
+Decisões tomadas nas correções (revisar se discordar):
+
+- **Política de privacidade:** o texto passou a mencionar o backup do Android e `TermoDePrivacidade.VERSAO_ATUAL`
+  subiu para 3, então todo usuário vê o novo aceite uma vez.
+- **M1:** não há contador global que um login certo não zere, porque permitiria a qualquer pessoa bloquear todas
+  as contas do aparelho errando e-mails inventados.
+- **M5:** no Android 8.x (API 26–27) nada entra no backup, porque essas versões não criptografam de ponta a ponta.
+- **M10:** coordenada fora do Brasil é um aviso, não um bloqueio, porque há quem tenha terra do outro lado da
+  fronteira.
+- **Valor com mais de 9 dígitos:** é recusado, em vez de cortado.
+- **A 5ª senha errada:** já responde "bloqueado", em vez de "senha incorreta".
+
+Sem Android SDK no ambiente em que as correções foram feitas, o código de Activity, Compose, XML e Room
+foi revisado manualmente, mas não compilado. Antes de publicar, rode `./gradlew assembleDebug test
+connectedAndroidTest lint`.
 
 
 ---
