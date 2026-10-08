@@ -47,6 +47,25 @@ class PropriedadeFormViewModelTest {
     }
 
     @Test
+    fun `editar propriedade que nao existe mais avisa e salvar nao recria o registro`() = runTest {
+        val vm = editando("apagada")
+        assertTrue(vm.uiState.value.naoEncontrado)
+
+        preencher(vm)
+        vm.aoSalvar()
+
+        assertFalse(vm.uiState.value.salvo)
+        assertNull(propriedades.buscarPorId("apagada"))
+        assertEquals(2, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `propriedade existente e cadastro novo nao sao marcados como nao encontrados`() {
+        assertFalse(editando(DadosDeExemplo.ID_SITIO).uiState.value.naoEncontrado)
+        assertFalse(novo().uiState.value.naoEncontrado)
+    }
+
+    @Test
     fun `salvar com tudo vazio marca os tres erros e nao grava nada`() = runTest {
         val vm = novo()
         vm.aoSalvar()

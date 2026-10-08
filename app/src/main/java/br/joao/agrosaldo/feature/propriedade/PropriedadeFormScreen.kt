@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature.propriedade
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -73,6 +75,14 @@ fun PropriedadeFormRoute(
 
     LaunchedEffect(uiState.salvo, uiState.excluido) {
         if (uiState.salvo || uiState.excluido) aoConcluir()
+    }
+
+    val contexto = LocalContext.current
+    LaunchedEffect(uiState.naoEncontrado) {
+        if (uiState.naoEncontrado) {
+            Toast.makeText(contexto, PropriedadeFormViewModel.AVISO_NAO_ENCONTRADO, Toast.LENGTH_SHORT).show()
+            aoConcluir()
+        }
     }
 
     PropriedadeFormScreen(

@@ -44,7 +44,9 @@ data class PropriedadeFormUiState(
     /** Gravação em andamento; desabilita o botão para evitar registro duplicado. */
     val salvando: Boolean = false,
     val salvo: Boolean = false,
-    val excluido: Boolean = false
+    val excluido: Boolean = false,
+    /** A propriedade em edição não existe mais (ex.: foi excluída); a tela avisa e fecha. */
+    val naoEncontrado: Boolean = false
 ) {
     /** Como a área digitada será gravada ("= 1.000 ha"); nulo se vazia ou não reconhecida. */
     val leituraDaArea: String?
@@ -128,20 +130,24 @@ class PropriedadeFormViewModel(
 
     private fun carregar(id: String) {
         viewModelScope.launch {
-            propriedadeRepository.buscarPorId(id)?.let { propriedade ->
-                val latitude = propriedade.latitude.paraCampo()
-                val longitude = propriedade.longitude.paraCampo()
-                coordenadasConferidas = latitude to longitude
-                // O que foi restaurado (ou digitado antes de carregar) vale mais que o banco.
-                _uiState.update {
-                    it.copy(
-                        nome = restaurado(CHAVE_NOME) ?: propriedade.nome,
-                        cultura = restaurado(CHAVE_CULTURA) ?: propriedade.cultura,
-                        area = restaurado(CHAVE_AREA) ?: propriedade.areaHectares.paraCampo(),
-                        latitude = restaurado(CHAVE_LATITUDE) ?: latitude,
-                        longitude = restaurado(CHAVE_LONGITUDE) ?: longitude
-                    )
-                }
+            val propriedade = propriedadeRepository.buscarPorId(id)
+            if (propriedade == null) {
+                // Salvar recriaria o registro com o id antigo.
+                _uiState.update { it.copy(naoEncontrado = true) }
+                return@launch
+            }
+            val latitude = propriedade.latitude.paraCampo()
+            val longitude = propriedade.longitude.paraCampo()
+            coordenadasConferidas = latitude to longitude
+            // O que foi restaurado (ou digitado antes de carregar) vale mais que o banco.
+            _uiState.update {
+                it.copy(
+                    nome = restaurado(CHAVE_NOME) ?: propriedade.nome,
+                    cultura = restaurado(CHAVE_CULTURA) ?: propriedade.cultura,
+                    area = restaurado(CHAVE_AREA) ?: propriedade.areaHectares.paraCampo(),
+                    latitude = restaurado(CHAVE_LATITUDE) ?: latitude,
+                    longitude = restaurado(CHAVE_LONGITUDE) ?: longitude
+                )
             }
         }
     }
@@ -213,7 +219,7 @@ class PropriedadeFormViewModel(
     fun aoSalvar() {
         val estado = _uiState.value
         // Ignora toques repetidos durante ou após a gravação.
-        if (estado.salvando || estado.salvo) return
+        if (estado.salvando || estado.salvo || estado.naoEncontrado) return
 
         val leituraDaArea = lerArea(estado.area)
         val area = (leituraDaArea as? Area.Valida)?.hectares
@@ -307,6 +313,9 @@ class PropriedadeFormViewModel(
     }
 
     companion object {
+        /** Aviso exibido quando [PropriedadeFormUiState.naoEncontrado]. */
+        const val AVISO_NAO_ENCONTRADO = "Esta propriedade não existe mais."
+
         // Chaves do SavedStateHandle; os valores são o texto dos campos.
         internal const val CHAVE_NOME = "nome"
         internal const val CHAVE_CULTURA = "cultura"
