@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.util.DestinoDaPermissao
@@ -49,9 +50,13 @@ fun rememberPermissaoNotificacao(): PermissaoNotificacao {
     // shouldShowRequestPermissionRationale antes do pedido; ver RegrasDeNotificacao.dialogoBloqueado.
     var explicarAntes by remember { mutableStateOf(false) }
 
+    val preferencias = remember(context) { context.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE) }
+
     val pedido = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { aceitou ->
         concedida = NotificadorDeChuva.podeNotificar(context)
-        if (RegrasDeNotificacao.dialogoBloqueado(aceitou, explicarAntes, deveExplicar(context))) {
+        val jaPediuAntes = preferencias.getBoolean(CHAVE_JA_PEDIU, false)
+        preferencias.edit { putBoolean(CHAVE_JA_PEDIU, true) }
+        if (RegrasDeNotificacao.dialogoBloqueado(aceitou, explicarAntes, deveExplicar(context), jaPediuAntes)) {
             abrirAjustes(context, DestinoDaPermissao.AJUSTES_DO_APP)
         }
     }
@@ -75,6 +80,10 @@ fun rememberPermissaoNotificacao(): PermissaoNotificacao {
         }
     }
 }
+
+/** Preferências do aparelho (fora do backup): se o pedido de notificação já foi feito alguma vez. */
+private const val ARQUIVO = "permissoes"
+private const val CHAVE_JA_PEDIU = "notificacao_ja_pedida"
 
 private fun destinoAtual(context: Context): DestinoDaPermissao? {
     val permissaoPendente = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&

@@ -6,8 +6,9 @@
     Com <include>, só o listado entra, e só em backup criptografado de ponta a ponta
     (exige bloqueio de tela) ou na transferência direta entre aparelhos: o adb backup
     não leva nada. requireFlags exige todas as flags listadas, daí uma linha por flag.
-    Ficam de fora a sessão (sessao.xml: exige novo login após restaurar) e o estado de
-    segurança do aparelho (seguranca.xml: tentativas de senha e bloqueio por digital).
+    Ficam de fora a sessão (sessao.xml: exige novo login após restaurar) e o estado do
+    aparelho (seguranca.xml: tentativas de senha e bloqueio por digital; permissoes.xml:
+    pedidos de permissão já feitos).
 -->
 <full-backup-content>
     <include domain="database" path="." requireFlags="clientSideEncryption" />
@@ -16,4 +17,5 @@
     <include domain="sharedpref" path="." requireFlags="deviceToDeviceTransfer" />
     <exclude domain="sharedpref" path="sessao.xml" />
     <exclude domain="sharedpref" path="seguranca.xml" />
+    <exclude domain="sharedpref" path="permissoes.xml" />
 </full-backup-content>

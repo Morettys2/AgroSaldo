@@ -28,9 +28,10 @@ object RegrasDeNotificacao {
 
     /**
      * true se a recusa veio sem o diálogo aparecer (permissão negada de vez): só os ajustes
-     * resolvem. `shouldShowRequestPermissionRationale` fica false antes e depois só nesse caso;
-     * uma recusa feita no diálogo muda o valor (false → true na 1ª, true → false na 2ª).
+     * resolvem. Uma recusa feita no diálogo muda `shouldShowRequestPermissionRationale`
+     * (false → true na 1ª, true → false na 2ª); fechar o diálogo sem responder não muda, por
+     * isso o 1º pedido no aparelho ([jaPediuAntes] false) nunca leva aos ajustes.
      */
-    fun dialogoBloqueado(aceitou: Boolean, explicarAntes: Boolean, explicarDepois: Boolean): Boolean =
-        !aceitou && !explicarAntes && !explicarDepois
+    fun dialogoBloqueado(aceitou: Boolean, explicarAntes: Boolean, explicarDepois: Boolean, jaPediuAntes: Boolean): Boolean =
+        !aceitou && !explicarAntes && !explicarDepois && jaPediuAntes
 }
