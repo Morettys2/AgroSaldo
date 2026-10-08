@@ -96,6 +96,14 @@ class ContaService(
         return true
     }
 
+    /**
+     * Revela se o e-mail já tem conta neste aparelho, de propósito: o cadastro precisa dizer
+     * isso antes do consentimento, e o índice único diria o mesmo ao criar a conta. As contas
+     * são locais, então só quem já tem o celular em mãos consegue perguntar. Não passa pelo
+     * limite de tentativas: barrar depois de N consultas não esconderia as N primeiras, e
+     * erros de digitação no cadastro bloqueariam o login. A proteção contra adivinhar senhas
+     * fica no login, que responde igual para e-mail inexistente e senha errada.
+     */
     suspend fun emailEmUso(email: String): Boolean =
         usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email)) != null
 
@@ -296,7 +304,8 @@ class ContaService(
     private suspend fun conferir(senha: String, armazenado: String?): Boolean =
         withContext(dispatcherCalculo) { hash.confere(senha, armazenado ?: hashFicticio) && armazenado != null }
 
-    private val hashFicticio: String by lazy { hash.gerar(UUID.randomUUID().toString()) }
+    // Montado sem PBKDF2: a primeira tentativa com e-mail inexistente custa o mesmo que as demais.
+    private val hashFicticio: String = hash.ficticio()
 
     companion object {
         const val MAXIMO_TENTATIVAS = 5

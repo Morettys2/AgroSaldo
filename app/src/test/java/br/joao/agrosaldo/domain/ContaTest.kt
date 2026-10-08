@@ -356,6 +356,24 @@ class ContaTest {
     }
 
     @Test
+    fun `hash ficticio custa o mesmo que um real e nunca confere`() {
+        val real = hashRapido.gerar("milho2026").split("$")
+        val ficticio = hashRapido.ficticio()
+        val partes = ficticio.split("$")
+
+        // Mesmo algoritmo, mesmas iterações e mesmos tamanhos de sal e hash: conferir roda o PBKDF2 inteiro.
+        assertEquals(real.size, partes.size)
+        assertEquals(real[0], partes[0])
+        assertEquals(real[1], partes[1])
+        assertEquals(real[2].length, partes[2].length)
+        assertEquals(real[3].length, partes[3].length)
+        assertFalse(hashRapido.precisaAtualizar(ficticio))
+        assertFalse(hashRapido.confere("milho2026", ficticio))
+        assertFalse(hashRapido.confere("", ficticio))
+        assertNotEquals(ficticio, hashRapido.ficticio())
+    }
+
+    @Test
     fun `hash so pede atualizacao quando o custo gravado e menor`() {
         assertTrue(hashRapido.precisaAtualizar(HashDeSenha(iteracoes = 500).gerar("x1234567")))
         assertFalse(hashRapido.precisaAtualizar(hashRapido.gerar("x1234567")))
