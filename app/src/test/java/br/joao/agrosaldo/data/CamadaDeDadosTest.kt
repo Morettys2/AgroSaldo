@@ -146,11 +146,11 @@ class CamadaDeDadosTest {
         assertTrue(criaUsuarios in 0 until alteraPropriedades)
     }
 
-    /** DAO em memória que filtra por dono como as queries reais. */
+    /** DAO em memória que filtra por dono como as queries reais (sem ordenar, como o SQL). */
     private class PropriedadeDaoFalso : PropriedadeDao {
         val tabela = MutableStateFlow<List<PropriedadeEntity>>(emptyList())
         override fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>> =
-            tabela.map { lista -> lista.filter { it.usuarioId == usuarioId }.sortedBy { it.nome.lowercase() } }
+            tabela.map { lista -> lista.filter { it.usuarioId == usuarioId } }
         override suspend fun buscarPorId(id: String, usuarioId: String) =
             tabela.value.firstOrNull { it.id == id && it.usuarioId == usuarioId }
         override suspend fun existeSemSerDoUsuario(id: String, usuarioId: String) =
@@ -228,6 +228,22 @@ class CamadaDeDadosTest {
         consentimentoEm = Instant.ofEpochMilli(1_000L), versaoTermo = 1,
         criadoEm = Instant.ofEpochMilli(1_000L)
     )
+
+    @Test
+    fun `propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo`() = runTest {
+        val dao = PropriedadeDaoFalso()
+        val modelo = DadosDeExemplo.propriedades().first()
+        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda São João").forEachIndexed { i, nome ->
+            dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1"))
+        }
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
+
+        assertEquals(
+            "a primeira da lista é a propriedade padrão",
+            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda São João", "Sítio Boa Vista"),
+            repositorio.observarTodas().first().map { it.nome }
+        )
+    }
 
     @Test
     fun `repositorio Room entrega objetos de dominio a partir das entidades`() = runTest {

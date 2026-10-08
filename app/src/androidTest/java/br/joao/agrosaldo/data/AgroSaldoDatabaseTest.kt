@@ -12,6 +12,8 @@ import br.joao.agrosaldo.data.local.dao.UsuarioDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
+import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
@@ -79,11 +81,16 @@ class AgroSaldoDatabaseTest {
         assertEquals(1, propriedadeDao.contarDoUsuario("u1"))
     }
 
+    /** A ordem vem do repositório (Collator pt-BR); o COLLATE NOCASE do SQLite mandaria "Água" para o fim. */
     @Test
-    fun listaDePropriedadesVemEmOrdemAlfabetica() = runBlocking {
+    fun listaDePropriedadesVemEmOrdemAlfabeticaDoPortugues() = runBlocking {
         semearExemplos()
-        val nomes = propriedadeDao.observarDoUsuario("u1").first().map { it.nome }
-        assertEquals(listOf("Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
+        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
+        propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1"))
+        val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"))
+
+        val nomes = repositorio.observarTodas().first().map { it.nome }
+        assertEquals(listOf("Água Limpa", "Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
     }
 
     /**

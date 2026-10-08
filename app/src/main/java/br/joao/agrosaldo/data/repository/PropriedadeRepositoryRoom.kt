@@ -7,6 +7,7 @@ import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.PropriedadeExcluida
+import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,14 +27,19 @@ class PropriedadeRepositoryRoom(
     private val transacao: Transacao = Transacao.DIRETA
 ) : PropriedadeRepository {
 
-    /** Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. */
+    /**
+     * Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. Em ordem alfabética
+     * pt-BR ([emOrdemAlfabetica]): a primeira é a propriedade padrão das telas.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodas(): Flow<List<Propriedade>> =
         sessao.usuarioId.flatMapLatest { usuarioId ->
             if (usuarioId == null) {
                 flowOf(emptyList())
             } else {
-                dao.observarDoUsuario(usuarioId).map { entidades -> entidades.map { it.paraDominio() } }
+                dao.observarDoUsuario(usuarioId).map { entidades ->
+                    entidades.map { it.paraDominio() }.emOrdemAlfabetica()
+                }
             }
         }
 

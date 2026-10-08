@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PropriedadeDao {
 
-    /** Ordenado por nome sem diferenciar maiúsculas (NOCASE cobre só ASCII). */
-    @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId ORDER BY nome COLLATE NOCASE")
+    /** Sem ORDER BY: o COLLATE do SQLite não trata acentos; o repositório ordena em pt-BR. */
+    @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId")
     fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>>
 
     @Query("SELECT * FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
