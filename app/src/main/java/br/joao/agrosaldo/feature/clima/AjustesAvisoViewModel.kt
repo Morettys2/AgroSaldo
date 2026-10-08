@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Um sítio na lista "Avisar sobre", com o interruptor dele. */
+/** Propriedade na lista de avisos, com o estado do seu interruptor. */
 data class SitioDoAviso(val id: String, val nome: String, val avisa: Boolean)
 
 data class AjustesAvisoUiState(
@@ -31,18 +31,15 @@ data class AjustesAvisoUiState(
     val salvo: Boolean = false
 ) {
     /**
-     * Com um sítio só, o interruptor geral já resolve: a lista não aparece.
-     * A não ser que esse sítio esteja desligado (o outro foi excluído depois):
-     * aí a lista aparece, senão não haveria como religar.
+     * A lista só aparece com 2+ propriedades, ou se alguma estiver desligada
+     * (caso contrário não haveria como religá-la após excluir as demais).
      */
     val mostrarSitios: Boolean get() = sitios.size >= 2 || sitios.any { !it.avisa }
 }
 
 /**
- * ViewModel da tela 18 — Aviso de chuva.
- *
- * Os controles mexem só no estado da tela; nada é gravado até tocar em
- * "Salvar". Assim dá para brincar com os valores e desistir voltando.
+ * Ajustes do aviso de chuva. Alterações ficam só no estado da UI até [aoSalvar];
+ * sair sem salvar descarta tudo.
  */
 class AjustesAvisoViewModel(
     private val ajustes: AjustesAvisoRepository,
@@ -62,9 +59,8 @@ class AjustesAvisoViewModel(
     )
     val uiState: StateFlow<AjustesAvisoUiState> = _uiState.asStateFlow()
 
-    // Ids que estavam desligados quando a tela abriu. Guardados à parte para
-    // não perder o de um sítio que não está na lista (outra conta, ou apagado
-    // e desfeito depois).
+    // Ids desligados ao abrir. Preservados no salvamento mesmo que não estejam na
+    // lista atual (propriedades de outra conta ou exclusão desfeita).
     private val semAvisoAoAbrir = ajustes.ajustes.value.propriedadesSemAviso
 
     init {
@@ -78,13 +74,13 @@ class AjustesAvisoViewModel(
 
     fun aoMudarAtivo(ativo: Boolean) = _uiState.update { it.copy(ativo = ativo) }
 
-    /** O controle deslizante manda Float; aqui vira múltiplo de 5 (55%, 60%, 65%...). */
+    /** Arredonda para múltiplo de 5, limitado a [PROBABILIDADE_MIN]..[PROBABILIDADE_MAX]. */
     fun aoMudarProbabilidade(valor: Float) = _uiState.update {
         val arredondado = ((valor / 5f).roundToInt() * 5).coerceIn(PROBABILIDADE_MIN, PROBABILIDADE_MAX)
         it.copy(probabilidadeMinima = arredondado)
     }
 
-    /** Passos de meio milímetro. */
+    /** Arredonda para passos de 0,5 mm, limitado a [CHUVA_MIN]..[CHUVA_MAX]. */
     fun aoMudarChuva(valor: Float) = _uiState.update {
         val arredondado = ((valor * 2).roundToInt() / 2.0).coerceIn(CHUVA_MIN, CHUVA_MAX)
         it.copy(chuvaMinimaMm = arredondado)
@@ -110,12 +106,12 @@ class AjustesAvisoViewModel(
                 propriedadesSemAviso = semAviso
             )
         )
-        // Desligado de verdade: nada roda em segundo plano, nem gasta bateria.
+        // Desativado cancela o trabalho periódico em segundo plano.
         if (estado.ativo) agenda.ligar() else agenda.desligar()
         _uiState.update { it.copy(salvo = true) }
     }
 
-    /** Ferramenta de teste: dispara a verificação de verdade agora. */
+    /** Dispara a verificação de chuva imediatamente (uso de teste/diagnóstico). */
     fun aoVerificarAgora() = agenda.verificarAgora()
 
     companion object {

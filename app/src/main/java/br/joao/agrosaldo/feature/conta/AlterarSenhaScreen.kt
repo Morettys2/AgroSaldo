@@ -40,8 +40,7 @@ fun AlterarSenhaRoute(
 
     LaunchedEffect(uiState.concluido) {
         if (uiState.concluido) {
-            // Toast é o aviso mais simples do Android: aparece por cima de
-            // qualquer tela, então continua visível depois de voltar para Conta.
+            // Toast em vez de Snackbar: continua visível após voltar para Conta.
             Toast.makeText(context, "Senha alterada", Toast.LENGTH_SHORT).show()
             aoConcluir()
         }

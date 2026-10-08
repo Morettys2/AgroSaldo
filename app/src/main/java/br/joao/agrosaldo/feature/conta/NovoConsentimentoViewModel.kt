@@ -19,9 +19,8 @@ data class NovoConsentimentoUiState(
 )
 
 /**
- * Aceitar grava o aceite da versão nova; a navegação percebe e segue para
- * o Início. Recusar encerra a sessão — sem o aceite, o app não pode tratar
- * os dados para a finalidade nova.
+ * Reaceite após mudança da política. Aceitar grava a versão nova e a navegação
+ * segue ao Início; recusar encerra a sessão, pois sem aceite o tratamento não é permitido.
  */
 class NovoConsentimentoViewModel(
     private val conta: ContaService

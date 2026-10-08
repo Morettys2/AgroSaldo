@@ -60,11 +60,8 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
- * Tela 19 — Conta.
- *
- * Sair e excluir não navegam: eles encerram a sessão, e a AppNavegacao leva
- * para o login ao perceber. Por isso a Route só recebe os destinos que
- * continuam logado (privacidade e propriedades).
+ * Rota da tela de conta. Sair e excluir não navegam: encerram a sessão e a
+ * AppNavegacao redireciona ao login. Por isso só recebe destinos que mantêm a sessão.
  */
 @Composable
 fun ContaRoute(
@@ -78,9 +75,8 @@ fun ContaRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Ligar E desligar pedem a digital: ligar confirma que ela funciona
-    // (senão a pessoa se trancaria fora); desligar impede que outra pessoa,
-    // com o celular destravado na mão, tire a proteção.
+    // Ligar e desligar exigem autenticação: ligar garante que ela funciona (evita
+    // o usuário se trancar fora); desligar impede que terceiros removam a proteção.
     val aoMudarBloqueio: (Boolean) -> Unit = { ativar ->
         val activity = context.acharFragmentActivity()
         if (activity == null || !Biometria.disponivel(context)) {
@@ -129,7 +125,7 @@ fun ContaScreen(
     aoCancelarExclusao: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // rememberSaveable: o diálogo continua aberto se o celular girar.
+    // Saveable para o diálogo sobreviver a mudança de configuração.
     var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -194,8 +190,7 @@ fun ContaScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Cor de despesa, não de erro: excluir é uma escolha legítima da
-        // pessoa, não uma falha do sistema.
+        // Cor de despesa, não de erro: exclusão é ação legítima, não falha.
         OutlinedButton(
             onClick = { confirmandoExclusao = true },
             shape = CircleShape,
@@ -317,7 +312,7 @@ private fun ItemConta(
     }
 }
 
-/** Mesma cara dos outros itens, com um interruptor no lugar da seta. */
+/** Item no mesmo layout de [ItemConta], com Switch no lugar da seta. */
 @Composable
 private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
     Column {
@@ -326,8 +321,7 @@ private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                // toggleable na linha toda: dá para tocar no texto, e o leitor
-                // de tela anuncia "interruptor, ligado".
+                // toggleable na linha inteira: área de toque maior e TalkBack anuncia como Switch.
                 .toggleable(value = ativo, role = Role.Switch, onValueChange = aoMudar)
                 .padding(vertical = 12.dp)
         ) {
@@ -353,17 +347,14 @@ private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
                     color = MaterialTheme.agro.tintaApagada
                 )
             }
-            // onCheckedChange = null: quem trata o toque é a linha inteira.
+            // null: o toque é tratado pelo toggleable da linha.
             Switch(checked = ativo, onCheckedChange = null)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
-/**
- * Pede a senha antes de apagar. Um celular esquecido na mesa da cozinha não
- * pode perder o histórico inteiro com dois toques de outra pessoa.
- */
+/** Confirmação de exclusão; exige a senha para evitar exclusão por terceiros. */
 @Composable
 private fun DialogoExclusao(
     excluindo: Boolean,

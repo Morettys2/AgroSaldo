@@ -30,10 +30,8 @@ import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Tela 03 — Criar conta (RF01).
- *
- * O ViewModel vem de fora (AppNavegacao) porque ele é compartilhado com a
- * tela de consentimento. Por isso não há valor padrão no parâmetro.
+ * Formulário de criação de conta (RF01). O [viewModel] é injetado pela AppNavegacao,
+ * sem valor padrão, porque é compartilhado com a tela de consentimento.
  */
 @Composable
 fun CadastroRoute(
@@ -44,8 +42,8 @@ fun CadastroRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Evento de navegação: dispara uma vez e é "consumido" logo em seguida,
-    // senão voltar do consentimento abriria o consentimento de novo.
+    // Evento de navegação consumido antes de navegar; sem isso, voltar do
+    // consentimento reabriria o consentimento.
     LaunchedEffect(uiState.irParaConsentimento) {
         if (uiState.irParaConsentimento) {
             viewModel.aoAbrirConsentimento()
@@ -79,8 +77,7 @@ fun CadastroScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            // Com o teclado aberto, a área visível encolhe e o campo em foco
-            // continua alcançável pela rolagem, sem ficar escondido.
+            // imePadding antes do scroll: o campo em foco fica acessível com o teclado aberto.
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)

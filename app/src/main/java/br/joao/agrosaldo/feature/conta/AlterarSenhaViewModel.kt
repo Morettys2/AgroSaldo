@@ -27,7 +27,7 @@ data class AlterarSenhaUiState(
     val erroConfirmacao: String? = null,
     val salvando: Boolean = false,
     val concluido: Boolean = false,
-    /** Nome e e-mail da conta: a nova senha não pode contê-los. */
+    /** Usados na validação: a nova senha não pode conter nome nem e-mail. */
     val email: String = "",
     val nome: String = ""
 ) {
@@ -36,8 +36,8 @@ data class AlterarSenhaUiState(
 }
 
 /**
- * Trocar a senha pede a senha atual. Assim, quem pegar o celular
- * desbloqueado com o app aberto não consegue tomar a conta.
+ * Troca de senha do usuário logado. Exige a senha atual para que alguém com o
+ * aparelho desbloqueado não consiga tomar a conta.
  */
 class AlterarSenhaViewModel(
     private val conta: ContaService
@@ -101,7 +101,7 @@ class AlterarSenhaViewModel(
                         erroSenhaAtual = "Muitas tentativas. Tente de novo em " +
                             "${formatarEspera(resultado.segundosRestantes)}."
                     )
-                    // Sessão acabou no meio: a navegação já está levando ao login.
+                    // Sessão encerrada durante a operação; a navegação já redireciona ao login.
                     ResultadoAlteracaoSenha.SemSessao -> it.copy(salvando = false)
                 }
             }

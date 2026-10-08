@@ -37,14 +37,9 @@ import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Cobre o app inteiro quando o bloqueio está ligado.
- *
- * Abre a janela da digital sozinha ao aparecer — é o que a pessoa veio
- * fazer. Se cancelar, o botão "Desbloquear" chama de novo.
- *
- * "Entrar com e-mail e senha" é a saída de emergência: celular trocado,
- * digital apagada. Ele encerra a sessão, e quem prova a identidade passa a
- * ser a senha da conta — os dados não ficam expostos em momento nenhum.
+ * Sobreposição de bloqueio do app. Abre o prompt biométrico ao entrar em composição;
+ * "Desbloquear" reabre se cancelado. [aoUsarSenha] é a saída de emergência (sem
+ * biometria/PIN): encerra a sessão e exige login com senha, sem expor dados.
  */
 @Composable
 fun TelaBloqueioRoute(
@@ -59,7 +54,7 @@ fun TelaBloqueioRoute(
     val pedirDigital = {
         val activity = context.acharFragmentActivity()
         if (activity == null || !Biometria.disponivel(context)) {
-            // A pessoa tirou a digital e o PIN do celular depois de ligar o bloqueio.
+            // Credenciais do aparelho removidas depois que o bloqueio foi ligado.
             mensagem = "Este celular não tem mais digital nem PIN cadastrados. Entre com seu e-mail e senha."
         } else {
             mensagem = null
@@ -75,7 +70,7 @@ fun TelaBloqueioRoute(
 
     LaunchedEffect(Unit) { pedirDigital() }
 
-    // O botão voltar com o app travado é tratado na AppNavegacao.
+    // Botão voltar com o app bloqueado é tratado na AppNavegacao.
 
     TelaBloqueioScreen(
         mensagem = mensagem,
@@ -92,8 +87,7 @@ fun TelaBloqueioScreen(
     aoUsarSenha: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Surface opaca: além de cobrir, ela segura os toques para que nada
-    // embaixo seja apertado sem querer.
+    // Surface opaca também consome os toques, impedindo interação com o conteúdo abaixo.
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

@@ -9,11 +9,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Aparece quando a política de privacidade mudou desde o último aceite.
- *
- * LGPD: consentimento vale para as finalidades informadas. Se o app passa a
- * fazer algo novo (aqui, usar o GPS), precisa pedir de novo. Reaproveita a
- * tela de consentimento do cadastro, só com outro título e outro texto.
+ * Exibida quando a versão da política mudou desde o último aceite. LGPD: nova
+ * finalidade (uso de localização) exige novo consentimento. Reusa [ConsentimentoScreen].
  */
 @Composable
 fun NovoConsentimentoRoute(

@@ -41,7 +41,7 @@ import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
 
-/** Tela 18 — Aviso de chuva: liga, desliga e escolhe os limites da RN04. */
+/** Ajustes do aviso de chuva: ativação, limites (RN04) e propriedades avisadas. */
 @Composable
 fun AjustesAvisoRoute(
     aoConcluir: () -> Unit,
@@ -51,7 +51,7 @@ fun AjustesAvisoRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissao = rememberPermissaoNotificacao()
     val context = LocalContext.current
-    // Build de desenvolvimento (rodando pelo Android Studio)? Só nele aparecem as ferramentas de teste.
+    // FLAG_DEBUGGABLE em runtime: ferramentas de teste só em builds debug.
     val ehDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     LaunchedEffect(uiState.salvo) {
@@ -84,7 +84,7 @@ fun AjustesAvisoRoute(
     )
 }
 
-/** Botões que só existem na versão de desenvolvimento, para testar sem esperar chover. */
+/** Ações de teste exibidas apenas em builds debug. */
 class FerramentasDeTeste(
     val aoMostrarExemplo: () -> Unit,
     val aoVerificarAgora: () -> Unit
@@ -167,7 +167,7 @@ fun AjustesAvisoScreen(
             explicacao = "Abaixo disso o app fica quieto.",
             posicao = uiState.probabilidadeMinima.toFloat(),
             faixa = AjustesAvisoViewModel.PROBABILIDADE_MIN.toFloat()..AjustesAvisoViewModel.PROBABILIDADE_MAX.toFloat(),
-            // de 30 a 90 de 5 em 5: 13 posições, 11 marcas entre as pontas
+            // 30..90 de 5 em 5 = 13 posições; steps exclui as pontas.
             marcas = 11,
             habilitado = uiState.ativo,
             aoMudar = aoMudarProbabilidade
@@ -181,7 +181,7 @@ fun AjustesAvisoScreen(
             explicacao = "Garoa não adianta para molhar a lavoura.",
             posicao = uiState.chuvaMinimaMm.toFloat(),
             faixa = AjustesAvisoViewModel.CHUVA_MIN.toFloat()..AjustesAvisoViewModel.CHUVA_MAX.toFloat(),
-            // de 1 a 10 de meio em meio: 19 posições, 17 marcas
+            // 1..10 de 0,5 em 0,5 = 19 posições; steps exclui as pontas.
             marcas = 17,
             habilitado = uiState.ativo,
             aoMudar = aoMudarChuva
@@ -199,7 +199,7 @@ fun AjustesAvisoScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        // A linha toda liga e desliga, e o leitor de tela diz "interruptor".
+                        // toggleable na linha inteira com Role.Switch para acessibilidade.
                         .toggleable(
                             value = sitio.avisa,
                             enabled = uiState.ativo,

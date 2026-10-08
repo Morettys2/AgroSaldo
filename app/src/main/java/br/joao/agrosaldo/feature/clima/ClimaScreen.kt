@@ -55,9 +55,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
-/**
- * Tela 16 — Clima (RF12, RF13).
- */
+/** Previsão do tempo e recomendação de irrigação da propriedade selecionada (RF12, RF13). */
 @Composable
 fun ClimaRoute(
     aoAbrirAjustes: () -> Unit,
@@ -154,8 +152,7 @@ fun ClimaScreen(
                     item(key = "recomendacao") { CartaoRecomendacao(uiState, Modifier.padding(horizontal = 20.dp)) }
                     item(key = "dias") { CartaoDias(uiState.dias, Modifier.padding(horizontal = 20.dp)) }
                     item(key = "fonte") {
-                        // Os dados da Open-Meteo são CC BY 4.0: os termos pedem o
-                        // crédito com link para o site.
+                        // Open-Meteo é CC BY 4.0: atribuição com link é obrigatória.
                         val fonte = buildAnnotatedString {
                             uiState.atualizadaEm?.let { append("$it · ") }
                             append("Fonte: ")
@@ -181,10 +178,7 @@ fun ClimaScreen(
     }
 }
 
-/**
- * O cabeçalho verde-noite: sítio, atualizar e o sininho em cima; a
- * temperatura grande; e a chuva das próximas horas numa barra verde-limão.
- */
+/** Cabeçalho com seletor de propriedade, ações, condição atual e barra de chance de chuva da janela. */
 @Composable
 private fun Cabecalho(
     uiState: ClimaUiState,
@@ -261,7 +255,6 @@ private fun Cabecalho(
                 color = MaterialTheme.agro.sobreCabecalho
             )
 
-            // Chance de chuva na janela do aviso, numa barra: dá para ler de longe.
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -304,7 +297,7 @@ private fun Cabecalho(
     }
 }
 
-/** O que fazer com o pivô — a pergunta que o produtor tem quando abre esta tela. */
+/** Recomendação de irrigação calculada pelo [ClimaViewModel]. */
 @Composable
 private fun CartaoRecomendacao(uiState: ClimaUiState, modifier: Modifier = Modifier) {
     Surface(
@@ -370,12 +363,10 @@ private fun LinhaDia(dia: DiaUi) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 12.dp)
-            // Uma frase só para o leitor de tela: "Amanhã, 65%, 6 mm, Pancadas, 21° 29°".
+            // Leitor de tela anuncia a linha como um único item.
             .semantics(mergeDescendants = true) {}
     ) {
         Text(text = dia.rotulo, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        // Chance e milímetros do dia, um embaixo do outro: "81%" sozinho não
-        // diz se é garoa ou chuva de molhar a lavoura.
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(56.dp)) {
             Text(
                 text = "${dia.probabilidade}%",

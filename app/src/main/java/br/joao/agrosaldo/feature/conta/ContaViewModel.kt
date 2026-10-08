@@ -26,11 +26,11 @@ data class ContaUiState(
     val nome: String = "",
     val email: String = "",
     val iniciais: String = "",
-    /** "30/09/2026 às 19:40" — quando a pessoa aceitou o termo da LGPD. */
+    /** Data/hora do aceite do termo LGPD, já formatada ("30/09/2026 às 19:40"). */
     val consentimentoEm: String = "",
     val versaoTermo: Int = 0,
     val quantidadePropriedades: Int = 0,
-    /** Pede digital ou PIN ao abrir o app. */
+    /** Exige biometria ou credencial do aparelho ao abrir o app. */
     val bloqueioAtivo: Boolean = false,
     val excluindo: Boolean = false,
     val erroExclusao: String? = null
@@ -44,10 +44,8 @@ data class ContaUiState(
 }
 
 /**
- * ViewModel da tela 19 — Conta.
- *
- * Mostra quem está conectado e o que o app guarda sobre essa pessoa, e
- * oferece os dois botões que a LGPD exige que existam: sair e apagar tudo.
+ * Tela de conta: dados do usuário logado, consentimento LGPD e bloqueio do app.
+ * Expõe as ações exigidas pela LGPD: sair e excluir a conta com todos os dados.
  */
 class ContaViewModel(
     private val conta: ContaService,
@@ -70,8 +68,7 @@ class ContaViewModel(
                 _exclusao
             ) { usuario, propriedades, bloqueioAtivo, exclusao ->
                 if (usuario == null) {
-                    // Acontece por um instante depois de sair ou excluir,
-                    // antes de a navegação trocar de tela.
+                    // Transitório após sair/excluir, até a navegação trocar de tela.
                     ContaUiState(carregando = false)
                 } else {
                     ContaUiState(
@@ -94,9 +91,8 @@ class ContaViewModel(
     fun aoSair() = conta.sair()
 
     /**
-     * Chamado só depois que a digital ou o PIN foram confirmados, para ligar
-     * e para desligar. Quem confere é a tela, porque a janela da digital é
-     * do Android; o ViewModel só guarda a escolha.
+     * Persiste a preferência de bloqueio. Só deve ser chamado após a tela confirmar
+     * a autenticação (o prompt biométrico exige FragmentActivity), ao ligar e ao desligar.
      */
     fun aoDefinirBloqueio(ativo: Boolean) = bloqueio.definir(ativo)
 
@@ -110,7 +106,7 @@ class ContaViewModel(
         _exclusao.value = EstadoExclusao(excluindo = true)
         viewModelScope.launch {
             _exclusao.value = when (val resultado = conta.excluirConta(senha)) {
-                // A sessão acabou; a navegação leva para o login.
+                // Sessão encerrada; a navegação leva ao login.
                 ResultadoExclusao.Sucesso -> EstadoExclusao()
                 ResultadoExclusao.SenhaIncorreta -> EstadoExclusao(erro = "Senha incorreta.")
                 is ResultadoExclusao.Bloqueado -> EstadoExclusao(
@@ -121,7 +117,7 @@ class ContaViewModel(
         }
     }
 
-    /** Ao fechar o diálogo de exclusão, o erro antigo não deve reaparecer na próxima vez. */
+    /** Limpa o erro para não reaparecer na próxima abertura do diálogo. */
     fun aoCancelarExclusao() = _exclusao.update { EstadoExclusao() }
 
     private data class EstadoExclusao(val excluindo: Boolean = false, val erro: String? = null)

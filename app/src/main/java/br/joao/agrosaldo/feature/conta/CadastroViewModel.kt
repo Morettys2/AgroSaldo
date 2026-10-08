@@ -25,29 +25,24 @@ data class CadastroUiState(
     val erroEmail: String? = null,
     val erroSenha: String? = null,
     val erroConfirmacao: String? = null,
-    /** Erro que não é de um campo só — aparece na tela de consentimento. */
+    /** Erro não associado a um campo; exibido na tela de consentimento. */
     val erroGeral: String? = null,
     val verificando: Boolean = false,
     val criando: Boolean = false,
-    /** Evento: o formulário passou e a navegação deve abrir o consentimento. */
+    /** Evento de navegação para o consentimento; consumido por [CadastroViewModel.aoAbrirConsentimento]. */
     val irParaConsentimento: Boolean = false
 ) {
-    /** Recalculado a cada tecla: a tela marca cada requisito assim que ele é cumprido. */
     val requisitos: RequisitosSenha
         get() = RegrasDeConta.requisitosDaSenha(senha, email, nome)
 }
 
 /**
- * ViewModel das telas 03 (Criar conta) e 04 (Consentimento LGPD).
+ * Compartilhado entre o formulário de cadastro e a tela de consentimento LGPD.
+ * O formulário só coleta e valida; a conta é gravada apenas no aceite do termo,
+ * então voltar ou recusar não persiste nada (consentimento antes do tratamento).
  *
- * As duas telas compartilham este MESMO ViewModel. O formulário preenche
- * os dados; o consentimento é que grava. Assim nada é salvo antes do aceite:
- * se a pessoa voltar ou recusar, a conta simplesmente não existe — que é o
- * que a LGPD pede (consentimento antes do tratamento do dado).
- *
- * Como duas telas usam um ViewModel só: veja AppNavegacao, na rota do
- * consentimento. Ela pede o ViewModel "emprestado" da tela de cadastro,
- * que continua na pilha por baixo.
+ * A rota de consentimento na AppNavegacao obtém esta instância a partir da
+ * back stack entry do cadastro.
  */
 class CadastroViewModel(
     private val conta: ContaService
@@ -61,7 +56,6 @@ class CadastroViewModel(
     fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v, erroSenha = null) }
     fun aoMudarConfirmacao(v: String) = _uiState.update { it.copy(confirmacao = v, erroConfirmacao = null) }
 
-    /** Botão "Continuar" do formulário. */
     fun aoContinuar() {
         val estado = _uiState.value
         if (estado.verificando) return
@@ -74,8 +68,7 @@ class CadastroViewModel(
 
         _uiState.update { it.copy(verificando = true) }
         viewModelScope.launch {
-            // Conferir o e-mail agora, e não só no fim, poupa a pessoa de ler
-            // o termo inteiro para descobrir que já tinha conta.
+            // Checa duplicidade antes do consentimento para não falhar só após o aceite.
             val emUso = conta.emailEmUso(estado.email)
             _uiState.update {
                 if (emUso) {
@@ -87,16 +80,16 @@ class CadastroViewModel(
         }
     }
 
-    /** A navegação chama isto depois de abrir o consentimento, para o evento não disparar de novo. */
+    /** Consome o evento [CadastroUiState.irParaConsentimento]. */
     fun aoAbrirConsentimento() = _uiState.update { it.copy(irParaConsentimento = false) }
 
-    /** Botão "Aceito e quero continuar". É aqui que a conta nasce. */
+    /** Cria a conta com o termo aceito; em sucesso o [ContaService] já inicia a sessão. */
     fun aoAceitarTermo() {
         val estado = _uiState.value
         if (estado.criando) return
 
-        // Se o Android fechou o app com a tela de consentimento aberta, ao
-        // voltar o formulário está vazio. Melhor pedir de novo do que falhar.
+        // Após morte do processo o estado não é restaurado (sem SavedStateHandle)
+        // e o formulário chega vazio aqui.
         if (validar(estado) != null) {
             _uiState.update { it.copy(erroGeral = "Os dados do cadastro se perderam. Volte e preencha de novo.") }
             return
@@ -112,8 +105,7 @@ class CadastroViewModel(
             )
             _uiState.update {
                 when (resultado) {
-                    // A sessão já foi iniciada pelo ContaService; a navegação
-                    // percebe e abre o início. Aqui só limpamos as senhas.
+                    // Sessão já iniciada pelo ContaService; a navegação segue ao início.
                     is ResultadoCadastro.Sucesso -> it.copy(criando = false, senha = "", confirmacao = "")
                     ResultadoCadastro.EmailJaCadastrado ->
                         it.copy(criando = false, erroGeral = "Já existe uma conta com este e-mail.")
@@ -126,7 +118,7 @@ class CadastroViewModel(
         }
     }
 
-    /** Devolve o estado com os erros marcados, ou null se estiver tudo certo. */
+    /** Retorna o estado com os erros preenchidos, ou null se for válido. */
     private fun validar(estado: CadastroUiState): CadastroUiState? {
         var houveErro = false
         var novo = estado

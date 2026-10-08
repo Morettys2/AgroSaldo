@@ -23,11 +23,8 @@ data class LoginUiState(
 )
 
 /**
- * ViewModel da tela 02 — Login (RF02).
- *
- * Ele não navega. Quando o login dá certo, a sessão muda, e quem está
- * observando a sessão (a navegação) leva o usuário para o início. Uma
- * única fonte de verdade decide "logado ou não" para o app inteiro.
+ * Login (RF02). Não navega: o sucesso abre a sessão no [ContaService], que é a
+ * fonte única de "logado ou não" observada pela navegação.
  */
 class LoginViewModel(
     private val conta: ContaService
@@ -51,11 +48,10 @@ class LoginViewModel(
         _uiState.update { it.copy(entrando = true, erro = null) }
         viewModelScope.launch {
             when (val resultado = conta.entrar(estado.email, estado.senha)) {
-                // A senha sai da memória assim que não serve mais.
+                // Remove a senha do estado assim que não é mais necessária.
                 is ResultadoLogin.Sucesso -> _uiState.update { it.copy(entrando = false, senha = "") }
 
-                // Mensagem única para e-mail inexistente e senha errada: dizer
-                // "esse e-mail não tem conta" ajudaria quem está chutando.
+                // Mensagem única para e-mail inexistente e senha errada (evita enumeração de contas).
                 ResultadoLogin.CredenciaisInvalidas -> _uiState.update {
                     it.copy(entrando = false, senha = "", erro = "E-mail ou senha incorretos.")
                 }

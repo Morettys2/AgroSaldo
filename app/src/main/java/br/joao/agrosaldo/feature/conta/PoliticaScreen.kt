@@ -15,12 +15,11 @@ import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
-/** Um trecho da política: título e texto. */
 private data class Secao(val titulo: String, val texto: String)
 
-/*
- * O texto da política mora aqui, num lugar só. Se ele mudar, suba
- * TermoDePrivacidade.VERSAO_ATUAL: é assim que se sabe quem aceitou qual versão.
+/**
+ * Texto da política. Qualquer alteração exige incrementar TermoDePrivacidade.VERSAO_ATUAL,
+ * que dispara o reaceite (NovoConsentimentoScreen) e registra qual versão cada usuário aceitou.
  */
 private val SECOES = listOf(
     Secao(
@@ -69,9 +68,8 @@ private val SECOES = listOf(
 )
 
 /**
- * Política de privacidade completa. Aberta pelo consentimento (antes de
- * existir conta) e pela tela de Conta — por isso é stateless e não depende
- * de ViewModel nenhum.
+ * Política de privacidade completa. Stateless, pois é aberta tanto antes de
+ * existir conta (consentimento) quanto a partir da tela de Conta.
  */
 @Composable
 fun PoliticaScreen(modifier: Modifier = Modifier) {

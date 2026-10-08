@@ -12,17 +12,13 @@ import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 
-/**
- * Ícone de cada condição. Fica na camada de tela: o domínio só sabe que
- * vai chover, quem decide o desenho é a interface.
- */
+/** Ícone de cada condição; mapeamento mantido na UI para o domínio não depender de Compose. */
 fun CondicaoTempo.icone(): ImageVector = when (this) {
     CondicaoTempo.CEU_LIMPO -> Icons.Outlined.WbSunny
     CondicaoTempo.POUCAS_NUVENS -> Icons.Outlined.FilterDrama
     CondicaoTempo.NUBLADO -> Icons.Outlined.Cloud
     CondicaoTempo.NEBLINA -> Icons.Outlined.Dehaze
-    // Garoa também é gota: o ícone de pontinhos (Grain) não era reconhecido
-    // como chuva. O rótulo ("Garoa") é que diferencia, para quem usa leitor de tela.
+    // Garoa usa a gota (Grain não era reconhecido como chuva); o rótulo textual diferencia.
     CondicaoTempo.GAROA, CondicaoTempo.CHUVA, CondicaoTempo.PANCADAS -> Icons.Outlined.WaterDrop
     CondicaoTempo.TEMPESTADE -> Icons.Outlined.FlashOn
     CondicaoTempo.NEVE -> Icons.Outlined.AcUnit

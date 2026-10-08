@@ -40,7 +40,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** Uma linha de "Próximos 7 dias", já com tudo em texto. */
+/** Linha da previsão diária, com valores já formatados para exibição. */
 data class DiaUi(
     val rotulo: String,
     val condicao: CondicaoTempo,
@@ -59,14 +59,14 @@ data class ClimaUiState(
     val temPrevisao: Boolean = false,
     val temperaturaAtual: String? = null,
     val condicaoAtual: CondicaoTempo = CondicaoTempo.DESCONHECIDA,
-    /** Frase do cartão grande: "Chuva prevista a partir das 18h". */
+    /** Resumo do cartão principal, ex.: "Chuva prevista a partir das 18h". */
     val resumo: String = "",
     val janelaHoras: Int = 12,
-    /** "até as 7h de amanhã" — deixa claro que o cartão olha as próximas horas, não o dia. */
+    /** Fim da janela de avaliação, ex.: "até as 7h de amanhã". */
     val janelaAte: String = "",
-    /** 0 a 100 — a barra do cartão grande. */
+    /** Maior probabilidade de chuva na janela, 0–100. */
     val probabilidadeJanela: Int = 0,
-    /** "85% · 6 mm", ou só "85%" quando não há volume previsto. */
+    /** Ex.: "85% · 6 mm"; só "85%" quando não há volume previsto. */
     val chanceEVolume: String = "",
     val vaiChover: Boolean = false,
     val recomendacaoTitulo: String = "",
@@ -74,17 +74,16 @@ data class ClimaUiState(
     val dias: List<DiaUi> = emptyList(),
     val atualizadaEm: String? = null,
     val atualizando: Boolean = false,
-    /** Aviso de falta de internet ou erro do serviço. */
+    /** Erro da última atualização (sem conexão ou falha do serviço). */
     val mensagem: String? = null,
     val avisoAtivo: Boolean = true
 )
 
 /**
- * ViewModel da tela 16 — Clima (RF12, RF13).
+ * Previsão do tempo da propriedade selecionada (RF12, RF13).
  *
- * O que a tela mostra vem SEMPRE do banco (cache). A internet só entra para
- * trocar o guardado por um mais novo — e só se o guardado tiver mais de
- * 1 hora. Assim a tela abre na hora, mesmo sem sinal no sítio.
+ * A UI observa sempre o cache local ([ClimaRepository.observar]); a rede só atualiza
+ * o cache, e automaticamente apenas quando ele tem mais de 1 hora. Funciona offline.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ClimaViewModel(
@@ -99,10 +98,8 @@ class ClimaViewModel(
     private val _mensagem = MutableStateFlow<String?>(null)
 
     /**
-     * A busca em andamento. Só existe uma por vez: trocar de propriedade
-     * cancela a busca da anterior, e a [geracao] garante que uma busca velha
-     * que termine atrasada não mexa no estado da nova (nem mostre o "sem
-     * internet" da propriedade errada).
+     * Busca em andamento (no máximo uma). Uma nova busca cancela a anterior; [geracao]
+     * impede que uma busca antiga que termine depois altere o estado da atual.
      */
     private var busca: Job? = null
     private var geracao = 0
@@ -110,17 +107,17 @@ class ClimaViewModel(
     private val _uiState = MutableStateFlow(ClimaUiState())
     val uiState: StateFlow<ClimaUiState> = _uiState.asStateFlow()
 
-    /** As propriedades e qual delas está selecionada (a mesma do Início). */
+    /** Lista de propriedades e a selecionada em [SelecaoAtual] (fallback: a primeira). */
     private val selecao: Flow<Pair<List<Propriedade>, Propriedade?>> =
         combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
             lista to (lista.firstOrNull { it.id == id } ?: lista.firstOrNull())
         }
 
     init {
-        // Trocou de propriedade: busca previsão nova se a guardada estiver velha.
+        // A cada troca de propriedade, atualiza o cache se estiver vencido.
         viewModelScope.launch {
             selecao.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
-                // O aviso "sem internet" era da propriedade anterior.
+                // A mensagem pertencia à propriedade anterior.
                 _mensagem.value = null
                 if (propriedade != null) buscar(propriedade, forcar = false)
             }
@@ -142,11 +139,11 @@ class ClimaViewModel(
 
     fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
 
-    /** Botão de atualizar: busca mesmo que a guardada seja recente. */
+    /** Atualização manual: ignora a validade do cache. */
     fun aoAtualizar() {
         val id = _uiState.value.propriedadeId
         val propriedade = _uiState.value.propriedades.firstOrNull { it.id == id } ?: return
-        // Dois toques seguidos no botão: a busca que já está rodando basta.
+        // Ignora toques repetidos enquanto uma busca está em andamento.
         if (_atualizando.value) return
         buscar(propriedade, forcar = true)
     }
@@ -156,9 +153,8 @@ class ClimaViewModel(
         busca?.cancel()
         busca = viewModelScope.launch {
             _atualizando.value = true
-            // finally: se a pessoa trocar de propriedade no meio da busca, esta
-            // busca é cancelada. Sem o finally, o "atualizando" ficaria ligado
-            // para sempre e o botão de atualizar pararia de funcionar.
+            // finally cobre o cancelamento (troca de propriedade); sem ele
+            // "atualizando" poderia ficar preso em true.
             try {
                 val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
                 if (minha == geracao) {
@@ -240,10 +236,9 @@ class ClimaViewModel(
         else -> previsao.condicaoAtual.rotulo
     }
 
-    /** A tela fala com o produtor: o que fazer com o pivô, e por quê. */
+    /** Título e texto da recomendação de irrigação conforme a avaliação e os limites. */
     private fun recomendacao(avaliacao: AvaliacaoChuva, limites: LimitesChuva): Pair<String, String> {
         val limitesTexto = "${limites.probabilidadeMinima}% de chance ou ${limites.chuvaMinimaMm.emMilimetros()}"
-        // "85% de chance e 6 mm" — sem o "e 0 mm" quando não há volume.
         val previsto = TextosDaChuva.chanceEVolume(avaliacao, separador = " e ")
         return when {
             !avaliacao.temDados ->

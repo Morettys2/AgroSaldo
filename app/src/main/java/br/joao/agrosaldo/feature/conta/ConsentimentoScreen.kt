@@ -34,11 +34,8 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
- * Tela 04 — Consentimento LGPD (RNF10).
- *
- * É aqui, e não no formulário, que a conta é criada. Os três botões são as
- * três escolhas que a LGPD garante: aceitar, ler antes de decidir, e recusar
- * sem prejuízo — recusando, nada foi gravado.
+ * Consentimento LGPD do cadastro (RNF10). A conta só é criada ao aceitar o termo;
+ * recusar não grava nada. Compartilha o [CadastroViewModel] com o formulário.
  */
 @Composable
 fun ConsentimentoRoute(
@@ -74,8 +71,7 @@ fun ConsentimentoScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            // O scroll vem antes do padding: a barra de rolagem encosta na
-            // borda da tela e só o conteúdo fica afastado.
+            // Scroll antes do padding: a área rolável ocupa a largura toda.
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(top = 28.dp, bottom = 32.dp),

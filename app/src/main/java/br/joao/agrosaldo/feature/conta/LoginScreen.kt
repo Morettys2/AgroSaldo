@@ -40,10 +40,8 @@ import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Tela 02 — Login (RF02).
- *
- * Repare que não existe "aoEntrou" aqui. Quando o login dá certo, a sessão
- * muda e a AppNavegacao, que observa a sessão, leva para o início sozinha.
+ * Rota de login (RF02). Não há callback de sucesso: a AppNavegacao observa a
+ * sessão e navega ao início quando ela é aberta.
  */
 @Composable
 fun LoginRoute(
@@ -77,8 +75,7 @@ fun LoginScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            // Com o teclado aberto, a área visível encolhe e o campo em foco
-            // continua alcançável pela rolagem, sem ficar escondido.
+            // imePadding antes do scroll: o campo em foco fica acessível com o teclado aberto.
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
@@ -126,7 +123,6 @@ fun LoginScreen(
             aoConfirmar = aoEntrar
         )
 
-        // O erro fica acima do botão, onde o olho está quando o toque falha.
         uiState.erro?.let { erro ->
             Text(
                 text = erro,
@@ -168,8 +164,7 @@ fun LoginScreen(
     }
 
     if (explicandoSenha) {
-        // Sem servidor não há para onde mandar um e-mail de recuperação.
-        // Melhor dizer isso com clareza do que mostrar um botão que não faz nada.
+        // Conta só local, sem backend: não há recuperação por e-mail; o diálogo explica isso.
         AlertDialog(
             onDismissRequest = { explicandoSenha = false },
             title = { Text("Recuperar a senha") },
