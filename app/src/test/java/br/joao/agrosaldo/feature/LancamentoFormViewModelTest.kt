@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature
 
+import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
 import br.joao.agrosaldo.data.DadosDeExemplo
@@ -463,5 +464,80 @@ class LancamentoFormViewModelTest {
         val vm = LancamentoFormViewModel(lancamentos, PropriedadeRepositoryMemoria(emptyList()), lancamentoId = null, hoje = { hoje })
         assertTrue(vm.uiState.value.carregado)
         assertTrue(vm.uiState.value.propriedades.isEmpty())
+    }
+
+    @Test
+    fun `o que foi preenchido volta depois que o Android mata o processo`() {
+        val guardado = SavedStateHandle()
+        val antes = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado)
+        antes.aoMudarTipo(TipoLancamento.RECEITA)
+        antes.aoMudarCategoria(CategoriaLancamento.ARRENDAMENTO)
+        antes.aoTeclar("4500")
+        antes.aoEscolherData(LocalDate.of(2026, 9, 28))
+        antes.aoMudarPropriedade(DadosDeExemplo.ID_SITIO)
+        antes.aoMudarDescricao("Pasto do vizinho")
+
+        // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
+        assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
+        val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
+        val depois = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+
+        val estado = depois.uiState.value
+        assertEquals(TipoLancamento.RECEITA, estado.tipo)
+        assertEquals(CategoriaLancamento.ARRENDAMENTO, estado.categoria)
+        assertEquals("4500", estado.valorDigitos)
+        assertEquals("28/09/2026", estado.data)
+        assertEquals(DadosDeExemplo.ID_SITIO, estado.propriedadeId)
+        assertEquals("Pasto do vizinho", estado.descricao)
+    }
+
+    @Test
+    fun `na edicao o valor restaurado vale mais que o do banco`() {
+        val restaurado = SavedStateHandle(
+            mapOf(
+                LancamentoFormViewModel.CHAVE_VALOR to "99900",
+                LancamentoFormViewModel.CHAVE_DESCRICAO to "Conta do pivô corrigida"
+            )
+        )
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, estadoSalvo = restaurado)
+
+        val estado = vm.uiState.value
+        assertTrue(estado.ehEdicao)
+        assertEquals("99900", estado.valorDigitos)
+        assertEquals("Conta do pivô corrigida", estado.descricao)
+        assertEquals("o que não foi guardado vem do banco", CategoriaLancamento.ENERGIA, estado.categoria)
+        assertEquals("26/09/2026", estado.data)
+    }
+
+    @Test
+    fun `restauracao ignora sitio que nao existe mais e categoria de outro tipo`() {
+        val restaurado = SavedStateHandle(
+            mapOf(
+                LancamentoFormViewModel.CHAVE_TIPO to TipoLancamento.RECEITA.name,
+                LancamentoFormViewModel.CHAVE_CATEGORIA to CategoriaLancamento.ADUBO.name,
+                LancamentoFormViewModel.CHAVE_PROPRIEDADE to "sitio-excluido"
+            )
+        )
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+
+        assertEquals(TipoLancamento.RECEITA, vm.uiState.value.tipo)
+        assertEquals(CategoriaLancamento.VENDA_SAFRA, vm.uiState.value.categoria)
+        assertEquals(DadosDeExemplo.ID_FAZENDA, vm.uiState.value.propriedadeId)
+    }
+
+    @Test
+    fun `antes de carregar nada e guardado, para nao apagar o que seria restaurado`() {
+        val aindaCarregando = MutableSharedFlow<List<Propriedade>>(replay = 1)
+        val lentas = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> = aindaCarregando
+        }
+        val guardado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_VALOR to "777"))
+        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado)
+
+        vm.aoMudarTipo(TipoLancamento.RECEITA)
+        assertEquals("777", guardado.get<String>(LancamentoFormViewModel.CHAVE_VALOR))
+
+        aindaCarregando.tryEmit(DadosDeExemplo.propriedades())
+        assertEquals("777", vm.uiState.value.valorDigitos)
     }
 }

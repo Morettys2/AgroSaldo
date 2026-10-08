@@ -1,7 +1,9 @@
 package br.joao.agrosaldo.feature.lancamento
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -85,6 +88,8 @@ data class LancamentoFormUiState(
  * @param copiaDe id de um lançamento a duplicar ("Lançar de novo"): copia tipo, categoria,
  *   valor, propriedade e descrição, com a data de hoje e um id novo.
  * @param tipoInicial tipo pré-selecionado (atalhos "Despesa"/"Receita" do Início).
+ * @param estadoSalvo guarda os campos editáveis para sobreviverem à morte do processo; na
+ *   edição, o que foi restaurado vale mais que o que está no banco.
  */
 class LancamentoFormViewModel(
     private val lancamentoRepository: LancamentoRepository,
@@ -93,7 +98,8 @@ class LancamentoFormViewModel(
     private val copiaDe: String? = null,
     private val desfazer: Desfazer = Desfazer(),
     private val hoje: () -> LocalDate = LocalDate::now,
-    tipoInicial: TipoLancamento? = null
+    tipoInicial: TipoLancamento? = null,
+    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -135,28 +141,67 @@ class LancamentoFormViewModel(
                     ehEdicao = !ehCopia,
                     hoje = hoje(),
                     carregado = true
-                )
+                ).comCamposRestaurados()
                 return@launch
             }
 
             _uiState.update {
                 it.copy(propriedades = propriedades, propriedadeId = selecionada, carregado = true)
+                    .comCamposRestaurados()
             }
         }
+    }
+
+    /** Sobrepõe os campos guardados em [estadoSalvo] antes da morte do processo. */
+    private fun LancamentoFormUiState.comCamposRestaurados(): LancamentoFormUiState {
+        val tipoRestaurado = estadoSalvo.get<String>(CHAVE_TIPO)
+            ?.let { nome -> TipoLancamento.entries.firstOrNull { it.name == nome } }
+            ?: tipo
+        val categoriaRestaurada = estadoSalvo.get<String>(CHAVE_CATEGORIA)
+            ?.let { nome -> CategoriaLancamento.entries.firstOrNull { it.name == nome } }
+            ?: categoria
+        return copy(
+            tipo = tipoRestaurado,
+            // O par tipo/categoria precisa continuar válido para o `require` de [Lancamento].
+            categoria = categoriaRestaurada.takeIf { it.tipo == tipoRestaurado }
+                ?: CategoriaLancamento.porTipo(tipoRestaurado).first(),
+            valorDigitos = estadoSalvo.get<String>(CHAVE_VALOR) ?: valorDigitos,
+            data = estadoSalvo.get<String>(CHAVE_DATA) ?: data,
+            // A propriedade guardada pode ter sido excluída nesse meio-tempo.
+            propriedadeId = estadoSalvo.get<String>(CHAVE_PROPRIEDADE)
+                ?.takeIf { id -> propriedades.any { it.id == id } }
+                ?: propriedadeId,
+            descricao = estadoSalvo.get<String>(CHAVE_DESCRICAO) ?: descricao
+        )
+    }
+
+    /**
+     * Aplica uma edição da pessoa e guarda os campos editáveis em [estadoSalvo]. Antes de
+     * carregar nada é guardado, para o estado padrão não sobrescrever o que seria restaurado.
+     */
+    private fun editar(mudanca: (LancamentoFormUiState) -> LancamentoFormUiState) {
+        val estado = _uiState.updateAndGet(mudanca)
+        if (!estado.carregado) return
+        estadoSalvo[CHAVE_TIPO] = estado.tipo.name
+        estadoSalvo[CHAVE_CATEGORIA] = estado.categoria.name
+        estadoSalvo[CHAVE_VALOR] = estado.valorDigitos
+        estadoSalvo[CHAVE_DATA] = estado.data
+        estadoSalvo[CHAVE_PROPRIEDADE] = estado.propriedadeId
+        estadoSalvo[CHAVE_DESCRICAO] = estado.descricao
     }
 
     /**
      * Troca o tipo e reseta a categoria para a primeira do novo tipo, mantendo o par
      * tipo/categoria sempre válido (o `require` de [Lancamento] rejeitaria o contrário).
      */
-    fun aoMudarTipo(tipo: TipoLancamento) = _uiState.update {
+    fun aoMudarTipo(tipo: TipoLancamento) = editar {
         it.copy(tipo = tipo, categoria = CategoriaLancamento.porTipo(tipo).first())
     }
 
     fun aoMudarCategoria(categoria: CategoriaLancamento) =
-        _uiState.update { it.copy(categoria = categoria) }
+        editar { it.copy(categoria = categoria) }
 
-    fun aoMudarValor(entrada: String) = _uiState.update {
+    fun aoMudarValor(entrada: String) = editar {
         it.copy(valorDigitos = entrada.filter { c -> c.isDigit() }.take(MAXIMO_DE_DIGITOS), erroValor = null)
     }
 
@@ -165,28 +210,28 @@ class LancamentoFormViewModel(
      * Zeros à esquerda são descartados e uma tecla que excederia [MAXIMO_DE_DIGITOS] é
      * ignorada por inteiro.
      */
-    fun aoTeclar(digitos: String) = _uiState.update { estado ->
+    fun aoTeclar(digitos: String) = editar { estado ->
         // Antes do carregamento, o valor vindo do banco sobrescreveria o que fosse digitado.
-        if (!estado.carregado || digitos.isEmpty() || !digitos.all { it.isDigit() }) return@update estado
+        if (!estado.carregado || digitos.isEmpty() || !digitos.all { it.isDigit() }) return@editar estado
         val novo = (estado.valorDigitos + digitos).trimStart('0')
         if (novo.length > MAXIMO_DE_DIGITOS) estado else estado.copy(valorDigitos = novo, erroValor = null)
     }
 
-    fun aoApagarDigito() = _uiState.update {
+    fun aoApagarDigito() = editar {
         if (!it.carregado) it else it.copy(valorDigitos = it.valorDigitos.dropLast(1), erroValor = null)
     }
 
     /** Long press no ⌫: zera o valor. */
-    fun aoLimparValor() = _uiState.update { if (!it.carregado) it else it.copy(valorDigitos = "", erroValor = null) }
+    fun aoLimparValor() = editar { if (!it.carregado) it else it.copy(valorDigitos = "", erroValor = null) }
 
-    fun aoMudarData(v: String) = _uiState.update { it.copy(data = v, erroData = null) }
+    fun aoMudarData(v: String) = editar { it.copy(data = v, erroData = null) }
 
-    fun aoEscolherData(data: LocalDate) = _uiState.update { it.copy(data = data.formatarBr(), erroData = null) }
+    fun aoEscolherData(data: LocalDate) = editar { it.copy(data = data.formatarBr(), erroData = null) }
 
     fun aoUsarHoje() = aoEscolherData(hoje())
     fun aoUsarOntem() = aoEscolherData(hoje().minusDays(1))
-    fun aoMudarDescricao(v: String) = _uiState.update { it.copy(descricao = v) }
-    fun aoMudarPropriedade(id: String) = _uiState.update { it.copy(propriedadeId = id) }
+    fun aoMudarDescricao(v: String) = editar { it.copy(descricao = v) }
+    fun aoMudarPropriedade(id: String) = editar { it.copy(propriedadeId = id) }
 
     fun aoSalvar() {
         val estado = _uiState.value
@@ -282,6 +327,14 @@ class LancamentoFormViewModel(
         /** Teto de entrada: R$ 9.999.999,99. */
         const val MAXIMO_DE_DIGITOS = DIGITOS_MAXIMOS_DO_VALOR
 
+        // Chaves do SavedStateHandle; os valores são String para caberem no Bundle.
+        internal const val CHAVE_TIPO = "tipo"
+        internal const val CHAVE_CATEGORIA = "categoria"
+        internal const val CHAVE_VALOR = "valor"
+        internal const val CHAVE_DATA = "data"
+        internal const val CHAVE_PROPRIEDADE = "propriedade"
+        internal const val CHAVE_DESCRICAO = "descricao"
+
         fun Factory(
             lancamentoId: String?,
             copiaDe: String? = null,
@@ -294,7 +347,8 @@ class LancamentoFormViewModel(
                     lancamentoId = lancamentoId,
                     copiaDe = copiaDe,
                     desfazer = Repositorios.desfazer,
-                    tipoInicial = tipoInicial
+                    tipoInicial = tipoInicial,
+                    estadoSalvo = createSavedStateHandle()
                 )
             }
         }
