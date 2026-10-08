@@ -7,14 +7,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 
 /**
- * Tema do app. Envolve todas as telas.
- *
- * Segue o modo do celular: claro de dia, escuro se a pessoa escolheu. No sol
- * o claro lê melhor, e é o que o Android usa por padrão.
- *
- * Não usamos dynamic color (a cor do papel de parede) de propósito: a
- * identidade do app depende do verde, e deixar o sistema trocar isso
- * quebraria o significado de receita e despesa.
+ * Tema raiz: Material 3 mais as extensões [CoresAgro] e [CoresCategorias].
+ * Segue o modo claro/escuro do sistema. Dynamic color é desativado de propósito: as
+ * cores de receita/despesa têm significado e não podem vir do papel de parede.
  */
 @Composable
 fun AgroSaldoTheme(
@@ -34,18 +29,13 @@ fun AgroSaldoTheme(
     }
 }
 
-/**
- * Atalho para as cores de domínio: `MaterialTheme.agro.despesa`.
- *
- * Pendurar no MaterialTheme deixa o uso igual ao das cores nativas — quem
- * escreve a tela não precisa saber que existe um CompositionLocal por baixo.
- */
+/** Acesso a [CoresAgro] com a mesma sintaxe das cores nativas: `MaterialTheme.agro.despesa`. */
 val MaterialTheme.agro: CoresAgro
     @Composable
     @ReadOnlyComposable
     get() = LocalCoresAgro.current
 
-/** `MaterialTheme.categorias.energia` — as cores de cada categoria. */
+/** Acesso a [CoresCategorias]: `MaterialTheme.categorias.energia`. */
 val MaterialTheme.categorias: CoresCategorias
     @Composable
     @ReadOnlyComposable

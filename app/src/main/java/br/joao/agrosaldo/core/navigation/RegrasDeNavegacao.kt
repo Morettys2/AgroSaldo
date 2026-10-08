@@ -1,26 +1,22 @@
 package br.joao.agrosaldo.core.navigation
 
 /**
- * Para onde o app deve ir quando a sessão muda. Kotlin puro, sem Compose:
- * por isso dá para testar cada caso sem abrir o app.
+ * Redirecionamento por estado de sessão, sem dependência de Compose (testável em JVM).
  *
- * Devolve null quando a tela atual pode continuar.
- *
- * @param rota a tela atual.
- * @param anterior a tela logo abaixo na pilha (de onde a atual foi aberta).
+ * [destino] devolve a rota para onde ir, ou null se a tela atual é permitida.
+ * `rota` é a tela atual; `anterior`, a entrada logo abaixo na back stack.
  */
 object RegrasDeNavegacao {
 
     fun destino(rota: String, anterior: String?, logado: Boolean, precisaNovoAceite: Boolean): String? {
-        // A política abre de vários lugares. O que decide se ela pode ficar na
-        // tela é de onde ela veio: aberta pela Conta, o "voltar" levaria para
-        // dentro da conta — então ali ela não conta como lugar seguro.
+        // A política só é permitida conforme a origem: aberta pela Conta, o "voltar"
+        // levaria para uma área autenticada.
         fun politicaAbertaDe(origens: Set<String>) = rota == Rotas.POLITICA && anterior in origens
 
         return when {
             !logado ->
                 if (rota in Rotas.DE_ENTRADA || politicaAbertaDe(Rotas.DE_ENTRADA)) null else Rotas.LOGIN
-            // Dá para ler a política antes de aceitar; o resto do app, não.
+            // Antes do novo aceite, só a política pode ser lida.
             precisaNovoAceite ->
                 if (rota == Rotas.NOVO_CONSENTIMENTO || politicaAbertaDe(setOf(Rotas.NOVO_CONSENTIMENTO))) null
                 else Rotas.NOVO_CONSENTIMENTO

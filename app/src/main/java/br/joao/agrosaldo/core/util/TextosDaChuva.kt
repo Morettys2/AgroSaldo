@@ -6,24 +6,18 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 /**
- * As frases da chuva, num lugar só.
- *
- * O cartão do Início, a tela de Clima e a notificação falam da mesma
- * previsão. Antes, cada um montava o próprio texto e eles se contradiziam:
- * um mostrava "0 mm", outro escondia; um dizia "Sem chuva" do lado de "82%
- * de chance". Aqui as três telas usam as mesmas regras de escrita — e elas
- * são testadas sem abrir o app.
+ * Textos de previsão de chuva compartilhados pelo Início, pela tela de Clima e pela
+ * notificação, para que as três exibam a mesma previsão de forma consistente.
  */
 object TextosDaChuva {
 
     /**
-     * Abaixo disto (e sem volume nenhum) dá para dizer "sem chuva": até 39%
-     * a previsão do tempo chama de "pouco provável". A partir daqui, e
-     * abaixo do limite do produtor, o app diz "pode chover".
+     * Probabilidade (%) a partir da qual não se exibe "sem chuva", mesmo abaixo do
+     * limite configurado (abaixo de 40% é a faixa "pouco provável").
      */
     const val CHANCE_DESPREZIVEL = 40
 
-    /** Menos que isso aparece como "0 mm" — melhor nem mostrar. */
+    /** Abaixo disto o volume arredondaria para "0 mm" e é omitido. */
     private const val VOLUME_DESPREZIVEL_MM = 0.05
 
     /** "6 mm", ou null quando a chuva prevista é desprezível. */
@@ -35,29 +29,26 @@ object TextosDaChuva {
         listOfNotNull("${avaliacao.probabilidadeMaxima}% de chance", volume(avaliacao.chuvaTotalMm))
             .joinToString(separador)
 
-    /** "85% · 6 mm" — a versão curta, do cabeçalho do Clima. */
+    /** "85% · 6 mm". */
     fun chanceEVolumeCurto(avaliacao: AvaliacaoChuva): String =
         listOfNotNull("${avaliacao.probabilidadeMaxima}%", volume(avaliacao.chuvaTotalMm)).joinToString(" · ")
 
-    /** "90% ou 2 mm" — os limites que o produtor escolheu. */
+    /** Limites configurados: "90% ou 2 mm". */
     fun limites(limites: LimitesChuva): String =
         "${limites.probabilidadeMinima}% ou ${limites.chuvaMinimaMm.emMilimetros()}"
 
-    /** Abaixo do limite, mas com chance de verdade: não dá para dizer "sem chuva". */
+    /** Abaixo do limite de aviso, mas com chance ou volume não desprezível. */
     fun podeChoverAbaixoDoLimite(avaliacao: AvaliacaoChuva): Boolean =
         !avaliacao.vaiChover &&
             (avaliacao.probabilidadeMaxima >= CHANCE_DESPREZIVEL || volume(avaliacao.chuvaTotalMm) != null)
 
-    /** A chuva já começou (ou começa ainda nesta hora)? */
+    /** true se o início é na hora corrente ou antes. */
     fun jaComecou(inicio: LocalDateTime, agora: LocalDateTime): Boolean = !inicio.isAfter(agora.truncatedTo(ChronoUnit.HOURS))
 
     /**
-     * Quando a chuva começa, com o dia quando não é hoje: a janela pode
-     * passar da meia-noite (e ir até 48 h), e "às 2h" sozinho confundiria
-     * com a madrugada que já passou.
-     *
      * "às 18h", "à 1h", "à meia-noite", "amanhã às 2h", "depois de amanhã às 2h".
-     * Para a chuva que já começou, veja [jaComecou].
+     * Inclui o dia quando não é hoje, pois a janela pode chegar a 48 h.
+     * Não trata chuva já iniciada; ver [jaComecou].
      */
     fun quando(inicio: LocalDateTime, agora: LocalDateTime): String {
         val hora = horaComArtigo(inicio.hour, "à", "às")
@@ -74,17 +65,14 @@ object TextosDaChuva {
         return "a partir ${horaComArtigo(inicio.hour, "da", "das")}${deQueDia(agora, inicio)}"
     }
 
-    /** "a partir das 18h", sem dizer o dia (quando não se sabe a hora de agora). */
+    /** "a partir das 18h", sem o dia; para quando o horário de referência é desconhecido. */
     fun aPartirDaHora(inicio: LocalDateTime): String = "a partir ${horaComArtigo(inicio.hour, "da", "das")}"
 
-    /** "até as 2h de amanhã", "até a meia-noite" — o fim da janela que o app está olhando. */
+    /** Fim da janela de previsão: "até as 2h de amanhã", "até a meia-noite". */
     fun ate(fim: LocalDateTime, agora: LocalDateTime): String =
         "até ${horaComArtigo(fim.hour, "a", "as")}${deQueDia(agora, fim)}"
 
-    /**
-     * Português tem artigo na hora: "às 2h", mas "à 1h" e "à meia-noite".
-     * [singular] serve para 1h e meia-noite; [plural], para as outras.
-     */
+    /** Artigo concorda com a hora: [singular] para 1h e meia-noite ("à 1h"), [plural] nas demais ("às 2h"). */
     private fun horaComArtigo(hora: Int, singular: String, plural: String): String = when (hora) {
         0 -> "$singular meia-noite"
         1 -> "$singular 1h"

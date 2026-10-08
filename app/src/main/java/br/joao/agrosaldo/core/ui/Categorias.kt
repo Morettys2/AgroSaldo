@@ -18,11 +18,8 @@ import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.categorias
 
 /*
- * O desenho e a cor de cada categoria.
- *
- * Fica aqui, e não no enum do domínio: o domínio não conhece Compose.
- * O `when` sem `else` faz o compilador avisar se alguém criar uma categoria
- * nova e esquecer de dar um ícone para ela.
+ * Ícone e cor de cada categoria, na camada de UI porque o domínio não depende de Compose.
+ * Os `when` são exaustivos (sem `else`) para que uma categoria nova gere erro de compilação.
  */
 
 fun CategoriaLancamento.icone(): ImageVector = when (this) {
@@ -52,14 +49,14 @@ fun CategoriaLancamento.cor(): CorCategoria {
         CategoriaLancamento.MAO_DE_OBRA -> cores.maoDeObra
         CategoriaLancamento.MANUTENCAO -> cores.manutencao
         CategoriaLancamento.OUTRAS_DESPESAS -> cores.neutra
-        // Venda de safra é o dinheiro que entra: o verde do app.
+        // Receita principal reutiliza o verde de sementes.
         CategoriaLancamento.VENDA_SAFRA -> cores.sementes
         CategoriaLancamento.ARRENDAMENTO -> cores.arrendamento
         CategoriaLancamento.OUTROS -> cores.neutra
     }
 }
 
-/** O quadradinho colorido com o desenho da categoria, na lista e nos gastos. */
+/** Ícone da categoria sobre fundo na cor dela. */
 @Composable
 fun IconeCategoria(
     categoria: CategoriaLancamento,

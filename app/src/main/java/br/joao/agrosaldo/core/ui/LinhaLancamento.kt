@@ -26,18 +26,12 @@ import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 
 /**
- * Uma linha de lançamento: ícone da categoria, nome, linha de apoio e valor.
+ * Linha de lançamento para uso dentro de um [CartaoSafra] sem preenchimento: a margem
+ * fica na linha para que a área de toque ocupe toda a largura.
  *
- * Não tem cartão próprio: mora dentro de um [CartaoSafra], junto com as
- * outras. O cartão não tem margem dos lados, e a linha tem — assim o toque
- * (e o efeito dele) ocupa a largura toda.
+ * O sinal "+"/"−" acompanha a cor para não depender só dela (acessibilidade).
  *
- * A cor sozinha nunca carrega o significado: além do verde ou do terra,
- * o valor traz "+" ou "−". Quem for daltônico, ou estiver no sol forte do
- * meio da lavoura, continua entendendo.
- *
- * @param apoio a linha de baixo: "Ontem · Venda de milho" no Início, só a
- *   descrição na lista (que já agrupa por dia). Vazia, some.
+ * @param apoio linha secundária; omitida se vazia.
  */
 @Composable
 fun LinhaLancamento(
@@ -92,7 +86,7 @@ fun LinhaLancamento(
     }
 }
 
-/** "Ontem · Venda de milho": o dia e, se houver, a descrição. */
+/** "Ontem · Venda de milho", ou só o dia se não houver descrição. */
 fun apoioComData(dia: String, descricao: String): String =
     if (descricao.isBlank()) dia else "$dia · $descricao"
 

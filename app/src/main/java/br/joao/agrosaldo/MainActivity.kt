@@ -16,43 +16,31 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import java.time.YearMonth
 
 /**
- * A Activity ficou mínima de propósito.
+ * Activity única: aplica o tema e delega a navegação para [AppNavegacao].
  *
- * Em Compose, a Activity é só a porta de entrada: liga o tema e entrega o
- * controle para a navegação. Toda lógica de tela mora nos ViewModels, e
- * toda decisão de rota mora em AppNavegacao.
- *
- * É FragmentActivity (e não ComponentActivity) por um motivo só: a janela
- * da digital do Android (BiometricPrompt) precisa de uma. FragmentActivity
- * é uma ComponentActivity com suporte a fragments — o Compose funciona igual.
+ * Estende FragmentActivity porque o BiometricPrompt exige uma.
  */
 class MainActivity : FragmentActivity() {
 
     /**
-     * Quantas vezes a notificação de chuva pediu para abrir o Clima. A
-     * navegação reage a cada número novo. Um contador, e não um sim/não,
-     * porque o mesmo pedido pode chegar duas vezes seguidas (duas notificações).
+     * Contador de pedidos da notificação de chuva para abrir o Clima; a navegação reage
+     * a cada incremento. Contador (e não Boolean) para que dois pedidos seguidos disparem.
      */
     private var pedidosDoClima by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Tela de abertura: o broto sobre o verde-noite, igual em todo Android
-        // a partir do 8.0. Precisa vir antes do super.onCreate, que é quando
-        // o tema da abertura dá lugar ao tema normal do app.
+        // Deve vir antes de super.onCreate, que troca o tema da splash pelo tema do app.
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // A partir do Android 15 o app desenha atrás das barras do sistema.
-        // O Scaffold dentro de AppNavegacao devolve o espaço delas em padding.
+        // Os insets das barras do sistema são tratados pelo Scaffold em AppNavegacao.
         enableEdgeToEdge()
 
-        // Abriu o app (e não só girou a tela): começa no mês corrente. O
-        // processo pode ter ficado vivo desde o mês passado.
+        // Criação nova (não recriação): volta ao mês corrente, pois o processo pode ter
+        // sobrevivido desde o mês anterior.
         if (savedInstanceState == null) {
             irParaOMesAtual()
-            // Abriu tocando na notificação de chuva? Girar a tela não conta de
-            // novo, nem reabrir pela lista de apps recentes (o Android entrega
-            // a mesma intenção de antes, com a marca LAUNCHED_FROM_HISTORY).
+            // Ignora o intent reentregue ao reabrir pelos recentes (LAUNCHED_FROM_HISTORY).
             val dosRecentes = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
             if (intent.veioDaNotificacaoDeChuva() && !dosRecentes) pedidosDoClima++
         }
@@ -65,9 +53,8 @@ class MainActivity : FragmentActivity() {
     }
 
     /**
-     * Com o app já aberto, tocar na notificação chega aqui (launchMode
-     * singleTop no manifesto), em vez de fechar e recriar a tela inteira —
-     * o que perderia um lançamento sendo digitado.
+     * Toque na notificação com o app aberto (launchMode singleTop): evita recriar a
+     * Activity e perder um formulário em edição.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -77,8 +64,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Deixou o app aberto (ou no fundo) de um mês para o outro: mostra o
-        // mês novo. Se a pessoa escolheu outro mês, isso só acontece na virada.
+        // Virada de mês com o app vivo: avança para o mês novo. Uma seleção manual de
+        // outro mês só é sobrescrita na virada.
         if (YearMonth.now() != mesMostradoAoAbrir) irParaOMesAtual()
     }
 
@@ -92,11 +79,7 @@ class MainActivity : FragmentActivity() {
         this?.getStringExtra(NotificadorDeChuva.EXTRA_DESTINO) == NotificadorDeChuva.DESTINO_CLIMA
 
     private companion object {
-        /**
-         * Fica no companion, e não na Activity, porque a Activity é recriada
-         * (tema escuro que liga sozinho, girar a tela) e esqueceria. Vive
-         * enquanto o processo do app viver — igual à seleção de mês.
-         */
+        /** No companion para sobreviver à recriação da Activity; dura o processo, como [SelecaoAtual]. */
         var mesMostradoAoAbrir: YearMonth? = null
     }
 }

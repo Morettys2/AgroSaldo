@@ -18,28 +18,23 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Diz à navegação o estado da sessão. É a única fonte de verdade de:
+ * Fonte única do estado de sessão observado pela navegação:
  *
- * - [logado]: há alguém conectado?
- * - [precisaNovoAceite]: a política mudou desde o último aceite?
- * - [precisaDesbloquear]: o bloqueio com digital está ligado e o app ainda
- *   não foi desbloqueado desde que abriu (ou desde que ficou 2 min fora)?
+ * - [logado]: há usuário autenticado.
+ * - [precisaNovoAceite]: a política mudou desde o último aceite.
+ * - [precisaDesbloquear]: bloqueio biométrico ativo e app ainda não desbloqueado
+ *   desde a abertura ou desde [TEMPO_PARA_TRAVAR_MS] em segundo plano.
  *
- * Login, cadastro, sair, aceitar e desbloquear só mexem no estado; a
- * navegação observa estes três e troca de tela sozinha.
+ * As ações só alteram estado; o redirecionamento é feito pela navegação.
  */
 class SessaoViewModel(
     private val conta: ContaService,
     private val bloqueio: BloqueioRepository,
-    /** Em milissegundos. Precisa ser um relógio que não volta para trás (veja a Factory). */
+    /** Em milissegundos; deve ser monotônico (ver Factory). */
     private val relogio: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
-    /**
-     * stateIn transforma o Flow em StateFlow, que sempre tem um valor atual.
-     * O valor inicial vem direto da sessão gravada, então a primeira tela já
-     * nasce certa — o app não mostra o login por um instante antes do início.
-     */
+    /** Valor inicial lido da sessão gravada, para evitar um frame com a tela de login. */
     val logado: StateFlow<Boolean> = conta.usuarioLogadoId
         .map { id -> id != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, conta.estaLogado())
@@ -47,7 +42,7 @@ class SessaoViewModel(
     val precisaNovoAceite: StateFlow<Boolean> = conta.precisaNovoAceite()
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    // Começa travado: abrir o app com sessão gravada pede a digital.
+    // Começa bloqueado: sessão restaurada exige biometria.
     private val _desbloqueado = MutableStateFlow(false)
     private var foiParaSegundoPlanoEm: Long? = null
 
@@ -59,15 +54,12 @@ class SessaoViewModel(
     init {
         viewModelScope.launch { conta.validarSessao() }
 
-        // drop(1) pula o valor que já existia ao abrir o app. Daqui pra frente:
-        // entrou com e-mail e senha → já está desbloqueado (acabou de provar
-        // quem é); saiu → trava para o próximo.
+        // drop(1) ignora a sessão restaurada. Login com senha desbloqueia; logout bloqueia.
         viewModelScope.launch {
             conta.usuarioLogadoId.drop(1).collect { id -> _desbloqueado.value = id != null }
         }
 
-        // Acabou de ligar o bloqueio na tela de Conta (e provou a digital
-        // para isso): não faz sentido travar na cara da pessoa.
+        // Ativar o bloqueio já exige biometria; não bloqueia imediatamente.
         viewModelScope.launch {
             bloqueio.ativo.drop(1).collect { ativo -> if (ativo) _desbloqueado.value = true }
         }
@@ -75,23 +67,18 @@ class SessaoViewModel(
 
     fun aoDesbloquear() {
         _desbloqueado.value = true
-        // Digitar o PIN abre outra tela do sistema, e o app "vai para o
-        // fundo" enquanto isso. Esquece essa saída: não foi a pessoa saindo.
+        // O prompt de PIN/credencial do sistema põe o app em segundo plano; descarta essa saída.
         foiParaSegundoPlanoEm = null
     }
 
-    /** "Entrar com e-mail e senha" na tela de bloqueio: sai e cai no login. */
+    /** Opção de senha na tela de bloqueio: encerra a sessão e leva ao login. */
     fun aoUsarSenha() = conta.sair()
 
     fun aoIrParaSegundoPlano() {
         foiParaSegundoPlanoEm = relogio()
     }
 
-    /**
-     * Voltou para o app. Se ficou fora por 2 minutos ou mais, trava de novo —
-     * como os apps de banco. Menos que isso (atender uma ligação, olhar o
-     * WhatsApp) não incomoda o produtor.
-     */
+    /** Rebloqueia se o app ficou em segundo plano por [TEMPO_PARA_TRAVAR_MS] ou mais. */
     fun aoVoltarParaPrimeiroPlano() {
         val saiu = foiParaSegundoPlanoEm ?: return
         foiParaSegundoPlanoEm = null
@@ -103,8 +90,7 @@ class SessaoViewModel(
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                // Relógio desde que o celular ligou: mudar a hora do celular
-                // não engana o bloqueio, e ele conta o tempo de tela apagada.
+                // Relógio monotônico (inclui deep sleep): imune a mudança da hora do sistema.
                 SessaoViewModel(Repositorios.conta, Repositorios.bloqueio, Repositorios.relogioMonotonico)
             }
         }

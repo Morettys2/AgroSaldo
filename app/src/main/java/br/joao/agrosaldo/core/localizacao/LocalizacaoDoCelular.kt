@@ -10,13 +10,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 
 /**
- * Pega a posição atual do celular UMA vez, para preencher as coordenadas do
- * sítio. Não acompanha o usuário, não grava histórico e não roda em segundo
- * plano — só quando a pessoa toca no botão.
+ * Leitura única da posição atual, em primeiro plano, para preencher coordenadas da
+ * propriedade. Sem rastreamento contínuo nem histórico.
  *
- * Usa o LocationManager do próprio Android (via androidx.core), sem a
- * biblioteca do Google Play Services: funciona em qualquer celular e não
- * acrescenta dependência.
+ * Usa LocationManager via androidx.core para não depender do Google Play Services.
  */
 object LocalizacaoDoCelular {
 
@@ -25,8 +22,8 @@ object LocalizacaoDoCelular {
             concedida(context, Manifest.permission.ACCESS_COARSE_LOCATION)
 
     /**
-     * Devolve o sinal de cancelamento da busca (ou null se nem começou), para
-     * a tela cancelar se for fechada antes de o GPS responder.
+     * Callbacks na main thread; falhas chegam como mensagem pronta para o usuário.
+     * @return sinal para cancelar a busca, ou null se ela não chegou a iniciar.
      */
     fun obter(
         context: Context,
@@ -65,17 +62,13 @@ object LocalizacaoDoCelular {
             }
             cancelamento
         } catch (e: SecurityException) {
-            // A permissão pode ter sido retirada entre a checagem e o pedido.
+            // Permissão revogada entre a checagem e a chamada.
             aoFalhar("Sem permissão de localização. Você ainda pode digitar as coordenadas.")
             null
         }
     }
 
-    /**
-     * Android 12+: o provedor "fused" junta GPS, Wi-Fi e rede e funciona até
-     * com a permissão aproximada. Antes disso: GPS se a permissão for
-     * precisa, senão a rede.
-     */
+    /** API 31+: FUSED_PROVIDER (funciona com permissão aproximada). Antes: GPS se houver permissão precisa, senão rede. */
     private fun escolherProvedor(context: Context, gerenciador: LocationManager): String? {
         val precisa = concedida(context, Manifest.permission.ACCESS_FINE_LOCATION)
         return when {

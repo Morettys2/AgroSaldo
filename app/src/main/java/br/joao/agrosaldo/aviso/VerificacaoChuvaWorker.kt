@@ -16,13 +16,8 @@ import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import java.util.concurrent.TimeUnit
 
 /**
- * A verificação de chuva que roda sozinha, com o app fechado.
- *
- * O WorkManager é o jeito recomendado pelo Android para trabalho em
- * segundo plano: ele respeita a bateria (espera ter internet, agrupa com
- * outros apps) e sobrevive a reiniciar o celular.
- *
- * O Worker em si é fino: quem decide tudo é o VerificadorDeChuva, no domínio.
+ * Worker da verificação periódica de chuva. Apenas delega para o VerificadorDeChuva
+ * (domínio) e exibe as notificações resultantes.
  */
 class VerificacaoChuvaWorker(
     contexto: Context,
@@ -30,7 +25,7 @@ class VerificacaoChuvaWorker(
 ) : CoroutineWorker(contexto, parametros) {
 
     override suspend fun doWork(): Result {
-        // Normalmente o AgroSaldoApp já inicializou; chamar de novo não faz nada.
+        // Idempotente; normalmente o AgroSaldoApp já inicializou.
         Repositorios.inicializar(applicationContext)
 
         val resultado = Repositorios.verificadorDeChuva.verificar(
@@ -39,12 +34,12 @@ class VerificacaoChuvaWorker(
         val janela = Repositorios.ajustesAviso.ajustes.value.limites.janelaHoras
         resultado.avisos.forEach { NotificadorDeChuva.mostrar(applicationContext, it, janela) }
 
-        // Sem internet: tenta de novo daqui a pouco, no máximo 3 vezes.
+        // Falha de rede: retry com backoff, até 3 tentativas.
         return if (resultado.faltouConexao && runAttemptCount < 3) Result.retry() else Result.success()
     }
 }
 
-/** Liga e desliga a verificação periódica. */
+/** [AgendaDeVerificacao] sobre WorkManager. */
 class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
 
     override fun ligar() {
@@ -57,8 +52,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()
 
-        // KEEP: se já está agendado, mantém o horário que já tinha. Abrir o app
-        // não reinicia a contagem nem dispara verificação extra.
+        // KEEP: se já agendado, preserva o horário; reabrir o app não reinicia o período.
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(NOME, ExistingPeriodicWorkPolicy.KEEP, pedido)
     }
@@ -75,7 +69,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
     private companion object {
         const val NOME = "verificacao-de-chuva"
         const val NOME_AGORA = "verificacao-de-chuva-agora"
-        /** 12 em 12 horas = 2 vezes por dia (RN04). */
+        /** Duas verificações por dia (RN04). */
         const val INTERVALO_HORAS = 12L
     }
 }

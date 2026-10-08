@@ -13,24 +13,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 
-/** Se o app pode notificar, e como pedir a permissão. */
+/** Estado da permissão de notificação e ação para solicitá-la. */
 class PermissaoNotificacao(
     val concedida: Boolean,
-    /** Só o Android 13+ tem a janelinha de permissão; antes disso, só nas configurações. */
+    /** false abaixo do API 33: não há diálogo de runtime, só os ajustes do sistema. */
     val podePedir: Boolean,
     val pedir: () -> Unit
 )
 
 /**
- * Desde o Android 13 o app precisa pedir permissão para notificar.
- *
- * A boa prática é pedir NO CONTEXTO — quando a pessoa está olhando o aviso
- * de chuva e entende para que serve — e não assim que o app abre. Pedido
- * fora de contexto costuma ser negado, e depois de negar duas vezes o
- * Android não deixa mais o app perguntar.
- *
- * A checagem roda de novo sempre que a tela volta para a frente: se a
- * pessoa ligou a notificação nas configurações do celular, a tela percebe.
+ * POST_NOTIFICATIONS (API 33+). Deve ser solicitada em contexto (na tela do aviso),
+ * não na abertura do app: após duas recusas o sistema deixa de exibir o diálogo.
+ * Reavalia em cada ON_RESUME para refletir mudanças feitas nos ajustes do sistema.
  */
 @Composable
 fun rememberPermissaoNotificacao(): PermissaoNotificacao {

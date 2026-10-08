@@ -52,21 +52,16 @@ import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
 /*
- * Peças da direção "Safra" (R4), usadas nas telas principais.
- *
- * Moram juntas porque formam um conjunto: o cabeçalho verde-noite, os
- * botões redondos que ficam nele, os cartões brancos do corpo e os chips.
- * Mudar o raio ou a cor de uma delas aqui muda o app inteiro.
+ * Componentes visuais compartilhados das telas principais: cabeçalho escuro e seus
+ * controles, cartões do corpo e chips.
  */
 
-/** A margem dos lados do cabeçalho. */
+/** Margem horizontal do cabeçalho. */
 val MARGEM_DO_CABECALHO = 20.dp
 
 /**
- * O bloco verde-noite do topo das abas, com cantos de baixo arredondados.
- *
- * Vai até em cima, por trás da barra de status do Android — por isso
- * o statusBarsPadding: o conteúdo começa logo abaixo do relógio.
+ * Cabeçalho escuro das abas, com cantos inferiores arredondados. O fundo se estende
+ * sob a status bar; statusBarsPadding afasta apenas o conteúdo.
  */
 @Composable
 fun CabecalhoSafra(
@@ -86,9 +81,8 @@ fun CabecalhoSafra(
 }
 
 /**
- * Deixa uma fileira rolável (as pílulas de mês) passar por cima da margem
- * dos lados e ir de borda a borda. O Compose não aceita margem negativa,
- * então a medida é feita mais larga e o conteúdo, puxado para a esquerda.
+ * Estende o conteúdo por [margem] em cada lado, anulando o padding do pai (ex.: linha
+ * rolável de borda a borda). Equivale a uma margem negativa, que o Compose não suporta.
  */
 fun Modifier.sangrarNasLaterais(margem: Dp): Modifier = layout { medida, limites ->
     val extra = margem.roundToPx() * 2
@@ -98,7 +92,7 @@ fun Modifier.sangrarNasLaterais(margem: Dp): Modifier = layout { medida, limites
     }
 }
 
-/** Botão redondo de 48dp dentro do cabeçalho (olho, busca, sininho). */
+/** Botão circular de 48dp para o cabeçalho. */
 @Composable
 fun BotaoCabecalho(
     icone: ImageVector,
@@ -121,10 +115,7 @@ fun BotaoCabecalho(
     }
 }
 
-/**
- * "Propriedade / Fazenda São João da Serra ▾" em branco, no cabeçalho.
- * Com uma propriedade só, a setinha some: não há o que trocar.
- */
+/** Variante de [SeletorPropriedade] para o cabeçalho escuro; desabilitada com uma única propriedade. */
 @Composable
 fun SeletorPropriedadeCabecalho(
     nome: String,
@@ -184,10 +175,7 @@ fun SeletorPropriedadeCabecalho(
     }
 }
 
-/**
- * Cartãozinho "Entrou / R$ 18.000" dentro do cabeçalho. Lido como uma
- * coisa só pelo leitor de tela: "Entrou, R$ 18.000".
- */
+/** Rótulo e valor no cabeçalho, mesclados em um único nó de acessibilidade. */
 @Composable
 fun CartaoNoCabecalho(
     rotulo: String,
@@ -216,11 +204,8 @@ fun CartaoNoCabecalho(
 }
 
 /**
- * Um valor em dinheiro grande ("R$ 15.650,00") que encolhe para caber.
- *
- * Um número cortado no meio ("R$ 123.456,") é pior que um número menor:
- * mostra um valor errado. Com a fonte grande do celular, ou num saldo de
- * sete dígitos, o texto diminui até o [tamanhoMinimo] em vez de cortar.
+ * Valor monetário em destaque que reduz a fonte até [tamanhoMinimo] para caber em uma
+ * linha, evitando truncar o número (o que exibiria um valor errado).
  */
 @Composable
 fun ValorGrande(
@@ -238,14 +223,14 @@ fun ValorGrande(
         overflow = TextOverflow.Ellipsis,
         autoSize = TextAutoSize.StepBased(
             minFontSize = tamanhoMinimo,
-            // Estilo sem tamanho definido não deve derrubar a tela.
+            // Fallback para estilo sem fontSize (Unspecified quebraria o autoSize).
             maxFontSize = estilo.fontSize.takeIf { it.isSpecified } ?: 34.sp
         ),
         modifier = modifier
     )
 }
 
-/** O cartão branco do corpo da tela, com o raio grande da direção Safra. */
+/** Cartão de superfície do corpo das telas (shapes.large). */
 @Composable
 fun CartaoSafra(
     modifier: Modifier = Modifier,
@@ -261,11 +246,7 @@ fun CartaoSafra(
     }
 }
 
-/**
- * Título de cartão ("Pra onde foi o dinheiro") com uma ação opcional à
- * direita ("Ver todos"). Marcado como título para o leitor de tela pular
- * de seção em seção.
- */
+/** Título de cartão com ação textual opcional à direita. Marcado como heading para navegação por acessibilidade. */
 @Composable
 fun TituloDeCartao(
     titulo: String,
@@ -298,10 +279,7 @@ fun TituloDeCartao(
     }
 }
 
-/**
- * Chip da direção Safra: branco quando solto, verde-noite com ✓ quando
- * marcado. O ✓ mostra o estado sem depender só da cor.
- */
+/** FilterChip do app. O ícone de confirmação indica seleção sem depender só da cor. */
 @Composable
 fun ChipSafra(
     rotulo: String,

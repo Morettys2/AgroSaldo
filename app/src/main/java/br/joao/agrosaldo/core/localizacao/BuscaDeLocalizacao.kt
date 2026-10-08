@@ -13,18 +13,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 
-/** Estado do botão "Usar minha localização". */
+/** Estado e ação do botão "Usar minha localização". */
 class BuscaDeLocalizacao(
     val buscando: Boolean,
     val buscar: () -> Unit
 )
 
 /**
- * Cuida do caminho todo: pede a permissão (só na primeira vez, e só quando
- * a pessoa toca no botão — nunca ao abrir o app) e depois pega a posição.
- *
- * A pessoa pode escolher "localização aproximada" na janela do Android; o
- * app aceita e usa o que vier. Para previsão do tempo, aproximada basta.
+ * Solicita permissão de localização sob demanda (no toque) e obtém a posição atual.
+ * Permissão aproximada é aceita: a precisão basta para previsão do tempo.
  */
 @Composable
 fun rememberBuscaDeLocalizacao(
@@ -33,13 +30,10 @@ fun rememberBuscaDeLocalizacao(
 ): BuscaDeLocalizacao {
     val context = LocalContext.current
     var buscando by remember { mutableStateOf(false) }
-    // rememberUpdatedState: a resposta do GPS chega depois; garante que ela
-    // chame a versão mais nova das funções, não a da primeira composição.
     val aoEncontrarAtual by rememberUpdatedState(aoEncontrar)
     val aoFalharAtual by rememberUpdatedState(aoFalhar)
 
-    // Saiu do formulário antes de o GPS responder: cancela a busca, para a
-    // resposta não chegar numa tela que já fechou.
+    // Cancela a busca pendente ao sair da composição.
     val busca = remember { arrayOfNulls<CancellationSignal>(1) }
     DisposableEffect(Unit) {
         onDispose { busca[0]?.cancel() }

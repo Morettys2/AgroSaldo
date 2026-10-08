@@ -19,11 +19,8 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 /**
- * Mostra a notificação de chuva (tela 17 do Figma).
- *
- * Desde o Android 8 toda notificação precisa de um "canal". O canal aparece
- * nas configurações do celular com o nome "Aviso de chuva": o produtor pode
- * silenciar só ele sem desligar o app inteiro.
+ * Notificação do aviso de chuva, no canal próprio [CANAL] (silenciável
+ * separadamente nos ajustes do Android).
  */
 object NotificadorDeChuva {
 
@@ -45,15 +42,14 @@ object NotificadorDeChuva {
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         val gerenciador = NotificationManagerCompat.from(context)
-        // A pessoa pode desligar só o canal "Aviso de chuva" nos ajustes do
-        // Android, deixando o resto do app ligado.
+        // O canal pode estar desligado mesmo com as notificações do app ativas.
         val canal = gerenciador.getNotificationChannelCompat(CANAL)
         val canalLigado = canal == null || canal.importance != NotificationManagerCompat.IMPORTANCE_NONE
         return permitido && gerenciador.areNotificationsEnabled() && canalLigado
     }
 
     fun mostrar(context: Context, aviso: AvisoDeChuva, janelaHoras: Int) {
-        // Sem permissão, não insiste: o app mostra o aviso dentro da tela de clima.
+        // Sem permissão, retorna sem notificar; o aviso continua visível na tela de clima.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -62,8 +58,7 @@ object NotificadorDeChuva {
         }
 
         val abrirClima = Intent(context, MainActivity::class.java).apply {
-            // SINGLE_TOP: com o app aberto, a tela atual recebe o pedido
-            // (onNewIntent) em vez de ser fechada e criada de novo.
+            // SINGLE_TOP: com o app aberto, entrega via onNewIntent em vez de recriar a Activity.
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_DESTINO, DESTINO_CLIMA)
         }
@@ -71,13 +66,11 @@ object NotificadorDeChuva {
             context,
             aviso.propriedadeId.hashCode(),
             abrirClima,
-            // IMMUTABLE é obrigatório desde o Android 12: ninguém de fora
-            // consegue alterar para onde o toque leva.
+            // FLAG_IMMUTABLE é obrigatório a partir do API 31.
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Com a tela bloqueada aparece só esta versão, sem nome nem números:
-        // quem pegar o celular na mesa não lê os dados do produtor.
+        // Versão exibida na tela de bloqueio, sem nome da propriedade nem números.
         val versaoPublica = NotificationCompat.Builder(context, CANAL)
             .setSmallIcon(R.drawable.ic_notificacao_chuva)
             .setContentTitle(TextosDoAviso.TITULO_PUBLICO)
@@ -97,11 +90,11 @@ object NotificadorDeChuva {
             .setPublicVersion(versaoPublica)
             .build()
 
-        // Mesmo id por propriedade: um aviso novo substitui o antigo em vez de empilhar.
+        // Id fixo por propriedade: um aviso novo substitui o anterior.
         NotificationManagerCompat.from(context).notify(aviso.propriedadeId.hashCode(), notificacao)
     }
 
-    /** Ferramenta de teste: mostra como o aviso fica, sem depender de chover de verdade. */
+    /** Exibe uma notificação com dados fictícios. Usado só pelas ferramentas de teste de builds debug. */
     fun mostrarExemplo(context: Context) {
         val aviso = AvisoDeChuva(
             propriedadeId = "exemplo",

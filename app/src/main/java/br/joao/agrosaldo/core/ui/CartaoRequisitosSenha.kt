@@ -21,11 +21,7 @@ import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
 
-/**
- * Os requisitos da senha à vista enquanto a pessoa digita; cada um ganha ✓
- * ao ser cumprido. Usado no cadastro e na troca de senha — por isso subiu
- * para core/ui quando apareceu na segunda tela.
- */
+/** Checklist dos requisitos de senha, atualizado durante a digitação (cadastro e troca de senha). */
 @Composable
 fun CartaoRequisitosSenha(requisitos: RequisitosSenha, modifier: Modifier = Modifier) {
     Card(
@@ -52,7 +48,6 @@ private fun LinhaRequisito(texto: String, cumprido: Boolean) {
     ) {
         Icon(
             imageVector = if (cumprido) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-            // O texto já diz o requisito; o ícone só informa se foi cumprido.
             contentDescription = if (cumprido) "Cumprido" else "Ainda não cumprido",
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(18.dp)

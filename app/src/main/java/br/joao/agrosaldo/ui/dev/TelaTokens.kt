@@ -27,11 +27,10 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
- * Tela de conferência do sistema de design.
+ * Catálogo visual de tokens (cores, tipografia, formas) para conferência via @Preview.
+ * Não é usada pela navegação do app.
  *
- * Não faz parte do app. Serve pra você abrir lado a lado com o Figma e
- * confirmar que cor, tipografia e forma bateram. Apague quando a fase 3
- * começar de verdade.
+ * TODO: remover ou atualizar; os raios exibidos em "Formas" não seguem mais [br.joao.agrosaldo.ui.theme.FormasAgro].
  */
 @Composable
 fun TelaTokens(modifier: Modifier = Modifier) {

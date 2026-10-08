@@ -103,7 +103,6 @@ import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** Uma aba da barra inferior. */
 private data class Aba(
     val rota: String,
     val rotulo: String,
@@ -118,17 +117,14 @@ private val ABAS = listOf(
 )
 
 /**
- * Esqueleto do app: barra superior, conteúdo e barra inferior.
+ * Raiz da UI: Scaffold (barras superior/inferior), NavHost, snackbar de desfazer e
+ * sobreposição da tela de bloqueio.
  *
- * É aqui — e só aqui — que o app decide para onde ir. As telas apenas
- * avisam "tocaram em novo lançamento" por meio de uma função; quem traduz
- * isso em navegação é este arquivo.
+ * Único ponto que conhece o NavController: as telas expõem callbacks, o que as mantém
+ * desacopladas do grafo e compatíveis com @Preview. Mudanças de sessão (login, logout,
+ * novo aceite) são observadas em [SessaoViewModel] e convertidas em navegação aqui.
  *
- * Por isso nenhuma tela recebe NavController. Se recebesse, ficaria presa
- * a este grafo de navegação e o @Preview dela quebraria.
- *
- * Login e logout seguem a mesma ideia: as telas só mexem na sessão, e este
- * arquivo observa [SessaoViewModel.logado] para trocar de tela.
+ * @param pedidosDoClima contador de toques na notificação de chuva; cada incremento abre a aba Clima.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,17 +140,12 @@ fun AppNavegacao(
     val precisaNovoAceite by sessaoViewModel.precisaNovoAceite.collectAsStateWithLifecycle()
     val precisaDesbloquear by sessaoViewModel.precisaDesbloquear.collectAsStateWithLifecycle()
 
-    // Decidido UMA vez, ao abrir o app. Depois disso quem troca de tela é o
-    // LaunchedEffect abaixo — mudar o destino inicial de um NavHost que já
-    // está na tela não tem efeito.
+    // Calculado uma única vez: alterar startDestination de um NavHost já montado não tem efeito.
+    // Mudanças posteriores de sessão são tratadas pelo LaunchedEffect abaixo.
     val destinoInicial = remember { if (logado) Rotas.INICIO else Rotas.LOGIN }
 
-    /**
-     * Reage a entrar, sair e à política nova. popUpTo(graph.id) com inclusive
-     * limpa a pilha inteira: depois de entrar, o "voltar" não leva de novo ao
-     * login; depois de sair, não leva de volta para dentro da conta; e não
-     * dá para "voltar" por cima do novo aceite.
-     */
+    // Redireciona conforme a sessão. popUpTo(graph.id, inclusive) limpa a back stack para
+    // que "voltar" não cruze a fronteira login/área autenticada nem pule o novo aceite.
     LaunchedEffect(logado, precisaNovoAceite) {
         val rota = navController.currentDestination?.route ?: return@LaunchedEffect
         val anterior = navController.previousBackStackEntry?.destination?.route
@@ -167,11 +158,8 @@ fun AppNavegacao(
         }
     }
 
-    /**
-     * Mede quanto tempo o app ficou fora da tela, para travar de novo depois
-     * de 2 minutos. ON_STOP/ON_START, e não ON_PAUSE: uma janela do sistema
-     * por cima (como a própria digital) pausa o app, mas não o tira da tela.
-     */
+    // Mede o tempo em segundo plano para o rebloqueio. Usa ON_STOP/ON_START e não ON_PAUSE,
+    // pois diálogos do sistema (incluindo o BiometricPrompt) disparam ON_PAUSE.
     val ciclo = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(ciclo) {
         val observador = LifecycleEventObserver { _, evento ->
@@ -185,41 +173,33 @@ fun AppNavegacao(
         onDispose { ciclo.removeObserver(observador) }
     }
 
-    // Veio do toque na notificação de chuva: vai direto para a aba Clima, se
-    // houver alguém conectado (senão, o login aparece primeiro). Se a política
-    // tiver mudado, o efeito de cima passa o novo aceite na frente.
-    // Cada toque na notificação aumenta o número; girar o celular não.
+    // Toque na notificação de chuva: abre a aba Clima se houver sessão. O redirecionamento
+    // de novo aceite, acima, tem precedência.
     LaunchedEffect(pedidosDoClima) {
         if (pedidosDoClima > 0 && logado) {
-            // Espera o NavHost montar a primeira tela antes de navegar.
+            // Aguarda o NavHost ter a primeira entrada na back stack.
             navController.currentBackStackEntryFlow.first()
             navegarParaAba(navController, Rotas.CLIMA)
         }
     }
 
-    // Travou com um campo em foco: tira o foco, para o teclado não voltar a
-    // aparecer por cima da tela de bloqueio.
+    // Limpa o foco ao bloquear para o teclado não reaparecer sobre a tela de bloqueio.
     val foco = LocalFocusManager.current
     val contexto = LocalContext.current
     LaunchedEffect(precisaDesbloquear) {
         if (precisaDesbloquear) foco.clearFocus(force = true)
     }
 
-    /**
-     * "Lançamento excluído — Desfazer". A barra fica aqui, e não na tela que
-     * excluiu, porque essa tela já fechou quando a barra aparece.
-     *
-     * Se a exclusão pendente mudar (outra exclusão, ou trocou de conta), o
-     * LaunchedEffect reinicia e a barra antiga some sozinha.
-     */
+    // Snackbar de "Desfazer" exclusão. Fica na raiz porque a tela que excluiu já foi fechada.
+    // Se a exclusão pendente mudar, o LaunchedEffect reinicia e descarta a snackbar anterior.
     val estadoDaBarra = remember { SnackbarHostState() }
-    // Escopo da tela inteira: o aviso de erro abaixo não pode morrer junto
-    // com o LaunchedEffect, que reinicia assim que a oferta sai de "pendente".
+    // Escopo fora do LaunchedEffect: a mensagem de erro precisa sobreviver ao reinício do
+    // efeito, que ocorre assim que a exclusão deixa de estar pendente.
     val escopoDaBarra = rememberCoroutineScope()
     val exclusaoPendente by desfazer.pendente.collectAsStateWithLifecycle()
     LaunchedEffect(exclusaoPendente) {
         val exclusao = exclusaoPendente ?: return@LaunchedEffect
-        // Reabriu o app muito depois: a oferta antiga não volta.
+        // Oferta expirada (ex.: app reaberto muito depois) é descartada sem exibir.
         if (desfazer.expirou(exclusao)) {
             desfazer.dispensar(exclusao)
             return@LaunchedEffect
@@ -245,15 +225,13 @@ fun AppNavegacao(
     val ehAbaPrincipal = rotaAtual in Rotas.ABAS
     val cabecalhoEscuro = rotaAtual in Rotas.COM_CABECALHO_ESCURO
 
-    // Ícones da barra de status (relógio, bateria): claros sobre o cabeçalho
-    // verde-noite e no modo escuro; escuros nas telas claras. Sem isto, o
-    // relógio ficaria preto sobre o verde-escuro, quase invisível.
+    // Ícones da status bar: claros sobre cabeçalho escuro ou em modo escuro; escuros caso contrário.
     val modoEscuro = isSystemInDarkTheme()
     val vista = LocalView.current
     if (!vista.isInEditMode) {
         SideEffect {
             contexto.acharFragmentActivity()?.window?.let { janela ->
-                // A tela de bloqueio é clara e fica por cima de tudo.
+                // A tela de bloqueio tem fundo claro e se sobrepõe a qualquer rota.
                 WindowCompat.getInsetsController(janela, vista).isAppearanceLightStatusBars =
                     !modoEscuro && (precisaDesbloquear || !cabecalhoEscuro)
             }
@@ -270,36 +248,29 @@ fun AppNavegacao(
         Rotas.FORM_PROPRIEDADE ->
             if (entradaAtual?.arguments?.getString(Rotas.ARG_ID) == null) "Nova propriedade"
             else "Editar propriedade"
-        // As abas e o novo lançamento têm o próprio cabeçalho verde-noite.
-        // Login e consentimento têm a marca do app no lugar da barra.
+        // Sem TopAppBar: abas e formulário de lançamento têm cabeçalho próprio; login e
+        // consentimento exibem a marca.
         else -> null
     }
 
-    /**
-     * Abre o formulário de lançamento, se ele já não estiver aberto. Dois
-     * toques rápidos no "+" (ou num atalho) empilhariam dois formulários.
-     */
+    // Ignora se o formulário já está no topo, evitando empilhar dois com toques rápidos.
     val abrirFormulario: (String) -> Unit = { rota ->
         if (navController.currentDestination?.route != Rotas.FORM_LANCAMENTO) navController.navigate(rota)
     }
     val abrirNovoLancamento = { abrirFormulario(Rotas.formLancamento()) }
 
-    // O "olho" do Início vale para o app inteiro: toda tela que mostra
-    // dinheiro lê LocalValoresOcultos.
+    // Ocultação de valores é global; telas com valores leem LocalValoresOcultos.
     CompositionLocalProvider(LocalValoresOcultos provides valoresOcultos) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
-                // Travado: o conteúdo continua montado embaixo (para voltar na mesma
-                // tela, com o que estava digitado), mas some para o leitor de tela.
+                // Bloqueado: o conteúdo segue composto (preserva estado), mas oculto da acessibilidade.
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (precisaDesbloquear) Modifier.clearAndSetSemantics { } else Modifier),
-                // O Scaffold já põe a barra do "Desfazer" acima da barra de baixo.
                 snackbarHost = {
                     SnackbarHost(
                         hostState = estadoDaBarra,
-                        // No formulário não há barra de baixo: sem isto, o "Desfazer"
-                        // ficaria em cima do botão de salvar.
+                        // No formulário (sem bottomBar), afasta a snackbar do botão de salvar.
                         modifier = if (rotaAtual == Rotas.FORM_LANCAMENTO) {
                             Modifier
                                 .navigationBarsPadding()
@@ -309,10 +280,8 @@ fun AppNavegacao(
                         }
                     )
                 },
-                // Com o cabeçalho verde-noite, a tela vai até o topo e o próprio
-                // cabeçalho se afasta do relógio. Nas outras, o Scaffold reserva o espaço.
-                // Os lados continuam valendo: deitado, com a barra de navegação ou
-                // o recorte da câmera do lado, nada fica escondido embaixo deles.
+                // Com cabeçalho escuro, o inset superior fica a cargo do cabeçalho; os laterais
+                // (paisagem, display cutout) continuam aplicados.
                 contentWindowInsets = if (cabecalhoEscuro) {
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
                 } else {
@@ -339,8 +308,7 @@ fun AppNavegacao(
                     }
                 },
                 bottomBar = {
-                    // Formulários escondem a barra inferior: é uma tarefa que precisa
-                    // ser concluída ou cancelada, não um lugar pra onde se navega.
+                    // Barra inferior só nas abas principais.
                     if (ehAbaPrincipal) {
                         BarraInferior(
                             rotaAtual = entradaAtual?.destination,
@@ -358,15 +326,14 @@ fun AppNavegacao(
                     modifier = Modifier.padding(espacoInterno)
                 ) {
 
-                    // ---------- entrada ----------
+                    // Fluxo não autenticado
 
                     composable(Rotas.LOGIN) {
                         LoginRoute(aoCriarConta = { navController.navigate(Rotas.CRIAR_CONTA) })
                     }
 
                     composable(Rotas.CRIAR_CONTA) {
-                        // Este ViewModel fica guardado na entrada CRIAR_CONTA da
-                        // pilha. O consentimento, logo abaixo, pega o mesmo.
+                        // Escopo da entrada CRIAR_CONTA; compartilhado com CONSENTIMENTO.
                         val cadastroViewModel: CadastroViewModel = viewModel(factory = CadastroViewModel.Factory)
                         CadastroRoute(
                             viewModel = cadastroViewModel,
@@ -376,16 +343,9 @@ fun AppNavegacao(
                     }
 
                     composable(Rotas.CONSENTIMENTO) { entrada ->
-                        // Duas telas dividindo um ViewModel: pedimos o dono dele — a
-                        // entrada CRIAR_CONTA, que continua na pilha por baixo — e o
-                        // ViewModel guardado nela. Como ele já existe lá, vem o mesmo
-                        // objeto, com o formulário preenchido.
-                        //
-                        // Fica dentro de remember de propósito: depois que a conta é
-                        // criada, a pilha inteira é limpa e a entrada CRIAR_CONTA deixa
-                        // de existir enquanto esta tela ainda anima a saída. Buscar de
-                        // novo nesse instante derrubaria o app; com remember, a busca
-                        // acontece uma vez só.
+                        // Reutiliza o CadastroViewModel da entrada CRIAR_CONTA. Precisa de remember:
+                        // após criar a conta a back stack é limpa e getBackStackEntry lançaria
+                        // exceção durante a animação de saída desta tela.
                         val cadastroViewModel = remember(entrada) {
                             val donoDoCadastro = navController.getBackStackEntry(Rotas.CRIAR_CONTA)
                             ViewModelProvider(donoDoCadastro, CadastroViewModel.Factory)[CadastroViewModel::class.java]
@@ -393,7 +353,7 @@ fun AppNavegacao(
                         ConsentimentoRoute(
                             viewModel = cadastroViewModel,
                             aoLerPolitica = { navController.navigate(Rotas.POLITICA) },
-                            // Recusar volta para o login sem ter gravado nada.
+                            // Recusa não persiste nada.
                             aoRecusar = { navController.popBackStack(Rotas.LOGIN, inclusive = false) }
                         )
                     }
@@ -403,12 +363,11 @@ fun AppNavegacao(
                     }
 
                     composable(Rotas.NOVO_CONSENTIMENTO) {
-                        // Aceitar ou recusar só mexe na sessão; o LaunchedEffect lá
-                        // em cima leva para o Início ou para o login.
+                        // A navegação após aceitar/recusar vem do LaunchedEffect de sessão.
                         NovoConsentimentoRoute(aoLerPolitica = { navController.navigate(Rotas.POLITICA) })
                     }
 
-                    // ---------- dentro da conta ----------
+                    // Área autenticada
 
                     composable(Rotas.CONTA) {
                         ContaRoute(
@@ -422,8 +381,7 @@ fun AppNavegacao(
                     composable(Rotas.ALTERAR_SENHA) {
                         AlterarSenhaRoute(
                             aoConcluir = {
-                                // Só volta se ainda estiver nesta tela: se a pessoa já
-                                // tocou em voltar, um segundo pop fecharia a Conta também.
+                                // Guarda contra pop duplo se o usuário já tiver voltado.
                                 if (navController.currentDestination?.route == Rotas.ALTERAR_SENHA) {
                                     navController.popBackStack()
                                 }
@@ -445,8 +403,7 @@ fun AppNavegacao(
                     }
 
                     composable(Rotas.HISTORICO) {
-                        // Tocar num mês abre a aba Lançamentos naquele mês: o
-                        // ViewModel já deixou o mês escolhido em SelecaoAtual.
+                        // O mês escolhido já foi gravado em SelecaoAtual pelo ViewModel.
                         HistoricoRoute(aoAbrirMes = { navegarParaAba(navController, Rotas.LANCAMENTOS) })
                     }
 
@@ -477,7 +434,6 @@ fun AppNavegacao(
                         PropriedadeListaRoute(
                             aoAbrirNova = { navController.navigate(Rotas.formPropriedade()) },
                             aoAbrirPropriedade = { id -> navController.navigate(Rotas.formPropriedade(id)) },
-                            // Tela 12 do Figma: a conta abre pelo canto da lista de propriedades.
                             aoAbrirConta = { navController.navigate(Rotas.CONTA) }
                         )
                     }
@@ -506,21 +462,19 @@ fun AppNavegacao(
                             lancamentoId = entrada.arguments?.getString(Rotas.ARG_ID),
                             copiaDe = entrada.arguments?.getString(Rotas.ARG_COPIA),
                             tipoInicial = Rotas.tipoDaRota(entrada.arguments?.getString(Rotas.ARG_TIPO)),
-                            // Só fecha se ainda estiver nele: o X tocado duas vezes durante a
-                            // animação de saída fecharia também a aba de baixo.
+                            // Guarda contra pop duplo durante a animação de saída.
                             aoConcluir = {
                                 if (navController.currentDestination?.route == Rotas.FORM_LANCAMENTO) {
                                     navController.popBackStack()
                                 }
                             },
-                            // Sem nenhum sítio: troca o formulário pelo cadastro do sítio.
+                            // Sem propriedade cadastrada: substitui o formulário pelo cadastro.
                             aoCadastrarPropriedade = {
                                 navController.navigate(Rotas.formPropriedade()) {
                                     popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
                                 }
                             },
-                            // Troca a edição pela cópia: o "voltar" da cópia leva
-                            // para a lista, não de volta para a edição.
+                            // Substitui a edição pela cópia, para "voltar" não retornar à edição.
                             aoLancarDeNovo = { id ->
                                 navController.navigate(Rotas.formLancamento(copiaDe = id)) {
                                     popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
@@ -541,8 +495,7 @@ fun AppNavegacao(
                     ) { entrada ->
                         PropriedadeFormRoute(
                             propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
-                            // Mesma proteção do formulário de lançamento: salvar logo
-                            // depois de tocar em "voltar" não fecha a tela de baixo também.
+                            // Guarda contra pop duplo.
                             aoConcluir = {
                                 if (navController.currentDestination?.route == Rotas.FORM_PROPRIEDADE) {
                                     navController.popBackStack()
@@ -552,9 +505,8 @@ fun AppNavegacao(
                     }
                 }
 
-                // Voltar com o app travado manda o app para o fundo. Fica aqui,
-                // depois do NavHost, para ter prioridade sobre o "voltar" dele
-                // mesmo quando o app já abre travado.
+                // Com o app bloqueado, "voltar" envia a task para segundo plano. Declarado após
+                // o NavHost para ter precedência sobre o back handler dele.
                 BackHandler(enabled = precisaDesbloquear) {
                     contexto.acharFragmentActivity()?.moveTaskToBack(true)
                 }
@@ -571,17 +523,10 @@ fun AppNavegacao(
 }
 
 /**
- * Navegação entre abas com o comportamento padrão do Android:
+ * Navegação entre abas sem empilhar destinos, preservando o estado de cada aba.
  *
- * - popUpTo(início) evita empilhar abas: ir de Início para Sítios e voltar
- *   para Início não cria uma pilha de dez telas.
- * - saveState/restoreState guardam o scroll e o estado de cada aba ao sair
- *   e devolvem ao voltar.
- * - launchSingleTop impede abrir a mesma aba duas vezes ao tocar de novo.
- *
- * O popUpTo aponta para a rota do Início, e não para o "destino inicial do
- * grafo": quando o app abre no login, o destino inicial é o login, que já
- * saiu da pilha depois de entrar.
+ * popUpTo usa [Rotas.INICIO] e não o startDestination do grafo, que pode ser o login
+ * (já removido da back stack após autenticar).
  */
 private fun navegarParaAba(navController: NavHostController, rota: String) {
     navController.navigate(rota) {
@@ -594,13 +539,8 @@ private fun navegarParaAba(navController: NavHostController, rota: String) {
 }
 
 /**
- * A barra de baixo da direção "Safra": uma pílula verde-noite que flutua
- * sobre a tela, com o "+" verde-limão no meio.
- *
- * Cada aba tem ícone E nome embaixo. Só ícone seria mais bonito, mas o
- * produtor precisaria adivinhar o que é a nuvem e o broto; com o nome, não.
- * O nome encolhe um pouco se não couber ("Lançamentos" num celular
- * estreito), em vez de ser cortado.
+ * Barra inferior flutuante em pílula, com o botão de novo lançamento no centro.
+ * Rótulos usam autoSize para não truncar em telas estreitas.
  */
 @Composable
 private fun BarraInferior(
@@ -627,7 +567,7 @@ private fun BarraInferior(
                 .selectableGroup()
         ) {
             ABAS.forEachIndexed { indice, aba ->
-                // O "+" fica no meio, entre a segunda e a terceira aba.
+                // Botão "+" no centro da barra.
                 if (indice == ABAS.size / 2) BotaoNovoLancamento(aoNovoLancamento)
                 ItemDaBarra(
                     aba = aba,

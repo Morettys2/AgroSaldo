@@ -9,13 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 
-/**
- * Campo de texto padrão do app.
- *
- * Existe para não repetir shape, cor e tratamento de erro em cada formulário —
- * e para garantir que todo campo do app tenha a mesma aparência sem ninguém
- * precisar lembrar dos parâmetros.
- */
+/** OutlinedTextField com o shape e o tratamento de erro padrão do app. */
 @Composable
 fun CampoTexto(
     valor: String,

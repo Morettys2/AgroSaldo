@@ -9,14 +9,9 @@ import androidx.compose.ui.unit.sp
 import br.joao.agrosaldo.R
 
 /**
- * Plus Jakarta Sans, embutida no app (res/font). Licença SIL Open Font
- * License — o texto está em assets/licencas e pode ir junto com o app.
- *
- * Embutida, e não baixada do Google na hora: o app funciona sem internet no
- * sítio, e a fonte também precisa funcionar.
- *
- * Os cinco pesos são arquivos separados (gerados da fonte variável), que
- * funcionam igual em qualquer Android a partir do 8.0.
+ * Plus Jakarta Sans empacotada em res/font (SIL OFL; licença em assets/licencas), sem
+ * downloadable fonts para funcionar offline. Um arquivo estático por peso, gerado da
+ * fonte variável, para compatibilidade com API 26+.
  */
 val PlusJakartaSans = FontFamily(
     Font(R.font.jakarta_regular, FontWeight.Normal),
@@ -26,19 +21,15 @@ val PlusJakartaSans = FontFamily(
     Font(R.font.jakarta_extrabold, FontWeight.ExtraBold)
 )
 
-/**
- * Números com a mesma largura ("tnum"): numa lista de valores, os
- * algarismos ficam alinhados e o valor não "dança" quando muda.
- */
+/** OpenType "tnum": algarismos tabulares, para alinhar valores em colunas e evitar saltos ao mudar. */
 private const val NUMEROS_ALINHADOS = "tnum"
 
 private val Fonte = PlusJakartaSans
 
-// A regra que sustenta o layout: o valor em dinheiro é sempre o maior
-// elemento da tela. Se algo competir com ele, a hierarquia quebrou.
+// Os estilos display são reservados a valores monetários e devem ser o maior texto da tela.
 val TipografiaAgro = Typography(
 
-    // Saldo do mês, valor do lançamento. O herói da tela.
+    // Saldo do mês, valor do lançamento.
     displayLarge = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -58,7 +49,7 @@ val TipografiaAgro = Typography(
         fontFeatureSettings = NUMEROS_ALINHADOS
     ),
 
-    // Valor médio: saldo no cabeçalho de Lançamentos.
+    // Saldo no cabeçalho de Lançamentos.
     displaySmall = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -68,7 +59,7 @@ val TipografiaAgro = Typography(
         fontFeatureSettings = NUMEROS_ALINHADOS
     ),
 
-    // Título de tela no cabeçalho: "Lançamentos".
+    // Título de tela no cabeçalho.
     headlineLarge = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -77,7 +68,7 @@ val TipografiaAgro = Typography(
         letterSpacing = (-0.5).sp
     ),
 
-    // Títulos grandes: "Bem-vindo de volta", "Seus dados são seus".
+    // Títulos das telas de entrada e consentimento.
     headlineMedium = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -86,7 +77,7 @@ val TipografiaAgro = Typography(
         letterSpacing = (-0.4).sp
     ),
 
-    // Frase de destaque: "Chuva às 18h. Dá para adiar o pivô."
+    // Frase de destaque (resumo do clima).
     headlineSmall = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -102,7 +93,7 @@ val TipografiaAgro = Typography(
         lineHeight = 26.sp
     ),
 
-    // Título de cartão: "Pra onde foi o dinheiro".
+    // Título de cartão.
     titleMedium = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.ExtraBold,
@@ -135,7 +126,7 @@ val TipografiaAgro = Typography(
         lineHeight = 20.sp
     ),
 
-    // Linha de apoio: "Ontem · Venda de milho".
+    // Linha de apoio de itens de lista.
     bodySmall = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.Medium,
@@ -151,7 +142,7 @@ val TipografiaAgro = Typography(
         lineHeight = 20.sp
     ),
 
-    // Rótulos de seção: "Hoje", "Saldo de outubro".
+    // Rótulos de seção.
     labelMedium = TextStyle(
         fontFamily = Fonte,
         fontWeight = FontWeight.SemiBold,

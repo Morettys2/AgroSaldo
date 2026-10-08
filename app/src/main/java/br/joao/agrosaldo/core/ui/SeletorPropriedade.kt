@@ -21,11 +21,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import br.joao.agrosaldo.domain.model.Propriedade
 
 /**
- * Nome da propriedade com a setinha que abre a lista para trocar.
+ * Nome da propriedade selecionada com dropdown para trocá-la. Com uma única
+ * propriedade, o dropdown fica desabilitado e o ícone é omitido.
  *
- * Usado no Início, nos Lançamentos e no Clima — as três telas concordam
- * sobre qual propriedade está selecionada (SelecaoAtual). Com uma
- * propriedade só, a setinha some: não há o que trocar.
+ * @param aoSelecionar recebe o id da propriedade escolhida.
  */
 @Composable
 fun SeletorPropriedade(

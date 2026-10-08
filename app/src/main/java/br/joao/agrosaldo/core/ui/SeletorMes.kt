@@ -20,13 +20,7 @@ import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import java.time.YearMonth
 
-/**
- * Navegação entre meses (RF10).
- *
- * Subiu para core/ui porque aparece em duas telas: Início e Lançamentos.
- * Essa é a regra — componente só vira compartilhado quando o segundo uso
- * aparece, nunca por antecipação.
- */
+/** Navegação entre meses (RF10), usada no Início e em Lançamentos. */
 @Composable
 fun SeletorMes(
     mes: YearMonth,

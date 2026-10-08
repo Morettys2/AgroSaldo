@@ -12,23 +12,17 @@ private val MOEDA_CURTA: NumberFormat = NumberFormat.getCurrencyInstance(BRASIL)
 }
 
 /**
- * Dinheiro circula em CENTAVOS (Long) no app inteiro.
- *
- * Double aqui seria bug garantido: 0.1 + 0.2 em ponto flutuante dá
- * 0.30000000000000004, e o saldo do mês não fecharia com a planilha do
- * produtor. A conversão pra decimal acontece só aqui, na hora de exibir.
+ * Valores monetários são sempre centavos em Long; a conversão para decimal ocorre
+ * só na formatação, para evitar erro de arredondamento de ponto flutuante.
  */
 fun Long.emReal(): String = MOEDA.format(this / 100.0)
 
-/** Versão sem centavos, para listas e resumos: R$ 1.250 em vez de R$ 1.250,00. */
+/** Sem casas decimais: "R$ 1.250". */
 fun Long.emRealCurto(): String = MOEDA_CURTA.format(this / 100.0)
 
 /**
- * Converte o que o usuário digitou em centavos.
- *
- * O campo aceita só dígitos: digitar 125050 vira R$ 1.250,50. É o mesmo
- * comportamento de app de banco, e evita ter que tratar vírgula, ponto e
- * "R$" na entrada.
+ * Converte a entrada do campo de valor em centavos: ignora não-dígitos e lê os
+ * dígitos como centavos ("125050" = R$ 1.250,50). Limite de 9 dígitos; null se vazio.
  */
 fun String.digitosParaCentavos(): Long? {
     val digitos = filter { it.isDigit() }.take(9)
@@ -36,10 +30,7 @@ fun String.digitosParaCentavos(): Long? {
     return digitos.toLongOrNull()
 }
 
-/**
- * O que aparece no lugar do dinheiro quando o "olho" do Início está fechado.
- * Mesmo tamanho para qualquer valor: nem a quantidade de dígitos vaza.
- */
+/** Substituto de valores ocultos; tamanho fixo para não revelar a magnitude. */
 const val VALOR_ESCONDIDO = "R$ ••••"
 
 fun Long.emReal(oculto: Boolean): String = if (oculto) VALOR_ESCONDIDO else emReal()

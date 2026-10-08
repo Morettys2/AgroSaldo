@@ -23,13 +23,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
 /**
- * Campo de senha com o "olhinho" para mostrar o que foi digitado.
+ * Campo de senha com alternância de visibilidade (estado local, salvo com rememberSaveable).
  *
- * Mostrar ou esconder é estado puramente visual, então fica aqui dentro com
- * rememberSaveable (sobrevive a girar o celular) e não sobe para o ViewModel.
- *
- * [aoConfirmar] é chamado pela tecla "OK" do teclado — no login, ela já entra
- * sem a pessoa precisar procurar o botão.
+ * @param ultimoCampo usa ImeAction.Done em vez de Next.
+ * @param aoConfirmar chamado na ação Done do teclado.
  */
 @Composable
 fun CampoSenha(

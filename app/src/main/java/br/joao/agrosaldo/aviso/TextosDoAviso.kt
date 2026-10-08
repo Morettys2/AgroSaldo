@@ -3,11 +3,7 @@ package br.joao.agrosaldo.aviso
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 
-/**
- * O texto da notificação, separado do código Android para ser testado.
- *
- * Fala a língua de quem está no campo: chance, milímetros, e o que fazer.
- */
+/** Textos da notificação de chuva, sem dependência do Android para permitir teste unitário. */
 object TextosDoAviso {
 
     fun titulo(aviso: AvisoDeChuva): String = "Chuva prevista: ${aviso.nomePropriedade}"
@@ -23,7 +19,7 @@ object TextosDoAviso {
             "Dá para adiar a irrigação do pivô e economizar energia."
     }
 
-    /** O que aparece com a tela bloqueada: sem nome de propriedade nem números. */
+    /** Versão para tela de bloqueio: sem nome de propriedade nem números. */
     const val TITULO_PUBLICO = "Chuva prevista"
     const val CORPO_PUBLICO = "Abra o AgroSaldo para ver a previsão."
 }

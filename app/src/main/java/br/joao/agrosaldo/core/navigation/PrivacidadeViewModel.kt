@@ -9,11 +9,8 @@ import br.joao.agrosaldo.domain.repository.PrivacidadeRepository
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Liga o "olho" do Início às telas que mostram dinheiro.
- *
- * Fica no esqueleto do app (e não no Início) porque o efeito vale para
- * todas as abas: esconder no Início esconde também em Lançamentos e no
- * Histórico.
+ * Estado global de ocultação de valores monetários. Escopo da navegação (e não do
+ * Início) porque o efeito vale para todas as telas que exibem valores.
  */
 class PrivacidadeViewModel(private val privacidade: PrivacidadeRepository) : ViewModel() {
 

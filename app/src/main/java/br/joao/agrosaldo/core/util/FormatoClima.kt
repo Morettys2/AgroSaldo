@@ -12,10 +12,7 @@ import kotlin.math.roundToInt
 private val BRASIL_CLIMA: Locale = Locale.forLanguageTag("pt-BR")
 private val FORMATO_HORA_MINUTO: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/**
- * "6 mm", "2,5 mm", "12 mm". Até 10 mm mostra uma casa (faz diferença
- * entre garoa e chuva); acima disso, a casa decimal só polui.
- */
+/** "6 mm", "2,5 mm", "12 mm": uma casa decimal abaixo de 10 mm, inteiro a partir daí. Negativo vira 0. */
 fun Double.emMilimetros(): String {
     val valor = coerceAtLeast(0.0)
     if (valor >= 10.0) return "${valor.roundToInt()} mm"
@@ -30,7 +27,7 @@ fun Double.emGraus(): String = "${roundToInt()}°"
 /** "18h". */
 fun LocalDateTime.horaCurta(): String = "${hour}h"
 
-/** "14:05", no fuso do celular. */
+/** "14:05", no fuso informado (padrão: o do sistema). */
 fun Instant.horaMinuto(zona: ZoneId = ZoneId.systemDefault()): String = FORMATO_HORA_MINUTO.format(atZone(zona))
 
 /** "Hoje", "Amanhã", "Sexta". */

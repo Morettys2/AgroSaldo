@@ -9,19 +9,14 @@ import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
 /**
- * Os ícones do AgroSaldo, desenhados em traço — os mesmos do canvas de design.
- *
- * Por que desenhar e não usar os do Material: o pacote do Material não tem
- * pulverizador, saco de grãos ou broto com esse traço, e misturar estilos de
- * ícone deixa a tela com cara de remendo. Aqui todos têm o mesmo traço (2),
- * as mesmas pontas redondas e a mesma grade de 24.
- *
- * O traço é desenhado em preto, mas o `Icon` do Compose pinta com a cor
- * pedida (tint), então cada tela escolhe a cor.
+ * Ícones próprios em traço (grade 24x24, stroke 2, pontas arredondadas), definidos
+ * como path data SVG. Usados no lugar dos Material Icons, que não cobrem todas as
+ * categorias no mesmo estilo. O traço é preto e recebe a cor via `tint` do `Icon`.
+ * Construídos sob demanda (lazy).
  */
 object IconesAgro {
 
-    // ---------- categorias ----------
+    // Categorias
     val Energia by lazy { icone("energia", "M13 2L4 14h7l-1 8 9-12h-7l1-8z") }
     val Defensivos by lazy {
         icone(
@@ -52,13 +47,13 @@ object IconesAgro {
     val Arrendamento by lazy { icone("arrendamento", circulo(8f, 15f, 4f), "M11 12l9-9M17 6l3 3M14 9l2 2") }
     val Outras by lazy { icone("outras", circulo(5f, 12f, 1f), circulo(12f, 12f, 1f), circulo(19f, 12f, 1f)) }
 
-    // ---------- navegação ----------
+    // Navegação
     val Inicio by lazy { icone("inicio", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z") }
     val Lista by lazy { icone("lista", "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01") }
     val Nuvem by lazy { icone("nuvem", "M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z") }
     val Sitio by lazy { icone("sitio", BROTO) }
 
-    // ---------- ações ----------
+    // Ações e indicadores
     val Mais by lazy { icone("mais", "M12 5v14M5 12h14") }
     val Historico by lazy { icone("historico", "M5 20V11M12 20V5M19 20v-7") }
     val Olho by lazy { icone("olho", "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z", circulo(12f, 12f, 3f)) }
@@ -107,7 +102,7 @@ object IconesAgro {
 
     private const val BROTO = "M12 21v-8M12 13c0-4-3-6-7-6 0 4 3 6 7 6zM12 11c0-4 3-6 7-6 0 4-3 6-7 6z"
 
-    /** Um círculo escrito como caminho: dois arcos de meia volta. */
+    /** Círculo em path data: dois arcos de 180°. */
     private fun circulo(cx: Float, cy: Float, r: Float): String =
         "M${cx - r} ${cy}a$r $r 0 1 0 ${2 * r} 0a$r $r 0 1 0 ${-2 * r} 0"
 

@@ -10,34 +10,26 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
 /**
- * Digital, rosto ou o PIN/padrão/senha do próprio celular.
+ * Autenticação local via BiometricPrompt (biometria ou credencial do dispositivo).
  *
- * - BIOMETRIC_WEAK aceita qualquer biometria que o Android reconhece,
- *   inclusive o desbloqueio facial dos celulares mais simples. Para
- *   destravar a tela do app basta; força bruta é barrada pelo próprio sistema.
- * - DEVICE_CREDENTIAL deixa usar o PIN do celular. Sem ele, quem machuca o
- *   dedo na lida ficaria trancado fora do app.
- *
- * O app nunca vê a digital nem o PIN: o Android só responde "é o dono" ou
- * "não é".
+ * BIOMETRIC_WEAK é suficiente para desbloquear a UI (não há chave criptográfica atrelada;
+ * o sistema limita tentativas). DEVICE_CREDENTIAL serve de fallback quando a biometria
+ * não está disponível ou falha.
  */
 object Biometria {
 
     private const val AUTENTICADORES = BIOMETRIC_WEAK or DEVICE_CREDENTIAL
 
-    /** O celular tem digital ou PIN cadastrado? Se não tiver, não dá para travar o app. */
+    /** true se há biometria ou credencial de dispositivo cadastrada; pré-requisito do bloqueio. */
     fun disponivel(context: Context): Boolean =
         BiometricManager.from(context).canAuthenticate(AUTENTICADORES) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**
-     * Mostra a janela do sistema.
+     * Exibe o BiometricPrompt. Callbacks na main thread.
      *
-     * [aoFalhar] recebe null quando a própria pessoa cancelou (não há o que
-     * avisar) e uma mensagem do Android, já em português, nos outros casos
-     * — por exemplo, "Muitas tentativas".
-     *
-     * Dedo não reconhecido não chega aqui: a própria janela avisa e deixa
-     * tentar de novo.
+     * [aoFalhar] recebe null em cancelamento pelo usuário e a mensagem localizada do
+     * sistema nos demais erros (ex.: lockout). Leitura não reconhecida não é erro: o
+     * próprio prompt permite nova tentativa.
      */
     fun autenticar(
         activity: FragmentActivity,
@@ -61,8 +53,7 @@ object Biometria {
 
         val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), retorno)
 
-        // Com DEVICE_CREDENTIAL não existe botão "Cancelar" próprio: o
-        // sistema oferece "Usar PIN" no lugar. Por isso não há setNegativeButtonText.
+        // setNegativeButtonText é proibido quando DEVICE_CREDENTIAL está permitido.
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(titulo)
             .setSubtitle(subtitulo)
@@ -73,10 +64,7 @@ object Biometria {
     }
 }
 
-/**
- * Dentro do Compose, LocalContext pode vir "embrulhado" (um ContextWrapper
- * com outro tema, por exemplo). Desembrulha até achar a Activity.
- */
+/** Percorre a cadeia de ContextWrapper (ex.: LocalContext do Compose) até a FragmentActivity. */
 fun Context.acharFragmentActivity(): FragmentActivity? {
     var atual: Context = this
     while (atual is ContextWrapper) {

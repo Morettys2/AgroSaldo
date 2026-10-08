@@ -6,13 +6,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Paleta "Safra" (R4) — os mesmos valores do canvas de design.
-// Cabeçalho verde-noite com o saldo em branco, destaque verde-limão,
-// cartões brancos sobre um fundo de papel. Terra para despesa, água para clima.
-//
-// Todo texto passa de 4,5:1 contra o fundo em que aparece (WCAG AA).
+// Paleta do app. Verde = receita/marca, Terra = despesa, Agua = clima, VerdeNoite = cabeçalho.
+// Invariante: todo par texto/fundo tem contraste >= 4,5:1 (WCAG AA).
 
-// ---------- claro ----------
+// Tema claro
 private val Verde          = Color(0xFF2C6A43)
 private val VerdeCont      = Color(0xFFDCEADC)
 private val SobreVerde     = Color(0xFF12301E)
@@ -43,11 +40,7 @@ private val TintaApagada   = Color(0xFF626B64)
 private val Contorno       = Color(0xFFD5D8CE)
 private val ContornoSuave  = Color(0xFFEEF0E8)
 
-// ---------- escuro ----------
-// Não é o claro invertido: as cores de dinheiro ficam mais claras e menos
-// saturadas, senão o verde e o vermelho "vibram" no fundo escuro. O
-// cabeçalho fica um verde um pouco mais claro que o fundo, para continuar
-// se destacando.
+// Tema escuro: tons mais claros e menos saturados (evita vibração sobre fundo escuro).
 private val VerdeE         = Color(0xFF8FD1A3)
 private val VerdeContE     = Color(0xFF1E4D31)
 private val SobreVerdeE    = Color(0xFFBDEFC9)
@@ -75,13 +68,9 @@ private val ContornoE      = Color(0xFF474D43)
 private val ContornoSuaveE = Color(0xFF2B2F28)
 
 /**
- * Esquema de cores do Material 3.
- *
- * Despesa NÃO está mapeada em `error`. Gastar dinheiro não é um erro do
- * sistema — é uma operação normal. As cores de dinheiro vivem em [CoresAgro].
- *
- * Os papéis de superfície seguem o canvas: o fundo da tela é `background`,
- * os cartões são `surface` (branco) e os chips neutros usam `surfaceContainer`.
+ * Esquemas Material 3. Despesa não usa `error` (não é estado de erro); cores de
+ * receita/despesa ficam em [CoresAgro]. Fundo de tela = `background`, cartões =
+ * `surface`, chips neutros = `surfaceContainer`.
  */
 val EsquemaClaro = lightColorScheme(
     primary              = Verde,
@@ -165,11 +154,7 @@ val EsquemaEscuro = darkColorScheme(
     outlineVariant       = ContornoSuaveE
 )
 
-/**
- * Cores que o Material 3 não tem papel para: dinheiro que entra e sai,
- * clima, e o cabeçalho escuro da direção "Safra". Em vez de torcer os papéis
- * existentes, estendemos o tema.
- */
+/** Papéis de cor sem equivalente no Material 3 (receita, despesa, clima, cabeçalho). Acesso via `MaterialTheme.agro`. */
 @Immutable
 data class CoresAgro(
     val receita: Color,
@@ -183,20 +168,20 @@ data class CoresAgro(
     val sobreClimaContainer: Color,
     val tintaApagada: Color,
 
-    /** O bloco verde-noite do topo das telas principais. */
+    /** Fundo do cabeçalho das telas principais. */
     val cabecalho: Color,
-    /** Cartões e botões dentro do cabeçalho. */
+    /** Cartões e botões sobre o cabeçalho. */
     val cabecalhoElevado: Color,
     val sobreCabecalho: Color,
     val sobreCabecalhoSecundario: Color,
-    /** Verde-limão: o item ativo e o botão de novo lançamento. */
+    /** Item ativo da barra inferior e botão de novo lançamento. */
     val destaque: Color,
     val sobreDestaque: Color,
-    /** Entrou e saiu escritos sobre o cabeçalho escuro. */
+    /** Receita/despesa sobre o cabeçalho. */
     val receitaNoCabecalho: Color,
     val despesaNoCabecalho: Color,
 
-    /** O cartão grande de clima do Início (fundo cheio, texto claro). */
+    /** Cartão de clima do Início (fundo preenchido, texto claro). */
     val cartaoClima: Color,
     val cartaoClimaElevado: Color,
     val sobreCartaoClima: Color,
@@ -259,14 +244,11 @@ val CoresAgroEscuro = CoresAgro(
 
 val LocalCoresAgro = staticCompositionLocalOf { CoresAgroClaro }
 
-/** A cor de uma categoria: o traço do ícone e o quadradinho de fundo. */
+/** Cor de categoria: [conteudo] para o ícone, [fundo] para o contêiner. */
 @Immutable
 data class CorCategoria(val conteudo: Color, val fundo: Color)
 
-/**
- * Uma cor por categoria, para reconhecer de relance na lista e no gráfico.
- * A cor nunca é o único sinal: o ícone e o nome sempre vão junto.
- */
+/** Cores por categoria (lista e gráfico). Sempre acompanhadas de ícone e nome, nunca como único sinal. */
 @Immutable
 data class CoresCategorias(
     val energia: CorCategoria,
