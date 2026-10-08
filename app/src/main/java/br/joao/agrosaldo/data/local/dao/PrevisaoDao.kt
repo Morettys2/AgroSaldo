@@ -17,4 +17,7 @@ interface PrevisaoDao {
 
     @Upsert
     suspend fun salvar(previsao: PrevisaoEntity)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM propriedades WHERE id = :propriedadeId)")
+    suspend fun propriedadeExiste(propriedadeId: String): Boolean
 }

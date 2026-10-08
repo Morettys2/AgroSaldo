@@ -11,6 +11,7 @@ import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -57,7 +58,7 @@ class ClimaRepositoryRoom(
             val json = fonte.baixar(latitude, longitude)
             // Valida antes de gravar: resposta inválida não sobrescreve o cache bom.
             val previsao = LeitorOpenMeteo.ler(json, agora)
-            dao.salvar(
+            val guardada = guardar(
                 PrevisaoEntity(
                     propriedadeId = propriedade.id,
                     latitude = latitude,
@@ -66,7 +67,7 @@ class ClimaRepositoryRoom(
                     obtidaEm = agora.toEpochMilli()
                 )
             )
-            ResultadoAtualizacao.Sucesso(previsao)
+            if (guardada) ResultadoAtualizacao.Sucesso(previsao) else ResultadoAtualizacao.Falha(MENSAGEM_PROPRIEDADE_EXCLUIDA)
         } catch (e: IOException) {
             ResultadoAtualizacao.SemConexao
         } catch (e: RespostaInvalidaException) {
@@ -91,5 +92,26 @@ class ClimaRepositoryRoom(
         }
     }
 
+    /**
+     * Grava a previsão. Se a propriedade foi excluída durante o download, o upsert
+     * viola a chave estrangeira (SQLiteConstraintException) e a previsão é descartada.
+     *
+     * @return false se a propriedade não existe mais; outros erros do banco são relançados.
+     */
+    private suspend fun guardar(previsao: PrevisaoEntity): Boolean =
+        try {
+            dao.salvar(previsao)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RuntimeException) {
+            if (dao.propriedadeExiste(previsao.propriedadeId)) throw e
+            false
+        }
+
     private fun agora(): Instant = Instant.ofEpochMilli(relogio())
+
+    private companion object {
+        const val MENSAGEM_PROPRIEDADE_EXCLUIDA = "A propriedade foi excluída."
+    }
 }

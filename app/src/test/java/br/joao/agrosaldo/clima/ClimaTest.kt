@@ -39,6 +39,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -252,11 +253,19 @@ class ClimaTest {
     }
 
     // Repositório real sobre DAO em memória, com fonte e relógio controláveis.
+    // Imita a chave estrangeira: gravar previsão de propriedade inexistente falha como no SQLite.
     private class PrevisaoDaoFalso : PrevisaoDao {
         val tabela = MutableStateFlow<Map<String, PrevisaoEntity>>(emptyMap())
+        val propriedades = mutableSetOf("p1")
+        var erroAoSalvar: RuntimeException? = null
         override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> = tabela.map { it[propriedadeId] }
         override suspend fun buscar(propriedadeId: String) = tabela.value[propriedadeId]
-        override suspend fun salvar(previsao: PrevisaoEntity) = tabela.update { it + (previsao.propriedadeId to previsao) }
+        override suspend fun salvar(previsao: PrevisaoEntity) {
+            erroAoSalvar?.let { throw it }
+            if (previsao.propriedadeId !in propriedades) throw IllegalStateException("FOREIGN KEY constraint failed")
+            tabela.update { it + (previsao.propriedadeId to previsao) }
+        }
+        override suspend fun propriedadeExiste(propriedadeId: String) = propriedadeId in propriedades
     }
 
     private val fazenda = Propriedade(
@@ -279,6 +288,31 @@ class ClimaTest {
         val guardada = dao.tabela.value.getValue("p1")
         assertEquals(-21.70, guardada.latitude, 0.0)
         assertNotNull(repositorio.observar(fazenda).first())
+    }
+
+    @Test
+    fun `propriedade excluida durante o download nao derruba o app`() = runTest {
+        resposta = {
+            dao.propriedades.remove("p1") // Exclusão concorrente enquanto a resposta chega.
+            jsonOpenMeteo()
+        }
+
+        assertTrue(repositorio.atualizar(fazenda) is ResultadoAtualizacao.Falha)
+        assertTrue(dao.tabela.value.isEmpty())
+    }
+
+    @Test
+    fun `erro do banco com a propriedade existente continua sendo propagado`() = runTest {
+        val erro = IllegalStateException("disco cheio")
+        dao.erroAoSalvar = erro
+
+        val lancado = try {
+            repositorio.atualizar(fazenda)
+            null
+        } catch (e: IllegalStateException) {
+            e
+        }
+        assertSame(erro, lancado)
     }
 
     @Test

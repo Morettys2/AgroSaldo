@@ -232,4 +232,22 @@ class AgroSaldoDatabaseTest {
         propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
         assertNull(previsaoDao.buscar(DadosDeExemplo.ID_SITIO))
     }
+
+    /** Contrato usado por ClimaRepositoryRoom ao descartar a previsão de uma propriedade excluída. */
+    @Test
+    fun previsaoDePropriedadeExcluidaERecusadaPelaChaveEstrangeira() = runBlocking {
+        semearExemplos()
+        val previsaoDao = banco.previsaoDao()
+        assertTrue(previsaoDao.propriedadeExiste(DadosDeExemplo.ID_SITIO))
+
+        propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
+
+        assertFalse(previsaoDao.propriedadeExiste(DadosDeExemplo.ID_SITIO))
+        try {
+            previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
+            fail("A chave estrangeira deveria ter recusado a previsão")
+        } catch (esperado: SQLiteConstraintException) {
+            // RuntimeException: é o que ClimaRepositoryRoom.guardar trata.
+        }
+    }
 }
