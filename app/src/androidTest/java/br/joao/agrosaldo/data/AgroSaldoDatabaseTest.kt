@@ -190,6 +190,24 @@ class AgroSaldoDatabaseTest {
         assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
     }
 
+    /** Checagem de posse feita pelos repositórios antes do upsert, que casa só pelo id. */
+    @Test
+    fun idDeOutraContaOuSemDonoNaoContaComoDoUsuario() = runBlocking {
+        semearExemplos()
+        usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
+        val semDono = DadosDeExemplo.propriedades().first().copy(id = "sem-dono").paraEntidade(usuarioId = null)
+        propriedadeDao.salvar(semDono)
+
+        assertFalse(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u1"))
+        assertTrue(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u2"))
+        assertTrue("sem dono não é de ninguém", propriedadeDao.existeSemSerDoUsuario("sem-dono", "u1"))
+        assertFalse("id novo pode ser gravado", propriedadeDao.existeSemSerDoUsuario("nao-existe", "u1"))
+
+        assertFalse(lancamentoDao.existeSemSerDoUsuario("exemplo-1", "u1"))
+        assertTrue(lancamentoDao.existeSemSerDoUsuario("exemplo-1", "u2"))
+        assertFalse(lancamentoDao.existeSemSerDoUsuario("nao-existe", "u2"))
+    }
+
     /** Direito de exclusão da LGPD: a conta leva tudo junto, em dois níveis de CASCADE. */
     @Test
     fun excluirContaApagaPropriedadesELancamentos() = runBlocking {

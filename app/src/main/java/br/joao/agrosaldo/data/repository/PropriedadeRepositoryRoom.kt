@@ -44,9 +44,13 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun salvar(propriedade: Propriedade) {
         val usuarioId = usuarioConectado()
-        // O upsert casa só pelo id; impede sobrescrever propriedade de outra conta.
-        val dono = dao.donoDe(propriedade.id)
-        require(dono == null || dono == usuarioId) { "Esta propriedade pertence a outra conta." }
+        transacao.executar { gravar(propriedade, usuarioId) }
+    }
+
+    /** Checagem de posse e upsert; quem chama abre a transação. */
+    private suspend fun gravar(propriedade: Propriedade, usuarioId: String) {
+        // O upsert casa só pelo id; impede sobrescrever a propriedade de outra conta ou adotar uma sem dono.
+        require(!dao.existeSemSerDoUsuario(propriedade.id, usuarioId)) { "Esta propriedade pertence a outra conta." }
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
     }
 
@@ -65,9 +69,10 @@ class PropriedadeRepositoryRoom(
     }
 
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
+        val usuarioId = usuarioConectado()
         transacao.executar {
             // Propriedade antes dos lançamentos por causa da foreign key.
-            salvar(excluida.propriedade)
+            gravar(excluida.propriedade, usuarioId)
             lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade() })
         }
     }

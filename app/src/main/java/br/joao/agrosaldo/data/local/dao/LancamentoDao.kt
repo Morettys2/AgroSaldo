@@ -37,6 +37,21 @@ interface LancamentoDao {
     @Query("SELECT EXISTS(SELECT 1 FROM propriedades WHERE id = :propriedadeId AND usuario_id = :usuarioId)")
     suspend fun propriedadeEhDoUsuario(propriedadeId: String, usuarioId: String): Boolean
 
+    /**
+     * true se o lançamento [id] existe numa propriedade que não é de [usuarioId]. Usado antes
+     * do upsert, que casa só pelo id.
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM lancamentos
+            WHERE id = :id
+              AND propriedade_id NOT IN (SELECT id FROM propriedades WHERE usuario_id = :usuarioId)
+        )
+        """
+    )
+    suspend fun existeSemSerDoUsuario(id: String, usuarioId: String): Boolean
+
     @Upsert
     suspend fun salvar(lancamento: LancamentoEntity)
 
