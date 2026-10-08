@@ -3,6 +3,7 @@ package br.joao.agrosaldo.core.util
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.abs
 
 private val BRASIL: Locale = Locale.forLanguageTag("pt-BR")
 
@@ -47,3 +48,10 @@ const val VALOR_ESCONDIDO = "R$ ••••"
 fun Long.emReal(oculto: Boolean): String = if (oculto) VALOR_ESCONDIDO else emReal()
 
 fun Long.emRealCurto(oculto: Boolean): String = if (oculto) VALOR_ESCONDIDO else emRealCurto()
+
+/**
+ * Total com sinal explícito ("+ R$ 100,00", "− R$ 320,00"). Oculto, some também o sinal,
+ * que revelaria se o total é negativo.
+ */
+fun Long.emRealComSinal(oculto: Boolean = false): String =
+    if (oculto) VALOR_ESCONDIDO else (if (this < 0) "− " else "+ ") + abs(this).emReal()

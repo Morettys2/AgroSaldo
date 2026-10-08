@@ -173,6 +173,15 @@ class FormatacaoTest {
     }
 
     @Test
+    fun `total com sinal mostra mais ou menos, e com o olho fechado some o sinal tambem`() {
+        assertEquals("+ R$ 100,00", normalizar(10_000L.emRealComSinal()))
+        assertEquals("− R$ 320,00", normalizar((-32_000L).emRealComSinal()))
+        assertEquals("+ R$ 0,00", normalizar(0L.emRealComSinal()))
+        assertEquals(VALOR_ESCONDIDO, 10_000L.emRealComSinal(oculto = true))
+        assertEquals("o sinal revelaria se o total é negativo", VALOR_ESCONDIDO, (-32_000L).emRealComSinal(oculto = true))
+    }
+
+    @Test
     fun `com o olho aberto o valor aparece normal`() {
         assertEquals(125_050L.emReal(), 125_050L.emReal(oculto = false))
         assertEquals(125_000L.emRealCurto(), 125_000L.emRealCurto(oculto = false))

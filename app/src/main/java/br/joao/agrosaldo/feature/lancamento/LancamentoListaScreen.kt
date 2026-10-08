@@ -78,7 +78,7 @@ import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.icone
 import br.joao.agrosaldo.core.ui.sangrarNasLaterais
 import br.joao.agrosaldo.core.ui.valorEscondido
-import br.joao.agrosaldo.core.util.emReal
+import br.joao.agrosaldo.core.util.emRealComSinal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.core.util.siglaDoMes
@@ -92,7 +92,6 @@ import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 import java.time.Month
 import java.time.YearMonth
-import kotlin.math.abs
 
 @Composable
 fun LancamentoListaRoute(
@@ -497,7 +496,7 @@ private fun ResumoDoFiltro(quantidade: Int, totalCentavos: Long, mostrarLimpar: 
     val oculto = LocalValoresOcultos.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         val contagem = if (quantidade == 1) "1 lançamento" else "$quantidade lançamentos"
-        val total = (if (totalCentavos < 0) "− " else "+ ") + abs(totalCentavos).emReal(oculto)
+        val total = totalCentavos.emRealComSinal(oculto)
         Text(
             text = "$contagem · $total",
             style = MaterialTheme.typography.labelLarge,

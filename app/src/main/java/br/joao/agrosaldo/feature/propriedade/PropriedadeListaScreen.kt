@@ -278,13 +278,16 @@ private fun CartaoPropriedade(
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(item.proporcao.coerceIn(0.03f, 1f))
-                        .height(10.dp)
-                        .clip(CircleShape)
-                        .background(cor)
-                )
+                // Com valores ocultos, fica só a trilha: o tamanho revelaria a proporção entre os saldos.
+                if (!oculto) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(item.proporcao.coerceIn(0.03f, 1f))
+                            .height(10.dp)
+                            .clip(CircleShape)
+                            .background(cor)
+                    )
+                }
             }
         }
     }
