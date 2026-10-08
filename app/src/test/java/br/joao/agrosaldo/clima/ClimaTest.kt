@@ -119,6 +119,17 @@ class ClimaTest {
     }
 
     @Test
+    fun `traco de garoa nao marca o inicio da chuva`() {
+        // 15h: 0,02 mm com 10% de chance; a chuva que dispara o aviso começa às 18h.
+        val garoa = RegraDeChuva.avaliar(previsao(mapOf(15 to (10 to 0.02), 18 to (85 to 6.0))), AGORA)
+        assertEquals(LocalDateTime.of(2026, 10, 1, 18, 0), garoa.inicioPrevisto)
+
+        val minimo = RegraDeChuva.CHUVA_MINIMA_POR_HORA_MM
+        val chuvisco = RegraDeChuva.avaliar(previsao(mapOf(15 to (10 to minimo), 18 to (85 to 6.0))), AGORA)
+        assertEquals(LocalDateTime.of(2026, 10, 1, 15, 0), chuvisco.inicioPrevisto)
+    }
+
+    @Test
     fun `limites do produtor sao respeitados`() {
         val p = previsao(mapOf(18 to (70 to 1.0)))
         assertTrue(RegraDeChuva.avaliar(p, AGORA, LimitesChuva(probabilidadeMinima = 70)).vaiChover)

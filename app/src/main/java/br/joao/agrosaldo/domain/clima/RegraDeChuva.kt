@@ -37,7 +37,10 @@ data class AvaliacaoChuva(
     val probabilidadeMaxima: Int,
     /** Chuva somada na janela, em mm. */
     val chuvaTotalMm: Double,
-    /** Primeira hora da janela em que a chuva aparece, se aparecer. */
+    /**
+     * Primeira hora da janela que atinge o limite de chance ou tem pelo menos
+     * [RegraDeChuva.CHUVA_MINIMA_POR_HORA_MM]; null se não vai chover.
+     */
     val inicioPrevisto: LocalDateTime?,
     val motivo: MotivoChuva?,
     /** false quando a previsão guardada não cobre a janela (velha demais). */
@@ -76,7 +79,7 @@ object RegraDeChuva {
         }
 
         val inicioPrevisto = janela.firstOrNull {
-            it.probabilidadeChuva >= limites.probabilidadeMinima || it.chuvaMm > 0.0
+            it.probabilidadeChuva >= limites.probabilidadeMinima || it.chuvaMm >= CHUVA_MINIMA_POR_HORA_MM - TOLERANCIA
         }?.horario
 
         return AvaliacaoChuva(
@@ -88,6 +91,9 @@ object RegraDeChuva {
             temDados = true
         )
     }
+
+    /** Volume mínimo de uma hora para marcar o início da chuva; abaixo disso é traço de garoa. */
+    const val CHUVA_MINIMA_POR_HORA_MM = 0.1
 
     // Absorve erro de arredondamento da soma de Double (ex.: 1,9999999 mm vs. 2 mm).
     private const val TOLERANCIA = 1e-9
