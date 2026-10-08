@@ -285,4 +285,17 @@ class LancamentoListaBuscaTest {
         runCurrent()
         assertEquals(listOf("exemplo-5"), vm.uiState.value.lancamentos.map { it.id })
     }
+
+    @Test
+    fun `voltar para a tela depois da virada do mes mostra o mes novo`() {
+        var dia = LocalDate.of(2026, 9, 30)
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        val vm = LancamentoListaViewModel(exemplos, propriedades, hoje = { dia }, processamento = EmptyCoroutineContext)
+
+        dia = LocalDate.of(2026, 10, 1)
+        vm.aoVoltarParaATela()
+
+        assertEquals(YearMonth.of(2026, 10), vm.uiState.value.mes)
+    }
 }

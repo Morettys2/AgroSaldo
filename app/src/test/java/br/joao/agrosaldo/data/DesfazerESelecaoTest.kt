@@ -163,4 +163,38 @@ class DesfazerESelecaoTest {
         SelecaoAtual.limpar()
         assertEquals(YearMonth.now(), SelecaoAtual.mes.value)
     }
+
+    @Test
+    fun `na virada do mes com o app aberto a selecao vai para o mes novo`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
+
+        assertEquals(YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+    }
+
+    @Test
+    fun `mes escolhido a mao continua escolhido depois da virada`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 6))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
+        assertEquals(YearMonth.of(2026, 6), SelecaoAtual.mes.value)
+
+        // De volta ao mês corrente, a seleção volta a acompanhar o calendário.
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 10))
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 11))
+        assertEquals(YearMonth.of(2026, 11), SelecaoAtual.mes.value)
+    }
+
+    @Test
+    fun `sem virada, ou com o relogio voltando, o mes nao muda`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 9))
+        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 8))
+        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+    }
 }

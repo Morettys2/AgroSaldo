@@ -136,6 +136,21 @@ class ResumosViewModelTest {
     }
 
     @Test
+    fun `voltar ao inicio depois da virada do mes mostra o mes novo`() {
+        var dia = hoje
+        SelecaoAtual.limpar(agora = mesDeHoje)
+        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia })
+        vm.aoVoltarParaATela() // Abertura da tela.
+
+        dia = hoje.plusDays(1)
+        vm.aoVoltarParaATela()
+
+        assertEquals(mesDeHoje.plusMonths(1), vm.uiState.value.mes)
+        assertEquals(0L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
     fun `sem nenhuma propriedade o inicio pede para cadastrar`() {
         val vm = InicioViewModel(
             LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()),

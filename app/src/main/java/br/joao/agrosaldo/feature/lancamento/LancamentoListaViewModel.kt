@@ -129,7 +129,11 @@ class LancamentoListaViewModel(
         }
     }
 
-    fun aoVoltarParaATela() = _voltas.update { it + 1 }
+    /** Chamado em ON_RESUME: acompanha a virada do mês e recalcula os rótulos relativos ("Hoje"). */
+    fun aoVoltarParaATela() {
+        SelecaoAtual.acompanharMesCorrente(YearMonth.from(hoje()))
+        _voltas.update { it + 1 }
+    }
 
     private fun montarEstado(
         todosLancamentos: List<LancamentoParaBusca>,
