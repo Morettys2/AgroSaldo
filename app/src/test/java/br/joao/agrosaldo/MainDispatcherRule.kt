@@ -10,14 +10,10 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
 /**
- * Troca a thread principal do Android por um dispatcher de teste.
+ * Substitui `Dispatchers.Main` por um [TestDispatcher] durante o teste (o `viewModelScope` usa Main).
  *
- * Por que é necessário: o viewModelScope roda na thread principal
- * (Dispatchers.Main). Num teste rodando no computador essa thread não existe,
- * e todo ViewModel quebraria ao lançar uma coroutine.
- *
- * O UnconfinedTestDispatcher executa as coroutines na hora, então quando uma
- * função do ViewModel retorna, o estado já está atualizado para o teste ler.
+ * Com o [UnconfinedTestDispatcher] padrão, as coroutines rodam imediatamente: o estado do
+ * ViewModel já está atualizado quando a função chamada retorna.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(

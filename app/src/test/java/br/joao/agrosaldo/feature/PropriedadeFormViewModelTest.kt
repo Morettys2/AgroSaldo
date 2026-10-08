@@ -20,13 +20,6 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 
-/**
- * Testa o ViewModel do formulário de propriedade SEM tela nenhuma.
- *
- * É o argumento mais forte a favor do MVVM: toda a regra de validação vive
- * no ViewModel, então dá para verificá-la chamando funções, sem abrir o app,
- * sem emulador e sem clicar em nada.
- */
 class PropriedadeFormViewModelTest {
 
     @get:Rule
@@ -120,7 +113,7 @@ class PropriedadeFormViewModelTest {
     fun `edicao carrega os dados e mantem o mesmo id ao salvar`() = runTest {
         val vm = editando(DadosDeExemplo.ID_SITIO)
         assertEquals("Sítio Boa Vista", vm.uiState.value.nome)
-        // Sem ",0" no fim: é o que a pessoa teria digitado.
+        // Área inteira volta sem casa decimal ("18", não "18,0").
         assertEquals("18", vm.uiState.value.area)
         assertTrue(vm.uiState.value.ehEdicao)
 
@@ -167,7 +160,7 @@ class PropriedadeFormViewModelTest {
     fun `usar minha localizacao preenche as coordenadas com virgula`() = runTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Teste")
-        vm.aoSalvar()  // força os erros aparecerem
+        vm.aoSalvar() // Gera o erro de coordenadas que a localização deve limpar.
 
         vm.aoUsarLocalizacao(latitude = -21.73694049, longitude = -46.9316)
 

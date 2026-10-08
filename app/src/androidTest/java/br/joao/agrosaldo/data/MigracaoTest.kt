@@ -18,16 +18,11 @@ import org.junit.runner.RunWith
 import java.time.LocalDate
 
 /**
- * Simula quem já usava o app da fase 3 e atualizou direto para a versão
- * mais nova: o banco passa pela migração 1→2 (login) e depois 2→3 (clima).
+ * Atualização direta do banco v1 para a versão atual (1→2: usuários/login; 2→3: previsão do clima).
  *
- * 1. Cria no emulador um arquivo SQLite exatamente como o da versão 1, com
- *    as propriedades e os lançamentos de exemplo.
- * 2. Abre esse arquivo com o Room atual.
- *
- * Ao abrir, o Room roda as migrações em ordem e depois CONFERE o banco resultante
- * contra as entidades: se faltar uma coluna, um índice ou uma chave, ele
- * lança erro aqui — e não no celular do produtor.
+ * Cria um SQLite com o esquema v1 e os dados de exemplo e o abre com o Room atual. Ao abrir, o Room
+ * aplica as migrações e valida o esquema resultante contra as entidades, falhando se faltar
+ * coluna, índice ou chave.
  */
 @RunWith(AndroidJUnit4::class)
 class MigracaoTest {
@@ -41,7 +36,7 @@ class MigracaoTest {
         context.deleteDatabase(arquivo)
     }
 
-    /** O SQL que o Room gerou para a versão 1 (está em app/schemas/.../1.json). */
+    /** SQL gerado pelo Room para a versão 1 (app/schemas/.../1.json). */
     private val esquemaV1 = listOf(
         "CREATE TABLE IF NOT EXISTS `propriedades` (`id` TEXT NOT NULL, `nome` TEXT NOT NULL, " +
             "`cultura` TEXT NOT NULL, `area_hectares` REAL NOT NULL, `latitude` REAL NOT NULL, " +
@@ -57,7 +52,7 @@ class MigracaoTest {
 
     @Test
     fun migracaoDaVersao1AteAAtualMantemTodosOsDadosEPassaNaConferenciaDoRoom() {
-        // 1. Banco da versão 1, com dados.
+        // Banco v1 com os dados de exemplo.
         val caminho = context.getDatabasePath(arquivo)
         caminho.parentFile?.mkdirs()
         SQLiteDatabase.openOrCreateDatabase(caminho, null).use { antigo ->
@@ -69,28 +64,27 @@ class MigracaoTest {
             antigo.version = 1
         }
 
-        // 2. Abre com o Room atual. As migrações rodam aqui.
         val banco = Room.databaseBuilder(context, AgroSaldoDatabase::class.java, arquivo)
             .addMigrations(*AgroSaldoDatabase.MIGRACOES)
             .build()
 
         try {
             runBlocking {
-                // Primeira consulta: é quando o Room abre, migra e confere.
+                // Primeira consulta: o Room abre o banco, migra e valida o esquema.
                 val conta = UsuarioEntity(
                     id = "u1", nome = "Fábio", email = "fabio@exemplo.com", senhaHash = "hash",
                     consentimentoEm = 1L, versaoTermo = 1, criadoEm = 1L
                 )
                 banco.usuarioDao().inserir(conta)
 
-                // As propriedades antigas não tinham dono; a primeira conta fica com elas.
+                // Propriedades da v1 não têm dono; a primeira conta as adota.
                 assertEquals(2, banco.usuarioDao().adotarPropriedadesSemDono("u1"))
 
-                // Nenhum lançamento se perdeu na migração.
+                // Nenhum lançamento perdido na migração.
                 assertEquals(9, banco.lancamentoDao().observarDoUsuario("u1").first().size)
                 assertEquals(2, banco.propriedadeDao().contarDoUsuario("u1"))
 
-                // A tabela do clima (versão 3) existe e começa vazia.
+                // Tabela de previsão (v3) existe e começa vazia.
                 assertNull(banco.previsaoDao().buscar(DadosDeExemplo.ID_FAZENDA))
             }
         } finally {

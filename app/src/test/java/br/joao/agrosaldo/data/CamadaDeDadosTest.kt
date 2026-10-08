@@ -36,15 +36,10 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Testes da camada de dados que rodam sem Android: mapeadores, semeador,
- * migração e os repositórios Room ligados a DAOs falsos.
- *
- * O SQL de verdade é testado em app/src/androidTest, com um banco Room
- * rodando no emulador.
+ * Camada de dados na JVM: mapeadores, semeador, SQL de migração e repositórios Room sobre
+ * DAOs falsos. O SQL real é testado em `app/src/androidTest`.
  */
 class CamadaDeDadosTest {
-
-    // ---------- mapeadores ----------
 
     @Test
     fun `propriedade vai para o banco e volta igual`() {
@@ -91,8 +86,6 @@ class CamadaDeDadosTest {
         assertEquals(original, entidade.paraDominio())
     }
 
-    // ---------- semeador ----------
-
     private data class Comando(val sql: String, val argumentos: List<Any?>)
 
     private fun comandosDoSemeador(hoje: LocalDate): List<Comando> {
@@ -137,8 +130,6 @@ class CamadaDeDadosTest {
         }
     }
 
-    // ---------- migração ----------
-
     @Test
     fun `migracao 1 para 2 nunca apaga nem recria tabela`() {
         // Apagar "propriedades" dispararia o CASCADE e levaria os lançamentos.
@@ -155,9 +146,7 @@ class CamadaDeDadosTest {
         assertTrue(criaUsuarios in 0 until alteraPropriedades)
     }
 
-    // ---------- DAOs falsos ----------
-
-    /** Guarda as entidades numa lista, respeitando o dono como o SQL faria. */
+    /** DAO em memória que filtra por dono como as queries reais. */
     private class PropriedadeDaoFalso : PropriedadeDao {
         val tabela = MutableStateFlow<List<PropriedadeEntity>>(emptyList())
         override fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>> =
@@ -173,7 +162,7 @@ class CamadaDeDadosTest {
         override suspend fun contarDoUsuario(usuarioId: String) = tabela.value.count { it.usuarioId == usuarioId }
     }
 
-    /** Faz o "JOIN" com a tabela de propriedades para saber o dono de cada lançamento. */
+    /** Resolve o dono de cada lançamento pela propriedade, como o JOIN das queries reais. */
     private class LancamentoDaoFalso(private val propriedades: PropriedadeDaoFalso) : LancamentoDao {
         val tabela = MutableStateFlow<List<LancamentoEntity>>(emptyList())
 
@@ -237,8 +226,6 @@ class CamadaDeDadosTest {
         consentimentoEm = Instant.ofEpochMilli(1_000L), versaoTermo = 1,
         criadoEm = Instant.ofEpochMilli(1_000L)
     )
-
-    // ---------- repositórios Room ----------
 
     @Test
     fun `repositorio Room entrega objetos de dominio a partir das entidades`() = runTest {

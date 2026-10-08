@@ -144,8 +144,6 @@ class LancamentoFormViewModelTest {
         assertEquals(original, lancamentos.buscarPorId("exemplo-3"))
     }
 
-    // ---------- calendário e atalhos ----------
-
     @Test
     fun `atalhos hoje e ontem preenchem a data`() {
         val vm = novo()
@@ -183,8 +181,6 @@ class LancamentoFormViewModelTest {
         assertTrue("exatamente 12 meses ainda vale", vm.uiState.value.salvo)
     }
 
-    // ---------- lançar de novo ----------
-
     @Test
     fun `lancar de novo copia tudo menos a data, que vira hoje`() = runTest {
         val total = lancamentos.observarTodos().first().size
@@ -203,8 +199,6 @@ class LancamentoFormViewModelTest {
         assertEquals(LocalDate.of(2026, 9, 26), lancamentos.buscarPorId("exemplo-2")?.data)
     }
 
-    // ---------- propriedade escolhida ----------
-
     @Test
     fun `propriedade escolhida que nao existe mais cai na primeira da lista`() {
         SelecaoAtual.selecionar("propriedade-apagada")
@@ -217,8 +211,6 @@ class LancamentoFormViewModelTest {
     fun `outras despesas aparece por ultimo entre as despesas`() {
         assertEquals(CategoriaLancamento.OUTRAS_DESPESAS, novo().uiState.value.categoriasDisponiveis.last())
     }
-
-    // ---------- R4: teclado numérico da tela ----------
 
     @Test
     fun `teclado entra pela direita, como a maquininha de cartao`() {
@@ -295,8 +287,6 @@ class LancamentoFormViewModelTest {
         assertNull(vm.uiState.value.erroValor)
     }
 
-    // ---------- R4: atalhos Despesa e Receita do Início ----------
-
     @Test
     fun `atalho receita abre o formulario ja em receita`() {
         val vm = LancamentoFormViewModel(
@@ -315,8 +305,6 @@ class LancamentoFormViewModelTest {
         assertEquals(TipoLancamento.DESPESA, vm.uiState.value.tipo)
         assertEquals(CategoriaLancamento.ENERGIA, vm.uiState.value.categoria)
     }
-
-    // ---------- R4: textos da tela ----------
 
     @Test
     fun `campo de data mostra hoje e ontem com o dia`() {
@@ -345,9 +333,7 @@ class LancamentoFormViewModelTest {
         assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda São João da Serra", vm.uiState.value.resumo)
     }
 
-    // ---------- R4: revisão ----------
-
-    /** Grava só quando o teste deixa: simula o banco demorando. */
+    /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
     private class LancamentosLentos(private val real: LancamentoRepositoryMemoria) : LancamentoRepository by real {
         val portao = CompletableDeferred<Unit>()
         override suspend fun salvar(lancamento: Lancamento) {

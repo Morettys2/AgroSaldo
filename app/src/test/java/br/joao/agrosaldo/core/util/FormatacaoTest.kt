@@ -11,9 +11,8 @@ import java.time.YearMonth
 class FormatacaoTest {
 
     /**
-     * O formatador de moeda coloca um espaço especial (não quebrável) entre
-     * "R$" e o número, e o caractere exato muda entre versões do Java e do
-     * Android. Normalizar deixa o teste conferir o que importa: os números.
+     * Troca espaços especiais por espaço comum: o separador entre "R$" e o número (NBSP ou
+     * NNBSP) varia entre versões do Java e do Android.
      */
     private fun normalizar(texto: String) = texto.replace(Regex("[\\s\\u00A0\\u202F]"), " ")
 
@@ -57,7 +56,7 @@ class FormatacaoTest {
     @Test
     fun `data impossivel e recusada em vez de corrigida em silencio`() {
         assertNull("31/02/2026".paraLocalDateOuNulo())
-        assertNull("29/02/2026".paraLocalDateOuNulo()) // 2026 não é bissexto
+        assertNull("29/02/2026".paraLocalDateOuNulo()) // 2026 não é bissexto.
         assertEquals(LocalDate.of(2028, 2, 29), "29/02/2028".paraLocalDateOuNulo())
     }
 
@@ -98,15 +97,13 @@ class FormatacaoTest {
         assertEquals("15 minutos", formatarEspera(900))
     }
 
-    // ---------- calendário e histórico ----------
-
     @Test
     fun `calendario - o dia escolhido nao volta um dia no fuso do Brasil`() {
         val dia = LocalDate.of(2026, 10, 4)
-        // Meia-noite de 04/10 em UTC: o que o DatePicker do Material devolve.
+        // O DatePicker do Material trabalha com meia-noite UTC do dia escolhido.
         assertEquals(1_791_072_000_000L, dia.emMillisUtc())
         assertEquals(dia, dia.emMillisUtc().paraLocalDateUtc())
-        // Qualquer hora do mesmo dia em UTC continua sendo o mesmo dia.
+        // Qualquer instante do mesmo dia UTC volta para o mesmo LocalDate.
         assertEquals(dia, (dia.emMillisUtc() + 23 * 3_600_000L).paraLocalDateUtc())
     }
 
@@ -117,8 +114,6 @@ class FormatacaoTest {
         assertEquals("Mai", YearMonth.of(2026, 5).siglaDoMes())
         assertEquals("Março", YearMonth.of(2026, 3).nomeDoMes())
     }
-
-    // ---------- R4: dias com nome e valores escondidos ----------
 
     @Test
     fun `dia relativo usa hoje, ontem, amanha e o nome do mes`() {

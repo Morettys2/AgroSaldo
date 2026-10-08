@@ -51,13 +51,10 @@ import java.util.Locale
 /**
  * Clima e aviso de chuva (RF12, RF13, RF14, RN04).
  *
- * A regra de chuva é a mais fácil de quebrar sem perceber — o CLAUDE.md pede
- * teste para ela. Aqui estão as bordas: exatamente no limite, logo fora da
- * janela, hora atual pela metade, fuso horário.
+ * Foco nas bordas da regra de chuva: valor exatamente no limite, hora logo fora da janela,
+ * hora atual parcial e fuso horário.
  */
 class ClimaTest {
-
-    // ---------- RN04: a regra de chuva ----------
 
     @Test
     fun `RN04 - tudo seco nao avisa`() {
@@ -83,7 +80,7 @@ class ClimaTest {
 
     @Test
     fun `RN04 - 2 mm somados em varias horas avisam mesmo com chance baixa`() {
-        // 0,6 + 0,7 + 0,7 = 2,0 mm — mas em Double a soma dá 1,9999999999999998.
+        // 0,6 + 0,7 + 0,7 em Double dá 1,9999999999999998; a regra precisa tolerar esse erro.
         val a = RegraDeChuva.avaliar(previsao(mapOf(15 to (30 to 0.6), 16 to (30 to 0.7), 17 to (30 to 0.7))), AGORA)
         assertTrue(a.vaiChover)
         assertEquals(MotivoChuva.VOLUME, a.motivo)
@@ -98,7 +95,7 @@ class ClimaTest {
 
     @Test
     fun `janela comeca na hora cheia atual e tem 12 horas`() {
-        // Agora são 14:40. A hora das 14h conta; as 13h e as 02h do dia seguinte não.
+        // AGORA = 14:40 local: a hora das 14h entra; 13h e 02h do dia seguinte ficam fora.
         val dentroInicio = RegraDeChuva.avaliar(previsao(mapOf(14 to (80 to 0.0))), AGORA)
         val dentroFim = RegraDeChuva.avaliar(previsao(mapOf(25 to (80 to 0.0))), AGORA)
         val antes = RegraDeChuva.avaliar(previsao(mapOf(13 to (80 to 5.0))), AGORA)
@@ -112,8 +109,8 @@ class ClimaTest {
 
     @Test
     fun `horario e o da propriedade e nao o UTC`() {
-        // 17:40 em UTC é 14:40 em Brasília. Se o fuso fosse ignorado, a
-        // janela começaria às 17h e a chuva das 15h ficaria de fora.
+        // AGORA = 17:40 UTC = 14:40 local. Ignorando o fuso, a janela começaria às 17h
+        // e a chuva das 15h ficaria de fora.
         val a = RegraDeChuva.avaliar(previsao(mapOf(15 to (90 to 3.0))), AGORA)
         assertTrue(a.vaiChover)
         assertEquals(LocalDateTime.of(2026, 10, 1, 15, 0), a.inicioPrevisto)
@@ -152,8 +149,6 @@ class ClimaTest {
         }
     }
 
-    // ---------- 2 avisos por dia ----------
-
     @Test
     fun `nao avisa de novo a mesma propriedade em menos de 11 horas`() {
         assertTrue(ControleDeAvisos.podeAvisar(null, AGORA))
@@ -168,8 +163,6 @@ class ClimaTest {
         assertTrue(PoliticaDeAtualizacao.precisaAtualizar(AGORA.minus(Duration.ofMinutes(60)), AGORA))
     }
 
-    // ---------- códigos WMO ----------
-
     @Test
     fun `codigos WMO viram condicoes`() {
         assertEquals(CondicaoTempo.CEU_LIMPO, CondicaoTempo.doCodigoWmo(0))
@@ -183,8 +176,6 @@ class ClimaTest {
         assertTrue(CondicaoTempo.TEMPESTADE.molhado)
         assertFalse(CondicaoTempo.NEBLINA.molhado)
     }
-
-    // ---------- Open-Meteo: endereço e leitura ----------
 
     @Test
     fun `endereco usa ponto decimal mesmo com o celular em portugues`() {
@@ -260,8 +251,7 @@ class ClimaTest {
         }
     }
 
-    // ---------- repositório: cache primeiro ----------
-
+    // Repositório real sobre DAO em memória, com fonte e relógio controláveis.
     private class PrevisaoDaoFalso : PrevisaoDao {
         val tabela = MutableStateFlow<Map<String, PrevisaoEntity>>(emptyMap())
         override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> = tabela.map { it[propriedadeId] }
@@ -338,8 +328,6 @@ class ClimaTest {
         assertNull(repositorio.emCache(fazenda))
     }
 
-    // ---------- RF14: verificação em segundo plano ----------
-
     private val sitio = Propriedade(
         id = "p2", nome = "Sítio Boa Vista", cultura = "Milho",
         areaHectares = 10.0, latitude = -21.8, longitude = -46.8
@@ -395,7 +383,7 @@ class ClimaTest {
 
         assertTrue(v.verificar(podeNotificar = false).avisos.isEmpty())
         assertEquals("a previsão foi atualizada mesmo assim", 2, clima.atualizacoes)
-        // Liberou a notificação logo depois: o aviso sai na hora, sem esperar 11 h.
+        // Sem notificação, o aviso não é registrado; ao liberar, sai sem esperar o intervalo de 11 h.
         assertEquals(listOf("p1"), v.verificar(podeNotificar = true).avisos.map { it.propriedadeId })
     }
 
@@ -426,8 +414,6 @@ class ClimaTest {
 
         assertTrue(verificador(clima).verificar().avisos.isEmpty())
     }
-
-    // ---------- textos ----------
 
     @Test
     fun `milimetros aparecem do jeito que o produtor le`() {

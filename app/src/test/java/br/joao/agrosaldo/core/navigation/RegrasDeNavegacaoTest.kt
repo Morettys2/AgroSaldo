@@ -10,8 +10,6 @@ import org.junit.Test
 /** Para onde o app vai quando a pessoa entra, sai ou a política muda. */
 class RegrasDeNavegacaoTest {
 
-    // ---------- entrar ----------
-
     @Test
     fun `entrou pelo login vai para o inicio`() {
         assertEquals(Rotas.INICIO, destino(Rotas.LOGIN, null, logado = true, precisaNovoAceite = false))
@@ -23,8 +21,6 @@ class RegrasDeNavegacaoTest {
         assertNull(destino(Rotas.CLIMA, Rotas.INICIO, logado = true, precisaNovoAceite = false))
         assertNull(destino(Rotas.POLITICA, Rotas.CONTA, logado = true, precisaNovoAceite = false))
     }
-
-    // ---------- sair ----------
 
     @Test
     fun `saiu de dentro do app vai para o login`() {
@@ -39,7 +35,7 @@ class RegrasDeNavegacaoTest {
 
     @Test
     fun `saiu lendo a politica aberta pela conta vai para o login`() {
-        // Senão o "voltar" levaria um desconectado para dentro da Conta.
+        // Sem o redirecionamento, o "voltar" levaria um usuário desconectado para a tela de Conta.
         assertEquals(Rotas.LOGIN, destino(Rotas.POLITICA, Rotas.CONTA, logado = false, precisaNovoAceite = false))
         assertEquals(
             Rotas.LOGIN,
@@ -54,8 +50,6 @@ class RegrasDeNavegacaoTest {
             destino(Rotas.NOVO_CONSENTIMENTO, null, logado = false, precisaNovoAceite = false)
         )
     }
-
-    // ---------- política nova ----------
 
     @Test
     fun `politica mudou leva qualquer tela para o novo aceite`() {
@@ -90,8 +84,6 @@ class RegrasDeNavegacaoTest {
             destino(Rotas.NOVO_CONSENTIMENTO, null, logado = true, precisaNovoAceite = false)
         )
     }
-
-    // ---------- rotas do lançamento (R4) ----------
 
     @Test
     fun `rota do formulario leva o tipo dos atalhos do inicio`() {

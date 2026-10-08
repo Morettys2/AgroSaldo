@@ -29,7 +29,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** Telas de clima (16), ajustes do aviso (18) e o cartão de chuva do Início. */
+/** ClimaViewModel, AjustesAvisoViewModel e o cartão de chuva do InicioViewModel. */
 class ClimaViewModelsTest {
 
     @get:Rule
@@ -49,8 +49,6 @@ class ClimaViewModelsTest {
         propriedades: PropriedadeRepositoryMemoria = PropriedadeRepositoryMemoria()
     ) = ClimaViewModel(propriedades, clima, ajustes, relogio = { AGORA.toEpochMilli() }, zona = ZoneOffset.ofHours(-3))
 
-    // ---------- tela de clima ----------
-
     @Test
     fun `RF13 - mostra temperatura, 7 dias e a recomendacao do pivo`() {
         val clima = ClimaRepositoryMemoria(mapOf(fazendaId to comChuva))
@@ -68,7 +66,7 @@ class ClimaViewModelsTest {
         assertEquals("31°", estado.dias[0].maxima)
         assertEquals(CondicaoTempo.CHUVA, estado.dias[0].condicao)
         assertEquals("Atualizada às 14:40", estado.atualizadaEm)
-        // 14:40 → a janela de 12 h começa às 14h e termina às 2h do dia seguinte.
+        // AGORA = 14:40: a janela de 12 h vai das 14h às 2h do dia seguinte.
         assertEquals("até as 2h de amanhã", estado.janelaAte)
     }
 
@@ -136,16 +134,14 @@ class ClimaViewModelsTest {
         assertFalse(vm.uiState.value.temPropriedade)
     }
 
-    // ---------- ajustes do aviso ----------
-
     @Test
     fun `ajustes so gravam ao salvar e religam o agendamento`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()
         val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria())
 
-        vm.aoMudarProbabilidade(72f)    // vira 70
-        vm.aoMudarChuva(3.3f)           // vira 3,5
+        vm.aoMudarProbabilidade(72f) // Arredonda para 70.
+        vm.aoMudarChuva(3.3f) // Arredonda para 3,5.
         assertEquals(60, ajustes.ajustes.value.limites.probabilidadeMinima)
 
         vm.aoSalvar()
@@ -238,8 +234,6 @@ class ClimaViewModelsTest {
         assertTrue(AjustesAvisoViewModel(ajustes, AgendaFalsa(), um).uiState.value.mostrarSitios)
     }
 
-    // ---------- cartão do Início ----------
-
     private fun inicio(
         clima: ClimaRepositoryMemoria,
         agora: Instant = AGORA,
@@ -268,7 +262,7 @@ class ClimaViewModelsTest {
 
     @Test
     fun `chuva na hora de agora nao diz uma hora que ja comecou`() {
-        // Agora são 14:40; chuva às 14h.
+        // AGORA = 14:40; a chuva está na hora das 14h, já em andamento.
         assertEquals("Chuva já nesta hora. Dá para adiar o pivô.", cartaoCom(mapOf(14 to (90 to 4.0)))?.frase)
     }
 
@@ -288,7 +282,7 @@ class ClimaViewModelsTest {
 
     @Test
     fun `chance alta abaixo do limite nao diz sem chuva`() {
-        // 55% fica abaixo do limite padrão (60%), mas "Sem chuva" do lado de
+        // 55% fica abaixo do limite padrão (60%), mas "Sem chuva" ao lado de
         // "55% de chance" seria contraditório.
         val cartao = cartaoCom(mapOf(20 to (55 to 0.0)))
         assertFalse(cartao?.vaiChover == true)
@@ -339,7 +333,7 @@ class ClimaViewModelsTest {
 
     @Test
     fun `voltar para a tela refaz a frase da chuva com a hora nova`() {
-        var agora = AGORA // 14h40 do dia 1
+        var agora = AGORA // 14:40 local do dia 1.
         val vm = InicioViewModel(
             LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))),
             PropriedadeRepositoryMemoria(),
@@ -349,8 +343,8 @@ class ClimaViewModelsTest {
         )
         assertEquals("Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 
-        vm.aoVoltarParaATela() // a primeira vez é a própria abertura
-        agora = Instant.parse("2026-10-02T04:20:00Z") // 1h20 do dia 2
+        vm.aoVoltarParaATela() // A primeira chamada corresponde à abertura da tela.
+        agora = Instant.parse("2026-10-02T04:20:00Z") // 01:20 local do dia 2.
         assertEquals("sem voltar para a tela, nada muda", "Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 
         vm.aoVoltarParaATela()

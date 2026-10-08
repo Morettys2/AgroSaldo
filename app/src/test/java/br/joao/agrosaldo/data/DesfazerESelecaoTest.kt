@@ -12,10 +12,8 @@ import org.junit.Before
 import org.junit.Test
 import java.time.YearMonth
 
-/** A barra de "Desfazer" e a escolha de propriedade e mês compartilhada entre as abas. */
+/** [Desfazer] (oferta de desfazer exclusão) e [SelecaoAtual] (propriedade e mês compartilhados entre as abas). */
 class DesfazerESelecaoTest {
-
-    // ---------- Desfazer ----------
 
     @Test
     fun `desfazer restaura e tira a oferta da tela`() = runTest {
@@ -34,7 +32,7 @@ class DesfazerESelecaoTest {
     fun `tocar duas vezes rapido em desfazer restaura uma vez so`() = runTest {
         val desfazer = Desfazer()
         var restaurou = 0
-        // A gravação "demora": o segundo toque chega enquanto a primeira ainda roda.
+        // Restauração bloqueada até [gravacao] completar: o segundo toque chega com a primeira em andamento.
         val gravacao = CompletableDeferred<Unit>()
         desfazer.oferecer("x") {
             restaurou++
@@ -114,8 +112,7 @@ class DesfazerESelecaoTest {
         assertNull(desfazer.pendente.value)
     }
 
-    // ---------- SelecaoAtual ----------
-
+    // SelecaoAtual é global: desliga a persistência e zera o estado antes de cada teste.
     @Before
     fun limpar() {
         SelecaoAtual.configurar(inicial = null) { }
@@ -130,7 +127,7 @@ class DesfazerESelecaoTest {
         assertEquals("sitio-1", SelecaoAtual.propriedadeId.value)
 
         SelecaoAtual.selecionar("sitio-2")
-        SelecaoAtual.selecionar("sitio-2")   // a mesma de novo: não grava outra vez
+        SelecaoAtual.selecionar("sitio-2") // Mesma seleção: não deve gravar de novo.
         SelecaoAtual.limparSeFor("sitio-2")
 
         assertEquals(listOf("sitio-2", null), gravadas)

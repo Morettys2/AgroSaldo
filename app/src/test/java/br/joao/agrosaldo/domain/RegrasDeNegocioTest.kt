@@ -10,12 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
-/**
- * Testa as regras que moram no próprio modelo (camada M do MVVM).
- *
- * Nenhum Android envolvido: são classes Kotlin puras, e o teste roda em
- * milissegundos no computador.
- */
+/** Regras de negócio validadas no próprio modelo (Lancamento, CategoriaLancamento, Propriedade). */
 class RegrasDeNegocioTest {
 
     private fun lancamento(
@@ -29,7 +24,7 @@ class RegrasDeNegocioTest {
         valorCentavos = valor, data = data
     )
 
-    /** Roda o bloco e devolve true se ele lançou IllegalArgumentException. */
+    /** true se [bloco] lançar IllegalArgumentException. */
     private fun recusa(bloco: () -> Unit): Boolean =
         try { bloco(); false } catch (e: IllegalArgumentException) { true }
 
@@ -59,8 +54,8 @@ class RegrasDeNegocioTest {
 
     @Test
     fun `lancamento ja gravado no futuro continua legivel se o relogio voltar`() {
-        // Antes o RN07 ficava no init: ler do banco um lançamento de daqui a
-        // 2 anos (relógio do celular atrasado) derrubava o app ao abrir.
+        // RN07 não é validada no init: um lançamento gravado com data distante (relógio do
+        // aparelho atrasado na época) precisa ser lido do banco sem lançar exceção.
         val longe = lancamento(data = LocalDate.now().plusYears(2))
         assertEquals(LocalDate.now().plusYears(2), longe.data)
     }
@@ -87,7 +82,7 @@ class RegrasDeNegocioTest {
         assertEquals(8, despesas.size)
         assertTrue(despesas.all { it.tipo == TipoLancamento.DESPESA })
         assertEquals(CategoriaLancamento.OUTRAS_DESPESAS, despesas.last())
-        // A primeira continua sendo a sugerida no formulário novo.
+        // A primeira é a sugerida no formulário novo.
         assertEquals(CategoriaLancamento.ENERGIA, despesas.first())
     }
 
@@ -110,6 +105,6 @@ class RegrasDeNegocioTest {
         assertTrue(recusa { propriedade(area = 0.0) })
         assertTrue(recusa { propriedade(lat = 91.0) })
         assertTrue(recusa { propriedade(lon = -181.0) })
-        propriedade() // válida, não lança
+        propriedade() // Válida: não deve lançar.
     }
 }

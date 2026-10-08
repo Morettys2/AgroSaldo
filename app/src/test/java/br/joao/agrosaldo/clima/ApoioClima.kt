@@ -9,10 +9,10 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
- * Peças comuns dos testes de clima.
+ * Fixtures dos testes de clima.
  *
- * "Agora" nos testes é 01/10/2026 às 14:40 no horário de Brasília (UTC-3),
- * que é 17:40 em UTC. A janela de 12 h vai das 14:00 até 01:59 do dia 2.
+ * [AGORA] = 01/10/2026 14:40 em Brasília (UTC-3), 17:40 UTC. A janela de 12 h vai de 14:00
+ * até 01:59 do dia 2 (horário local).
  */
 object ApoioClima {
 
@@ -20,7 +20,7 @@ object ApoioClima {
     const val FUSO_BRASILIA = -3 * 3600
     val MEIA_NOITE: LocalDateTime = LocalDateTime.of(2026, 10, 1, 0, 0)
 
-    /** 48 horas a partir da meia-noite do dia 1, todas secas, exceto as informadas. */
+    /** Previsão com 48 h a partir de 01/10 00:00 local; horas fora de [chuvaPorHora] ficam secas (5%, 0 mm). */
     fun previsao(
         chuvaPorHora: Map<Int, Pair<Int, Double>> = emptyMap(),
         obtidaEm: Instant = AGORA,
@@ -49,7 +49,7 @@ object ApoioClima {
         }
     )
 
-    /** Uma resposta da Open-Meteo no mesmo formato que o serviço manda. */
+    /** JSON no formato da resposta real da Open-Meteo (7 dias; por padrão 48 horas secas). */
     fun jsonOpenMeteo(
         probabilidades: List<Int?> = List(48) { 5 },
         chuvas: List<Double?> = List(48) { 0.0 },

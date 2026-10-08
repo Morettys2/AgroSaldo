@@ -25,12 +25,9 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * Testa os cálculos das telas de resumo: Início, Lançamentos e Sítios.
+ * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
  *
- * Os números esperados são os mesmos que aparecem no emulador com os dados
- * de exemplo — dá para abrir o app e conferir lado a lado.
- *
- * Fazenda São João, mês corrente:
+ * Com [DadosDeExemplo], a Fazenda São João no mês corrente tem:
  *   entrou  R$ 18.000   (venda de milho)
  *   saiu    R$  2.350   (energia 1.250 + adubo 780 + combustível 320)
  *   saldo   R$ 15.650
@@ -46,14 +43,12 @@ class ResumosViewModelTest {
     @Before
     fun preparar() {
         propriedades = PropriedadeRepositoryMemoria()
-        // Relativo a hoje, porque as telas abrem sempre no mês corrente.
+        // Datas relativas a hoje: as telas abrem no mês corrente.
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.now()))
-        // Mês e propriedade são compartilhados entre as abas: cada teste começa do zero.
+        // SelecaoAtual é global (compartilhada entre as abas); limpa para isolar os testes.
         SelecaoAtual.limpar()
         SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
     }
-
-    // ---------- Início ----------
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
@@ -129,8 +124,6 @@ class ResumosViewModelTest {
         assertFalse(vm.uiState.value.carregando)
     }
 
-    // ---------- Lançamentos ----------
-
     @Test
     fun `RF09 - filtro de despesas esconde receitas mas o saldo continua o do mes`() {
         val vm = LancamentoListaViewModel(lancamentos, propriedades)
@@ -147,8 +140,6 @@ class ResumosViewModelTest {
         val datas = LancamentoListaViewModel(lancamentos, propriedades).uiState.value.lancamentos.map { it.data }
         assertEquals(datas.sortedDescending(), datas)
     }
-
-    // ---------- Sítios ----------
 
     @Test
     fun `RF11 - comparativo mostra o saldo de cada propriedade e o total`() {
@@ -176,8 +167,6 @@ class ResumosViewModelTest {
         assertTrue(sitio.saldoCentavos < 0)
         assertEquals(1f, sitio.proporcao, 0.0001f)
     }
-
-    // ---------- filtro por categoria (RF09) ----------
 
     @Test
     fun `RF09 - filtrar por categoria mostra so ela e soma o que aparece`() {
@@ -263,8 +252,6 @@ class ResumosViewModelTest {
         assertEquals(0, estado.quantidade)
         assertTrue("senão não daria para desmarcar", CategoriaLancamento.ADUBO in estado.categoriasDoMes)
     }
-
-    // ---------- mês compartilhado ----------
 
     @Test
     fun `o mes escolhido no inicio e o mesmo em lancamentos e sitios`() {

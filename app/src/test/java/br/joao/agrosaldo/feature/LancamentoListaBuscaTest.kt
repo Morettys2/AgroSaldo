@@ -22,8 +22,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * A lista de lançamentos da R4: agrupada por dia, com busca em todos os
- * meses e as pílulas de mês do cabeçalho. E o "olho" que esconde valores.
+ * Lista de lançamentos: agrupamento por dia, busca em todos os meses, pílulas de mês do
+ * cabeçalho e ocultação de valores (PrivacidadeViewModel).
  */
 class LancamentoListaBuscaTest {
 
@@ -42,8 +42,6 @@ class LancamentoListaBuscaTest {
     }
 
     private fun lista() = LancamentoListaViewModel(exemplos, propriedades)
-
-    // ---------- grupos por dia ----------
 
     /** Dia fixo, para "Hoje" e "Ontem" não dependerem do dia em que o teste roda. */
     private val quinzeDeSetembro = LocalDate.of(2026, 9, 15)
@@ -90,8 +88,6 @@ class LancamentoListaBuscaTest {
         vm.aoMudarFiltro(FiltroLancamento.RECEITAS)
         assertEquals(listOf("Ontem", "10 de setembro"), vm.uiState.value.grupos.map { it.rotulo })
     }
-
-    // ---------- busca ----------
 
     @Test
     fun `busca acha lancamento de outro mes`() {
@@ -173,8 +169,6 @@ class LancamentoListaBuscaTest {
         assertEquals(235_000L, estado.despesasCentavos)
     }
 
-    // ---------- pílulas de mês ----------
-
     @Test
     fun `pilulas vao de dois anos atras ate um ano a frente`() {
         val hoje = LocalDate.of(2026, 10, 4)
@@ -201,8 +195,6 @@ class LancamentoListaBuscaTest {
         assertEquals(mesPassado, vm.uiState.value.mes)
     }
 
-    // ---------- olho do Início ----------
-
     @Test
     fun `olho esconde e mostra de novo, e o repositorio guarda a escolha`() {
         val repositorio = PrivacidadeMemoria()
@@ -222,13 +214,11 @@ class LancamentoListaBuscaTest {
         assertTrue(PrivacidadeViewModel(PrivacidadeMemoria(inicial = true)).valoresOcultos.value)
     }
 
-    // ---------- revisão ----------
-
     @Test
     fun `mudar o mes por fora fecha a busca, para o mes escolhido aparecer`() {
         val vm = lista()
         vm.aoBuscar("diarista")
-        SelecaoAtual.voltarMes() // como tocar num mês do Histórico
+        SelecaoAtual.voltarMes() // Mudança vinda de outra aba (ex.: toque num mês do Histórico).
 
         assertFalse(vm.uiState.value.buscando)
         assertEquals(2, vm.uiState.value.quantidade)

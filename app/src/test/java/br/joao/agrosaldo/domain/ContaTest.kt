@@ -24,12 +24,12 @@ import java.time.Instant
 
 /**
  * Regras de conta: senha, e-mail, hash, cadastro, login, bloqueio e exclusão
- * (RF01, RF02, RNF10). Tudo sem Android — o ContaService é Kotlin puro.
+ * (RF01, RF02, RNF10).
  */
 class ContaTest {
 
-    // Poucas iterações só no teste: o algoritmo é o mesmo, e a suíte não
-    // precisa gastar um segundo por senha. O app usa 150 mil.
+    // Poucas iterações para a suíte ser rápida; algoritmo e formato são os mesmos do app,
+    // que usa HashDeSenha.ITERACOES_PADRAO.
     private val hashRapido = HashDeSenha(iteracoes = 1_000)
 
     private var agora = 1_000_000L
@@ -40,7 +40,7 @@ class ContaTest {
 
     private val conta = novoContaService()
 
-    /** Um ContaService novo com os mesmos dados gravados = fechar e abrir o app. */
+    /** Nova instância sobre os mesmos dados gravados: simula fechar e reabrir o app. */
     private fun novoContaService() = ContaService(
         usuarios = usuarios,
         sessao = sessao,
@@ -53,8 +53,6 @@ class ContaTest {
 
     private suspend fun cadastrarFabio(): ResultadoCadastro =
         conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
-
-    // ---------- regras ----------
 
     @Test
     fun `senha precisa de 8 caracteres com letra e numero`() {
@@ -90,8 +88,6 @@ class ContaTest {
         assertEquals("?", RegrasDeConta.iniciais("   "))
     }
 
-    // ---------- hash ----------
-
     @Test
     fun `hash confere a senha certa e recusa a errada`() {
         val armazenado = hashRapido.gerar("milho2026")
@@ -121,8 +117,6 @@ class ContaTest {
         assertFalse(hashRapido.confere("milho2026", "pbkdf2_sha256\$abc\$sal\$hash"))
         assertFalse(hashRapido.confere("milho2026", "pbkdf2_sha256$1000$%%%$%%%"))
     }
-
-    // ---------- cadastro ----------
 
     @Test
     fun `RF01 - cadastro grava conta com consentimento e ja conecta`() = runTest {
@@ -171,8 +165,6 @@ class ContaTest {
         assertTrue(resultado is ResultadoCadastro.DadosInvalidos)
         assertTrue(usuarios.todos.isEmpty())
     }
-
-    // ---------- login ----------
 
     @Test
     fun `RF02 - login com a senha certa conecta`() = runTest {
@@ -233,7 +225,7 @@ class ContaTest {
 
         val esperas = mutableListOf(30L)
         repeat(6) {
-            agora += 16 * 60_000L          // espera o bloqueio anterior passar
+            agora += 16 * 60_000L // Passa do bloqueio anterior (máximo de 15 min).
             conta.entrar("fabio@exemplo.com", "errada123")
             val r = conta.entrar("fabio@exemplo.com", "errada123") as ResultadoLogin.Bloqueado
             esperas += r.segundosRestantes
@@ -248,7 +240,7 @@ class ContaTest {
         conta.sair()
         repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
 
-        agora -= 365L * 24 * 60 * 60 * 1000   // alguém volta o relógio um ano
+        agora -= 365L * 24 * 60 * 60 * 1000 // Relógio do aparelho voltado um ano.
 
         val r = conta.entrar("fabio@exemplo.com", "milho2026") as ResultadoLogin.Bloqueado
         assertEquals(ContaService.BLOQUEIO_MAXIMO_MS / 1000, r.segundosRestantes)
@@ -276,8 +268,6 @@ class ContaTest {
         assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
-    // ---------- custo do hash ----------
-
     @Test
     fun `login refaz o hash antigo com o custo atual sem a pessoa perceber`() = runTest {
         val antigo = ContaService(usuarios, sessao, tentativas, hash = HashDeSenha(iteracoes = 500),
@@ -302,7 +292,7 @@ class ContaTest {
 
     @Test
     fun `mesma senha com acento digitado de outro jeito confere`() {
-        // "ç" como um caractere só, e como "c" + cedilha combinante.
+        // "ç" pré-composto (U+00E7) vs. "c" + cedilha combinante (U+0327).
         val armazenado = hashRapido.gerar("caf\u00e71234")
         assertTrue(hashRapido.confere("cafc\u03271234", armazenado))
     }
@@ -311,8 +301,6 @@ class ContaTest {
     fun `app padrao usa o custo recomendado pela OWASP`() {
         assertEquals(600_000, HashDeSenha.ITERACOES_PADRAO)
     }
-
-    // ---------- senhas previsíveis ----------
 
     @Test
     fun `senhas de vazamento e com dados da pessoa sao recusadas`() {
@@ -336,8 +324,6 @@ class ContaTest {
         assertFalse(RegrasDeConta.requisitosDaSenha("12345678").naoEhPrevisivel)
     }
 
-    // ---------- troca de senha ----------
-
     @Test
     fun `trocar senha exige a atual e passa a valer a nova`() = runTest {
         cadastrarFabio()
@@ -356,8 +342,6 @@ class ContaTest {
     fun `trocar senha sem ninguem conectado nao faz nada`() = runTest {
         assertEquals(ResultadoAlteracaoSenha.SemSessao, conta.alterarSenha("a", "colheita2026"))
     }
-
-    // ---------- sair, excluir, sessão ----------
 
     @Test
     fun `sair encerra a sessao e avisa a troca de usuario`() = runTest {

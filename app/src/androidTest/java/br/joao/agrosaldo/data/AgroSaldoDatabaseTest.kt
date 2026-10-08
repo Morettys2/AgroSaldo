@@ -29,14 +29,9 @@ import org.junit.runner.RunWith
 import java.time.LocalDate
 
 /**
- * Testa o banco Room DE VERDADE, rodando no emulador.
+ * DAOs e restrições do SQLite (chaves estrangeiras, CASCADE, índice único) sobre o Room real.
  *
- * Usa um banco em memória: nasce vazio a cada teste e some no fim, sem
- * encostar no banco real do app. É o jeito de verificar que o SQL, as chaves
- * estrangeiras e o CASCADE se comportam como o esperado.
- *
- * Para rodar: clique com o botão direito nesta classe > Run 'AgroSaldoDatabaseTest'
- * (com o emulador ligado).
+ * Banco em memória, recriado a cada teste; não toca no banco do app.
  */
 @RunWith(AndroidJUnit4::class)
 class AgroSaldoDatabaseTest {
@@ -74,8 +69,6 @@ class AgroSaldoDatabaseTest {
         DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade()) }
     }
 
-    // ---------- propriedades e lançamentos (fase 3, agora com dono) ----------
-
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
         usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
@@ -94,9 +87,8 @@ class AgroSaldoDatabaseTest {
     }
 
     /**
-     * Editar o nome de uma propriedade NÃO pode apagar os lançamentos dela.
-     * Se o DAO usasse @Insert(onConflict = REPLACE), o SQLite apagaria a linha
-     * antiga para inserir a nova, e o CASCADE levaria os lançamentos junto.
+     * Com `@Insert(onConflict = REPLACE)` o SQLite apagaria a linha antiga antes de inserir a nova,
+     * e o CASCADE levaria os lançamentos; salvar precisa ser upsert.
      */
     @Test
     fun editarPropriedadeNaoApagaOsLancamentos() = runBlocking {
@@ -171,8 +163,6 @@ class AgroSaldoDatabaseTest {
         assertNull(lancamentoDao.buscarPorId("exemplo-3", "u1"))
     }
 
-    // ---------- contas (login e LGPD) ----------
-
     @Test
     fun semeadorGeraSqlValidoEAPrimeiraContaAdotaOsExemplos() {
         val sqlite = banco.openHelper.writableDatabase
@@ -204,7 +194,7 @@ class AgroSaldoDatabaseTest {
         assertNull(lancamentoDao.buscarPorId("exemplo-1", "u2"))
         assertFalse(lancamentoDao.propriedadeEhDoUsuario(DadosDeExemplo.ID_FAZENDA, "u2"))
 
-        // Tentativas de apagar pela conta errada não fazem nada.
+        // Exclusões pela conta errada devem ser ignoradas.
         propriedadeDao.excluir(DadosDeExemplo.ID_FAZENDA, "u2")
         lancamentoDao.excluir("exemplo-1", "u2")
         assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
@@ -226,11 +216,8 @@ class AgroSaldoDatabaseTest {
             cursor.moveToFirst()
             assertEquals(0, cursor.getInt(0))
         }
-        // A outra conta não foi tocada.
         assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
     }
-
-    // ---------- cache do clima ----------
 
     @Test
     fun previsaoGuardadaSomeJuntoComAPropriedade() = runBlocking {
@@ -239,7 +226,7 @@ class AgroSaldoDatabaseTest {
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{\"nova\":1}", 2L))
 
-        // Upsert: a segunda gravação substitui a primeira, sem duplicar.
+        // Upsert: a segunda gravação substitui a primeira.
         assertEquals(2L, previsaoDao.buscar(DadosDeExemplo.ID_SITIO)?.obtidaEm)
 
         propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")

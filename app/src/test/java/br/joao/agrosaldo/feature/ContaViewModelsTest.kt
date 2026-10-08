@@ -31,10 +31,9 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 /**
- * ViewModels do login, do cadastro com consentimento e da conta.
+ * ViewModels de cadastro, login, conta, sessão/bloqueio, novo aceite e alteração de senha.
  *
- * O ContaService usado aqui é o de verdade, com repositórios em memória.
- * Assim o teste passa pelo mesmo caminho que o app percorre.
+ * Usa o [ContaService] real sobre repositórios em memória.
  */
 class ContaViewModelsTest {
 
@@ -47,8 +46,9 @@ class ContaViewModelsTest {
         usuarios = usuarios,
         sessao = sessao,
         tentativas = TentativasMemoria(),
+        // Poucas iterações só para o teste ser rápido.
         hash = HashDeSenha(iteracoes = 1_000),
-        // 30/09/2026 às 22:40 em UTC
+        // 30/09/2026 22:40 UTC.
         relogio = { 1_790_808_000_000L },
         dispatcherCalculo = Dispatchers.Unconfined
     )
@@ -64,8 +64,6 @@ class ContaViewModelsTest {
         conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
     }
-
-    // ---------- cadastro ----------
 
     @Test
     fun `cadastro vazio marca os erros e nao avanca`() {
@@ -144,8 +142,6 @@ class ContaViewModelsTest {
         assertTrue(usuarios.todos.isEmpty())
     }
 
-    // ---------- login ----------
-
     @Test
     fun `login vazio pede e-mail e senha`() {
         val vm = LoginViewModel(conta)
@@ -199,8 +195,6 @@ class ContaViewModelsTest {
         assertEquals("Muitas tentativas. Tente de novo em 30 segundos.", vm.uiState.value.erro)
     }
 
-    // ---------- conta ----------
-
     private val bloqueio = BloqueioMemoria()
     private fun contaViewModel() = ContaViewModel(conta, PropriedadeRepositoryMemoria(), bloqueio, zona = ZoneOffset.UTC)
 
@@ -251,8 +245,6 @@ class ContaViewModelsTest {
         assertNull(sessao.usuarioId.value)
     }
 
-    // ---------- sessão / navegação ----------
-
     @Test
     fun `navegacao acompanha entrar e sair`() = runTest {
         val vm = SessaoViewModel(conta, BloqueioMemoria())
@@ -278,8 +270,6 @@ class ContaViewModelsTest {
         vm.aoDefinirBloqueio(false)
         assertFalse(vm.uiState.value.bloqueioAtivo)
     }
-
-    // ---------- bloqueio com digital ----------
 
     private var agora = 1_790_808_000_000L
 
@@ -340,11 +330,11 @@ class ContaViewModelsTest {
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()
 
-        // O PIN abre outra tela: o app recebe ON_STOP, a pessoa demora, desbloqueia...
+        // A tela de PIN do sistema põe o app em segundo plano; o desbloqueio chega antes
+        // de o app voltar ao primeiro plano, mesmo depois do tempo de travar.
         vm.aoIrParaSegundoPlano()
         agora += 3 * 60_000L
         vm.aoDesbloquear()
-        // ...e só então o app volta para a frente.
         vm.aoVoltarParaPrimeiroPlano()
 
         assertFalse(vm.precisaDesbloquear.value)
@@ -371,8 +361,6 @@ class ContaViewModelsTest {
         assertFalse(vm.logado.value)
         assertFalse(vm.precisaDesbloquear.value)
     }
-
-    // ---------- novo aceite (política mudou) ----------
 
     private suspend fun contaQueAceitouVersao1(): String {
         val criada = conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
@@ -429,8 +417,6 @@ class ContaViewModelsTest {
         vm.aoAceitar()
         assertNotNull(vm.uiState.value.erro)
     }
-
-    // ---------- alterar senha ----------
 
     private suspend fun alterarSenhaViewModel(): AlterarSenhaViewModel {
         conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
