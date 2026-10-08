@@ -29,6 +29,26 @@ class FormatacaoTest {
     }
 
     @Test
+    fun `versao curta nunca arredonda centavos`() {
+        assertEquals("R$ 0,50", normalizar(50L.emRealCurto()))
+        assertEquals("R$ 1,50", normalizar(150L.emRealCurto()))
+        assertEquals("R$ 12,50", normalizar(1_250L.emRealCurto()))
+        assertEquals("R$ 13,50", normalizar(1_350L.emRealCurto()))
+        assertEquals("R$ 1.249,99", normalizar(124_999L.emRealCurto()))
+    }
+
+    @Test
+    fun `versao curta de valor negativo com centavos igual a completa`() {
+        assertEquals((-1_250L).emReal(), (-1_250L).emRealCurto())
+    }
+
+    @Test
+    fun `maior valor aceito no campo e formatado sem erro de ponto flutuante`() {
+        assertEquals("R$ 9.999.999,99", normalizar(999_999_999L.emReal()))
+        assertEquals("R$ 9.999.999,99", normalizar(999_999_999L.emRealCurto()))
+    }
+
+    @Test
     fun `valor negativo aparece com sinal`() {
         assertTrue(normalizar((-32_000L).emReal()).contains("320,00"))
         assertTrue(normalizar((-32_000L).emReal()).contains("-"))
