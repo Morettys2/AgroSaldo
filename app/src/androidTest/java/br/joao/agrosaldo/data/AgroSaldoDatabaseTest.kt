@@ -146,17 +146,6 @@ class AgroSaldoDatabaseTest {
     }
 
     @Test
-    fun saldoDoPeriodoCalculadoPeloSqlite() = runBlocking {
-        semearExemplos()
-        val inicio = LocalDate.of(2026, 9, 1).toEpochDay()
-        val fim = LocalDate.of(2026, 9, 30).toEpochDay()
-
-        // 18.000 - 1.250 - 780 - 320 = 15.650
-        assertEquals(1_565_000L, lancamentoDao.saldoDoPeriodo(DadosDeExemplo.ID_FAZENDA, inicio, fim))
-        assertEquals(0L, lancamentoDao.saldoDoPeriodo("nao-existe", inicio, fim))
-    }
-
-    @Test
     fun excluirLancamento() = runBlocking {
         semearExemplos()
         lancamentoDao.excluir("exemplo-3", "u1")

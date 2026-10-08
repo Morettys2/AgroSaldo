@@ -191,7 +191,6 @@ class CamadaDeDadosTest {
             if (!propriedadeEhDoUsuario(propriedadeId, usuarioId)) return
             tabela.update { it.filterNot { l -> l.propriedadeId == propriedadeId } }
         }
-        override suspend fun saldoDoPeriodo(propriedadeId: String, inicioEpochDay: Long, fimEpochDay: Long) = 0L
     }
 
     private class UsuarioDaoFalso(private val propriedades: PropriedadeDaoFalso) : UsuarioDao {

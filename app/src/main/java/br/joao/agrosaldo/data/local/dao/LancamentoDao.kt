@@ -75,19 +75,4 @@ interface LancamentoDao {
         """
     )
     suspend fun excluirDaPropriedade(propriedadeId: String, usuarioId: String)
-
-    /**
-     * Saldo do período em centavos (RN03), intervalo de epochDay inclusivo.
-     * Não usado hoje (o saldo é somado nos ViewModels) e não filtra por usuário.
-     */
-    @Query(
-        """
-        SELECT COALESCE(SUM(CASE WHEN tipo = 'RECEITA' THEN valor_centavos
-                                 ELSE -valor_centavos END), 0)
-        FROM lancamentos
-        WHERE propriedade_id = :propriedadeId
-          AND data BETWEEN :inicioEpochDay AND :fimEpochDay
-        """
-    )
-    suspend fun saldoDoPeriodo(propriedadeId: String, inicioEpochDay: Long, fimEpochDay: Long): Long
 }
