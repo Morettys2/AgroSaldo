@@ -408,12 +408,13 @@ class ClimaTest {
             val repo = ClimaRepositoryRoom(fonte, dao, processamento) { agoraMs }
             repo.atualizar(fazenda)
 
+            // Com asserções ligadas, o kotlinx.coroutines acrescenta " @coroutine#N" ao nome da thread.
             assertNotNull(repo.observar(fazenda).first())
-            assertEquals("processamento", dao.threadDaLeitura)
+            assertTrue(dao.threadDaLeitura.orEmpty().startsWith("processamento"))
 
             dao.threadDaLeitura = null
             assertNotNull(repo.emCache(fazenda))
-            assertEquals("processamento", dao.threadDaLeitura)
+            assertTrue(dao.threadDaLeitura.orEmpty().startsWith("processamento"))
         } finally {
             processamento.close()
         }
