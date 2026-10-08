@@ -33,15 +33,20 @@ class LancamentoListaBuscaTest {
     private lateinit var propriedades: PropriedadeRepositoryMemoria
     private lateinit var exemplos: LancamentoRepositoryMemoria
 
+    /** Dia fixo: com o relógio real, os testes poderiam falhar na virada do mês. */
+    private val hoje = LocalDate.of(2026, 9, 30)
+    private val mesDeHoje = YearMonth.from(hoje)
+
     @Before
     fun preparar() {
         propriedades = PropriedadeRepositoryMemoria()
-        exemplos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.now()))
+        exemplos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
         SelecaoAtual.limpar()
         SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        SelecaoAtual.selecionarMes(mesDeHoje)
     }
 
-    private fun lista() = LancamentoListaViewModel(exemplos, propriedades)
+    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje })
 
     /** Dia fixo, para "Hoje" e "Ontem" não dependerem do dia em que o teste roda. */
     private val quinzeDeSetembro = LocalDate.of(2026, 9, 15)
@@ -97,7 +102,7 @@ class LancamentoListaBuscaTest {
         val estado = vm.uiState.value
         assertTrue(estado.buscando)
         assertEquals(listOf("exemplo-5"), estado.lancamentos.map { it.id })
-        assertEquals("o mês escolhido não muda", YearMonth.now(), estado.mes)
+        assertEquals("o mês escolhido não muda", mesDeHoje, estado.mes)
     }
 
     @Test
@@ -189,7 +194,7 @@ class LancamentoListaBuscaTest {
     @Test
     fun `tocar numa pilula troca o mes de todas as abas`() {
         val vm = lista()
-        val mesPassado = YearMonth.now().minusMonths(1)
+        val mesPassado = mesDeHoje.minusMonths(1)
         vm.aoSelecionarMes(mesPassado)
         assertEquals(mesPassado, SelecaoAtual.mes.value)
         assertEquals(mesPassado, vm.uiState.value.mes)
