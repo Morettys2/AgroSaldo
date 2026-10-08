@@ -144,17 +144,11 @@ fun AjustesAvisoScreen(
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = if (permissao.podePedir) {
-                            "As notificações do app estão bloqueadas. Sem elas, o aviso só aparece dentro da tela de clima."
-                        } else {
-                            "As notificações do app estão desligadas nas configurações do celular."
-                        },
+                        text = "As notificações do app estão bloqueadas. Sem elas, o aviso só aparece dentro da tela de clima.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.agro.sobreClimaContainer
                     )
-                    if (permissao.podePedir) {
-                        TextButton(onClick = permissao.pedir) { Text("Permitir notificações") }
-                    }
+                    TextButton(onClick = permissao.pedir) { Text("Permitir notificações") }
                 }
             }
         }
@@ -294,7 +288,7 @@ private fun AjustesAvisoPreview() {
                     SitioDoAviso("2", "Sítio Boa Vista", avisa = false)
                 )
             ),
-            permissao = PermissaoNotificacao(concedida = false, podePedir = true, pedir = {}),
+            permissao = PermissaoNotificacao(concedida = false, pedir = {}),
             aoMudarAtivo = {}, aoMudarProbabilidade = {}, aoMudarChuva = {}, aoMudarSitio = { _, _ -> }, aoSalvar = {}
         )
     }

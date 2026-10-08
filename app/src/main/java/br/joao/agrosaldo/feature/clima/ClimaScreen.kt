@@ -129,7 +129,7 @@ fun ClimaScreen(
                     item(key = "mensagem") { Faixa(texto = mensagem, modifier = Modifier.padding(horizontal = 20.dp)) }
                 }
 
-                if (uiState.avisoAtivo && !permissao.concedida && permissao.podePedir) {
+                if (uiState.avisoAtivo && !permissao.concedida) {
                     item(key = "permissao") {
                         CartaoPermissao(aoPermitir = permissao.pedir, modifier = Modifier.padding(horizontal = 20.dp))
                     }
@@ -495,7 +495,7 @@ private fun EstadoVazio(
 
 // ---------- previews ----------
 
-private val PERMISSAO_OK = PermissaoNotificacao(concedida = true, podePedir = true, pedir = {})
+private val PERMISSAO_OK = PermissaoNotificacao(concedida = true, pedir = {})
 
 private val ESTADO_EXEMPLO = ClimaUiState(
     carregando = false,
@@ -548,7 +548,7 @@ private fun ClimaSemInternetPreview() {
                 nomePropriedade = "Sítio Boa Vista",
                 mensagem = ClimaViewModel.MENSAGEM_SEM_INTERNET
             ),
-            PermissaoNotificacao(concedida = false, podePedir = true, pedir = {}),
+            PermissaoNotificacao(concedida = false, pedir = {}),
             {}, {}, {}, {}
         )
     }
