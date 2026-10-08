@@ -44,13 +44,17 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
      *
      * Roda em NonCancellable para não interromper a restauração se o escopo do
      * chamador for cancelado (ex.: mudança de configuração). Ignora ofertas que
-     * não são a pendente ou que já foram usadas (toque duplo).
+     * não são a pendente, que já foram usadas (toque duplo) ou que [expirou].
      *
      * @return false se a oferta não é válida ou a restauração falhou.
      * @throws CancellationException repassada a quem chamou, como em [br.joao.agrosaldo.core.util.tentar].
      */
     suspend fun desfazer(exclusao: ExclusaoRecente): Boolean {
         if (_pendente.value !== exclusao || exclusao.usada) return false
+        if (expirou(exclusao)) {
+            dispensar(exclusao)
+            return false
+        }
         exclusao.usada = true
         return try {
             withContext(NonCancellable) { exclusao.restaurar() }

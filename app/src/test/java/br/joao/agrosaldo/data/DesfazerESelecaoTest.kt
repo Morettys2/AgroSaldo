@@ -96,6 +96,22 @@ class DesfazerESelecaoTest {
     }
 
     @Test
+    fun `desfazer depois do prazo nao restaura`() = runTest {
+        // A barra pode aparecer atrasada (ex.: só depois de desbloquear o app) e ser tocada já vencida.
+        var agora = 0L
+        val desfazer = Desfazer { agora }
+        var restaurou = 0
+        desfazer.oferecer("Propriedade excluída") { restaurou++ }
+        val pendente = checkNotNull(desfazer.pendente.value)
+
+        agora += Desfazer.VALIDADE_MS + 1
+
+        assertFalse(desfazer.desfazer(pendente))
+        assertEquals(0, restaurou)
+        assertNull(desfazer.pendente.value)
+    }
+
+    @Test
     fun `se a restauracao falhar, avisa e tira a oferta da tela`() = runTest {
         val desfazer = Desfazer()
         desfazer.oferecer("x") { throw IllegalStateException("banco indisponível") }
