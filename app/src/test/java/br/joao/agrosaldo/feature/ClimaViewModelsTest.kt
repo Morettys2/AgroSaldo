@@ -12,11 +12,15 @@ import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
+import br.joao.agrosaldo.domain.model.CategoriaLancamento
+import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.feature.clima.AjustesAvisoViewModel
 import br.joao.agrosaldo.feature.clima.ClimaViewModel
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -396,10 +400,31 @@ class ClimaViewModelsTest {
     }
 
     @Test
-    fun `cartao de chuva nao some quando um lancamento novo chega`() {
-        val vm = inicio(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)))
-        vm.aoVoltarMes()
-        assertTrue(vm.uiState.value.chuva?.vaiChover == true)
+    fun `cartao de chuva nao some quando um lancamento novo chega`() = runTest {
+        val lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)))
+        val vm = InicioViewModel(
+            lancamentos,
+            PropriedadeRepositoryMemoria(),
+            ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)),
+            AjustesAvisoMemoria(),
+            relogio = { AGORA.toEpochMilli() }
+        )
+        val antes = vm.uiState.value
+        assertTrue(antes.chuva?.vaiChover == true)
+
+        lancamentos.salvar(
+            Lancamento(
+                propriedadeId = fazendaId,
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.ENERGIA,
+                valorCentavos = 12_345,
+                data = antes.mes.atDay(1)
+            )
+        )
+
+        val depois = vm.uiState.value
+        assertEquals("o lançamento novo chegou à tela", antes.despesasCentavos + 12_345, depois.despesasCentavos)
+        assertEquals(antes.chuva, depois.chuva)
     }
 
     @Test

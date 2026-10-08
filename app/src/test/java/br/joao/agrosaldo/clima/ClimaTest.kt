@@ -706,8 +706,16 @@ class ClimaTest {
     }
 
     @Test
-    fun `tela bloqueada nao mostra o nome da propriedade`() {
-        assertFalse(TextosDoAviso.TITULO_PUBLICO.contains("Fazenda"))
-        assertFalse(TextosDoAviso.CORPO_PUBLICO.contains("%"))
+    fun `tela bloqueada nao mostra o nome da propriedade nem os numeros da previsao`() {
+        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
+        val completo = TextosDoAviso.titulo(aviso) + " " + TextosDoAviso.corpo(aviso, 12)
+        val publico = TextosDoAviso.TITULO_PUBLICO + " " + TextosDoAviso.CORPO_PUBLICO
+
+        val sensiveis = listOf("Fazenda São João", "85%", "6 mm", "18h")
+        sensiveis.forEach { assertTrue("o texto completo deveria trazer '$it': $completo", completo.contains(it)) }
+        listOf("Fazenda", "São João", "%", "mm", "18h").forEach {
+            assertFalse("a versão pública mostra '$it': $publico", publico.contains(it))
+        }
+        assertFalse("a versão pública tem números: $publico", publico.any { it.isDigit() })
     }
 }
