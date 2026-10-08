@@ -8,6 +8,7 @@ import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -169,13 +170,27 @@ class PropriedadeFormViewModelTest {
         assertNull(vm.uiState.value.erroCoordenadas)
     }
 
+    /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
+    private class PropriedadesLentas(private val real: PropriedadeRepositoryMemoria) : PropriedadeRepository by real {
+        val portao = CompletableDeferred<Unit>()
+        override suspend fun salvar(propriedade: Propriedade) {
+            portao.await()
+            real.salvar(propriedade)
+        }
+    }
+
     @Test
     fun `dois toques em salvar criam uma propriedade so`() = runTest {
-        val vm = novo()
+        val lentas = PropriedadesLentas(propriedades)
+        val vm = PropriedadeFormViewModel(lentas, propriedadeId = null)
         preencher(vm)
+
         vm.aoSalvar()
+        assertTrue("o botão desliga enquanto grava", vm.uiState.value.salvando)
         vm.aoSalvar()
 
+        lentas.portao.complete(Unit)
+        assertTrue(vm.uiState.value.salvo)
         assertEquals(3, propriedades.observarTodas().first().size)
     }
 
