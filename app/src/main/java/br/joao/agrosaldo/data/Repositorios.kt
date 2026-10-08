@@ -135,7 +135,10 @@ object Repositorios {
         ClimaRepositoryRoom(OpenMeteoHttp(), bancoAberto.previsaoDao())
     }
 
-    val ajustesAviso: AjustesAvisoRepository by lazy { AjustesAvisoPreferencias(contextoAberto) }
+    /** Ajustes por conta; ao entrar em outra conta, o agendamento passa a seguir o ajuste dela. */
+    val ajustesAviso: AjustesAvisoRepository by lazy {
+        AjustesAvisoPreferencias(contextoAberto, sessao) { if (it.ativo) agendaAviso.ligar() else agendaAviso.desligar() }
+    }
 
     val agendaAviso: AgendaDeVerificacao by lazy { AgendaWorkManager(contextoAberto) }
 

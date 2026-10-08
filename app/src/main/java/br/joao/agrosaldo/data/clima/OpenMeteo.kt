@@ -41,10 +41,28 @@ object OpenMeteo {
             "precipitation_sum,precipitation_probability_max" +
             "&timezone=auto&forecast_days=7"
     }
+
+    /**
+     * Erro para uma resposta HTTP diferente de 200: [ServicoIndisponivelException] para 429 e 5xx
+     * (passageiros), [RespostaInvalidaException] para os demais.
+     */
+    fun erroHttp(codigo: Int, corpo: String): Exception {
+        val mensagem = "HTTP $codigo ${corpo.take(200)}"
+        return if (codigo == HTTP_MUITAS_REQUISICOES || codigo in 500..599) {
+            ServicoIndisponivelException(mensagem)
+        } else {
+            RespostaInvalidaException(mensagem)
+        }
+    }
+
+    private const val HTTP_MUITAS_REQUISICOES = 429
 }
 
 /** Resposta HTTP de erro ou corpo fora do formato esperado. */
-class RespostaInvalidaException(mensagem: String) : Exception(mensagem)
+class RespostaInvalidaException(mensagem: String, cause: Throwable? = null) : Exception(mensagem, cause)
+
+/** HTTP 429 ou 5xx: o serviço está sobrecarregado ou fora do ar; vale tentar de novo mais tarde. */
+class ServicoIndisponivelException(mensagem: String) : Exception(mensagem)
 
 /**
  * Converte o JSON da Open-Meteo em [Previsao] usando org.json (embutido no Android).
@@ -105,8 +123,8 @@ object LeitorOpenMeteo {
         } catch (e: RespostaInvalidaException) {
             throw e
         } catch (e: Exception) {
-            // Unifica JSONException, DateTimeParseException etc.; só a mensagem é preservada.
-            throw RespostaInvalidaException("Resposta da Open-Meteo em formato inesperado: ${e.message}")
+            // Unifica JSONException, DateTimeParseException etc.; a original fica como causa.
+            throw RespostaInvalidaException("Resposta da Open-Meteo em formato inesperado: ${e.message}", e)
         }
     }
 

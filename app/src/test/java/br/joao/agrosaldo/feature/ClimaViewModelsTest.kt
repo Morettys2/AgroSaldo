@@ -12,11 +12,15 @@ import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
+import br.joao.agrosaldo.domain.model.CategoriaLancamento
+import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.feature.clima.AjustesAvisoViewModel
 import br.joao.agrosaldo.feature.clima.ClimaViewModel
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -114,6 +118,36 @@ class ClimaViewModelsTest {
     }
 
     @Test
+    fun `previsao salva de outro dia diz o dia em que foi atualizada`() {
+        fun atualizadaEm(obtidaEm: Instant) =
+            climaViewModel(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva.copy(obtidaEm = obtidaEm))))
+                .uiState.value.atualizadaEm
+
+        assertEquals("Atualizada às 14:40", atualizadaEm(AGORA))
+        assertEquals("Atualizada ontem às 14:40", atualizadaEm(AGORA.minus(Duration.ofDays(1))))
+        assertEquals("Atualizada em 29/09 às 14:40", atualizadaEm(AGORA.minus(Duration.ofDays(2))))
+    }
+
+    @Test
+    fun `sem internet e sem previsao salva nao promete mostrar a salva`() {
+        val vm = climaViewModel(ClimaRepositoryMemoria().apply { semInternet = true })
+
+        assertFalse(vm.uiState.value.temPrevisao)
+        assertEquals(ClimaViewModel.MENSAGEM_SEM_INTERNET_SEM_PREVISAO, vm.uiState.value.mensagem)
+    }
+
+    @Test
+    fun `servico fora do ar pede para tentar de novo`() {
+        val clima = ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)).apply { indisponivel = true }
+        val vm = climaViewModel(clima)
+
+        vm.aoAtualizar()
+
+        assertEquals(ClimaViewModel.MENSAGEM_FALHA, vm.uiState.value.mensagem)
+        assertTrue(vm.uiState.value.temPrevisao)
+    }
+
+    @Test
     fun `trocar de propriedade mostra a previsao dela`() {
         val clima = ClimaRepositoryMemoria(
             mapOf(fazendaId to comChuva, DadosDeExemplo.ID_SITIO to previsao())
@@ -132,6 +166,47 @@ class ClimaViewModelsTest {
         val vm = climaViewModel(ClimaRepositoryMemoria(), propriedades = PropriedadeRepositoryMemoria(emptyList()))
         assertFalse(vm.uiState.value.carregando)
         assertFalse(vm.uiState.value.temPropriedade)
+    }
+
+    @Test
+    fun `voltar para a tela do clima refaz a previsao com a hora nova`() {
+        var agora = AGORA // 14:40 local do dia 1.
+        val clima = ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0)))))
+        val vm = ClimaViewModel(
+            PropriedadeRepositoryMemoria(), clima, AjustesAvisoMemoria(),
+            relogio = { agora.toEpochMilli() }, zona = ZoneOffset.ofHours(-3)
+        )
+        assertEquals("Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
+        assertEquals(7, vm.uiState.value.dias.size)
+
+        vm.aoVoltarParaATela() // A primeira chamada corresponde à abertura da tela.
+        agora = Instant.parse("2026-10-02T04:20:00Z") // 01:20 local do dia 2.
+        assertEquals("sem voltar para a tela, nada muda", "Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
+
+        vm.aoVoltarParaATela()
+
+        assertEquals("Chuva prevista já nesta hora", vm.uiState.value.resumo)
+        assertEquals("o dia 1 saiu da lista", 6, vm.uiState.value.dias.size)
+        assertEquals("Hoje", vm.uiState.value.dias[0].rotulo)
+    }
+
+    @Test
+    fun `voltar para a tela do clima baixa a previsao so se precisar`() {
+        val semPrevisao = ClimaRepositoryMemoria().apply { semInternet = true }
+        val vm = climaViewModel(semPrevisao)
+        val naAbertura = semPrevisao.atualizacoes
+
+        vm.aoVoltarParaATela()
+        assertEquals("a abertura já buscou: não busca duas vezes", naAbertura, semPrevisao.atualizacoes)
+
+        vm.aoVoltarParaATela()
+        assertEquals(naAbertura + 1, semPrevisao.atualizacoes)
+
+        val emDia = ClimaRepositoryMemoria(mapOf(fazendaId to comChuva))
+        val comCache = climaViewModel(emDia)
+        comCache.aoVoltarParaATela()
+        comCache.aoVoltarParaATela()
+        assertEquals("cache em dia não é baixado de novo", 0, emDia.atualizacoes)
     }
 
     @Test
@@ -325,10 +400,31 @@ class ClimaViewModelsTest {
     }
 
     @Test
-    fun `cartao de chuva nao some quando um lancamento novo chega`() {
-        val vm = inicio(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)))
-        vm.aoVoltarMes()
-        assertTrue(vm.uiState.value.chuva?.vaiChover == true)
+    fun `cartao de chuva nao some quando um lancamento novo chega`() = runTest {
+        val lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)))
+        val vm = InicioViewModel(
+            lancamentos,
+            PropriedadeRepositoryMemoria(),
+            ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)),
+            AjustesAvisoMemoria(),
+            relogio = { AGORA.toEpochMilli() }
+        )
+        val antes = vm.uiState.value
+        assertTrue(antes.chuva?.vaiChover == true)
+
+        lancamentos.salvar(
+            Lancamento(
+                propriedadeId = fazendaId,
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.ENERGIA,
+                valorCentavos = 12_345,
+                data = antes.mes.atDay(1)
+            )
+        )
+
+        val depois = vm.uiState.value
+        assertEquals("o lançamento novo chegou à tela", antes.despesasCentavos + 12_345, depois.despesasCentavos)
+        assertEquals(antes.chuva, depois.chuva)
     }
 
     @Test

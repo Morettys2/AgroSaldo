@@ -20,17 +20,18 @@ data class AvisoDeChuva(
 )
 
 data class ResultadoVerificacao(
+    /** Avisos notificados (e registrados) nesta verificação. */
     val avisos: List<AvisoDeChuva>,
-    /** true se alguma atualização falhou por falta de conexão. */
-    val faltouConexao: Boolean
+    /** true se alguma atualização falhou por motivo passageiro (sem rede ou serviço fora do ar). */
+    val falhaPassageira: Boolean
 )
 
 /**
  * Verificação periódica de chuva (RN04), executada a cada 12 h pelo Worker.
  *
- * Sem dependência de Android: o Worker chama [verificar] e apenas exibe os
- * avisos retornados. Atualiza a previsão, aplica [RegraDeChuva] e
- * [ControleDeAvisos] e registra cada aviso emitido.
+ * Sem dependência de Android: o Worker chama [verificar] informando como exibir a
+ * notificação. Atualiza a previsão, aplica [RegraDeChuva] e [ControleDeAvisos],
+ * registra cada aviso logo depois de exibido e esquece o registro de propriedades excluídas.
  */
 class VerificadorDeChuva(
     private val sessao: SessaoRepository,
@@ -41,45 +42,59 @@ class VerificadorDeChuva(
 ) {
 
     /**
-     * @param podeNotificar false se a permissão de notificação foi negada ou as
-     *   notificações estão desativadas. A previsão é atualizada, mas nenhum aviso
-     *   é registrado, para não bloquear o próximo aviso real por [ControleDeAvisos].
+     * @param notificar exibe o aviso e devolve false se não pôde (permissão negada ou
+     *   notificações desligadas). Cada aviso é notificado assim que avaliado e só então
+     *   registrado: um aviso que ninguém viu não bloqueia o próximo por [ControleDeAvisos],
+     *   nem quando a verificação é interrompida no meio.
      */
-    suspend fun verificar(podeNotificar: Boolean = true): ResultadoVerificacao {
+    suspend fun verificar(notificar: (AvisoDeChuva) -> Boolean): ResultadoVerificacao {
         val ajustesAtuais = ajustes.ajustes.value
         // Sem sessão ativa não há dono dos dados; notificar exporia propriedades de outra conta.
-        if (!ajustesAtuais.ativo || sessao.usuarioId.value == null) {
-            return ResultadoVerificacao(emptyList(), faltouConexao = false)
+        val usuarioId = sessao.usuarioId.value
+        if (!ajustesAtuais.ativo || usuarioId == null) {
+            return ResultadoVerificacao(emptyList(), falhaPassageira = false)
         }
+        // Logout ou troca de conta durante a verificação: o resto pertence à conta anterior.
+        fun mesmaConta() = sessao.usuarioId.value == usuarioId
 
         val agora = Instant.ofEpochMilli(relogio())
-        var faltouConexao = false
+        var falhaPassageira = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
-        val monitoradas = propriedades.observarTodas().first().filter { ajustesAtuais.avisaSobre(it.id) }
+        val todas = propriedades.observarTodas().first()
+        if (!mesmaConta()) return ResultadoVerificacao(emptyList(), falhaPassageira = false)
+        // O registro do último aviso de propriedades excluídas não serve mais.
+        ajustes.esquecerAvisosExceto(todas.map { it.id }.toSet())
 
-        for (propriedade in monitoradas) {
+        for (propriedade in todas.filter { ajustesAtuais.avisaSobre(it.id) }) {
             val previsao = when (val resultado = clima.atualizar(propriedade)) {
                 is ResultadoAtualizacao.Sucesso -> resultado.previsao
-                // Offline: usa o cache se tiver no máximo VALIDADE_PARA_AVISO.
-                ResultadoAtualizacao.SemConexao -> {
-                    faltouConexao = true
+                // Sem rede ou serviço fora do ar: usa o cache se tiver no máximo
+                // VALIDADE_PARA_AVISO e pede nova tentativa.
+                ResultadoAtualizacao.SemConexao, is ResultadoAtualizacao.Indisponivel -> {
+                    falhaPassageira = true
                     clima.emCache(propriedade)?.takeIf {
                         Duration.between(it.obtidaEm, agora) <= VALIDADE_PARA_AVISO
                     }
                 }
+                // Resposta inválida ou propriedade excluída: tentar de novo não resolve.
                 is ResultadoAtualizacao.Falha -> null
             } ?: continue
+            // O download pode ter demorado: confere a conta antes de expor o nome da propriedade.
+            if (!mesmaConta()) break
 
             val avaliacao = RegraDeChuva.avaliar(previsao, agora, ajustesAtuais.limites)
-            if (!avaliacao.vaiChover || !podeNotificar) continue
+            if (!avaliacao.vaiChover) continue
             if (!ControleDeAvisos.podeAvisar(ajustes.ultimoAvisoEm(propriedade.id), agora)) continue
 
+            val aviso = AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora))
+            if (!notificar(aviso)) continue
             ajustes.registrarAviso(propriedade.id, agora)
-            avisos += AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora))
+            avisos += aviso
         }
 
-        return ResultadoVerificacao(avisos, faltouConexao)
+        // Nova tentativa só faz sentido para a conta que começou a verificação.
+        return ResultadoVerificacao(avisos, falhaPassageira && mesmaConta())
     }
 
     private companion object {

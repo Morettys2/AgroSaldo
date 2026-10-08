@@ -11,6 +11,7 @@ import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
 import br.joao.agrosaldo.data.clima.RespostaInvalidaException
+import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
@@ -28,13 +29,17 @@ import br.joao.agrosaldo.domain.clima.RegraDeChuva
 import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAviso
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
+import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -45,9 +50,11 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
+import java.util.concurrent.Executors
 
 /**
  * Clima e aviso de chuva (RF12, RF13, RF14, RN04).
@@ -115,6 +122,17 @@ class ClimaTest {
         val a = RegraDeChuva.avaliar(previsao(mapOf(15 to (90 to 3.0))), AGORA)
         assertTrue(a.vaiChover)
         assertEquals(LocalDateTime.of(2026, 10, 1, 15, 0), a.inicioPrevisto)
+    }
+
+    @Test
+    fun `traco de garoa nao marca o inicio da chuva`() {
+        // 15h: 0,02 mm com 10% de chance; a chuva que dispara o aviso começa às 18h.
+        val garoa = RegraDeChuva.avaliar(previsao(mapOf(15 to (10 to 0.02), 18 to (85 to 6.0))), AGORA)
+        assertEquals(LocalDateTime.of(2026, 10, 1, 18, 0), garoa.inicioPrevisto)
+
+        val minimo = RegraDeChuva.CHUVA_MINIMA_POR_HORA_MM
+        val chuvisco = RegraDeChuva.avaliar(previsao(mapOf(15 to (10 to minimo), 18 to (85 to 6.0))), AGORA)
+        assertEquals(LocalDateTime.of(2026, 10, 1, 15, 0), chuvisco.inicioPrevisto)
     }
 
     @Test
@@ -252,14 +270,40 @@ class ClimaTest {
         }
     }
 
+    @Test
+    fun `resposta em formato inesperado guarda o erro original como causa`() {
+        val erro = try {
+            LeitorOpenMeteo.ler("{}", AGORA)
+            null
+        } catch (e: RespostaInvalidaException) {
+            e
+        }
+        assertTrue("causa: ${erro?.cause}", erro?.cause is JSONException)
+    }
+
+    @Test
+    fun `servidor sobrecarregado ou fora do ar e falha passageira, os demais erros nao`() {
+        assertTrue(OpenMeteo.erroHttp(429, "Too many requests") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(500, "") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(503, "") is ServicoIndisponivelException)
+        assertTrue(OpenMeteo.erroHttp(400, "Latitude must be in range") is RespostaInvalidaException)
+        assertTrue(OpenMeteo.erroHttp(404, "") is RespostaInvalidaException)
+    }
+
     // Repositório real sobre DAO em memória, com fonte e relógio controláveis.
     // Imita a chave estrangeira: gravar previsão de propriedade inexistente falha como no SQLite.
     private class PrevisaoDaoFalso : PrevisaoDao {
         val tabela = MutableStateFlow<Map<String, PrevisaoEntity>>(emptyMap())
         val propriedades = mutableSetOf("p1")
         var erroAoSalvar: RuntimeException? = null
-        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> = tabela.map { it[propriedadeId] }
-        override suspend fun buscar(propriedadeId: String) = tabela.value[propriedadeId]
+        /** Thread da última leitura; a conversão do JSON roda logo depois, na mesma. */
+        @Volatile var threadDaLeitura: String? = null
+        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> =
+            tabela.map { threadDaLeitura = Thread.currentThread().name; it[propriedadeId] }
+        override suspend fun buscar(propriedadeId: String): PrevisaoEntity? {
+            threadDaLeitura = Thread.currentThread().name
+            return tabela.value[propriedadeId]
+        }
         override suspend fun salvar(previsao: PrevisaoEntity) {
             erroAoSalvar?.let { throw it }
             if (previsao.propriedadeId !in propriedades) throw IllegalStateException("FOREIGN KEY constraint failed")
@@ -326,6 +370,16 @@ class ClimaTest {
     }
 
     @Test
+    fun `servico fora do ar e indisponibilidade passageira e mantem a previsao guardada`() = runTest {
+        repositorio.atualizar(fazenda)
+        val boa = dao.tabela.value.getValue("p1")
+        resposta = { throw ServicoIndisponivelException("HTTP 503") }
+
+        assertEquals(ResultadoAtualizacao.Indisponivel("HTTP 503"), repositorio.atualizar(fazenda))
+        assertEquals(boa, dao.tabela.value.getValue("p1"))
+    }
+
+    @Test
     fun `resposta quebrada nao apaga a previsao boa que ja estava guardada`() = runTest {
         repositorio.atualizar(fazenda)
         val boa = dao.tabela.value.getValue("p1")
@@ -345,6 +399,24 @@ class ClimaTest {
         agoraMs += Duration.ofMinutes(31).toMillis()
         assertTrue(repositorio.atualizarSeNecessario(fazenda) is ResultadoAtualizacao.Sucesso)
         assertEquals(2, chamadas)
+    }
+
+    @Test
+    fun `JSON guardado e convertido fora da thread de quem observa`() = runTest {
+        val processamento = Executors.newSingleThreadExecutor { Thread(it, "processamento") }.asCoroutineDispatcher()
+        try {
+            val repo = ClimaRepositoryRoom(fonte, dao, processamento) { agoraMs }
+            repo.atualizar(fazenda)
+
+            assertNotNull(repo.observar(fazenda).first())
+            assertEquals("processamento", dao.threadDaLeitura)
+
+            dao.threadDaLeitura = null
+            assertNotNull(repo.emCache(fazenda))
+            assertEquals("processamento", dao.threadDaLeitura)
+        } finally {
+            processamento.close()
+        }
     }
 
     @Test
@@ -381,7 +453,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
         val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf("p1")))
 
-        val r = verificador(clima, ajustes).verificar()
+        val r = verificador(clima, ajustes).verificar { true }
 
         assertEquals(listOf("p2"), r.avisos.map { it.propriedadeId })
         assertEquals("só o sítio ligado foi consultado", 1, clima.atualizacoes)
@@ -391,7 +463,7 @@ class ClimaTest {
     fun `RF14 - avisa so a propriedade onde vai chover`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to previsao()) }
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
         assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
         assertEquals(85, r.avisos.single().avaliacao.probabilidadeMaxima)
@@ -404,9 +476,99 @@ class ClimaTest {
         var agora = AGORA.toEpochMilli()
         val v = verificador(clima, ajustes) { agora }
 
-        assertEquals(1, v.verificar().avisos.size)
+        assertEquals(1, v.verificar { true }.avisos.size)
         agora += Duration.ofHours(2).toMillis()
-        assertEquals(0, v.verificar().avisos.size)
+        assertEquals(0, v.verificar { true }.avisos.size)
+    }
+
+    @Test
+    fun `aviso so e registrado depois que a notificacao sai`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
+        val ajustes = AjustesAvisoMemoria()
+        val registradoAoNotificar = mutableListOf<Instant?>()
+
+        verificador(clima, ajustes).verificar { aviso ->
+            registradoAoNotificar += ajustes.ultimoAvisoEm(aviso.propriedadeId)
+            true
+        }
+
+        assertEquals("nada registrado antes de notificar", listOf<Instant?>(null), registradoAoNotificar)
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+    }
+
+    @Test
+    fun `verificacao interrompida depois do primeiro aviso guarda so o que foi notificado`() = runTest {
+        val memoria = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+        // O sinal cai e o WorkManager cancela o Worker durante o download do segundo sítio.
+        val clima = object : ClimaRepository by memoria {
+            override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
+                if (propriedade.id == "p2") throw CancellationException("Worker parado")
+                return memoria.atualizar(propriedade)
+            }
+        }
+        val ajustes = AjustesAvisoMemoria()
+        val notificados = mutableListOf<String>()
+
+        val interrompida = runCatching {
+            VerificadorDeChuva(SessaoMemoria("u1"), PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, ajustes) {
+                AGORA.toEpochMilli()
+            }.verificar { notificados += it.propriedadeId; true }
+        }
+
+        assertTrue(interrompida.exceptionOrNull() is CancellationException)
+        assertEquals(listOf("p1"), notificados)
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+        assertNull(ajustes.ultimoAvisoEm("p2"))
+    }
+
+    @Test
+    fun `aviso que nao pode ser notificado nao e registrado`() = runTest {
+        val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+        val ajustes = AjustesAvisoMemoria()
+
+        // As notificações foram desligadas no meio da verificação, antes do segundo sítio.
+        val r = verificador(clima, ajustes).verificar { it.propriedadeId == "p1" }
+
+        assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
+        assertEquals(AGORA, ajustes.ultimoAvisoEm("p1"))
+        assertNull(ajustes.ultimoAvisoEm("p2"))
+    }
+
+    @Test
+    fun `logout ou troca de conta durante a verificacao nao notifica a conta anterior`() = runTest {
+        listOf<(SessaoMemoria) -> Unit>({ it.encerrar() }, { it.iniciar("u2") }).forEach { trocarConta ->
+            val sessao = SessaoMemoria("u1")
+            val memoria = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva, "p2" to comChuva) }
+            // A conta muda enquanto a previsão do primeiro sítio é baixada.
+            val clima = object : ClimaRepository by memoria {
+                override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
+                    trocarConta(sessao)
+                    return memoria.atualizar(propriedade)
+                }
+            }
+            val notificados = mutableListOf<String>()
+
+            val r = VerificadorDeChuva(sessao, PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, AjustesAvisoMemoria()) {
+                AGORA.toEpochMilli()
+            }.verificar { notificados += it.nomePropriedade; true }
+
+            assertTrue("notificou $notificados", notificados.isEmpty())
+            assertTrue(r.avisos.isEmpty())
+            assertEquals("não baixa a previsão do resto da conta anterior", 1, memoria.atualizacoes)
+            assertFalse(r.falhaPassageira)
+        }
+    }
+
+    @Test
+    fun `verificacao esquece o ultimo aviso de propriedades excluidas`() = runTest {
+        val ajustes = AjustesAvisoMemoria()
+        ajustes.registrarAviso("excluida", AGORA.minus(Duration.ofDays(3)))
+        ajustes.registrarAviso("p2", AGORA.minus(Duration.ofHours(2)))
+
+        verificador(ClimaRepositoryMemoria(), ajustes).verificar { true }
+
+        assertNull(ajustes.ultimoAvisoEm("excluida"))
+        assertEquals(AGORA.minus(Duration.ofHours(2)), ajustes.ultimoAvisoEm("p2"))
     }
 
     @Test
@@ -415,18 +577,18 @@ class ClimaTest {
         val ajustes = AjustesAvisoMemoria()
         val v = verificador(clima, ajustes)
 
-        assertTrue(v.verificar(podeNotificar = false).avisos.isEmpty())
+        assertTrue(v.verificar { false }.avisos.isEmpty())
         assertEquals("a previsão foi atualizada mesmo assim", 2, clima.atualizacoes)
         // Sem notificação, o aviso não é registrado; ao liberar, sai sem esperar o intervalo de 11 h.
-        assertEquals(listOf("p1"), v.verificar(podeNotificar = true).avisos.map { it.propriedadeId })
+        assertEquals(listOf("p1"), v.verificar { true }.avisos.map { it.propriedadeId })
     }
 
     @Test
     fun `sem ninguem conectado ou com aviso desligado nada e verificado`() = runTest {
         val clima = ClimaRepositoryMemoria().apply { respostas = mapOf("p1" to comChuva) }
 
-        assertTrue(verificador(clima, usuario = null).verificar().avisos.isEmpty())
-        assertTrue(verificador(clima, AjustesAvisoMemoria(AjustesAviso(ativo = false))).verificar().avisos.isEmpty())
+        assertTrue(verificador(clima, usuario = null).verificar { true }.avisos.isEmpty())
+        assertTrue(verificador(clima, AjustesAvisoMemoria(AjustesAviso(ativo = false))).verificar { true }.avisos.isEmpty())
         assertEquals(0, clima.atualizacoes)
     }
 
@@ -435,10 +597,33 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(2)))))
             .apply { semInternet = true }
 
-        val r = verificador(clima).verificar()
+        val r = verificador(clima).verificar { true }
 
-        assertTrue(r.faltouConexao)
+        assertTrue(r.falhaPassageira)
         assertEquals(1, r.avisos.size)
+    }
+
+    @Test
+    fun `servico fora do ar avisa com a previsao guardada e pede nova tentativa`() = runTest {
+        val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(2)))))
+            .apply { indisponivel = true }
+
+        val r = verificador(clima).verificar { true }
+
+        assertTrue(r.falhaPassageira)
+        assertEquals(listOf("p1"), r.avisos.map { it.propriedadeId })
+    }
+
+    @Test
+    fun `falha que nao passa tentando de novo nao pede nova tentativa`() = runTest {
+        // Sem resposta configurada o fake devolve Falha, como o repositório real quando a
+        // propriedade é excluída durante o download.
+        val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva))
+
+        val r = verificador(clima).verificar { true }
+
+        assertFalse(r.falhaPassageira)
+        assertTrue(r.avisos.isEmpty())
     }
 
     @Test
@@ -446,7 +631,7 @@ class ClimaTest {
         val clima = ClimaRepositoryMemoria(mapOf("p1" to comChuva.copy(obtidaEm = AGORA.minus(Duration.ofHours(13)))))
             .apply { semInternet = true }
 
-        assertTrue(verificador(clima).verificar().avisos.isEmpty())
+        assertTrue(verificador(clima).verificar { true }.avisos.isEmpty())
     }
 
     @Test
@@ -521,8 +706,16 @@ class ClimaTest {
     }
 
     @Test
-    fun `tela bloqueada nao mostra o nome da propriedade`() {
-        assertFalse(TextosDoAviso.TITULO_PUBLICO.contains("Fazenda"))
-        assertFalse(TextosDoAviso.CORPO_PUBLICO.contains("%"))
+    fun `tela bloqueada nao mostra o nome da propriedade nem os numeros da previsao`() {
+        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
+        val completo = TextosDoAviso.titulo(aviso) + " " + TextosDoAviso.corpo(aviso, 12)
+        val publico = TextosDoAviso.TITULO_PUBLICO + " " + TextosDoAviso.CORPO_PUBLICO
+
+        val sensiveis = listOf("Fazenda São João", "85%", "6 mm", "18h")
+        sensiveis.forEach { assertTrue("o texto completo deveria trazer '$it': $completo", completo.contains(it)) }
+        listOf("Fazenda", "São João", "%", "mm", "18h").forEach {
+            assertFalse("a versão pública mostra '$it': $publico", publico.contains(it))
+        }
+        assertFalse("a versão pública tem números: $publico", publico.any { it.isDigit() })
     }
 }

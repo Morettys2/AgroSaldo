@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 /**
- * Fake para testes. O cache é um mapa por id de propriedade; [respostas] e
- * [semInternet] definem o resultado de [atualizar] (sem resposta configurada:
- * [ResultadoAtualizacao.Falha]).
+ * Fake para testes. O cache é um mapa por id de propriedade; [respostas],
+ * [semInternet] e [indisponivel] definem o resultado de [atualizar] (sem resposta
+ * configurada: [ResultadoAtualizacao.Falha], como quando a propriedade é excluída).
  */
 class ClimaRepositoryMemoria(
     iniciais: Map<String, Previsao> = emptyMap()
@@ -23,6 +23,7 @@ class ClimaRepositoryMemoria(
     /** Previsão devolvida por [atualizar], por id de propriedade. */
     var respostas: Map<String, Previsao> = emptyMap()
     var semInternet: Boolean = false
+    var indisponivel: Boolean = false
     var atualizacoes: Int = 0
         private set
 
@@ -34,6 +35,7 @@ class ClimaRepositoryMemoria(
     override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
         atualizacoes++
         if (semInternet) return ResultadoAtualizacao.SemConexao
+        if (indisponivel) return ResultadoAtualizacao.Indisponivel("HTTP 503")
         val nova = respostas[propriedade.id] ?: return ResultadoAtualizacao.Falha("sem resposta de teste")
         _previsoes.update { it + (propriedade.id to nova) }
         return ResultadoAtualizacao.Sucesso(nova)

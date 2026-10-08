@@ -27,8 +27,20 @@ fun Double.emGraus(): String = "${roundToInt()}°"
 /** "18h". */
 fun LocalDateTime.horaCurta(): String = "${hour}h"
 
-/** "14:05", no fuso informado (padrão: o do sistema). */
-fun Instant.horaMinuto(zona: ZoneId = ZoneId.systemDefault()): String = FORMATO_HORA_MINUTO.format(atZone(zona))
+/**
+ * Quando algo aconteceu, relativo a [agora] no fuso [zona]: "às 14:05" hoje, "ontem às 14:05"
+ * ou "em 29/09 às 14:05".
+ */
+fun Instant.diaEHora(agora: Instant, zona: ZoneId = ZoneId.systemDefault()): String {
+    val momento = atZone(zona)
+    val hora = FORMATO_HORA_MINUTO.format(momento)
+    val hoje = agora.atZone(zona).toLocalDate()
+    return when (val dia = momento.toLocalDate()) {
+        hoje -> "às $hora"
+        hoje.minusDays(1) -> "ontem às $hora"
+        else -> "em ${dia.formatarCurto()} às $hora"
+    }
+}
 
 /** "Hoje", "Amanhã", "Sexta". */
 fun LocalDate.rotuloDoDia(hoje: LocalDate): String = when (this) {

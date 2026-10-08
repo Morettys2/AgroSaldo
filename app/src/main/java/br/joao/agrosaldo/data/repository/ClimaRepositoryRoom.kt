@@ -4,6 +4,7 @@ import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
 import br.joao.agrosaldo.data.clima.RespostaInvalidaException
+import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.domain.clima.PoliticaDeAtualizacao
@@ -12,10 +13,14 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.time.Duration
 import java.time.Instant
@@ -27,6 +32,8 @@ import java.time.Instant
 class ClimaRepositoryRoom(
     private val fonte: FontePrevisao,
     private val dao: PrevisaoDao,
+    /** Onde o JSON é convertido em [Previsao]: fora da thread de quem chama (a main, na UI). */
+    private val processamento: CoroutineDispatcher = Dispatchers.Default,
     private val relogio: () -> Long = System::currentTimeMillis
 ) : ClimaRepository {
 
@@ -35,17 +42,17 @@ class ClimaRepositoryRoom(
     private val trava = Mutex()
 
     override fun observar(propriedade: Propriedade): Flow<Previsao?> =
-        dao.observar(propriedade.id).map { it?.paraPrevisaoValida(propriedade) }
+        dao.observar(propriedade.id).map { it?.paraPrevisaoValida(propriedade) }.flowOn(processamento)
 
     override suspend fun emCache(propriedade: Propriedade): Previsao? =
-        dao.buscar(propriedade.id)?.paraPrevisaoValida(propriedade)
+        withContext(processamento) { dao.buscar(propriedade.id)?.paraPrevisaoValida(propriedade) }
 
     override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao =
         trava.withLock { buscarEGuardar(propriedade) }
 
     override suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao? =
         trava.withLock {
-            val guardada = dao.buscar(propriedade.id)?.paraPrevisaoValida(propriedade)
+            val guardada = emCache(propriedade)
             if (PoliticaDeAtualizacao.precisaAtualizar(guardada?.obtidaEm, agora())) buscarEGuardar(propriedade) else null
         }
 
@@ -57,7 +64,7 @@ class ClimaRepositoryRoom(
         return try {
             val json = fonte.baixar(latitude, longitude)
             // Valida antes de gravar: resposta inválida não sobrescreve o cache bom.
-            val previsao = LeitorOpenMeteo.ler(json, agora)
+            val previsao = withContext(processamento) { LeitorOpenMeteo.ler(json, agora) }
             val guardada = guardar(
                 PrevisaoEntity(
                     propriedadeId = propriedade.id,
@@ -70,6 +77,8 @@ class ClimaRepositoryRoom(
             if (guardada) ResultadoAtualizacao.Sucesso(previsao) else ResultadoAtualizacao.Falha(MENSAGEM_PROPRIEDADE_EXCLUIDA)
         } catch (e: IOException) {
             ResultadoAtualizacao.SemConexao
+        } catch (e: ServicoIndisponivelException) {
+            ResultadoAtualizacao.Indisponivel(e.message ?: "Serviço indisponível.")
         } catch (e: RespostaInvalidaException) {
             ResultadoAtualizacao.Falha(e.message ?: "Resposta inválida.")
         }
