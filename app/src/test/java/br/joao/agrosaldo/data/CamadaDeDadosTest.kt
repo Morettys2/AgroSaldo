@@ -371,6 +371,48 @@ class CamadaDeDadosTest {
         assertTrue(propriedades.tabela.value.all { it.usuarioId == "u1" })
     }
 
+    /** Transação falsa com rollback: restaura as tabelas em memória se o bloco falhar. */
+    private class TransacaoEmMemoria(
+        private val usuarios: UsuarioDaoFalso,
+        private val propriedades: PropriedadeDaoFalso
+    ) : Transacao {
+        var execucoes = 0
+        override suspend fun <R> executar(bloco: suspend () -> R): R {
+            execucoes++
+            val usuariosAntes = usuarios.tabela.value
+            val propriedadesAntes = propriedades.tabela.value
+            try {
+                return bloco()
+            } catch (e: Exception) {
+                usuarios.tabela.value = usuariosAntes
+                propriedades.tabela.value = propriedadesAntes
+                throw e
+            }
+        }
+    }
+
+    @Test
+    fun `criar conta e adotar as propriedades sem dono e tudo ou nada`() = runTest {
+        val propriedades = PropriedadeDaoFalso()
+        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null))
+        val usuarios = UsuarioDaoFalso(propriedades)
+        val adocaoQuebrada = object : UsuarioDao by usuarios {
+            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int =
+                throw IllegalStateException("disco cheio")
+        }
+        val transacao = TransacaoEmMemoria(usuarios, propriedades)
+        val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)
+
+        try {
+            repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+            fail("A falha na adoção deveria chegar ao cadastro")
+        } catch (esperado: IllegalStateException) {
+            assertNull("a conta não fica criada pela metade", usuarios.buscarPorId("u1"))
+            assertNull(propriedades.tabela.value.single().usuarioId)
+            assertEquals(1, transacao.execucoes)
+        }
+    }
+
     @Test
     fun `email repetido nao cria conta nem rouba propriedades`() = runTest {
         val propriedades = PropriedadeDaoFalso()

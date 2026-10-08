@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data.repository
 
+import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.UsuarioDao
 import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
@@ -9,8 +10,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 
+/**
+ * [UsuarioRepository] em Room. [transacao] torna o cadastro atômico: a conta e a adoção das
+ * propriedades sem dono entram juntas ou nenhuma entra.
+ */
 class UsuarioRepositoryRoom(
-    private val dao: UsuarioDao
+    private val dao: UsuarioDao,
+    private val transacao: Transacao = Transacao.DIRETA
 ) : UsuarioRepository {
 
     override fun observar(id: String): Flow<Usuario?> =
@@ -22,11 +28,11 @@ class UsuarioRepositoryRoom(
     override suspend fun buscarPorEmail(email: String): Usuario? =
         dao.buscarPorEmail(email)?.paraDominio()
 
-    override suspend fun criar(usuario: Usuario): Boolean {
+    override suspend fun criar(usuario: Usuario): Boolean = transacao.executar {
         // -1: OnConflictStrategy.IGNORE descartou a linha (e-mail duplicado).
         val inserido = dao.inserir(usuario.paraEntidade()) != -1L
         if (inserido) dao.adotarPropriedadesSemDono(usuario.id)
-        return inserido
+        inserido
     }
 
     override suspend fun atualizarSenha(id: String, senhaHash: String) =
