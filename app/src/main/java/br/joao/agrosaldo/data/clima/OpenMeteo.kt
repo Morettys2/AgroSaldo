@@ -44,7 +44,7 @@ object OpenMeteo {
 }
 
 /** Resposta HTTP de erro ou corpo fora do formato esperado. */
-class RespostaInvalidaException(mensagem: String) : Exception(mensagem)
+class RespostaInvalidaException(mensagem: String, cause: Throwable? = null) : Exception(mensagem, cause)
 
 /**
  * Converte o JSON da Open-Meteo em [Previsao] usando org.json (embutido no Android).
@@ -105,8 +105,8 @@ object LeitorOpenMeteo {
         } catch (e: RespostaInvalidaException) {
             throw e
         } catch (e: Exception) {
-            // Unifica JSONException, DateTimeParseException etc.; só a mensagem é preservada.
-            throw RespostaInvalidaException("Resposta da Open-Meteo em formato inesperado: ${e.message}")
+            // Unifica JSONException, DateTimeParseException etc.; a original fica como causa.
+            throw RespostaInvalidaException("Resposta da Open-Meteo em formato inesperado: ${e.message}", e)
         }
     }
 

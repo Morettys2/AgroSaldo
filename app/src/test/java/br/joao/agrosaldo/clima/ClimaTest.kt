@@ -42,6 +42,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.json.JSONException
 import org.junit.Test
 import java.io.IOException
 import java.time.Duration
@@ -250,6 +251,17 @@ class ClimaTest {
                 // ok
             }
         }
+    }
+
+    @Test
+    fun `resposta em formato inesperado guarda o erro original como causa`() {
+        val erro = try {
+            LeitorOpenMeteo.ler("{}", AGORA)
+            null
+        } catch (e: RespostaInvalidaException) {
+            e
+        }
+        assertTrue("causa: ${erro?.cause}", erro?.cause is JSONException)
     }
 
     // Repositório real sobre DAO em memória, com fonte e relógio controláveis.
