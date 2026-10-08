@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
@@ -65,6 +67,9 @@ fun ClimaRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissao = rememberPermissaoNotificacao()
+
+    // Recalcula o que depende do relógio ("Hoje", hora da chuva) e confere o cache ao retomar.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.aoVoltarParaATela() }
 
     ClimaScreen(
         uiState = uiState,

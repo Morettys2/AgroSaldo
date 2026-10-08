@@ -135,6 +135,47 @@ class ClimaViewModelsTest {
     }
 
     @Test
+    fun `voltar para a tela do clima refaz a previsao com a hora nova`() {
+        var agora = AGORA // 14:40 local do dia 1.
+        val clima = ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0)))))
+        val vm = ClimaViewModel(
+            PropriedadeRepositoryMemoria(), clima, AjustesAvisoMemoria(),
+            relogio = { agora.toEpochMilli() }, zona = ZoneOffset.ofHours(-3)
+        )
+        assertEquals("Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
+        assertEquals(7, vm.uiState.value.dias.size)
+
+        vm.aoVoltarParaATela() // A primeira chamada corresponde à abertura da tela.
+        agora = Instant.parse("2026-10-02T04:20:00Z") // 01:20 local do dia 2.
+        assertEquals("sem voltar para a tela, nada muda", "Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
+
+        vm.aoVoltarParaATela()
+
+        assertEquals("Chuva prevista já nesta hora", vm.uiState.value.resumo)
+        assertEquals("o dia 1 saiu da lista", 6, vm.uiState.value.dias.size)
+        assertEquals("Hoje", vm.uiState.value.dias[0].rotulo)
+    }
+
+    @Test
+    fun `voltar para a tela do clima baixa a previsao so se precisar`() {
+        val semPrevisao = ClimaRepositoryMemoria().apply { semInternet = true }
+        val vm = climaViewModel(semPrevisao)
+        val naAbertura = semPrevisao.atualizacoes
+
+        vm.aoVoltarParaATela()
+        assertEquals("a abertura já buscou: não busca duas vezes", naAbertura, semPrevisao.atualizacoes)
+
+        vm.aoVoltarParaATela()
+        assertEquals(naAbertura + 1, semPrevisao.atualizacoes)
+
+        val emDia = ClimaRepositoryMemoria(mapOf(fazendaId to comChuva))
+        val comCache = climaViewModel(emDia)
+        comCache.aoVoltarParaATela()
+        comCache.aoVoltarParaATela()
+        assertEquals("cache em dia não é baixado de novo", 0, emDia.atualizacoes)
+    }
+
+    @Test
     fun `ajustes so gravam ao salvar e religam o agendamento`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()

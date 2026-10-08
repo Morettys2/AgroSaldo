@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
@@ -84,6 +85,7 @@ data class ClimaUiState(
  *
  * A UI observa sempre o cache local ([ClimaRepository.observar]); a rede só atualiza
  * o cache, e automaticamente apenas quando ele tem mais de 1 hora. Funciona offline.
+ * Ao voltar para a tela ([aoVoltarParaATela]), recalcula o que depende do relógio.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ClimaViewModel(
@@ -96,6 +98,10 @@ class ClimaViewModel(
 
     private val _atualizando = MutableStateFlow(false)
     private val _mensagem = MutableStateFlow<String?>(null)
+
+    /** Incrementado a cada retorno à tela para recalcular o que depende do relógio. */
+    private val _voltas = MutableStateFlow(0)
+    private var jaApareceu = false
 
     /**
      * Busca em andamento (no máximo uma). Uma nova busca cancela a anterior; [geracao]
@@ -131,7 +137,7 @@ class ClimaViewModel(
                     clima.observar(propriedade).map { previsao -> Triple(lista, propriedade, previsao) }
                 }
             }
-            combine(comPrevisao, ajustes.ajustes, _atualizando, _mensagem) { (lista, propriedade, previsao), aj, atualizando, mensagem ->
+            combine(comPrevisao, ajustes.ajustes, _atualizando, _mensagem, _voltas) { (lista, propriedade, previsao), aj, atualizando, mensagem, _ ->
                 montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, mensagem)
             }.collect { _uiState.value = it }
         }
@@ -141,11 +147,30 @@ class ClimaViewModel(
 
     /** Atualização manual: ignora a validade do cache. */
     fun aoAtualizar() {
-        val id = _uiState.value.propriedadeId
-        val propriedade = _uiState.value.propriedades.firstOrNull { it.id == id } ?: return
+        val propriedade = propriedadeExibida() ?: return
         // Ignora toques repetidos enquanto uma busca está em andamento.
         if (_atualizando.value) return
         buscar(propriedade, forcar = true)
+    }
+
+    /**
+     * Chamado em ON_RESUME. Recalcula o que depende do relógio ("Hoje", hora da chuva) e
+     * atualiza a previsão se o cache venceu. A primeira chamada é ignorada, pois o init já
+     * cobre esse caso.
+     */
+    fun aoVoltarParaATela() {
+        if (!jaApareceu) {
+            jaApareceu = true
+            return
+        }
+        _voltas.update { it + 1 }
+        val propriedade = propriedadeExibida() ?: return
+        if (!_atualizando.value) buscar(propriedade, forcar = false)
+    }
+
+    private fun propriedadeExibida(): Propriedade? {
+        val estado = _uiState.value
+        return estado.propriedades.firstOrNull { it.id == estado.propriedadeId }
     }
 
     private fun buscar(propriedade: Propriedade, forcar: Boolean) {
