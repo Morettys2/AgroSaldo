@@ -50,13 +50,6 @@ import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import kotlin.math.abs
 
-/**
- * VIEW — parte que conhece o ViewModel.
- *
- * collectAsStateWithLifecycle para de coletar quando o app vai para segundo
- * plano. Com collectAsState comum, a tela continuaria processando
- * atualizações com o celular no bolso.
- */
 @Composable
 fun PropriedadeListaRoute(
     aoAbrirNova: () -> Unit,
@@ -78,12 +71,7 @@ fun PropriedadeListaRoute(
     )
 }
 
-/**
- * VIEW — parte stateless. Não sabe que ViewModel existe.
- *
- * Sítios na direção "Safra": o total de todas as propriedades no cabeçalho
- * verde-noite e, embaixo, um cartão por sítio com a barra do comparativo.
- */
+/** Lista de propriedades com o saldo somado no cabeçalho e um cartão comparativo por propriedade. */
 @Composable
 fun PropriedadeListaScreen(
     uiState: PropriedadeListaUiState,
@@ -137,8 +125,6 @@ fun PropriedadeListaScreen(
                             .semantics { heading() }
                     )
                 }
-                // A key faz o Compose reaproveitar o item certo quando a lista
-                // muda. Sem ela, apagar um item pode redesenhar todos os outros.
                 items(items = uiState.itens, key = { it.propriedade.id }) { item ->
                     CartaoPropriedade(
                         item = item,
@@ -171,7 +157,6 @@ private fun Cabecalho(
                     .weight(1f)
                     .semantics { heading() }
             )
-            // A conta abre pelo canto desta aba (tela 12 do Figma) e pelo Início.
             BotaoCabecalho(icone = IconesAgro.Conta, descricao = "Abrir conta", aoClicar = aoAbrirConta)
         }
 
@@ -227,8 +212,7 @@ private fun CartaoPropriedade(
 ) {
     val oculto = LocalValoresOcultos.current
     val negativo = item.saldoCentavos < 0
-    // Com os valores escondidos, nem a cor nem o sinal contam qual sítio
-    // está no prejuízo: tudo fica neutro.
+    // Com valores ocultos, cor e sinal ficam neutros para não revelar saldo negativo.
     val cor = when {
         oculto -> MaterialTheme.colorScheme.secondary
         negativo -> MaterialTheme.agro.despesa
@@ -279,7 +263,7 @@ private fun CartaoPropriedade(
                 }
 
                 Text(
-                    // Sinal sempre visível: no prejuízo, o "−" diz o que a cor sozinha não diz.
+                    // "−" explícito em saldo negativo, para não depender só da cor.
                     text = (if (negativo && !oculto) "− " else "") + abs(item.saldoCentavos).emRealCurto(oculto),
                     style = MaterialTheme.typography.titleSmall,
                     color = cor,

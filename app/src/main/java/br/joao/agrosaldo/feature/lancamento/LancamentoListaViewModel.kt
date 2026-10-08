@@ -29,7 +29,7 @@ import java.time.YearMonth
 /** Filtro por tipo (RF09). */
 enum class FiltroLancamento { TUDO, DESPESAS, RECEITAS }
 
-/** Os lançamentos de um dia, com o nome do dia: "Hoje", "Ontem", "2 de outubro". */
+/** Lançamentos de um dia, com rótulo relativo ("Hoje", "Ontem", "2 de outubro"). */
 data class GrupoDoDia(
     val data: LocalDate,
     val rotulo: String,
@@ -42,31 +42,31 @@ data class LancamentoListaUiState(
     val temPropriedade: Boolean = false,
     val mes: YearMonth = YearMonth.now(),
     val filtro: FiltroLancamento = FiltroLancamento.TUDO,
-    /** Null = todas as categorias. */
+    /** Filtro de categoria; null = todas. */
     val categoria: CategoriaLancamento? = null,
-    /** As categorias que têm lançamento no mês, para os chips do filtro. */
+    /** Categorias com lançamento no recorte atual (mais a selecionada), para os chips. */
     val categoriasDoMes: List<CategoriaLancamento> = emptyList(),
     val lancamentos: List<Lancamento> = emptyList(),
     val quantidade: Int = 0,
-    /** Soma dos lançamentos que aparecem, com sinal. Só faz sentido com filtro. */
+    /** Soma com sinal dos lançamentos filtrados, em centavos. Exibida só com filtro ativo. */
     val totalFiltradoCentavos: Long = 0L,
     val saldoCentavos: Long = 0L,
-    /** Entradas e saídas do mês inteiro, para o canto do cabeçalho. */
+    /** Totais do mês inteiro (ignoram filtros), em centavos. */
     val receitasCentavos: Long = 0L,
     val despesasCentavos: Long = 0L,
     val propriedades: List<Propriedade> = emptyList(),
-    /** A mesma lista de [lancamentos], separada por dia. */
+    /** [lancamentos] agrupados por dia, do mais recente ao mais antigo. */
     val grupos: List<GrupoDoDia> = emptyList(),
-    /** As pílulas de mês do cabeçalho, da mais antiga para a mais nova. */
+    /** Meses do seletor do cabeçalho, em ordem crescente. */
     val meses: List<YearMonth> = emptyList(),
-    /** O texto da busca. Preenchido, a lista mostra todos os meses. */
+    /** Texto de busca; quando preenchido, a lista ignora o mês e busca em todos. */
     val busca: String = ""
 ) {
     val temFiltro: Boolean get() = filtro != FiltroLancamento.TUDO || categoria != null
     val buscando: Boolean get() = busca.isNotBlank()
 }
 
-/** Os filtros juntos, para mudarem num passo só. */
+/** Filtros agrupados para atualização atômica. */
 private data class Filtros(
     val tipo: FiltroLancamento = FiltroLancamento.TUDO,
     val categoria: CategoriaLancamento? = null,
@@ -74,15 +74,9 @@ private data class Filtros(
 )
 
 /**
- * ViewModel da lista de lançamentos.
- *
- * O ponto interessante aqui é o `combine`: cinco fontes que mudam por conta
- * própria — lançamentos, propriedades, propriedade selecionada, mês e filtros —
- * viram um único estado de tela.
- *
- * Sem ele, cada uma dessas mudanças exigiria recalcular a tela na mão e as
- * combinações ficariam fáceis de esquecer. Com ele, mexer em qualquer uma
- * refaz o estado inteiro automaticamente.
+ * Lista de lançamentos da propriedade e mês selecionados em [SelecaoAtual], com filtros
+ * por tipo/categoria e busca textual. O estado é recalculado por inteiro a cada emissão
+ * de qualquer fonte (lançamentos, propriedades, seleção, mês, filtros).
  */
 class LancamentoListaViewModel(
     private val lancamentoRepository: LancamentoRepository,
@@ -92,7 +86,7 @@ class LancamentoListaViewModel(
 
     private val _filtros = MutableStateFlow(Filtros())
 
-    /** Sobe quando a tela volta a aparecer: "Hoje" e "Ontem" mudam à meia-noite. */
+    /** Incrementado ao retomar a tela para recalcular rótulos relativos após a meia-noite. */
     private val _voltas = MutableStateFlow(0)
 
     private val _uiState = MutableStateFlow(LancamentoListaUiState())
@@ -113,9 +107,8 @@ class LancamentoListaViewModel(
             }
         }
 
-        // O mês mudou por fora (tocou num mês do Histórico, ou no Início):
-        // a pessoa quer ver aquele mês, e uma busca antiga esconderia ele.
-        // Durante a busca as pílulas de mês somem, então daqui nunca vem.
+        // Mudança de mês (vinda de outra tela) limpa a busca, que ocultaria o mês escolhido.
+        // drop(1) ignora o valor inicial do StateFlow.
         viewModelScope.launch {
             SelecaoAtual.mes.drop(1).collect { aoFecharBusca() }
         }
@@ -131,7 +124,7 @@ class LancamentoListaViewModel(
         filtros: Filtros
     ): LancamentoListaUiState {
 
-        // Se nada foi escolhido ainda, assume a primeira da lista.
+        // Sem seleção válida, usa a primeira propriedade.
         val propriedade = propriedades.firstOrNull { it.id == selecionadaId }
             ?: propriedades.firstOrNull()
 
@@ -151,8 +144,7 @@ class LancamentoListaViewModel(
         val daPropriedade = todosLancamentos.filter { it.propriedadeId == propriedade.id }
         val doMes = daPropriedade.filter { it.data.pertenceAo(mes) }
 
-        // Com busca, procura em todos os meses: quem procura "trator" quer
-        // achar o abastecimento, não lembrar em que mês foi.
+        // A busca ignora o mês e considera todos os lançamentos da propriedade.
         val termo = normalizar(filtros.busca)
         val base = if (termo.isEmpty()) doMes else daPropriedade.filter { combinaComBusca(it, termo) }
 
@@ -166,9 +158,8 @@ class LancamentoListaViewModel(
             .filter { filtros.categoria == null || it.categoria == filtros.categoria }
             .sortedByDescending { it.data }
 
-        // Chips só das categorias que aparecem no mês: oferecer "Sementes"
-        // num mês sem semente levaria a uma lista vazia. A escolhida fica
-        // mesmo sem lançamento (trocou de mês), senão não daria para desmarcar.
+        // Chips só das categorias presentes, para não oferecer filtro que resulte em lista vazia.
+        // A categoria selecionada é mantida mesmo sem lançamentos, para poder ser desmarcada.
         val categoriasDoMes = (doTipo.map { it.categoria } + listOfNotNull(filtros.categoria))
             .distinct()
             .sortedBy { it.ordinal }
@@ -184,8 +175,7 @@ class LancamentoListaViewModel(
             lancamentos = filtrados,
             quantidade = filtrados.size,
             totalFiltradoCentavos = filtrados.sumOf { it.valorComSinal },
-            // O saldo considera o mês inteiro, não o filtro: filtrar por
-            // despesas não deveria fazer o saldo do mês parecer negativo.
+            // Saldo e totais são do mês inteiro, independentes de filtro e busca.
             saldoCentavos = doMes.sumOf { it.valorComSinal },
             receitasCentavos = doMes.filter { it.ehReceita }.sumOf { it.valorCentavos },
             despesasCentavos = doMes.filter { !it.ehReceita }.sumOf { it.valorCentavos },
@@ -197,8 +187,7 @@ class LancamentoListaViewModel(
     }
 
     private fun agruparPorDia(lancamentos: List<Lancamento>, hoje: LocalDate): List<GrupoDoDia> =
-        // groupBy mantém a ordem de chegada, e a lista já vem do mais novo
-        // para o mais antigo: os grupos saem na mesma ordem.
+        // groupBy preserva a ordem de entrada (já decrescente por data).
         lancamentos.groupBy { it.data }.map { (data, doDia) ->
             GrupoDoDia(data = data, rotulo = data.rotuloRelativo(hoje), lancamentos = doDia)
         }
@@ -207,24 +196,21 @@ class LancamentoListaViewModel(
         normalizar(lancamento.descricao).contains(termo) ||
             normalizar(lancamento.categoria.rotulo).contains(termo)
 
-    // O mês é o mesmo em todas as abas: mudar aqui muda lá também.
+    // Mês global em SelecaoAtual, compartilhado entre as abas.
     fun aoAvancarMes() = SelecaoAtual.avancarMes()
     fun aoVoltarMes() = SelecaoAtual.voltarMes()
-    /**
-     * Trocar o tipo desmarca a categoria que não combina com ele: com
-     * "Receitas" e "Adubo" marcados ao mesmo tempo, a lista ficaria sempre vazia.
-     */
+    /** Troca o filtro de tipo e desmarca a categoria se ela não pertencer ao novo tipo. */
     fun aoMudarFiltro(filtro: FiltroLancamento) = _filtros.update { atual ->
         val categoria = atual.categoria?.takeIf { combina(it, filtro) }
         atual.copy(tipo = filtro, categoria = categoria)
     }
 
-    /** Tocar na categoria já marcada desmarca. */
+    /** Alterna a categoria: selecionar a já marcada a desmarca. */
     fun aoMudarCategoria(categoria: CategoriaLancamento) = _filtros.update { atual ->
         if (atual.categoria == categoria) atual.copy(categoria = null) else atual.copy(categoria = categoria)
     }
 
-    /** Limpa tipo e categoria. A busca fica: ela tem o próprio botão de fechar. */
+    /** Limpa tipo e categoria; preserva a busca. */
     fun aoLimparFiltros() = _filtros.update { Filtros(busca = it.busca) }
 
     fun aoBuscar(texto: String) = _filtros.update { it.copy(busca = texto.take(TAMANHO_MAXIMO_BUSCA)) }
@@ -241,15 +227,14 @@ class LancamentoListaViewModel(
     fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
 
     companion object {
-        /** Quantos meses para trás e para a frente aparecem nas pílulas. */
+        /** Faixa de meses do seletor, relativa ao mês atual. */
         const val MESES_PARA_TRAS = 24L
         const val MESES_PARA_FRENTE = 12L
         private const val TAMANHO_MAXIMO_BUSCA = 60
 
         /**
-         * De dois anos atrás até um ano à frente (o limite de data do
-         * lançamento, RN07). Se o mês escolhido estiver fora disso (veio
-         * do histórico de um ano antigo), a faixa estica para incluí-lo.
+         * Meses de [MESES_PARA_TRAS] atrás até [MESES_PARA_FRENTE] à frente (limite da RN07).
+         * A faixa é estendida para incluir [selecionado] se ele estiver fora dela.
          */
         fun mesesDoCabecalho(selecionado: YearMonth, hoje: LocalDate): List<YearMonth> {
             val atual = YearMonth.from(hoje)
@@ -258,7 +243,7 @@ class LancamentoListaViewModel(
             return generateSequence(primeiro) { it.plusMonths(1) }.takeWhile { it <= ultimo }.toList()
         }
 
-        /** "Adubação" e "adubacao" são a mesma busca: sem acento e sem maiúscula. */
+        /** Normaliza para busca: trim, sem acentos (NFD + remoção de marcas) e minúsculas. */
         fun normalizar(texto: String): String =
             Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
                 .replace(MARCAS_DE_ACENTO, "")

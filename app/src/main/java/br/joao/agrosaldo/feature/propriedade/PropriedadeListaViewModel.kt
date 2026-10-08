@@ -21,11 +21,11 @@ import kotlinx.coroutines.launch
 import java.time.YearMonth
 import kotlin.math.abs
 
-/** Uma propriedade com o resultado dela no mês — o que o comparativo precisa. */
+/** Propriedade com o saldo do mês selecionado, em centavos. */
 data class PropriedadeComSaldo(
     val propriedade: Propriedade,
     val saldoCentavos: Long,
-    /** Tamanho da barra, relativo ao maior saldo em módulo. De 0 a 1. */
+    /** |saldo| relativo ao maior |saldo| entre as propriedades, em 0..1. */
     val proporcao: Float
 )
 
@@ -38,14 +38,8 @@ data class PropriedadeListaUiState(
 )
 
 /**
- * ViewModel da tela de propriedades — comparativo entre elas (RF11).
- *
- * Nenhuma propriedade guarda o próprio saldo. Ele é calculado aqui a partir
- * dos lançamentos do mês, e recalculado sozinho sempre que um lançamento
- * muda em qualquer tela do app.
- *
- * Guardar o saldo dentro da propriedade seria duplicar informação: bastaria
- * esquecer de atualizar num lugar para os números discordarem.
+ * Lista de propriedades com comparativo de saldo do mês (RF11). O saldo não é persistido:
+ * é derivado dos lançamentos a cada emissão de propriedades, lançamentos ou mês.
  */
 class PropriedadeListaViewModel(
     private val propriedadeRepository: PropriedadeRepository,
@@ -93,7 +87,7 @@ class PropriedadeListaViewModel(
         }
     }
 
-    // O mês é o mesmo em todas as abas: mudar aqui muda lá também.
+    // Mês global em SelecaoAtual, compartilhado entre as abas.
     fun aoAvancarMes() = SelecaoAtual.avancarMes()
     fun aoVoltarMes() = SelecaoAtual.voltarMes()
 

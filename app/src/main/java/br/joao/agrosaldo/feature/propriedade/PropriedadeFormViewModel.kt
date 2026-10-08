@@ -22,14 +22,8 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * Estado do formulário.
- *
- * Os campos são String, e não Double, porque é isso que o usuário digita.
- * "12,5" e "12.5" e "abc" são todos textos válidos de se ter num campo —
- * a conversão para número acontece só na validação, no momento de salvar.
- *
- * Guardar Double aqui obrigaria a converter a cada tecla digitada, e o campo
- * apagaria o que a pessoa escreveu no meio da digitação.
+ * Estado do formulário de propriedade. Campos numéricos (área em hectares, latitude,
+ * longitude) ficam como texto digitado e só são convertidos na validação em [PropriedadeFormViewModel.aoSalvar].
  */
 data class PropriedadeFormUiState(
     val nome: String = "",
@@ -40,24 +34,20 @@ data class PropriedadeFormUiState(
     val erroNome: String? = null,
     val erroArea: String? = null,
     val erroCoordenadas: String? = null,
-    /** Erro que não é de um campo (o banco falhou, a sessão caiu...). */
+    /** Erro não associado a um campo (falha de banco, sessão etc.). */
     val erroGeral: String? = null,
     val ehEdicao: Boolean = false,
-    /** Gravando: o botão fica desligado, para dois toques não criarem duas propriedades. */
+    /** Gravação em andamento; desabilita o botão para evitar registro duplicado. */
     val salvando: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false
 )
 
 /**
- * ViewModel do formulário — o fluxo do MVVM nos dois sentidos.
+ * Formulário de criação/edição de propriedade. Toda a validação fica aqui; a tela só
+ * exibe os erros do estado.
  *
- * Na lista, o dado só descia: repositório → ViewModel → tela.
- * Aqui ele também sobe: a tela avisa cada tecla digitada, o ViewModel valida
- * e devolve um estado novo, com erro ou sem.
- *
- * A tela nunca decide se um dado é válido. Ela só mostra o que o ViewModel
- * disser. É isso que permite testar toda a regra de validação sem abrir o app.
+ * @param propriedadeId id em edição; nulo para criação.
  */
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
@@ -88,19 +78,14 @@ class PropriedadeFormViewModel(
         }
     }
 
-    // Cada mudança limpa o erro daquele campo. Deixar o erro na tela enquanto
-    // a pessoa corrige é o tipo de detalhe que faz um formulário parecer hostil.
+    // Editar um campo limpa o erro correspondente.
     fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v, erroNome = null) }
     fun aoMudarCultura(v: String) = _uiState.update { it.copy(cultura = v) }
     fun aoMudarArea(v: String) = _uiState.update { it.copy(area = v, erroArea = null) }
     fun aoMudarLatitude(v: String) = _uiState.update { it.copy(latitude = v, erroCoordenadas = null) }
     fun aoMudarLongitude(v: String) = _uiState.update { it.copy(longitude = v, erroCoordenadas = null) }
 
-    /**
-     * O GPS do celular encontrou onde a pessoa está. Preenche os dois campos
-     * com 6 casas (≈ 10 cm de precisão — mais que suficiente) e com vírgula,
-     * que é como o produtor leria e editaria.
-     */
+    /** Preenche as coordenadas obtidas do GPS com 6 casas decimais (~10 cm) e vírgula decimal. */
     fun aoUsarLocalizacao(latitude: Double, longitude: Double) = _uiState.update {
         it.copy(
             latitude = formatarCoordenada(latitude),
@@ -112,16 +97,16 @@ class PropriedadeFormViewModel(
     private fun formatarCoordenada(valor: Double): String =
         String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
-    /** Número do banco para o campo: "18", "12,5", "-21,7333" — nunca "1.0E7". */
+    /** Formata para o campo: "18", "12,5", "-21,7333" (sem notação científica nem agrupamento). */
     private fun Double.paraCampo(): String = numeroBr(agrupar = false)
 
-    /** "12,5" e "12.5" viram o mesmo número. "NaN" e "Infinity" não contam como número. */
+    /** Aceita vírgula ou ponto decimal; rejeita NaN e infinito. */
     private fun String.paraNumero(): Double? =
         replace(',', '.').trim().toDoubleOrNull()?.takeIf { it.isFinite() }
 
     fun aoSalvar() {
         val estado = _uiState.value
-        // Segundo toque enquanto grava (ou depois de gravar): ignora.
+        // Ignora toques repetidos durante ou após a gravação.
         if (estado.salvando || estado.salvo) return
 
         val area = estado.area.paraNumero()
@@ -147,9 +132,7 @@ class PropriedadeFormViewModel(
             houveErro = true
         }
 
-        // Se algum deles for nulo aqui, um erro já foi marcado acima. Checar
-        // de novo nesta linha faz o compilador PROVAR que, daqui pra baixo,
-        // os três existem — sem "!!", que derrubaria o app se errássemos.
+        // Checagem de nulos redundante com houveErro, mas habilita smart cast abaixo.
         if (houveErro || area == null || lat == null || lon == null) {
             _uiState.value = novo
             return
@@ -159,8 +142,7 @@ class PropriedadeFormViewModel(
         viewModelScope.launch {
             tentar {
                 val propriedade = Propriedade(
-                    // Na edição mantém o mesmo id: é isso que faz o repositório
-                    // atualizar o registro em vez de criar uma cópia.
+                    // Mesmo id na edição: o repositório faz upsert.
                     id = propriedadeId ?: UUID.randomUUID().toString(),
                     nome = estado.nome.trim(),
                     cultura = estado.cultura.trim().ifBlank { "Não informada" },
@@ -173,7 +155,6 @@ class PropriedadeFormViewModel(
             }.onSuccess {
                 _uiState.update { it.copy(salvo = true) }
             }.onFailure { erro ->
-                // O botão volta a funcionar e a pessoa vê o que houve.
                 _uiState.update {
                     it.copy(salvando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível salvar. Tente de novo."))
                 }
@@ -182,17 +163,13 @@ class PropriedadeFormViewModel(
     }
 
     /**
-     * RN02 — excluir propriedade leva junto os lançamentos dela.
-     *
-     * A tela confirma antes (é muita coisa de uma vez) e, mesmo assim, a barra
-     * de baixo oferece "Desfazer": a propriedade e todos os lançamentos dela
-     * voltam, com os mesmos ids.
+     * RN02: exclui a propriedade e seus lançamentos (a tela pede confirmação antes).
+     * Oferece "Desfazer", que restaura tudo com os mesmos ids.
      */
     fun aoExcluir() {
         val id = propriedadeId ?: return
         viewModelScope.launch {
-            // O repositório apaga tudo numa transação só e devolve o que
-            // apagou: é com isso que o "Desfazer" traz tudo de volta.
+            // Exclusão transacional; retorna os dados removidos para o "Desfazer".
             tentar { propriedadeRepository.excluirComLancamentos(id) }
                 .onSuccess { excluida ->
                     SelecaoAtual.limparSeFor(id)
@@ -210,10 +187,7 @@ class PropriedadeFormViewModel(
     }
 
     companion object {
-        /**
-         * A fábrica recebe o id da rota. Assim o ViewModel não precisa conhecer
-         * SavedStateHandle nem nada de navegação — ele só recebe um String?.
-         */
+        /** @param propriedadeId id vindo da rota de navegação; nulo para criação. */
         fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PropriedadeFormViewModel(

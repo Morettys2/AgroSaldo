@@ -102,7 +102,7 @@ fun LancamentoListaRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // "Hoje" e "Ontem" mudam à meia-noite: refaz ao voltar para a tela.
+    // Recalcula rótulos relativos ("Hoje"/"Ontem") ao retomar, caso tenha virado o dia.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.aoVoltarParaATela() }
 
     LancamentoListaScreen(
@@ -120,12 +120,8 @@ fun LancamentoListaRoute(
 }
 
 /**
- * Lançamentos na direção "Safra".
- *
- * Cabeçalho verde-noite com os meses em pílulas (o mês escolhido em
- * verde-limão) e o saldo; embaixo, os filtros e um cartão só com a lista,
- * separada por dia. A lupa troca o título por um campo de busca que
- * procura em todos os meses.
+ * Lista de lançamentos do mês, agrupada por dia, com seletor de mês, resumo do saldo,
+ * filtros e busca (a busca abrange todos os meses).
  */
 @Composable
 fun LancamentoListaScreen(
@@ -140,21 +136,18 @@ fun LancamentoListaScreen(
     aoEditarLancamento: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Aberta mesmo vazia: a pessoa tocou na lupa e ainda não digitou.
+    // Estado de UI separado de uiState.buscando: o campo pode estar aberto e vazio.
     var buscaAberta by rememberSaveable { mutableStateOf(uiState.buscando) }
-    // O teclado sobe só logo depois do toque na lupa — e não toda vez que o
-    // campo volta à tela (ao voltar de um lançamento, ou rolando a lista).
+    // Pedido de foco único, consumido pelo campo; evita reabrir o IME ao recompor/rolar.
     var focarBusca by rememberSaveable { mutableStateOf(false) }
     val fecharBusca = {
         buscaAberta = false
         aoFecharBusca()
     }
-    // O mês mudou por fora (Histórico, Início): o ViewModel já limpou a
-    // busca, então o campo fecha e as pílulas de mês voltam.
+    // Mudança externa de mês: o ViewModel já limpou a busca; fecha o campo.
     LaunchedEffect(uiState.mes) {
         if (!uiState.buscando) buscaAberta = false
     }
-    // "Voltar" com a busca aberta fecha a busca, em vez de sair da aba.
     BackHandler(enabled = buscaAberta) { fecharBusca() }
 
     LazyColumn(
@@ -220,8 +213,6 @@ fun LancamentoListaScreen(
     }
 }
 
-// ---------- cabeçalho ----------
-
 @Composable
 private fun Cabecalho(
     uiState: LancamentoListaUiState,
@@ -251,7 +242,6 @@ private fun Cabecalho(
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.agro.sobreCabecalhoSecundario,
-                // O leitor de tela avisa quantos achou, sem a pessoa sair do campo.
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
             )
         } else {
@@ -271,7 +261,6 @@ private fun Cabecalho(
                     habilitado = uiState.temPropriedade
                 )
             }
-            // Com um sítio só não há o que trocar; o nome já está no Início.
             if (uiState.propriedades.size > 1) {
                 SeletorPropriedadeCabecalho(
                     nome = uiState.nomePropriedade,
@@ -295,7 +284,6 @@ private fun CampoDeBusca(
 ) {
     val foco = remember { FocusRequester() }
     val gerenteDeFoco = LocalFocusManager.current
-    // Acabou de tocar na lupa: o teclado já sobe, sem precisar tocar no campo.
     LaunchedEffect(focar) {
         if (focar) {
             foco.requestFocus()
@@ -339,22 +327,18 @@ private fun CampoDeBusca(
     )
 }
 
-/**
- * Os meses em pílulas, roláveis de lado. O escolhido aparece com o ano
- * ("Out 2026"); janeiro também, para marcar a virada do ano.
- */
+/** Seletor horizontal de meses. O selecionado e os janeiros exibem o ano ("Out 2026"). */
 @Composable
 private fun PilulasDeMes(meses: List<YearMonth>, selecionado: YearMonth, aoSelecionar: (YearMonth) -> Unit) {
     val indice = meses.indexOf(selecionado).coerceAtLeast(0)
-    // Deixa dois meses anteriores à vista, para dar contexto.
+    // Mantém dois meses anteriores visíveis à esquerda do selecionado.
     val estado = rememberLazyListState(initialFirstVisibleItemIndex = (indice - 2).coerceAtLeast(0))
     LaunchedEffect(indice) { estado.animateScrollToItem((indice - 2).coerceAtLeast(0)) }
 
     LazyRow(
         state = estado,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        // A fileira vai de borda a borda do cabeçalho, para a rolagem não
-        // parecer cortada; a primeira pílula continua alinhada com o título.
+        // Ocupa a largura total (anula a margem do cabeçalho) e devolve a margem como contentPadding.
         contentPadding = PaddingValues(horizontal = MARGEM_DO_CABECALHO),
         modifier = Modifier
             .fillMaxWidth()
@@ -426,8 +410,6 @@ private fun ResumoDoMes(uiState: LancamentoListaUiState) {
     }
 }
 
-// ---------- filtros ----------
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Filtros(
@@ -438,8 +420,7 @@ private fun Filtros(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // Quebra de linha em vez de rolar de lado: com a fonte grande do
-        // celular, nenhum filtro fica escondido fora da tela.
+        // FlowRow em vez de rolagem horizontal: com fonte grande, nenhum chip fica fora da tela.
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -456,8 +437,6 @@ private fun Filtros(
             }
         }
 
-        // Com filtro ou busca, mostra quanto somam os que aparecem: é a
-        // resposta para "quanto gastei de combustível em setembro?".
         if (uiState.temFiltro || uiState.buscando) {
             ResumoDoFiltro(
                 quantidade = uiState.quantidade,
@@ -469,7 +448,7 @@ private fun Filtros(
     }
 }
 
-/** "Categoria ▾" que abre a lista das categorias do mês. Escolhida, mostra o nome dela. */
+/** Chip com menu das categorias disponíveis; exibe o nome da categoria selecionada. */
 @Composable
 private fun FiltroDeCategoria(
     categorias: List<CategoriaLancamento>,
@@ -489,7 +468,7 @@ private fun FiltroDeCategoria(
                 DropdownMenuItem(
                     text = { Text("Todas as categorias") },
                     onClick = {
-                        aoEscolher(escolhida) // tocar na marcada desmarca
+                        aoEscolher(escolhida) // reenviar a selecionada desmarca (toggle)
                         aberto = false
                     }
                 )
@@ -533,13 +512,9 @@ private fun ResumoDoFiltro(quantidade: Int, totalCentavos: Long, mostrarLimpar: 
     }
 }
 
-// ---------- lista ----------
-
 /**
- * A lista inteira parece um cartão só, mas cada linha é um item da
- * LazyColumn: só o que está na tela é desenhado, mesmo com uma busca que
- * devolve centenas de lançamentos. O primeiro item arredonda em cima, o
- * último embaixo.
+ * Emite títulos de dia e linhas como itens separados da LazyColumn, desenhados como um
+ * único cartão: [ItemDoCartao] arredonda o topo do primeiro item e a base do último.
  */
 private fun LazyListScope.itensDaLista(
     grupos: List<GrupoDoDia>,
@@ -573,7 +548,7 @@ private fun LazyListScope.itensDaLista(
                 ItemDoCartao(posicaoDaLinha, total) {
                     LinhaLancamento(
                         lancamento = lancamento,
-                        // O dia já está no título do grupo: aqui vai só a descrição.
+                        // A data já aparece no título do grupo.
                         apoio = lancamento.descricao,
                         aoClicar = { aoEditarLancamento(lancamento.id) },
                         margem = PaddingValues(

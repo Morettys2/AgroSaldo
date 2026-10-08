@@ -157,7 +157,7 @@ fun HistoricoScreen(
 
         item { Secao("Mês a mês · toque para ver os lançamentos") }
 
-        // Meses que ainda não chegaram e não têm nada lançado não entram na lista.
+        // Meses futuros sem lançamento são omitidos da lista.
         val visiveis = uiState.meses.filter { !it.futuro || it.temMovimento }
         items(items = visiveis, key = { it.mes.toString() }) { mes ->
             LinhaMes(mes = mes, aoClicar = { aoAbrirMes(mes.mes) })
@@ -187,8 +187,6 @@ private fun CartaoDoAno(uiState: HistoricoUiState, modifier: Modifier = Modifier
     val oculto = LocalValoresOcultos.current
     val negativo = uiState.saldoCentavos < 0
 
-    // O mesmo verde-noite do cabeçalho das abas: o saldo do ano é o
-    // "herói" desta tela, como o saldo do mês é o do Início.
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.cabecalho),
@@ -226,12 +224,8 @@ private fun CartaoDoAno(uiState: HistoricoUiState, modifier: Modifier = Modifier
 }
 
 /**
- * Gráfico de barras dos 12 meses: verde para o que entrou, vermelho para o
- * que saiu. Desenhado à mão com Canvas — não precisa de biblioteca de
- * gráfico para duas barras por mês.
- *
- * Quem usa leitor de tela ouve o resumo de cada mês (o desenho em si não
- * diz nada para ele). E os números exatos estão na lista logo abaixo.
+ * Gráfico de barras receita/despesa por mês, desenhado em Canvas e escalado por [maiorValor].
+ * Para acessibilidade, o contentDescription traz o resumo textual dos meses com movimento.
  */
 @Composable
 private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifier: Modifier = Modifier) {
@@ -269,7 +263,7 @@ private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifie
                 val larguraBarra = larguraMes * 0.32f
                 val folga = larguraMes * 0.06f
                 val canto = CornerRadius(3.dp.toPx())
-                // Um valor pequeno ainda aparece como um tracinho, em vez de sumir.
+                // Altura mínima para valores pequenos não desaparecerem.
                 val alturaMinima = 2.dp.toPx()
 
                 fun altura(valor: Long): Float = when {
@@ -279,7 +273,6 @@ private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifie
 
                 meses.forEachIndexed { indice, mes ->
                     val inicio = indice * larguraMes + (larguraMes - 2 * larguraBarra - folga) / 2
-                    // Mês futuro (lançamento agendado) fica mais claro.
                     val opacidade = if (mes.futuro) 0.4f else 1f
 
                     val alturaReceita = altura(mes.receitasCentavos)
@@ -482,7 +475,7 @@ private fun HistoricoPreview() {
     }
 }
 
-/** Verde ou terra pelo sinal; com os valores escondidos, neutro: a cor também conta. */
+/** Cor pelo sinal do saldo; neutra com valores ocultos, para a cor não revelar o sinal. */
 @Composable
 private fun corDoSaldo(saldoCentavos: Long, oculto: Boolean): Color = when {
     oculto -> MaterialTheme.colorScheme.onSurface

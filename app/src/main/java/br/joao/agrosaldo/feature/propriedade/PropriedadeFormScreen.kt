@@ -50,16 +50,15 @@ fun PropriedadeFormRoute(
     aoConcluir: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PropriedadeFormViewModel = viewModel(
-        // A key força um ViewModel novo quando o id muda. Sem ela, abrir
-        // "editar" logo após "nova" reaproveitaria o estado antigo.
+        // key por id: evita reaproveitar o ViewModel de outra propriedade (ou da criação).
         key = "propriedade-form-${propriedadeId.orEmpty()}",
         factory = PropriedadeFormViewModel.Factory(propriedadeId)
     )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // O GPS mora na Route porque precisa da Activity (permissão). A Screen
-    // só recebe "está buscando?" e "o que mostrar" — e o @Preview continua funcionando.
+    // Localização fica na Route (depende da Activity para permissão); a Screen recebe só
+    // estado, o que mantém o @Preview funcional.
     var mensagemLocalizacao by remember { mutableStateOf<String?>(null) }
     val busca = rememberBuscaDeLocalizacao(
         aoEncontrar = { latitude, longitude ->
@@ -69,11 +68,6 @@ fun PropriedadeFormRoute(
         aoFalhar = { mensagem -> mensagemLocalizacao = mensagem }
     )
 
-    /**
-     * LaunchedEffect é o lugar certo pra reagir a uma mudança de estado com
-     * um efeito colateral. Chamar aoConcluir() direto no corpo do composable
-     * dispararia a navegação a cada recomposição.
-     */
     LaunchedEffect(uiState.salvo, uiState.excluido) {
         if (uiState.salvo || uiState.excluido) aoConcluir()
     }
@@ -112,9 +106,6 @@ fun PropriedadeFormScreen(
     aoExcluir: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Estado puramente visual (diálogo aberto ou fechado) fica na tela mesmo.
-    // Só estado de negócio sobe pro ViewModel — abrir um diálogo não é regra.
-    // rememberSaveable: o diálogo continua aberto se o celular girar.
     var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -224,7 +215,7 @@ fun PropriedadeFormScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        // Erro que não é de um campo: fica logo acima do botão, onde a pessoa está olhando.
+        // Erro geral (não associado a campo) exibido logo acima do botão.
         uiState.erroGeral?.let { mensagem ->
             Text(
                 text = mensagem,
@@ -235,7 +226,6 @@ fun PropriedadeFormScreen(
 
         Button(
             onClick = aoSalvar,
-            // Desligado enquanto grava: dois toques não criam duas propriedades.
             enabled = !uiState.salvando,
             shape = CircleShape,
             modifier = Modifier.fillMaxWidth().height(56.dp)

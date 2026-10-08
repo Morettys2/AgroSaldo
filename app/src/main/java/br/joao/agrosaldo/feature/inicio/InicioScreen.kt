@@ -83,8 +83,7 @@ fun InicioRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Voltou para a tela (abriu o app de manhã, voltou de outra aba):
-    // "Hoje", "Ontem" e a frase da chuva são refeitos com a hora de agora.
+    // Recalcula textos dependentes do relógio ("Hoje"/"Ontem", chuva) ao retomar.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.aoVoltarParaATela() }
 
     InicioScreen(
@@ -105,12 +104,9 @@ fun InicioRoute(
 }
 
 /**
- * Início na direção "Safra": o saldo em branco no cabeçalho verde-noite,
- * e embaixo, em cartões, o que o produtor faz e consulta todo dia.
- *
- * O botão de novo lançamento saiu daqui: agora é o "+" verde-limão no meio
- * da barra de baixo, igual em todas as abas. Os atalhos "Despesa" e
- * "Receita" abrem o formulário já no tipo certo — um toque a menos.
+ * Tela inicial: saldo do mês no cabeçalho, atalhos, cartão de chuva, maiores gastos e
+ * últimos lançamentos. Os atalhos "Despesa"/"Receita" chamam [aoNovoLancamento] com o
+ * tipo pré-selecionado; o botão genérico de novo lançamento fica na barra inferior.
  */
 @Composable
 fun InicioScreen(
@@ -129,8 +125,7 @@ fun InicioScreen(
     modifier: Modifier = Modifier
 ) {
     when {
-        // O cabeçalho já aparece vazio enquanto carrega: a barra de status
-        // fica com os ícones claros desde o primeiro instante.
+        // Cabeçalho exibido já no carregamento para manter os ícones claros da status bar.
         uiState.carregando -> Column(modifier.fillMaxSize()) {
             CabecalhoSafra { Spacer(Modifier.height(48.dp)) }
             Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
@@ -240,8 +235,7 @@ private fun Cabecalho(
                         .weight(1f)
                         .semantics { heading() }
                 )
-                // Os dois botões de mês ficam juntos, à direita, longe do olho:
-                // tocar no errado não pode esconder os valores sem querer.
+                // Botões de mês agrupados longe do botão de ocultar valores, evitando toque acidental.
                 BotaoMes(IconesAgro.SetaEsquerda, "Mês anterior", aoVoltarMes)
                 Spacer(Modifier.size(8.dp))
                 BotaoMes(IconesAgro.SetaDireita, "Próximo mês", aoAvancarMes)
@@ -249,7 +243,6 @@ private fun Cabecalho(
             ValorGrande(
                 texto = uiState.saldoCentavos.emReal(oculto),
                 estilo = MaterialTheme.typography.displayLarge,
-                // Negativo fica salmão, além do sinal de menos: dá para ver de longe.
                 cor = if (saldoNegativo && !oculto) {
                     MaterialTheme.agro.despesaNoCabecalho
                 } else {
@@ -278,11 +271,11 @@ private fun Cabecalho(
     }
 }
 
-/** "outubro", ou "outubro de 2025" quando não é o ano corrente. */
+/** "outubro", ou "outubro de 2025" quando fora do ano corrente. */
 private fun rotuloDoMes(mes: YearMonth, hoje: LocalDate): String =
     if (mes.year == hoje.year) mes.nomeDoMes().lowercase() else mes.rotulo().lowercase()
 
-/** O círculo verde-limão com as iniciais. Abre a tela de conta. */
+/** Botão circular com as iniciais do usuário; abre a tela de conta. */
 @Composable
 private fun BotaoConta(iniciais: String, aoClicar: () -> Unit) {
     Surface(
@@ -308,7 +301,7 @@ private fun BotaoMes(icone: ImageVector, descricao: String, aoClicar: () -> Unit
     BotaoCabecalho(icone = icone, descricao = descricao, aoClicar = aoClicar)
 }
 
-/** Os três atalhos em pílula. Roláveis de lado para caber com fonte grande. */
+/** Atalhos Despesa/Receita/Histórico, com rolagem horizontal para fontes grandes. */
 @Composable
 private fun Atalhos(
     aoNovaDespesa: () -> Unit,
@@ -374,11 +367,7 @@ private fun Atalho(
     }
 }
 
-/**
- * O cartão azul da previsão. A frase do meio é o que importa ("Chuva às 18h.
- * Dá para adiar o pivô."); o resto é contexto. Sem previsão guardada ainda,
- * vira um convite para abrir o Clima.
- */
+/** Cartão de previsão de chuva; com [chuva] nulo (sem cache), vira atalho para a tela Clima. */
 @Composable
 private fun CartaoChuva(chuva: CartaoChuvaUi?, aoClicar: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
@@ -429,7 +418,7 @@ private fun CartaoChuva(chuva: CartaoChuvaUi?, aoClicar: () -> Unit, modifier: M
     }
 }
 
-/** "Pra onde foi o dinheiro": as três maiores despesas do mês, em barras. */
+/** Maiores categorias de despesa do mês, com barras proporcionais. */
 @Composable
 private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = Modifier) {
     val oculto = LocalValoresOcultos.current
@@ -440,7 +429,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
             gastos.forEach { gasto ->
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    // Lido como uma frase só: "Energia elétrica, R$ 1.250".
+                    // Agrupa para o TalkBack ler "Energia elétrica, R$ 1.250" como um item.
                     modifier = Modifier.semantics(mergeDescendants = true) {}
                 ) {
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -465,8 +454,8 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
 }
 
 /**
- * Barra arredondada desenhada com dois Box. O LinearProgressIndicator do
- * Material deixa um vão e um ponto no fim da trilha, que aqui só atrapalham.
+ * Barra de proporção feita com dois Box, em vez de LinearProgressIndicator (M3 desenha
+ * vão e marcador de fim na trilha).
  */
 @Composable
 private fun Barra(proporcao: Float) {
@@ -522,10 +511,7 @@ private fun CartaoUltimos(
     }
 }
 
-/**
- * Primeiro acesso, antes de existir qualquer propriedade. Usa o mesmo
- * cabeçalho verde-noite das outras abas para o app não parecer outro.
- */
+/** Estado vazio: nenhuma propriedade cadastrada. */
 @Composable
 private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize()) {

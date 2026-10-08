@@ -34,7 +34,7 @@ import java.util.UUID
 data class LancamentoFormUiState(
     val tipo: TipoLancamento = TipoLancamento.DESPESA,
     val categoria: CategoriaLancamento = CategoriaLancamento.ENERGIA,
-    /** Só dígitos. "125050" é exibido como R$ 1.250,50. */
+    /** Valor em centavos como string de dígitos: "125050" = R$ 1.250,50. */
     val valorDigitos: String = "",
     val data: String = LocalDate.now().formatarBr(),
     val propriedadeId: String = "",
@@ -46,14 +46,13 @@ data class LancamentoFormUiState(
     val ehEdicao: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false,
-    /** Gravando: o botão fica desligado, para dois toques não criarem dois lançamentos. */
+    /** Gravação em andamento; desabilita o botão para evitar lançamento duplicado. */
     val salvando: Boolean = false,
-    /** false até ler as propriedades (e, na edição, o lançamento) do banco. */
+    /** false até carregar as propriedades (e, na edição/cópia, o lançamento de origem). */
     val carregado: Boolean = false,
-    /** Para escrever "Hoje, 4 out" no campo da data. */
+    /** Referência para os rótulos relativos de data ("Hoje", "Ontem"). */
     val hoje: LocalDate = LocalDate.now()
 ) {
-    /** Só as categorias que pertencem ao tipo escolhido. */
     val categoriasDisponiveis: List<CategoriaLancamento>
         get() = CategoriaLancamento.porTipo(tipo)
 
@@ -63,11 +62,11 @@ data class LancamentoFormUiState(
     val valorCentavos: Long
         get() = valorDigitos.digitosParaCentavos() ?: 0L
 
-    /** "Hoje, 4 out", "Ontem, 3 out" ou "28 set". Data inválida aparece como foi digitada. */
+    /** "Hoje, 4 out", "Ontem, 3 out" ou "28 set"; data inválida é exibida como digitada. */
     val rotuloData: String
         get() = data.paraLocalDateOuNulo()?.rotuloDeData(hoje) ?: data
 
-    /** A linha embaixo do valor: "Combustível · Hoje · Fazenda São João". */
+    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda São João". */
     val resumo: String
         get() = listOfNotNull(
             categoria.rotulo,
@@ -77,10 +76,12 @@ data class LancamentoFormUiState(
 }
 
 /**
- * @param lancamentoId preenchido ao EDITAR um lançamento.
- * @param copiaDe preenchido ao LANÇAR DE NOVO: abre um lançamento novo já com
- *   tipo, categoria, valor, propriedade e descrição de outro, e a data de hoje.
- *   É o caso da conta de energia, que vem todo mês parecida.
+ * Formulário de criação/edição de lançamento.
+ *
+ * @param lancamentoId id do lançamento em edição; nulo para criação.
+ * @param copiaDe id de um lançamento a duplicar ("Lançar de novo"): copia tipo, categoria,
+ *   valor, propriedade e descrição, com a data de hoje e um id novo.
+ * @param tipoInicial tipo pré-selecionado (atalhos "Despesa"/"Receita" do Início).
  */
 class LancamentoFormViewModel(
     private val lancamentoRepository: LancamentoRepository,
@@ -89,7 +90,6 @@ class LancamentoFormViewModel(
     private val copiaDe: String? = null,
     private val desfazer: Desfazer = Desfazer(),
     private val hoje: () -> LocalDate = LocalDate::now,
-    /** Veio dos atalhos "Despesa" e "Receita" do Início: já abre no tipo certo. */
     tipoInicial: TipoLancamento? = null
 ) : ViewModel() {
 
@@ -103,11 +103,8 @@ class LancamentoFormViewModel(
 
     init {
         viewModelScope.launch {
-            // first() pega o valor atual do Flow e encerra. Aqui queremos só
-            // a foto do momento pra preencher o seletor, não observar mudanças.
             val propriedades = propriedadeRepository.observarTodas().first()
-            // A escolhida pode ter sido excluída: aí vale a primeira da lista,
-            // senão o seletor mostraria "Selecione" com um id que não existe.
+            // A propriedade selecionada pode ter sido excluída; cai para a primeira da lista.
             val selecionada = SelecaoAtual.propriedadeId.value
                 ?.takeIf { id -> propriedades.any { it.id == id } }
                 ?: propriedades.firstOrNull()?.id.orEmpty()
@@ -119,7 +116,6 @@ class LancamentoFormViewModel(
                     tipo = origem.tipo,
                     categoria = origem.categoria,
                     valorDigitos = origem.valorCentavos.toString(),
-                    // Lançar de novo é registrar o de agora: começa com a data de hoje.
                     data = if (ehCopia) hoje().formatarBr() else origem.data.formatarBr(),
                     propriedadeId = origem.propriedadeId,
                     descricao = origem.descricao,
@@ -138,11 +134,8 @@ class LancamentoFormViewModel(
     }
 
     /**
-     * Trocar o tipo obriga a trocar a categoria junto.
-     *
-     * Sem isso, escolher "Adubo" e depois marcar "Receita" montaria um
-     * Lancamento inválido, e o require do modelo lançaria exceção no salvar.
-     * Manter o estado sempre coerente é mais barato que tratar o erro depois.
+     * Troca o tipo e reseta a categoria para a primeira do novo tipo, mantendo o par
+     * tipo/categoria sempre válido (o `require` de [Lancamento] rejeitaria o contrário).
      */
     fun aoMudarTipo(tipo: TipoLancamento) = _uiState.update {
         it.copy(tipo = tipo, categoria = CategoriaLancamento.porTipo(tipo).first())
@@ -156,16 +149,12 @@ class LancamentoFormViewModel(
     }
 
     /**
-     * Tecla do teclado numérico da tela ("1", "00"...). Funciona como a
-     * maquininha de cartão: os dígitos entram pela direita, nos centavos.
-     *
-     * Zero à esquerda não entra (tocar "00" com o valor vazio não faz nada),
-     * e uma tecla que passaria de 9 dígitos é ignorada inteira, em vez de
-     * entrar pela metade.
+     * Tecla do teclado numérico ("1", "00"...). Os dígitos entram pela direita, nos centavos.
+     * Zeros à esquerda são descartados e uma tecla que excederia [MAXIMO_DE_DIGITOS] é
+     * ignorada por inteiro.
      */
     fun aoTeclar(digitos: String) = _uiState.update { estado ->
-        // Antes de carregar a edição, o valor do banco ainda vai chegar e
-        // apagaria o que fosse digitado agora.
+        // Antes do carregamento, o valor vindo do banco sobrescreveria o que fosse digitado.
         if (!estado.carregado || digitos.isEmpty() || !digitos.all { it.isDigit() }) return@update estado
         val novo = (estado.valorDigitos + digitos).trimStart('0')
         if (novo.length > MAXIMO_DE_DIGITOS) estado else estado.copy(valorDigitos = novo, erroValor = null)
@@ -175,15 +164,13 @@ class LancamentoFormViewModel(
         if (!it.carregado) it else it.copy(valorDigitos = it.valorDigitos.dropLast(1), erroValor = null)
     }
 
-    /** Segurar o ⌫ apaga o valor inteiro. */
+    /** Long press no ⌫: zera o valor. */
     fun aoLimparValor() = _uiState.update { if (!it.carregado) it else it.copy(valorDigitos = "", erroValor = null) }
 
     fun aoMudarData(v: String) = _uiState.update { it.copy(data = v, erroData = null) }
 
-    /** Data escolhida no calendário. */
     fun aoEscolherData(data: LocalDate) = _uiState.update { it.copy(data = data.formatarBr(), erroData = null) }
 
-    // Atalhos: a maioria dos lançamentos é do dia, ou do dia anterior.
     fun aoUsarHoje() = aoEscolherData(hoje())
     fun aoUsarOntem() = aoEscolherData(hoje().minusDays(1))
     fun aoMudarDescricao(v: String) = _uiState.update { it.copy(descricao = v) }
@@ -191,7 +178,7 @@ class LancamentoFormViewModel(
 
     fun aoSalvar() {
         val estado = _uiState.value
-        // Segundo toque enquanto grava (ou depois de gravar): ignora.
+        // Ignora toques repetidos durante ou após a gravação.
         if (estado.salvando || estado.salvo) return
         val centavos = estado.valorDigitos.digitosParaCentavos()
         val data = estado.data.paraLocalDateOuNulo()
@@ -215,8 +202,7 @@ class LancamentoFormViewModel(
             houveErro = true
         }
 
-        // Mesma técnica do formulário de propriedade: checar os nulos aqui
-        // faz o compilador garantir que centavos e data existem daqui pra baixo.
+        // Checagem de nulos redundante com houveErro, mas habilita smart cast abaixo.
         if (houveErro || centavos == null || data == null) {
             _uiState.value = novo
             return
@@ -235,16 +221,13 @@ class LancamentoFormViewModel(
                     descricao = estado.descricao.trim()
                 )
                 lancamentoRepository.salvar(lancamento)
-                // As listas passam a mostrar a propriedade e o mês do que acabou
-                // de ser salvo: lançar em agosto olhando outubro não "some".
+                // Seleciona propriedade e mês do lançamento salvo para que ele apareça nas listas.
                 SelecaoAtual.selecionar(lancamento.propriedadeId)
                 SelecaoAtual.selecionarMes(YearMonth.from(lancamento.data))
             }.onSuccess {
                 _uiState.update { it.copy(salvo = true, erroGeral = null) }
             }.onFailure { erro ->
-                // Rede de segurança: uma regra do modelo que passou batido na
-                // validação da tela, ou o banco que falhou. A mensagem aparece
-                // acima do botão, e o botão volta a funcionar.
+                // Falha de regra do modelo não coberta pela validação da tela, ou erro de banco.
                 _uiState.update {
                     it.copy(salvando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível salvar. Tente de novo."))
                 }
@@ -253,9 +236,8 @@ class LancamentoFormViewModel(
     }
 
     /**
-     * Apaga na hora e oferece "Desfazer" na barra de baixo, em vez de
-     * perguntar "tem certeza?" antes. O lançamento apagado fica guardado
-     * na oferta até ela sumir.
+     * Exclui imediatamente, sem confirmação, e oferece "Desfazer" via [Desfazer], que
+     * guarda o lançamento removido para regravá-lo.
      */
     fun aoExcluir() {
         val id = lancamentoId ?: return
@@ -276,10 +258,10 @@ class LancamentoFormViewModel(
     }
 
     companion object {
-        /** RN07 — a regra mora no modelo; a tela usa este valor para limitar o calendário. */
+        /** RN07: limite de data futura, definido em [Lancamento]; usado para limitar o calendário. */
         const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO
 
-        /** R$ 9.999.999,99 — mais que isso não cabe na tela nem faz sentido num sítio. */
+        /** Teto de entrada: R$ 9.999.999,99. */
         const val MAXIMO_DE_DIGITOS = 9
 
         fun Factory(

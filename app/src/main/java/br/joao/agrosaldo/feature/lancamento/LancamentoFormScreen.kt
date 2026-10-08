@@ -143,15 +143,10 @@ fun LancamentoFormRoute(
 }
 
 /**
- * Novo lançamento na direção "Safra".
+ * Formulário de lançamento (criação, edição e "Lançar de novo").
  *
- * Em cima, no verde-noite, o que importa: despesa ou receita, e o valor
- * grande. Embaixo, numa folha clara, o resto — categoria, data, sítio,
- * descrição — e um teclado numérico próprio.
- *
- * O teclado é da tela, e não o do Android, por dois motivos: fica sempre no
- * mesmo lugar (o do sistema muda de celular para celular e às vezes vem sem
- * o "00"), e não cobre a categoria e a data enquanto a pessoa digita.
+ * Usa teclado numérico próprio em vez do IME: layout estável entre aparelhos, tecla "00"
+ * garantida e sem cobrir os demais campos.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -176,8 +171,7 @@ fun LancamentoFormScreen(
     modifier: Modifier = Modifier
 ) {
     var escolhendoData by rememberSaveable { mutableStateOf(false) }
-    // Com o teclado do Android aberto (escrevendo a descrição), o teclado
-    // numérico some: os dois juntos não caberiam na tela.
+    // Com o IME aberto (campo de descrição), o teclado numérico é ocultado.
     val tecladoDoSistemaAberto = WindowInsets.isImeVisible
     val escalaDaFonte = LocalDensity.current.fontScale.coerceAtLeast(1f)
 
@@ -205,9 +199,8 @@ fun LancamentoFormScreen(
             .background(MaterialTheme.agro.cabecalho)
             .semantics { paneTitle = titulo }
     ) {
-        // Celular alto: o topo e o teclado ficam parados e só os campos rolam.
-        // Celular baixo, deitado ou com fonte grande: aí não cabe — tudo rola,
-        // e só o botão de salvar fica sempre à vista.
+        // Tela alta: topo e teclado fixos, só os campos rolam. Tela baixa (ou fonte grande):
+        // tudo rola, exceto a barra de salvar.
         val compacto = maxHeight < ALTURA_PARA_TECLADO_FIXO * escalaDaFonte
 
         Column(modifier = Modifier.fillMaxSize()) {
@@ -230,7 +223,7 @@ fun LancamentoFormScreen(
                             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            // Baixo assim, o valor vem primeiro: o teclado logo embaixo do número.
+                            // No modo compacto o teclado vem antes dos campos, logo abaixo do valor.
                             teclado()
                             campos()
                         }
@@ -276,11 +269,10 @@ fun LancamentoFormScreen(
     }
 }
 
-// ---------- topo verde-noite ----------
-
 /**
- * @param reduzido com pouco espaço (celular baixo, ou escrevendo a
- *   descrição): some o "Quanto saiu?" e o valor fica um pouco menor.
+ * Cabeçalho com seletor de tipo e valor.
+ *
+ * @param reduzido oculta a legenda e reduz o valor (tela compacta ou IME aberto).
  */
 @Composable
 private fun Topo(
@@ -323,8 +315,7 @@ private fun Topo(
                     color = MaterialTheme.agro.sobreCabecalhoSecundario
                 )
             }
-            // O valor é o maior elemento da tela. Diminui sozinho quando o
-            // número cresce, para R$ 9.999.999,99 caber num celular estreito.
+            // autoSize garante que o valor máximo (R$ 9.999.999,99) caiba em telas estreitas.
             BasicText(
                 text = uiState.valorCentavos.emReal(),
                 style = MaterialTheme.typography.displayLarge.copy(
@@ -336,8 +327,7 @@ private fun Topo(
                 autoSize = TextAutoSize.StepBased(minFontSize = 24.sp, maxFontSize = if (reduzido) 40.sp else 52.sp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    // O leitor de tela lê o valor novo a cada tecla. O
-                    // contentDescription diz o que é o número.
+                    // liveRegion: o TalkBack anuncia o valor a cada tecla.
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = "Valor: " + uiState.valorCentavos.emReal()
@@ -357,11 +347,7 @@ private fun Topo(
     }
 }
 
-/**
- * Despesa | Receita, como um interruptor de duas posições. Despesa marcada
- * fica salmão, receita fica verde-limão — e o texto muda de peso, para não
- * depender só da cor.
- */
+/** Alternador Despesa/Receita; a opção marcada muda cor e peso da fonte (não só a cor). */
 @Composable
 private fun SeletorDeTipo(ehDespesa: Boolean, aoMudarTipo: (TipoLancamento) -> Unit, modifier: Modifier = Modifier) {
     Row(
@@ -405,15 +391,13 @@ private fun RowScope.OpcaoDeTipo(rotulo: String, selecionada: Boolean, corSeleci
     }
 }
 
-/** ⋮ da edição: "Lançar de novo" e "Excluir". */
+/** Menu de overflow da edição: "Lançar de novo" e "Excluir". */
 @Composable
 private fun MenuDaEdicao(aoLancarDeNovo: () -> Unit, aoExcluir: () -> Unit) {
     var aberto by remember { mutableStateOf(false) }
     Box {
         BotaoCabecalho(icone = IconesAgro.MaisOpcoes, descricao = "Mais opções", aoClicar = { aberto = true })
         DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-            // A conta de energia vem todo mês parecida: em vez de digitar tudo
-            // de novo, abre um lançamento novo já preenchido, com a data de hoje.
             DropdownMenuItem(
                 text = { Text("Lançar de novo") },
                 leadingIcon = { Icon(IconesAgro.Copiar, contentDescription = null, modifier = Modifier.size(20.dp)) },
@@ -423,8 +407,7 @@ private fun MenuDaEdicao(aoLancarDeNovo: () -> Unit, aoExcluir: () -> Unit) {
                 }
             )
             HorizontalDivider()
-            // Sem "tem certeza?": apaga na hora e a barra de baixo oferece
-            // "Desfazer" por alguns segundos.
+            // Sem confirmação: a exclusão é desfeita pelo snackbar "Desfazer".
             DropdownMenuItem(
                 text = { Text("Excluir lançamento", color = MaterialTheme.agro.despesa) },
                 leadingIcon = {
@@ -439,9 +422,6 @@ private fun MenuDaEdicao(aoLancarDeNovo: () -> Unit, aoExcluir: () -> Unit) {
     }
 }
 
-// ---------- folha de baixo ----------
-
-/** A folha clara, com os cantos de cima arredondados. */
 @Composable
 private fun Folha(modifier: Modifier = Modifier, conteudo: @Composable ColumnScope.() -> Unit) {
     Column(
@@ -453,7 +433,7 @@ private fun Folha(modifier: Modifier = Modifier, conteudo: @Composable ColumnSco
     )
 }
 
-/** Categoria, data, sítio e descrição. Sem sítio cadastrado, o convite para cadastrar. */
+/** Categoria, data, propriedade e descrição; sem propriedades, mostra aviso para cadastrar. */
 @Composable
 private fun CamposDoLancamento(
     uiState: LancamentoFormUiState,
@@ -497,11 +477,7 @@ private fun CamposDoLancamento(
     }
 }
 
-/**
- * Primeiro acesso: o "+" da barra de baixo abre o formulário mesmo sem
- * nenhum sítio. Em vez de deixar a pessoa preencher tudo e só no fim
- * descobrir que não dá para salvar, avisa logo no topo.
- */
+/** Aviso exibido quando não há propriedade cadastrada (o formulário abre mesmo assim). */
 @Composable
 private fun SemPropriedade(aoCadastrar: () -> Unit) {
     Surface(
@@ -531,10 +507,7 @@ private fun SemPropriedade(aoCadastrar: () -> Unit) {
     }
 }
 
-/**
- * O botão de salvar, sempre à vista, e logo acima dele o erro geral (se
- * houver) — no fim de uma lista rolável ninguém veria.
- */
+/** Botão de salvar fixo no rodapé, com o erro geral logo acima para ficar sempre visível. */
 @Composable
 private fun BarraDeSalvar(uiState: LancamentoFormUiState, aoSalvar: () -> Unit) {
     Column(
@@ -556,7 +529,6 @@ private fun BarraDeSalvar(uiState: LancamentoFormUiState, aoSalvar: () -> Unit) 
         }
         Button(
             onClick = aoSalvar,
-            // Desligado enquanto grava: dois toques não criam dois lançamentos.
             enabled = !uiState.salvando,
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
@@ -579,10 +551,7 @@ private fun BarraDeSalvar(uiState: LancamentoFormUiState, aoSalvar: () -> Unit) 
     }
 }
 
-/**
- * Todas as categorias do tipo, à vista. Nada de "+4 categorias" escondidas:
- * quem procura "Manutenção" não deveria ter que adivinhar que ela existe.
- */
+/** Todas as categorias do tipo, sem truncamento. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Categorias(
@@ -633,7 +602,7 @@ private fun ChipCategoria(categoria: CategoriaLancamento, selecionada: Boolean, 
                 .background(if (selecionada) MaterialTheme.agro.destaque else cor.fundo)
         ) {
             Icon(
-                // Marcada, o ícone vira um ✓: o estado aparece sem depender da cor.
+                // Selecionada exibe ✓, indicando o estado sem depender só da cor.
                 imageVector = if (selecionada) IconesAgro.Confirmado else categoria.icone(),
                 contentDescription = null,
                 tint = if (selecionada) MaterialTheme.agro.sobreDestaque else cor.conteudo,
@@ -648,7 +617,7 @@ private fun ChipCategoria(categoria: CategoriaLancamento, selecionada: Boolean, 
     }
 }
 
-/** Botão branco com ícone, legenda pequena e valor: "Data / Hoje, 4 out". */
+/** Campo clicável com ícone, legenda e valor (ex.: "Data / Hoje, 4 out"). */
 @Composable
 private fun CampoDeEscolha(
     icone: ImageVector,
@@ -702,8 +671,6 @@ private fun CampoData(
                 erro = erro != null,
                 modifier = Modifier.fillMaxWidth()
             )
-            // A maioria dos lançamentos é do dia, ou do dia anterior:
-            // dois atalhos e, se não for, o calendário.
             DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
                 DropdownMenuItem(text = { Text("Hoje") }, onClick = { aberto = false; aoUsarHoje() })
                 DropdownMenuItem(text = { Text("Ontem") }, onClick = { aberto = false; aoUsarOntem() })
@@ -740,7 +707,6 @@ private fun CampoSitio(
             legenda = "Sítio",
             valor = nome,
             aoClicar = { aberto = true },
-            // Um sítio só: não há o que escolher.
             habilitado = propriedades.size > 1,
             modifier = Modifier.fillMaxWidth()
         )
@@ -788,11 +754,7 @@ private fun CampoDescricao(texto: String, aoMudar: (String) -> Unit) {
     )
 }
 
-/**
- * 1 a 9, 00, 0 e ⌫. Tocar no ⌫ apaga o último dígito; segurar apaga tudo.
- * As teclas têm 52 dp de altura e ocupam a largura toda: dá para acertar
- * com o dedo grosso de quem acabou de sair da lavoura.
- */
+/** Teclado 1–9, 00, 0 e ⌫ (toque apaga um dígito; long press zera o valor). */
 @Composable
 private fun TecladoNumerico(aoTeclar: (String) -> Unit, aoApagar: () -> Unit, aoLimpar: () -> Unit) {
     val linhas = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"))
@@ -841,7 +803,6 @@ private fun RowScope.TeclaApagar(aoApagar: () -> Unit, aoLimpar: () -> Unit) {
                 role = Role.Button,
                 onClickLabel = "Apagar o último número",
                 onLongClickLabel = "Apagar o valor inteiro",
-                // O combinedClickable já vibra no toque longo.
                 onLongClick = aoLimpar,
                 onClick = aoApagar
             )
@@ -856,10 +817,7 @@ private fun RowScope.TeclaApagar(aoApagar: () -> Unit, aoLimpar: () -> Unit) {
     }
 }
 
-/**
- * Calendário do Material 3. Bloqueia datas além de 12 meses à frente (RN07),
- * então a mensagem de erro nem chega a aparecer por esse caminho.
- */
+/** DatePicker com datas após [ultimaPermitida] desabilitadas (RN07). Datas em millis UTC. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarioDialogo(
@@ -897,9 +855,8 @@ private fun CalendarioDialogo(
 }
 
 /**
- * Abaixo desta altura de tela (em dp, já contando a fonte do celular), o
- * teclado numérico fixo não deixaria espaço para a categoria e a data.
- * 760 dp é um celular de 6" comum; um de 5" ou deitado fica abaixo.
+ * Altura mínima (multiplicada pela escala de fonte) para o layout com teclado fixo;
+ * abaixo disso usa o layout compacto com rolagem total.
  */
 private val ALTURA_PARA_TECLADO_FIXO = 760.dp
 

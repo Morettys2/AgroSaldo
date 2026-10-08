@@ -38,7 +38,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** Uma fatia do gasto do mês, já com a proporção calculada para a barra. */
+/** Total de despesas de uma categoria no mês; [proporcao] em 0..1 relativa à maior. */
 data class GastoPorCategoria(
     val categoria: CategoriaLancamento,
     val totalCentavos: Long,
@@ -54,24 +54,21 @@ data class InicioUiState(
     val saldoCentavos: Long = 0L,
     val receitasCentavos: Long = 0L,
     val despesasCentavos: Long = 0L,
-    /** Fatia da barra que representa entradas, de 0 a 1. */
+    /** Receitas / (receitas + despesas), em 0..1; 0.5 quando não há movimento. */
     val proporcaoReceitas: Float = 0.5f,
     val gastosPorCategoria: List<GastoPorCategoria> = emptyList(),
     val ultimosLancamentos: List<Lancamento> = emptyList(),
-    /** Null enquanto não há previsão guardada para a propriedade. */
+    /** Nulo enquanto não há previsão em cache para a propriedade. */
     val chuva: CartaoChuvaUi? = null,
-    /** "FM", no botão redondo da conta. Vazio enquanto o nome não chegou. */
+    /** Iniciais do usuário para o botão da conta (ex.: "FM"); vazio se o nome não estiver disponível. */
     val iniciais: String = "",
-    /** Para escrever "Hoje" e "Ontem" nos últimos lançamentos. */
+    /** Referência para os rótulos relativos de data. */
     val hoje: LocalDate = LocalDate.now()
 )
 
 /**
- * O cartão azul do Início, em três linhas:
- *
- *   Previsão · próximas 12 h              ← rotulo
- *   Chuva às 18h. Dá para adiar o pivô.   ← frase (a que importa)
- *   92% de chance · 5 mm                  ← detalhe
+ * Textos do cartão de chuva. Ex.: [rotulo] "Previsão · próximas 12 h",
+ * [frase] "Chuva às 18h. Dá para adiar o pivô.", [detalhe] "92% de chance · 5 mm".
  */
 data class CartaoChuvaUi(
     val rotulo: String,
@@ -81,18 +78,11 @@ data class CartaoChuvaUi(
 )
 
 /**
- * ViewModel da tela inicial.
+ * Tela inicial: saldo, receitas/despesas e maiores gastos do mês da propriedade
+ * selecionada, últimos lançamentos e cartão de chuva.
  *
- * Aqui fica claro por que o ViewModel existe. Nada do que essa tela mostra
- * está guardado em lugar nenhum: saldo, proporção da barra e ranking de
- * categorias são todos derivados dos lançamentos, na hora.
- *
- * Fazer essa conta dentro do composable seria um erro caro: ela rodaria de
- * novo a cada recomposição, inclusive nas que só mudaram um pixel de scroll.
- * Aqui ela roda uma vez por mudança de dado.
- *
- * Nota para a fase 5: com o Room, a soma vira SUM no SQL. Com poucos milhares
- * de lançamentos em memória a diferença não aparece, mas o banco faz melhor.
+ * Os totais são agregados em memória a partir de todos os lançamentos a cada emissão.
+ * TODO: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class InicioViewModel(
@@ -101,7 +91,7 @@ class InicioViewModel(
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
     private val relogio: () -> Long = System::currentTimeMillis,
-    /** O nome de quem está conectado, para as iniciais do botão da conta. */
+    /** Nome do usuário logado, usado para as iniciais. */
     nomeDoUsuario: Flow<String?> = flowOf(null),
     private val hoje: () -> LocalDate = LocalDate::now
 ) : ViewModel() {
@@ -110,9 +100,8 @@ class InicioViewModel(
     val uiState: StateFlow<InicioUiState> = _uiState.asStateFlow()
 
     /**
-     * Sobe a cada vez que a pessoa volta para a tela. "Hoje", "Ontem" e a
-     * frase da chuva dependem da hora: sem isto, o cartão montado às 23h30
-     * ("Chuva amanhã às 1h") continuaria igual de manhã, um dia errado.
+     * Incrementado a cada retorno à tela para recalcular o que depende do relógio
+     * (rótulos "Hoje"/"Ontem" e a frase da chuva).
      */
     private val _voltas = MutableStateFlow(0)
     private var jaApareceu = false
@@ -129,8 +118,7 @@ class InicioViewModel(
             ) { lancamentos, propriedades, selecionadaId, mes, _ ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
             }.collect { estado ->
-                // O cartão de chuva e as iniciais vêm de outros fluxos (abaixo);
-                // preserva o que já estava.
+                // chuva e iniciais são mantidas por outros coletores; preserva os valores atuais.
                 val atual = _uiState.value
                 _uiState.value = estado.copy(chuva = atual.chuva, iniciais = atual.iniciais)
             }
@@ -142,8 +130,7 @@ class InicioViewModel(
                 .collect { iniciais -> _uiState.update { it.copy(iniciais = iniciais) } }
         }
 
-        // Previsão da propriedade selecionada, lida do cache. Se estiver velha
-        // (mais de 1 h), busca uma nova em segundo plano.
+        // Previsão vem do cache; atualizarSeNecessario busca nova se estiver vencida.
         val propriedadeAtual = combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
             lista.firstOrNull { it.id == id } ?: lista.firstOrNull()
         }.distinctUntilChanged()
@@ -165,9 +152,8 @@ class InicioViewModel(
     }
 
     /**
-     * A tela voltou a aparecer (abriu o app de novo, voltou de outra aba).
-     * Refaz o que depende da hora e, se a previsão tiver mais de 1 h, busca
-     * outra. A primeira vez é ignorada: ao abrir, o init já fez as duas coisas.
+     * Chamado em ON_RESUME. Recalcula o que depende do relógio e atualiza a previsão se
+     * vencida. A primeira chamada é ignorada, pois o init já cobre esse caso.
      */
     fun aoVoltarParaATela() {
         if (!jaApareceu) {
@@ -203,8 +189,8 @@ class InicioViewModel(
                     vaiChover = true
                 )
             }
-            // Abaixo do limite, mas com chance de verdade: "Sem chuva" do
-            // lado de "82% de chance" seria contraditório.
+            // Chance relevante mas abaixo dos limites do usuário: evita exibir "Sem chuva"
+            // ao lado de uma probabilidade alta.
             TextosDaChuva.podeChoverAbaixoDoLimite(avaliacao) -> CartaoChuvaUi(
                 rotulo = rotulo,
                 frase = "Pode chover, mas abaixo do seu limite.",
@@ -243,12 +229,10 @@ class InicioViewModel(
             .sumOf { it.valorCentavos }
 
         val movimentado = receitas + despesas
-        // Sem movimento no mês, a barra fica meio a meio em vez de sumir.
         val proporcao = if (movimentado == 0L) 0.5f else receitas.toFloat() / movimentado
 
-        // Ranking de gastos: agrupa por categoria, soma, ordena e pega as 3
-        // maiores. A proporção é relativa à maior, não ao total — assim a
-        // primeira barra sempre preenche e a comparação fica legível.
+        // Top 3 categorias de despesa. Proporção relativa à maior (não ao total),
+        // de modo que a primeira barra fica sempre cheia.
         val porCategoria = doMes
             .filter { it.tipo == TipoLancamento.DESPESA }
             .groupBy { it.categoria }
@@ -282,7 +266,7 @@ class InicioViewModel(
         )
     }
 
-    // O mês é o mesmo em todas as abas: mudar aqui muda lá também.
+    // Mês global em SelecaoAtual, compartilhado entre as abas.
     fun aoAvancarMes() = SelecaoAtual.avancarMes()
     fun aoVoltarMes() = SelecaoAtual.voltarMes()
     fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
