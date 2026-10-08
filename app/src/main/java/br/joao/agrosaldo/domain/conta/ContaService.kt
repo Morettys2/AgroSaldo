@@ -11,7 +11,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -78,6 +80,19 @@ class ContaService(
 ) {
 
     val usuarioLogadoId: StateFlow<String?> = sessao.usuarioId
+
+    private val _sessaoDeContaNova = MutableStateFlow(false)
+
+    /**
+     * true se a sessão atual começou no cadastro, até [esquecerContaNova] ou o fim da
+     * sessão. Permite oferecer, uma vez, o que só faz sentido para quem acabou de chegar
+     * (ex.: ligar o bloqueio por digital).
+     */
+    val sessaoDeContaNova: StateFlow<Boolean> = _sessaoDeContaNova.asStateFlow()
+
+    fun esquecerContaNova() {
+        _sessaoDeContaNova.value = false
+    }
 
     fun estaLogado(): Boolean = sessao.usuarioId.value != null
 
@@ -160,6 +175,7 @@ class ContaService(
         if (!usuarios.criar(usuario)) return ResultadoCadastro.EmailJaCadastrado
 
         conectar(usuario.id)
+        _sessaoDeContaNova.value = true
         return ResultadoCadastro.Sucesso(usuario)
     }
 
@@ -191,6 +207,7 @@ class ContaService(
     }
 
     fun sair() {
+        _sessaoDeContaNova.value = false
         aoTrocarDeUsuario()
         sessao.encerrar()
     }
@@ -336,6 +353,7 @@ class ContaService(
     }
 
     private fun conectar(usuarioId: String) {
+        _sessaoDeContaNova.value = false
         aoTrocarDeUsuario()
         sessao.iniciar(usuarioId)
     }

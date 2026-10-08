@@ -2,6 +2,7 @@ package br.joao.agrosaldo.core.seguranca
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -61,6 +62,21 @@ object Biometria {
             .build()
 
         prompt.authenticate(info)
+    }
+
+    /**
+     * Pede a digital ou o PIN antes de ligar ou desligar o bloqueio do app: ligar garante
+     * que a autenticação funciona (evita a pessoa se trancar fora); desligar impede que
+     * terceiros removam a proteção. Erros do sistema (ex.: lockout) aparecem num Toast.
+     */
+    fun confirmarMudancaDoBloqueio(activity: FragmentActivity, ativar: Boolean, aoConfirmar: () -> Unit) {
+        autenticar(
+            activity = activity,
+            titulo = if (ativar) "Ligar o bloqueio" else "Desligar o bloqueio",
+            subtitulo = "Confirme com a digital ou o PIN do celular",
+            aoSucesso = aoConfirmar,
+            aoFalhar = { mensagem -> mensagem?.let { Toast.makeText(activity, it, Toast.LENGTH_LONG).show() } }
+        )
     }
 }
 

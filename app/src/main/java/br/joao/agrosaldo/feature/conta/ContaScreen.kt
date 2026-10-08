@@ -75,8 +75,6 @@ fun ContaRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Ligar e desligar exigem autenticação: ligar garante que ela funciona (evita
-    // o usuário se trancar fora); desligar impede que terceiros removam a proteção.
     val aoMudarBloqueio: (Boolean) -> Unit = { ativar ->
         val activity = context.acharFragmentActivity()
         if (activity == null || !Biometria.disponivel(context)) {
@@ -86,15 +84,7 @@ fun ContaRoute(
                 Toast.LENGTH_LONG
             ).show()
         } else {
-            Biometria.autenticar(
-                activity = activity,
-                titulo = if (ativar) "Ligar o bloqueio" else "Desligar o bloqueio",
-                subtitulo = "Confirme com a digital ou o PIN do celular",
-                aoSucesso = { viewModel.aoDefinirBloqueio(ativar) },
-                aoFalhar = { mensagem ->
-                    mensagem?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-                }
-            )
+            Biometria.confirmarMudancaDoBloqueio(activity, ativar) { viewModel.aoDefinirBloqueio(ativar) }
         }
     }
 

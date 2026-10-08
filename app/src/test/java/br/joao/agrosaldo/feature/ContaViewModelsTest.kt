@@ -376,6 +376,60 @@ class ContaViewModelsTest {
     }
 
     @Test
+    fun `quem acabou de criar a conta recebe a oferta do bloqueio`() = runTest {
+        val vm = sessaoViewModel()
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        assertTrue(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `entrar com a senha nao oferece o bloqueio`() = runTest {
+        contaCriadaESaiu()
+        val vm = sessaoViewModel()
+        conta.entrar("fabio@exemplo.com", "milho2026")
+        assertFalse(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `agora nao dispensa a oferta sem ligar o bloqueio`() = runTest {
+        val bloqueioDoApp = BloqueioMemoria(false)
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+
+        vm.aoDispensarOfertaDeBloqueio()
+
+        assertFalse(vm.oferecerBloqueio.value)
+        assertFalse(bloqueioDoApp.ativo.value)
+    }
+
+    @Test
+    fun `ligar pela oferta liga o bloqueio sem travar na hora`() = runTest {
+        val bloqueioDoApp = BloqueioMemoria(false)
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+
+        vm.aoLigarBloqueioPelaOferta()
+
+        assertTrue(bloqueioDoApp.ativo.value)
+        assertFalse(vm.oferecerBloqueio.value)
+        assertFalse(vm.precisaDesbloquear.value)
+        // Desligar depois, na tela de Conta, não traz a oferta de volta.
+        bloqueioDoApp.definir(false)
+        assertFalse(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `sem oferta com o bloqueio ja ligado ou depois de sair`() = runTest {
+        val vm = sessaoViewModel(bloqueio = BloqueioMemoria(true))
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        assertFalse(vm.oferecerBloqueio.value)
+
+        val outro = sessaoViewModel()
+        conta.sair()
+        assertFalse(outro.oferecerBloqueio.value)
+    }
+
+    @Test
     fun `usar a senha na tela de bloqueio sai da conta`() = runTest {
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()

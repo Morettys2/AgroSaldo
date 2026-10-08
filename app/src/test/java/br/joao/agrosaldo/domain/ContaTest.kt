@@ -534,6 +534,21 @@ class ContaTest {
     }
 
     @Test
+    fun `so a sessao aberta pelo cadastro conta como de conta nova`() = runTest {
+        assertFalse(conta.sessaoDeContaNova.value)
+        cadastrarFabio()
+        assertTrue(conta.sessaoDeContaNova.value)
+
+        conta.esquecerContaNova()
+        assertFalse(conta.sessaoDeContaNova.value)
+
+        cadastrarIntrusoESair()
+        assertFalse(conta.sessaoDeContaNova.value)
+        conta.entrar("fabio@exemplo.com", "milho2026")
+        assertFalse(conta.sessaoDeContaNova.value)
+    }
+
+    @Test
     fun `sair encerra a sessao e avisa a troca de usuario`() = runTest {
         cadastrarFabio()
         conta.sair()

@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
  * - [precisaNovoAceite]: a política mudou desde o último aceite (null enquanto a conta não foi lida).
  * - [precisaDesbloquear]: bloqueio biométrico ativo e app ainda não desbloqueado
  *   desde a abertura ou desde [TEMPO_PARA_TRAVAR_MS] em segundo plano.
+ * - [oferecerBloqueio]: conta recém-criada, com o bloqueio ainda desligado.
  *
  * As ações só alteram estado; o redirecionamento é feito pela navegação.
  */
@@ -60,6 +61,15 @@ class SessaoViewModel(
         combine(logado, bloqueio.ativo, _desbloqueado) { estaLogado, ativo, desbloqueado ->
             estaLogado && ativo && !desbloqueado
         }.stateIn(viewModelScope, SharingStarted.Eagerly, conta.estaLogado() && bloqueio.ativo.value)
+
+    /**
+     * Oferta de ligar o bloqueio por digital logo depois do cadastro (o padrão é desligado
+     * e a sessão não expira). Some ao ligar, ao dispensar ou ao sair; a tela só a mostra
+     * se o aparelho tiver biometria ou credencial.
+     */
+    val oferecerBloqueio: StateFlow<Boolean> =
+        combine(conta.sessaoDeContaNova, bloqueio.ativo) { contaNova, ativo -> contaNova && !ativo }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     init {
         viewModelScope.launch { conta.validarSessao() }
@@ -98,6 +108,14 @@ class SessaoViewModel(
             selecionarPropriedade(propriedadeId)
         }
         return true
+    }
+
+    fun aoDispensarOfertaDeBloqueio() = conta.esquecerContaNova()
+
+    /** Depois de a pessoa confirmar a digital ou o PIN no prompt. */
+    fun aoLigarBloqueioPelaOferta() {
+        conta.esquecerContaNova()
+        bloqueio.definir(true)
     }
 
     /** Opção de senha na tela de bloqueio: encerra a sessão e leva ao login. */

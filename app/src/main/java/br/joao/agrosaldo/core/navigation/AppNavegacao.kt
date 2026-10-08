@@ -90,6 +90,7 @@ import br.joao.agrosaldo.feature.conta.ConsentimentoRoute
 import br.joao.agrosaldo.feature.conta.ContaRoute
 import br.joao.agrosaldo.feature.conta.LoginRoute
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoRoute
+import br.joao.agrosaldo.feature.conta.OfertaDeBloqueioRoute
 import br.joao.agrosaldo.feature.conta.PoliticaScreen
 import br.joao.agrosaldo.feature.conta.TelaBloqueioRoute
 import br.joao.agrosaldo.feature.historico.HistoricoRoute
@@ -149,6 +150,7 @@ fun AppNavegacao(
     val logado by sessaoViewModel.logado.collectAsStateWithLifecycle()
     val precisaNovoAceite by sessaoViewModel.precisaNovoAceite.collectAsStateWithLifecycle()
     val precisaDesbloquear by sessaoViewModel.precisaDesbloquear.collectAsStateWithLifecycle()
+    val oferecerBloqueio by sessaoViewModel.oferecerBloqueio.collectAsStateWithLifecycle()
 
     // Calculado uma única vez: alterar startDestination de um NavHost já montado não tem efeito.
     // Mudanças posteriores de sessão são tratadas pelo LaunchedEffect abaixo.
@@ -547,6 +549,14 @@ fun AppNavegacao(
                         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {}
                     }
                 }
+            }
+
+            // Conta recém-criada: oferece ligar o bloqueio por digital assim que uma aba aparece.
+            if (oferecerBloqueio && telaPodeAparecer && ehAbaPrincipal) {
+                OfertaDeBloqueioRoute(
+                    aoLigar = sessaoViewModel::aoLigarBloqueioPelaOferta,
+                    aoDispensar = sessaoViewModel::aoDispensarOfertaDeBloqueio
+                )
             }
         }
     }
