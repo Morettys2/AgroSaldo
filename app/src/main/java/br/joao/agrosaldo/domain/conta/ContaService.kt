@@ -61,6 +61,8 @@ sealed interface ResultadoAlteracaoSenha {
  * @param dispatcherCalculo dispatcher do PBKDF2; nunca a main thread.
  * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
  *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
+ * @param aoExcluirConta chamado com o id da conta logo depois de apagá-la do banco e antes
+ *   de encerrar a sessão, para apagar o que o app guarda dela fora do banco.
  */
 class ContaService(
     private val usuarios: UsuarioRepository,
@@ -70,7 +72,8 @@ class ContaService(
     private val relogio: () -> Long = System::currentTimeMillis,
     private val relogioMonotonico: () -> InstanteMonotonico? = { null },
     private val dispatcherCalculo: CoroutineDispatcher = Dispatchers.Default,
-    private val aoTrocarDeUsuario: () -> Unit = {}
+    private val aoTrocarDeUsuario: () -> Unit = {},
+    private val aoExcluirConta: suspend (usuarioId: String) -> Unit = {}
 ) {
 
     val usuarioLogadoId: StateFlow<String?> = sessao.usuarioId
@@ -203,7 +206,8 @@ class ContaService(
 
     /**
      * Exclusão de dados (LGPD art. 18, VI): remove a conta, propriedades e
-     * lançamentos e encerra a sessão. Exige reautenticação por senha.
+     * lançamentos, o estado local da conta ([aoExcluirConta]) e encerra a sessão.
+     * Exige reautenticação por senha.
      */
     suspend fun excluirConta(senha: String): ResultadoExclusao {
         val usuario = usuarioConectado() ?: return ResultadoExclusao.SemSessao
@@ -216,7 +220,12 @@ class ContaService(
         tentativas.gravar(chave, EstadoTentativas())
 
         usuarios.excluir(usuario.id)
-        sair()
+        try {
+            aoExcluirConta(usuario.id)
+        } finally {
+            // A conta já não existe: a sessão não pode continuar apontando para ela.
+            sair()
+        }
         return ResultadoExclusao.Sucesso
     }
 

@@ -562,6 +562,52 @@ class ContaTest {
         assertFalse(conta.estaLogado())
     }
 
+    private fun contaQueLimpaAoExcluir(aoExcluirConta: suspend (String) -> Unit) = ContaService(
+        usuarios = usuarios,
+        sessao = sessao,
+        tentativas = tentativas,
+        hash = hashRapido,
+        relogio = { agora },
+        dispatcherCalculo = Dispatchers.Unconfined,
+        aoExcluirConta = aoExcluirConta
+    )
+
+    @Test
+    fun `excluir conta limpa o que ficou guardado dela fora do banco`() = runTest {
+        val limpas = mutableListOf<String>()
+        var contasNoBancoNaLimpeza = -1
+        var conectadoNaLimpeza = false
+        val conta = contaQueLimpaAoExcluir { id ->
+            limpas += id
+            contasNoBancoNaLimpeza = usuarios.todos.size
+            conectadoNaLimpeza = sessao.usuarioId.value != null
+        }
+        val criada = conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val id = (criada as ResultadoCadastro.Sucesso).usuario.id
+
+        conta.excluirConta("errada123")
+        assertTrue(limpas.isEmpty())
+
+        assertEquals(ResultadoExclusao.Sucesso, conta.excluirConta("milho2026"))
+        assertEquals(listOf(id), limpas)
+        assertEquals(0, contasNoBancoNaLimpeza)
+        // Limpa antes de encerrar a sessão: a tela segue em "excluindo" até o fim.
+        assertTrue(conectadoNaLimpeza)
+        assertNull(sessao.usuarioId.value)
+        assertTrue(tentativas.chaves.isEmpty())
+    }
+
+    @Test
+    fun `falha na limpeza nao deixa a sessao presa a conta apagada`() = runTest {
+        val conta = contaQueLimpaAoExcluir { error("disco cheio") }
+        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+
+        assertTrue(runCatching { conta.excluirConta("milho2026") }.isFailure)
+
+        assertTrue(usuarios.todos.isEmpty())
+        assertNull(sessao.usuarioId.value)
+    }
+
     @Test
     fun `sessao que aponta para conta apagada e encerrada ao abrir o app`() = runTest {
         sessao.iniciar("conta-que-nao-existe")
