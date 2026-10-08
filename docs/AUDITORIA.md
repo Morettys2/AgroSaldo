@@ -16,6 +16,16 @@ Play Store.
 
 Caminhos relativos a `app/src/main/java/br/joao/agrosaldo/`, salvo indicação.
 
+## Status das correções
+
+| Item | Status | Testes |
+|---|---|---|
+| A1 Bloqueio de login × relógio do sistema | ✅ Corrigido | `ContaTest` (4 novos) |
+| A2 Valores arredondados | ✅ Corrigido | `FormatacaoTest` (3 novos) |
+| A3 Crash ao excluir propriedade durante o download | ✅ Corrigido | `ClimaTest` (2 novos) e `AgroSaldoDatabaseTest` (1 novo, instrumentado) |
+| M1–M12, B1–B27 | Pendente | — |
+
+
 ---
 
 ## ALTO
