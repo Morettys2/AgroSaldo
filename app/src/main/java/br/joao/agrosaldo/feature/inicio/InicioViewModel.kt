@@ -152,10 +152,12 @@ class InicioViewModel(
     }
 
     /**
-     * Chamado em ON_RESUME. Recalcula o que depende do relógio e atualiza a previsão se
-     * vencida. A primeira chamada é ignorada, pois o init já cobre esse caso.
+     * Chamado em ON_RESUME. Acompanha a virada do mês, recalcula o que depende do relógio e
+     * atualiza a previsão se vencida. Fora a virada do mês, a primeira chamada é ignorada,
+     * pois o init já cobre esse caso.
      */
     fun aoVoltarParaATela() {
+        SelecaoAtual.acompanharMesCorrente(YearMonth.from(hoje()))
         if (!jaApareceu) {
             jaApareceu = true
             return

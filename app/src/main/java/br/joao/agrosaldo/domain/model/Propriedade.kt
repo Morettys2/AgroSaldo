@@ -1,5 +1,7 @@
 package br.joao.agrosaldo.domain.model
 
+import java.text.Collator
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -32,3 +34,14 @@ data class PropriedadeExcluida(
     val propriedade: Propriedade,
     val lancamentos: List<Lancamento>
 )
+
+/**
+ * Ordem alfabética do português: acento e maiúscula não mandam o nome para o fim da lista
+ * ("Água Limpa" antes de "Boa Vista"), ao contrário do `COLLATE NOCASE` do SQLite. Empates
+ * são desfeitos pelo id, para a primeira da lista (a propriedade padrão) ser estável.
+ */
+fun List<Propriedade>.emOrdemAlfabetica(): List<Propriedade> {
+    // Uma instância por chamada: Collator não garante uso seguro entre threads.
+    val collator = Collator.getInstance(Locale.forLanguageTag("pt-BR"))
+    return sortedWith(compareBy<Propriedade, String>(collator) { it.nome }.thenBy { it.id })
+}

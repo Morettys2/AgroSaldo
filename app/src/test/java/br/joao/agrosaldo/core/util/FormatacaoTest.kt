@@ -50,8 +50,7 @@ class FormatacaoTest {
 
     @Test
     fun `valor negativo aparece com sinal`() {
-        assertTrue(normalizar((-32_000L).emReal()).contains("320,00"))
-        assertTrue(normalizar((-32_000L).emReal()).contains("-"))
+        assertEquals("-R$ 320,00", normalizar((-32_000L).emReal()))
     }
 
     @Test
@@ -63,8 +62,18 @@ class FormatacaoTest {
     }
 
     @Test
-    fun `entrada gigante e cortada em 9 digitos para nao estourar`() {
-        assertEquals(999_999_999L, "99999999999999".digitosParaCentavos())
+    fun `entrada com mais de 9 digitos e recusada em vez de cortada`() {
+        // Cortar faria "R$ 12.345.678,90" virar R$ 1.234.567,89, um valor 10 vezes menor.
+        assertNull("1234567890".digitosParaCentavos())
+        assertNull("99999999999999".digitosParaCentavos())
+        assertEquals(999_999_999L, "999999999".digitosParaCentavos())
+    }
+
+    @Test
+    fun `zeros a esquerda nao contam para o limite de digitos`() {
+        assertEquals(5L, "R$ 0,05".digitosParaCentavos())
+        assertEquals(5L, "0000000005".digitosParaCentavos())
+        assertEquals(0L, "000".digitosParaCentavos())
     }
 
     @Test
@@ -161,6 +170,15 @@ class FormatacaoTest {
         assertEquals(VALOR_ESCONDIDO, 5L.emReal(oculto = true))
         assertEquals(VALOR_ESCONDIDO, 1_800_000_00L.emReal(oculto = true))
         assertEquals(VALOR_ESCONDIDO, 125_000L.emRealCurto(oculto = true))
+    }
+
+    @Test
+    fun `total com sinal mostra mais ou menos, e com o olho fechado some o sinal tambem`() {
+        assertEquals("+ R$ 100,00", normalizar(10_000L.emRealComSinal()))
+        assertEquals("− R$ 320,00", normalizar((-32_000L).emRealComSinal()))
+        assertEquals("+ R$ 0,00", normalizar(0L.emRealComSinal()))
+        assertEquals(VALOR_ESCONDIDO, 10_000L.emRealComSinal(oculto = true))
+        assertEquals("o sinal revelaria se o total é negativo", VALOR_ESCONDIDO, (-32_000L).emRealComSinal(oculto = true))
     }
 
     @Test

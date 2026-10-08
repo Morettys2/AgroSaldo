@@ -9,7 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 
-/** OutlinedTextField com o shape e o tratamento de erro padrão do app. */
+/**
+ * OutlinedTextField com o shape e o tratamento de erro padrão do app.
+ *
+ * @param acaoNoFim conteúdo no fim do campo (ex.: botão que troca o sinal).
+ */
 @Composable
 fun CampoTexto(
     valor: String,
@@ -19,12 +23,14 @@ fun CampoTexto(
     apoio: String? = null,
     erro: Boolean = false,
     teclado: KeyboardType = KeyboardType.Text,
-    umaLinha: Boolean = true
+    umaLinha: Boolean = true,
+    acaoNoFim: (@Composable () -> Unit)? = null
 ) {
     OutlinedTextField(
         value = valor,
         onValueChange = aoMudar,
         label = { Text(rotulo) },
+        trailingIcon = acaoNoFim,
         isError = erro,
         supportingText = apoio?.let { { Text(it) } },
         singleLine = umaLinha,

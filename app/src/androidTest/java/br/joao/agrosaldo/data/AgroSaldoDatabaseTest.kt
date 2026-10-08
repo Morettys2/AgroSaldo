@@ -12,6 +12,8 @@ import br.joao.agrosaldo.data.local.dao.UsuarioDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
+import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
@@ -69,6 +71,13 @@ class AgroSaldoDatabaseTest {
         DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade()) }
     }
 
+    /** Conta as linhas direto no SQLite, sem passar pelos filtros dos DAOs. */
+    private fun contarLinhas(tabela: String): Int =
+        banco.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $tabela").use { cursor ->
+            cursor.moveToFirst()
+            cursor.getInt(0)
+        }
+
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
         usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
@@ -79,11 +88,16 @@ class AgroSaldoDatabaseTest {
         assertEquals(1, propriedadeDao.contarDoUsuario("u1"))
     }
 
+    /** A ordem vem do repositório (Collator pt-BR); o COLLATE NOCASE do SQLite mandaria "Água" para o fim. */
     @Test
-    fun listaDePropriedadesVemEmOrdemAlfabetica() = runBlocking {
+    fun listaDePropriedadesVemEmOrdemAlfabeticaDoPortugues() = runBlocking {
         semearExemplos()
-        val nomes = propriedadeDao.observarDoUsuario("u1").first().map { it.nome }
-        assertEquals(listOf("Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
+        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
+        propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1"))
+        val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"))
+
+        val nomes = repositorio.observarTodas().first().map { it.nome }
+        assertEquals(listOf("Água Limpa", "Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
     }
 
     /**
@@ -146,17 +160,6 @@ class AgroSaldoDatabaseTest {
     }
 
     @Test
-    fun saldoDoPeriodoCalculadoPeloSqlite() = runBlocking {
-        semearExemplos()
-        val inicio = LocalDate.of(2026, 9, 1).toEpochDay()
-        val fim = LocalDate.of(2026, 9, 30).toEpochDay()
-
-        // 18.000 - 1.250 - 780 - 320 = 15.650
-        assertEquals(1_565_000L, lancamentoDao.saldoDoPeriodo(DadosDeExemplo.ID_FAZENDA, inicio, fim))
-        assertEquals(0L, lancamentoDao.saldoDoPeriodo("nao-existe", inicio, fim))
-    }
-
-    @Test
     fun excluirLancamento() = runBlocking {
         semearExemplos()
         lancamentoDao.excluir("exemplo-3", "u1")
@@ -201,6 +204,24 @@ class AgroSaldoDatabaseTest {
         assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
     }
 
+    /** Checagem de posse feita pelos repositórios antes do upsert, que casa só pelo id. */
+    @Test
+    fun idDeOutraContaOuSemDonoNaoContaComoDoUsuario() = runBlocking {
+        semearExemplos()
+        usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
+        val semDono = DadosDeExemplo.propriedades().first().copy(id = "sem-dono").paraEntidade(usuarioId = null)
+        propriedadeDao.salvar(semDono)
+
+        assertFalse(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u1"))
+        assertTrue(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u2"))
+        assertTrue("sem dono não é de ninguém", propriedadeDao.existeSemSerDoUsuario("sem-dono", "u1"))
+        assertFalse("id novo pode ser gravado", propriedadeDao.existeSemSerDoUsuario("nao-existe", "u1"))
+
+        assertFalse(lancamentoDao.existeSemSerDoUsuario("exemplo-1", "u1"))
+        assertTrue(lancamentoDao.existeSemSerDoUsuario("exemplo-1", "u2"))
+        assertFalse(lancamentoDao.existeSemSerDoUsuario("nao-existe", "u2"))
+    }
+
     /** Direito de exclusão da LGPD: a conta leva tudo junto, em dois níveis de CASCADE. */
     @Test
     fun excluirContaApagaPropriedadesELancamentos() = runBlocking {
@@ -211,11 +232,7 @@ class AgroSaldoDatabaseTest {
 
         assertNull(usuarioDao.buscarPorId("u1"))
         assertEquals(0, propriedadeDao.contarDoUsuario("u1"))
-        val sqlite = banco.openHelper.readableDatabase
-        sqlite.query("SELECT COUNT(*) FROM lancamentos").use { cursor ->
-            cursor.moveToFirst()
-            assertEquals(0, cursor.getInt(0))
-        }
+        assertEquals(0, contarLinhas("lancamentos"))
         assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
     }
 
@@ -226,11 +243,13 @@ class AgroSaldoDatabaseTest {
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
         previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{\"nova\":1}", 2L))
 
-        // Upsert: a segunda gravação substitui a primeira.
+        // Upsert: a segunda gravação substitui a primeira, sem duplicar a linha.
         assertEquals(2L, previsaoDao.buscar(DadosDeExemplo.ID_SITIO)?.obtidaEm)
+        assertEquals(1, contarLinhas("previsoes"))
 
         propriedadeDao.excluir(DadosDeExemplo.ID_SITIO, "u1")
         assertNull(previsaoDao.buscar(DadosDeExemplo.ID_SITIO))
+        assertEquals(0, contarLinhas("previsoes"))
     }
 
     /** Contrato usado por ClimaRepositoryRoom ao descartar a previsão de uma propriedade excluída. */

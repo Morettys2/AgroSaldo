@@ -116,6 +116,28 @@ class HistoricoViewModelTest {
     }
 
     @Test
+    fun `mes futuro com lancamento agendado nao vira melhor nem mais fraco`() = runTest {
+        lancamentos.salvar(
+            Lancamento(
+                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.RECEITA,
+                categoria = CategoriaLancamento.ARRENDAMENTO, valorCentavos = 5_000_000L,
+                data = LocalDate.of(2026, 11, 10)
+            )
+        )
+        lancamentos.salvar(
+            Lancamento(
+                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.SEMENTES, valorCentavos = 9_000_000L,
+                data = LocalDate.of(2026, 12, 10)
+            )
+        )
+        val estado = viewModel().uiState.value
+
+        assertEquals(YearMonth.of(2026, 9), estado.melhorMes?.mes)
+        assertEquals(YearMonth.of(2026, 8), estado.piorMes?.mes)
+    }
+
+    @Test
     fun `com um mes so de movimento nao existe mes mais fraco`() {
         lancamentos = LancamentoRepositoryMemoria(
             listOf(

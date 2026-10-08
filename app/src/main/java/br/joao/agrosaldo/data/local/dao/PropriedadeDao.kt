@@ -8,21 +8,31 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Consultas e escritas filtram por `usuario_id` para isolar os dados de cada
- * conta. Exceção: [donoDe], usado na checagem de posse.
+ * conta. Exceção: [existeSemSerDoUsuario], usado na checagem de posse.
  */
 @Dao
 interface PropriedadeDao {
 
-    /** Ordenado por nome sem diferenciar maiúsculas (NOCASE cobre só ASCII). */
-    @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId ORDER BY nome COLLATE NOCASE")
+    /** Sem ORDER BY: o COLLATE do SQLite não trata acentos; o repositório ordena em pt-BR. */
+    @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId")
     fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>>
 
     @Query("SELECT * FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
     suspend fun buscarPorId(id: String, usuarioId: String): PropriedadeEntity?
 
-    /** Dono atual, ou null se a propriedade não existe ou ainda não tem dono. */
-    @Query("SELECT usuario_id FROM propriedades WHERE id = :id")
-    suspend fun donoDe(id: String): String?
+    /**
+     * true se a propriedade [id] existe e não é de [usuarioId]: é de outra conta ou ainda
+     * não tem dono (só a criação da conta adota essas).
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM propriedades
+            WHERE id = :id AND (usuario_id IS NULL OR usuario_id <> :usuarioId)
+        )
+        """
+    )
+    suspend fun existeSemSerDoUsuario(id: String, usuarioId: String): Boolean
 
     /**
      * Não trocar por @Insert(onConflict = REPLACE): o REPLACE do SQLite faz

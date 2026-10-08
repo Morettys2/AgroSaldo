@@ -9,20 +9,28 @@ import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
@@ -40,19 +48,29 @@ class ResumosViewModelTest {
     private lateinit var propriedades: PropriedadeRepositoryMemoria
     private lateinit var lancamentos: LancamentoRepositoryMemoria
 
+    /** Dia fixo: com o relógio real, os testes poderiam falhar na virada do mês. */
+    private val hoje = LocalDate.of(2026, 9, 30)
+    private val mesDeHoje = YearMonth.from(hoje)
+
     @Before
     fun preparar() {
         propriedades = PropriedadeRepositoryMemoria()
-        // Datas relativas a hoje: as telas abrem no mês corrente.
-        lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.now()))
+        // Datas relativas a [hoje]: as telas abrem no mês corrente.
+        lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
         // SelecaoAtual é global (compartilhada entre as abas); limpa para isolar os testes.
         SelecaoAtual.limpar()
         SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        SelecaoAtual.selecionarMes(mesDeHoje)
     }
+
+    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje })
+
+    /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
+    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
-        val estado = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria()).uiState.value
+        val estado = inicio().uiState.value
 
         assertFalse(estado.carregando)
         assertEquals("Fazenda São João da Serra", estado.nomePropriedade)
@@ -63,7 +81,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `pra onde foi o dinheiro ordena do maior gasto para o menor`() {
-        val gastos = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria()).uiState.value.gastosPorCategoria
+        val gastos = inicio().uiState.value.gastosPorCategoria
 
         assertEquals(
             listOf(CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO, CategoriaLancamento.COMBUSTIVEL),
@@ -75,18 +93,18 @@ class ResumosViewModelTest {
 
     @Test
     fun `RF10 - voltar um mes mostra o historico do mes anterior`() {
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val vm = inicio()
         vm.aoVoltarMes()
 
         val estado = vm.uiState.value
-        assertEquals(YearMonth.now().minusMonths(1), estado.mes)
+        assertEquals(mesDeHoje.minusMonths(1), estado.mes)
         assertEquals(940_000L, estado.receitasCentavos)
         assertEquals(210_000L, estado.despesasCentavos)
     }
 
     @Test
     fun `trocar de propriedade recalcula tudo`() {
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val vm = inicio()
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
         val estado = vm.uiState.value
@@ -96,12 +114,12 @@ class ResumosViewModelTest {
 
     @Test
     fun `lancamento novo aparece no inicio sem ninguem pedir`() = runTest {
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val vm = inicio()
         lancamentos.salvar(
             Lancamento(
                 propriedadeId = DadosDeExemplo.ID_FAZENDA,
                 tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.ARRENDAMENTO,
-                valorCentavos = 50_000L, data = LocalDate.now()
+                valorCentavos = 50_000L, data = hoje
             )
         )
 
@@ -110,7 +128,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `mes sem movimento deixa a barra meio a meio`() {
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val vm = inicio()
         repeat(3) { vm.aoAvancarMes() }
 
         assertEquals(0L, vm.uiState.value.saldoCentavos)
@@ -118,15 +136,33 @@ class ResumosViewModelTest {
     }
 
     @Test
+    fun `voltar ao inicio depois da virada do mes mostra o mes novo`() {
+        var dia = hoje
+        SelecaoAtual.limpar(agora = mesDeHoje)
+        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia })
+        vm.aoVoltarParaATela() // Abertura da tela.
+
+        dia = hoje.plusDays(1)
+        vm.aoVoltarParaATela()
+
+        assertEquals(mesDeHoje.plusMonths(1), vm.uiState.value.mes)
+        assertEquals(0L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
     fun `sem nenhuma propriedade o inicio pede para cadastrar`() {
-        val vm = InicioViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), ClimaRepositoryMemoria(), AjustesAvisoMemoria())
+        val vm = InicioViewModel(
+            LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()),
+            ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }
+        )
         assertFalse(vm.uiState.value.temPropriedade)
         assertFalse(vm.uiState.value.carregando)
     }
 
     @Test
     fun `RF09 - filtro de despesas esconde receitas mas o saldo continua o do mes`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
 
         val estado = vm.uiState.value
@@ -137,7 +173,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `lista vem da data mais recente para a mais antiga`() {
-        val datas = LancamentoListaViewModel(lancamentos, propriedades).uiState.value.lancamentos.map { it.data }
+        val datas = lista().uiState.value.lancamentos.map { it.data }
         assertEquals(datas.sortedDescending(), datas)
     }
 
@@ -158,7 +194,7 @@ class ResumosViewModelTest {
             Lancamento(
                 propriedadeId = DadosDeExemplo.ID_SITIO,
                 tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.MANUTENCAO,
-                valorCentavos = 2_000_000L, data = LocalDate.now()
+                valorCentavos = 2_000_000L, data = hoje
             )
         )
         val sitio = PropriedadeListaViewModel(propriedades, lancamentos).uiState.value
@@ -169,8 +205,26 @@ class ResumosViewModelTest {
     }
 
     @Test
+    fun `erro ao ler as propriedades vira mensagem amigavel e a lista volta sozinha`() = runTest {
+        var leituras = 0
+        val instavel = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> = flow {
+                if (leituras++ == 0) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(propriedades.observarTodas())
+            }
+        }
+        val vm = PropriedadeListaViewModel(instavel, lancamentos)
+
+        assertEquals("Não foi possível carregar as propriedades. Tentando de novo…", vm.uiState.value.erro)
+
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertEquals(2, vm.uiState.value.itens.size)
+    }
+
+    @Test
     fun `RF09 - filtrar por categoria mostra so ela e soma o que aparece`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.ENERGIA)
 
         val estado = vm.uiState.value
@@ -183,7 +237,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `chips mostram so as categorias que tem lancamento no mes, na ordem do cadastro`() {
-        val categorias = LancamentoListaViewModel(lancamentos, propriedades).uiState.value.categoriasDoMes
+        val categorias = lista().uiState.value.categoriasDoMes
         assertEquals(
             listOf(
                 CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO,
@@ -195,14 +249,14 @@ class ResumosViewModelTest {
 
     @Test
     fun `com filtro de despesas os chips nao oferecem categorias de receita`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
         assertTrue(vm.uiState.value.categoriasDoMes.none { it.tipo == TipoLancamento.RECEITA })
     }
 
     @Test
     fun `trocar para receitas desmarca uma categoria de despesa`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
         vm.aoMudarFiltro(FiltroLancamento.RECEITAS)
 
@@ -212,7 +266,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `trocar para despesas desmarca uma categoria de receita`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.VENDA_SAFRA)
         vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
 
@@ -222,7 +276,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `trocar para despesas mantem uma categoria de despesa marcada`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
         vm.aoMudarFiltro(FiltroLancamento.DESPESAS)
         assertEquals(CategoriaLancamento.ADUBO, vm.uiState.value.categoria)
@@ -230,7 +284,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `tocar de novo na categoria marcada desmarca, e limpar tira tudo`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
         vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
         assertEquals(null, vm.uiState.value.categoria)
@@ -244,7 +298,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `categoria marcada continua no chip mesmo num mes sem ela`() {
-        val vm = LancamentoListaViewModel(lancamentos, propriedades)
+        val vm = lista()
         vm.aoMudarCategoria(CategoriaLancamento.ADUBO)
         vm.aoVoltarMes()
 
@@ -255,13 +309,13 @@ class ResumosViewModelTest {
 
     @Test
     fun `o mes escolhido no inicio e o mesmo em lancamentos e sitios`() {
-        val inicio = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria())
-        val lista = LancamentoListaViewModel(lancamentos, propriedades)
+        val inicio = inicio()
+        val lista = lista()
         val sitios = PropriedadeListaViewModel(propriedades, lancamentos)
 
         inicio.aoVoltarMes()
 
-        val mesPassado = YearMonth.now().minusMonths(1)
+        val mesPassado = mesDeHoje.minusMonths(1)
         assertEquals(mesPassado, lista.uiState.value.mes)
         assertEquals(mesPassado, sitios.uiState.value.mes)
         assertEquals(2, lista.uiState.value.quantidade)

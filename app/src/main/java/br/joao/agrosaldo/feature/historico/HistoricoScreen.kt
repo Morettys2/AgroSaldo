@@ -271,24 +271,27 @@ private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifie
                     else -> (valor.toFloat() / maiorValor * size.height).coerceAtLeast(alturaMinima)
                 }
 
-                meses.forEachIndexed { indice, mes ->
-                    val inicio = indice * larguraMes + (larguraMes - 2 * larguraBarra - folga) / 2
-                    val opacidade = if (mes.futuro) 0.4f else 1f
+                // Com valores ocultos, as barras somem: a altura revelaria a proporção entre os meses.
+                if (!oculto) {
+                    meses.forEachIndexed { indice, mes ->
+                        val inicio = indice * larguraMes + (larguraMes - 2 * larguraBarra - folga) / 2
+                        val opacidade = if (mes.futuro) 0.4f else 1f
 
-                    val alturaReceita = altura(mes.receitasCentavos)
-                    drawRoundRect(
-                        color = corReceita.copy(alpha = opacidade),
-                        topLeft = Offset(inicio, size.height - alturaReceita),
-                        size = Size(larguraBarra, alturaReceita),
-                        cornerRadius = canto
-                    )
-                    val alturaDespesa = altura(mes.despesasCentavos)
-                    drawRoundRect(
-                        color = corDespesa.copy(alpha = opacidade),
-                        topLeft = Offset(inicio + larguraBarra + folga, size.height - alturaDespesa),
-                        size = Size(larguraBarra, alturaDespesa),
-                        cornerRadius = canto
-                    )
+                        val alturaReceita = altura(mes.receitasCentavos)
+                        drawRoundRect(
+                            color = corReceita.copy(alpha = opacidade),
+                            topLeft = Offset(inicio, size.height - alturaReceita),
+                            size = Size(larguraBarra, alturaReceita),
+                            cornerRadius = canto
+                        )
+                        val alturaDespesa = altura(mes.despesasCentavos)
+                        drawRoundRect(
+                            color = corDespesa.copy(alpha = opacidade),
+                            topLeft = Offset(inicio + larguraBarra + folga, size.height - alturaDespesa),
+                            size = Size(larguraBarra, alturaDespesa),
+                            cornerRadius = canto
+                        )
+                    }
                 }
 
                 drawLine(
@@ -372,7 +375,8 @@ private fun CartaoGastos(gastos: List<GastoDoAno>, modifier: Modifier = Modifier
                         )
                     }
                     LinearProgressIndicator(
-                        progress = { gasto.proporcao },
+                        // Com valores ocultos, fica só a trilha.
+                        progress = { if (oculto) 0f else gasto.proporcao },
                         color = MaterialTheme.agro.despesa,
                         trackColor = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.fillMaxWidth()

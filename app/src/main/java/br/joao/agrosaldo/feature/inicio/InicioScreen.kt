@@ -446,7 +446,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
                             modifier = Modifier.valorEscondido(oculto)
                         )
                     }
-                    Barra(proporcao = gasto.proporcao)
+                    Barra(proporcao = gasto.proporcao, oculto = oculto)
                 }
             }
         }
@@ -455,10 +455,11 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
 
 /**
  * Barra de proporção feita com dois Box, em vez de LinearProgressIndicator (M3 desenha
- * vão e marcador de fim na trilha).
+ * vão e marcador de fim na trilha). Com [oculto], fica só a trilha: o tamanho revelaria
+ * a proporção entre os valores.
  */
 @Composable
-private fun Barra(proporcao: Float) {
+private fun Barra(proporcao: Float, oculto: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -466,13 +467,15 @@ private fun Barra(proporcao: Float) {
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(proporcao.coerceIn(0.03f, 1f))
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondary)
-        )
+        if (!oculto) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(proporcao.coerceIn(0.03f, 1f))
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary)
+            )
+        }
     }
 }
 

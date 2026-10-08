@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.feature
 
+import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
@@ -8,6 +9,7 @@ import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -169,13 +171,27 @@ class PropriedadeFormViewModelTest {
         assertNull(vm.uiState.value.erroCoordenadas)
     }
 
+    /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
+    private class PropriedadesLentas(private val real: PropriedadeRepositoryMemoria) : PropriedadeRepository by real {
+        val portao = CompletableDeferred<Unit>()
+        override suspend fun salvar(propriedade: Propriedade) {
+            portao.await()
+            real.salvar(propriedade)
+        }
+    }
+
     @Test
     fun `dois toques em salvar criam uma propriedade so`() = runTest {
-        val vm = novo()
+        val lentas = PropriedadesLentas(propriedades)
+        val vm = PropriedadeFormViewModel(lentas, propriedadeId = null)
         preencher(vm)
+
         vm.aoSalvar()
+        assertTrue("o botão desliga enquanto grava", vm.uiState.value.salvando)
         vm.aoSalvar()
 
+        lentas.portao.complete(Unit)
+        assertTrue(vm.uiState.value.salvo)
         assertEquals(3, propriedades.observarTodas().first().size)
     }
 
@@ -217,5 +233,220 @@ class PropriedadeFormViewModelTest {
         assertEquals("12000000", vm.uiState.value.area)
         assertEquals("-0,0001", vm.uiState.value.latitude)
         assertEquals("-46,5", vm.uiState.value.longitude)
+    }
+
+    private suspend fun gravada(nome: String = "Sítio Novo") =
+        propriedades.observarTodas().first().first { it.nome == nome }
+
+    @Test
+    fun `area com ponto de milhar vale mil hectares, nao um`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "1.000")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(1_000.0, gravada().areaHectares, 0.0001)
+    }
+
+    @Test
+    fun `area no formato brasileiro com milhar e decimais`() = runTest {
+        for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "12.345.678,25" to 12_345_678.25, "1250,5" to 1_250.5)) {
+            val vm = novo()
+            preencher(vm, area = texto)
+            vm.aoSalvar()
+
+            assertTrue(texto, vm.uiState.value.salvo)
+            assertEquals(texto, esperado, propriedades.observarTodas().first().last().areaHectares, 0.0001)
+        }
+    }
+
+    @Test
+    fun `area com ponto decimal que nao pode ser milhar continua aceita`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "12.5")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(12.5, gravada().areaHectares, 0.0001)
+    }
+
+    @Test
+    fun `area em formato ambiguo e recusada com mensagem clara`() = runTest {
+        for (texto in listOf("1,000.5", "1000.000", "0.500", "1.000.5", "1,5,0", "1.00,5")) {
+            val vm = novo()
+            preencher(vm, area = texto)
+            vm.aoSalvar()
+
+            assertEquals(
+                texto,
+                "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5.",
+                vm.uiState.value.erroArea
+            )
+            assertFalse(vm.uiState.value.salvo)
+        }
+        assertEquals(2, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `campo de area mostra como o numero foi entendido`() {
+        val vm = novo()
+        vm.aoMudarArea("1.000")
+        assertEquals("= 1.000 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("1,000")
+        assertEquals("= 1 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("12,5")
+        assertEquals("= 12,5 ha", vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("1,000.5")
+        assertNull(vm.uiState.value.leituraDaArea)
+        vm.aoMudarArea("")
+        assertNull(vm.uiState.value.leituraDaArea)
+    }
+
+    @Test
+    fun `latitude e longitude continuam aceitando ponto decimal`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("-21.7333")
+        vm.aoMudarLongitude("-46.9667")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(-21.7333, gravada().latitude, 0.00001)
+        assertEquals(-46.9667, gravada().longitude, 0.00001)
+    }
+
+    @Test
+    fun `botao de sinal poe e tira o menos da coordenada`() {
+        val vm = novo()
+        vm.aoMudarLatitude("21,73")
+        vm.aoInverterSinalLatitude()
+        assertEquals("-21,73", vm.uiState.value.latitude)
+        vm.aoInverterSinalLatitude()
+        assertEquals("21,73", vm.uiState.value.latitude)
+
+        vm.aoInverterSinalLongitude()
+        assertEquals("campo vazio recebe o sinal para digitar depois", "-", vm.uiState.value.longitude)
+    }
+
+    @Test
+    fun `limites do Brasil incluem as pontas e as ilhas, e nao o outro hemisferio`() {
+        val noBrasil = listOf(
+            -33.75 to -53.4, // Chuí
+            5.27 to -60.2, // Monte Caburaí
+            -7.5 to -73.9, // Serra do Divisor
+            -7.15 to -34.8, // Ponta do Seixas
+            -3.85 to -32.4, // Fernando de Noronha
+            -21.7333 to -46.9667
+        )
+        noBrasil.forEach { (lat, lon) -> assertTrue("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
+
+        val fora = listOf(21.7333 to 46.9667, -21.7333 to 46.9667, 21.7333 to -46.9667, 38.7 to -9.1)
+        fora.forEach { (lat, lon) -> assertFalse("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
+    }
+
+    @Test
+    fun `coordenada sem o sinal de menos avisa antes de salvar e o segundo toque confirma`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("21,73")
+        vm.aoMudarLongitude("46,93")
+
+        vm.aoSalvar()
+        assertNotNull(vm.uiState.value.avisoCoordenadas)
+        assertFalse(vm.uiState.value.salvo)
+        assertEquals(2, propriedades.observarTodas().first().size)
+
+        vm.aoSalvar()
+        assertTrue("é aviso, não bloqueio: pode haver sítio do outro lado da fronteira", vm.uiState.value.salvo)
+        assertEquals(21.73, gravada().latitude, 0.0001)
+    }
+
+    @Test
+    fun `corrigir a coordenada tira o aviso e coordenada do Brasil salva direto`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoMudarLatitude("21,73")
+        vm.aoMudarLongitude("46,93")
+        vm.aoSalvar()
+
+        vm.aoInverterSinalLatitude()
+        vm.aoInverterSinalLongitude()
+        assertNull(vm.uiState.value.avisoCoordenadas)
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(-46.93, gravada().longitude, 0.0001)
+    }
+
+    @Test
+    fun `coordenada do GPS fora do Brasil nao pede confirmacao`() = runTest {
+        val vm = novo()
+        vm.aoMudarNome("Sítio Novo")
+        vm.aoMudarArea("3")
+        vm.aoUsarLocalizacao(latitude = -25.3, longitude = -57.6) // Assunção, Paraguai.
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+    }
+
+    @Test
+    fun `editar propriedade ja salva fora do Brasil nao avisa de novo`() = runTest {
+        propriedades.salvar(
+            Propriedade(id = "paraguai", nome = "Estância", cultura = "Soja", areaHectares = 100.0, latitude = -25.3, longitude = -57.6)
+        )
+        val vm = editando("paraguai")
+        vm.aoMudarNome("Estância Nova")
+
+        vm.aoSalvar()
+        assertTrue(vm.uiState.value.salvo)
+    }
+
+    @Test
+    fun `o que foi digitado volta depois que o Android mata o processo`() {
+        val guardado = SavedStateHandle()
+        val antes = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+        antes.aoMudarNome("Chácara Três Irmãos")
+        antes.aoMudarCultura("Café")
+        antes.aoMudarArea("1.250,5")
+        antes.aoMudarLatitude("21,7")
+        antes.aoInverterSinalLatitude()
+        antes.aoMudarLongitude("-46,9")
+
+        // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
+        assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
+        val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = restaurado)
+
+        val estado = depois.uiState.value
+        assertEquals("Chácara Três Irmãos", estado.nome)
+        assertEquals("Café", estado.cultura)
+        assertEquals("1.250,5", estado.area)
+        assertEquals("-21,7", estado.latitude)
+        assertEquals("-46,9", estado.longitude)
+    }
+
+    @Test
+    fun `coordenadas do GPS tambem sobrevivem a morte do processo`() {
+        val guardado = SavedStateHandle()
+        PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+            .aoUsarLocalizacao(latitude = -21.7, longitude = -46.9)
+
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+
+        assertEquals("-21,700000", depois.uiState.value.latitude)
+        assertEquals("-46,900000", depois.uiState.value.longitude)
+    }
+
+    @Test
+    fun `na edicao o valor restaurado vale mais que o do banco`() {
+        val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
+        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado)
+
+        assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
+        assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)
+        assertTrue(vm.uiState.value.ehEdicao)
     }
 }

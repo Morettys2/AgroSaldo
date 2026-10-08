@@ -146,14 +146,15 @@ class CamadaDeDadosTest {
         assertTrue(criaUsuarios in 0 until alteraPropriedades)
     }
 
-    /** DAO em memória que filtra por dono como as queries reais. */
+    /** DAO em memória que filtra por dono como as queries reais (sem ordenar, como o SQL). */
     private class PropriedadeDaoFalso : PropriedadeDao {
         val tabela = MutableStateFlow<List<PropriedadeEntity>>(emptyList())
         override fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>> =
-            tabela.map { lista -> lista.filter { it.usuarioId == usuarioId }.sortedBy { it.nome.lowercase() } }
+            tabela.map { lista -> lista.filter { it.usuarioId == usuarioId } }
         override suspend fun buscarPorId(id: String, usuarioId: String) =
             tabela.value.firstOrNull { it.id == id && it.usuarioId == usuarioId }
-        override suspend fun donoDe(id: String) = tabela.value.firstOrNull { it.id == id }?.usuarioId
+        override suspend fun existeSemSerDoUsuario(id: String, usuarioId: String) =
+            tabela.value.any { it.id == id && it.usuarioId != usuarioId }
         override suspend fun salvar(propriedade: PropriedadeEntity) = tabela.update { lista ->
             lista.filterNot { it.id == propriedade.id } + propriedade
         }
@@ -177,6 +178,8 @@ class CamadaDeDadosTest {
             doUsuario(tabela.value, propriedades.tabela.value, usuarioId).firstOrNull { it.id == id }
         override suspend fun propriedadeEhDoUsuario(propriedadeId: String, usuarioId: String) =
             propriedades.tabela.value.any { it.id == propriedadeId && it.usuarioId == usuarioId }
+        override suspend fun existeSemSerDoUsuario(id: String, usuarioId: String) =
+            tabela.value.any { it.id == id && !propriedadeEhDoUsuario(it.propriedadeId, usuarioId) }
         override suspend fun salvar(lancamento: LancamentoEntity) = tabela.update { lista ->
             lista.filterNot { it.id == lancamento.id } + lancamento
         }
@@ -191,7 +194,6 @@ class CamadaDeDadosTest {
             if (!propriedadeEhDoUsuario(propriedadeId, usuarioId)) return
             tabela.update { it.filterNot { l -> l.propriedadeId == propriedadeId } }
         }
-        override suspend fun saldoDoPeriodo(propriedadeId: String, inicioEpochDay: Long, fimEpochDay: Long) = 0L
     }
 
     private class UsuarioDaoFalso(private val propriedades: PropriedadeDaoFalso) : UsuarioDao {
@@ -226,6 +228,22 @@ class CamadaDeDadosTest {
         consentimentoEm = Instant.ofEpochMilli(1_000L), versaoTermo = 1,
         criadoEm = Instant.ofEpochMilli(1_000L)
     )
+
+    @Test
+    fun `propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo`() = runTest {
+        val dao = PropriedadeDaoFalso()
+        val modelo = DadosDeExemplo.propriedades().first()
+        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda São João").forEachIndexed { i, nome ->
+            dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1"))
+        }
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
+
+        assertEquals(
+            "a primeira da lista é a propriedade padrão",
+            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda São João", "Sítio Boa Vista"),
+            repositorio.observarTodas().first().map { it.nome }
+        )
+    }
 
     @Test
     fun `repositorio Room entrega objetos de dominio a partir das entidades`() = runTest {
@@ -278,6 +296,92 @@ class CamadaDeDadosTest {
         } catch (esperado: IllegalArgumentException) {
             assertEquals("Fazenda São João da Serra", dao.tabela.value.single().nome)
         }
+    }
+
+    /** Conta as transações abertas e marca se a escrita no DAO aconteceu dentro de uma. */
+    private class TransacaoContada : Transacao {
+        var execucoes = 0
+        var aberta = false
+        override suspend fun <R> executar(bloco: suspend () -> R): R {
+            execucoes++
+            aberta = true
+            try {
+                return bloco()
+            } finally {
+                aberta = false
+            }
+        }
+    }
+
+    @Test
+    fun `propriedade sem dono nao e adotada por quem salva com o mesmo id`() = runTest {
+        val dao = PropriedadeDaoFalso()
+        val exemplo = DadosDeExemplo.propriedades().first()
+        dao.salvar(exemplo.paraEntidade(usuarioId = null))
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
+
+        try {
+            repositorio.salvar(exemplo.copy(nome = "Tomada"))
+            fail("Deveria recusar a gravação")
+        } catch (esperado: IllegalArgumentException) {
+            val linha = dao.tabela.value.single()
+            assertNull(linha.usuarioId)
+            assertEquals(exemplo.nome, linha.nome)
+        }
+    }
+
+    @Test
+    fun `salvar propriedade confere o dono e grava na mesma transacao`() = runTest {
+        val transacao = TransacaoContada()
+        var gravouDentro = false
+        val dao = object : PropriedadeDao by PropriedadeDaoFalso() {
+            override suspend fun salvar(propriedade: PropriedadeEntity) {
+                gravouDentro = transacao.aberta
+            }
+        }
+        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(PropriedadeDaoFalso()), SessaoMemoria("u1"), transacao)
+
+        repositorio.salvar(DadosDeExemplo.propriedades().first())
+
+        assertEquals(1, transacao.execucoes)
+        assertTrue(gravouDentro)
+    }
+
+    @Test
+    fun `lancamento de outra conta nao muda de dono por ter o mesmo id`() = runTest {
+        val (propriedades, dao, _) = cenarioDeLancamentos()
+        propriedades.salvar(
+            DadosDeExemplo.propriedades().first().copy(id = "sitio-u2", nome = "Sítio da outra conta")
+                .paraEntidade(usuarioId = "u2")
+        )
+        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u2"))
+        val original = checkNotNull(dao.tabela.value.firstOrNull { it.id == "exemplo-1" })
+
+        try {
+            repositorio.salvar(original.paraDominio().copy(propriedadeId = "sitio-u2", descricao = "Tomado"))
+            fail("Não pode sobrescrever o lançamento de outra conta")
+        } catch (esperado: IllegalArgumentException) {
+            assertEquals(original, dao.tabela.value.first { it.id == "exemplo-1" })
+        }
+    }
+
+    @Test
+    fun `salvar lancamento confere o dono e grava na mesma transacao`() = runTest {
+        val (_, falso, sessao) = cenarioDeLancamentos()
+        val transacao = TransacaoContada()
+        var gravouDentro = false
+        val dao = object : LancamentoDao by falso {
+            override suspend fun salvar(lancamento: LancamentoEntity) {
+                gravouDentro = transacao.aberta
+            }
+        }
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao)
+        val existente = checkNotNull(repositorio.buscarPorId("exemplo-2"))
+
+        repositorio.salvar(existente.copy(valorCentavos = 130_000L))
+
+        assertEquals(1, transacao.execucoes)
+        assertTrue(gravouDentro)
     }
 
     @Test
@@ -370,6 +474,48 @@ class CamadaDeDadosTest {
         assertTrue(repositorio.criar(usuario("u1", "fabio@exemplo.com")))
 
         assertTrue(propriedades.tabela.value.all { it.usuarioId == "u1" })
+    }
+
+    /** Transação falsa com rollback: restaura as tabelas em memória se o bloco falhar. */
+    private class TransacaoEmMemoria(
+        private val usuarios: UsuarioDaoFalso,
+        private val propriedades: PropriedadeDaoFalso
+    ) : Transacao {
+        var execucoes = 0
+        override suspend fun <R> executar(bloco: suspend () -> R): R {
+            execucoes++
+            val usuariosAntes = usuarios.tabela.value
+            val propriedadesAntes = propriedades.tabela.value
+            try {
+                return bloco()
+            } catch (e: Exception) {
+                usuarios.tabela.value = usuariosAntes
+                propriedades.tabela.value = propriedadesAntes
+                throw e
+            }
+        }
+    }
+
+    @Test
+    fun `criar conta e adotar as propriedades sem dono e tudo ou nada`() = runTest {
+        val propriedades = PropriedadeDaoFalso()
+        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null))
+        val usuarios = UsuarioDaoFalso(propriedades)
+        val adocaoQuebrada = object : UsuarioDao by usuarios {
+            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int =
+                throw IllegalStateException("disco cheio")
+        }
+        val transacao = TransacaoEmMemoria(usuarios, propriedades)
+        val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)
+
+        try {
+            repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+            fail("A falha na adoção deveria chegar ao cadastro")
+        } catch (esperado: IllegalStateException) {
+            assertNull("a conta não fica criada pela metade", usuarios.buscarPorId("u1"))
+            assertNull(propriedades.tabela.value.single().usuarioId)
+            assertEquals(1, transacao.execucoes)
+        }
     }
 
     @Test

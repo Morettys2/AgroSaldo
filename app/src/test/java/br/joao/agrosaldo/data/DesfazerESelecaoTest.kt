@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -8,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.time.YearMonth
@@ -105,6 +107,20 @@ class DesfazerESelecaoTest {
     }
 
     @Test
+    fun `cancelamento durante a restauracao e repassado, nao vira falha`() = runTest {
+        val desfazer = Desfazer()
+        desfazer.oferecer("x") { throw CancellationException("cancelado") }
+        val pendente = checkNotNull(desfazer.pendente.value)
+
+        try {
+            desfazer.desfazer(pendente)
+            fail("O cancelamento deveria chegar a quem chamou")
+        } catch (esperado: CancellationException) {
+            assertNull(desfazer.pendente.value)
+        }
+    }
+
+    @Test
     fun `trocar de conta esquece o que dava para desfazer`() {
         val desfazer = Desfazer()
         desfazer.oferecer("x") { }
@@ -146,5 +162,39 @@ class DesfazerESelecaoTest {
 
         SelecaoAtual.limpar()
         assertEquals(YearMonth.now(), SelecaoAtual.mes.value)
+    }
+
+    @Test
+    fun `na virada do mes com o app aberto a selecao vai para o mes novo`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
+
+        assertEquals(YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+    }
+
+    @Test
+    fun `mes escolhido a mao continua escolhido depois da virada`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 6))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
+        assertEquals(YearMonth.of(2026, 6), SelecaoAtual.mes.value)
+
+        // De volta ao mês corrente, a seleção volta a acompanhar o calendário.
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 10))
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 11))
+        assertEquals(YearMonth.of(2026, 11), SelecaoAtual.mes.value)
+    }
+
+    @Test
+    fun `sem virada, ou com o relogio voltando, o mes nao muda`() {
+        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 9))
+        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+
+        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 8))
+        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
     }
 }

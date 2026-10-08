@@ -5,17 +5,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -78,10 +80,14 @@ class PropriedadeListaViewModel(
                     totalCentavos = saldos.sumOf { it.second }
                 )
             }
-                .catch { e ->
+                // catch encerraria o Flow e a tela pararia de atualizar: mostra o erro e assina de novo.
+                .retryWhen { erro, tentativa ->
                     _uiState.update {
-                        it.copy(carregando = false, erro = e.message ?: "Erro ao carregar")
+                        it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO))
                     }
+                    // Espera crescente (1 s, 2 s, 4 s... até 30 s) para um erro persistente não virar laço.
+                    delay(minOf(ESPERA_INICIAL_MS shl tentativa.coerceAtMost(5L).toInt(), ESPERA_MAXIMA_MS))
+                    true
                 }
                 .collect { estado -> _uiState.value = estado }
         }
@@ -92,6 +98,10 @@ class PropriedadeListaViewModel(
     fun aoVoltarMes() = SelecaoAtual.voltarMes()
 
     companion object {
+        private const val MENSAGEM_ERRO = "Não foi possível carregar as propriedades. Tentando de novo…"
+        private const val ESPERA_INICIAL_MS = 1_000L
+        private const val ESPERA_MAXIMA_MS = 30_000L
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PropriedadeListaViewModel(

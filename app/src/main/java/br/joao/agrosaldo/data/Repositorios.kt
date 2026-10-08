@@ -98,7 +98,13 @@ object Repositorios {
     }
 
     val usuarios: UsuarioRepository by lazy {
-        UsuarioRepositoryRoom(bancoAberto.usuarioDao())
+        UsuarioRepositoryRoom(
+            dao = bancoAberto.usuarioDao(),
+            transacao = object : Transacao {
+                override suspend fun <R> executar(bloco: suspend () -> R): R =
+                    bancoAberto.withTransaction { bloco() }
+            }
+        )
     }
 
     val conta: ContaService by lazy {

@@ -22,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -34,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -79,6 +82,8 @@ fun PropriedadeFormRoute(
         aoMudarArea = viewModel::aoMudarArea,
         aoMudarLatitude = viewModel::aoMudarLatitude,
         aoMudarLongitude = viewModel::aoMudarLongitude,
+        aoInverterSinalLatitude = viewModel::aoInverterSinalLatitude,
+        aoInverterSinalLongitude = viewModel::aoInverterSinalLongitude,
         buscandoLocalizacao = busca.buscando,
         mensagemLocalizacao = mensagemLocalizacao,
         aoUsarMinhaLocalizacao = {
@@ -99,6 +104,8 @@ fun PropriedadeFormScreen(
     aoMudarArea: (String) -> Unit,
     aoMudarLatitude: (String) -> Unit,
     aoMudarLongitude: (String) -> Unit,
+    aoInverterSinalLatitude: () -> Unit,
+    aoInverterSinalLongitude: () -> Unit,
     buscandoLocalizacao: Boolean,
     mensagemLocalizacao: String?,
     aoUsarMinhaLocalizacao: () -> Unit,
@@ -136,28 +143,28 @@ fun PropriedadeFormScreen(
             aoMudar = aoMudarArea,
             rotulo = "Área em hectares",
             erro = uiState.erroArea != null,
-            apoio = uiState.erroArea,
+            // Sem erro, mostra como o número foi entendido ("= 1.000 ha").
+            apoio = uiState.erroArea ?: uiState.leituraDaArea,
             teclado = KeyboardType.Decimal
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CampoTexto(
-                valor = uiState.latitude,
-                aoMudar = aoMudarLatitude,
-                rotulo = "Latitude",
-                erro = uiState.erroCoordenadas != null,
-                teclado = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f)
-            )
-            CampoTexto(
-                valor = uiState.longitude,
-                aoMudar = aoMudarLongitude,
-                rotulo = "Longitude",
-                erro = uiState.erroCoordenadas != null,
-                teclado = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        // Um campo por linha: o botão ± ocupa espaço e a coordenada do GPS tem 6 casas decimais.
+        CampoTexto(
+            valor = uiState.latitude,
+            aoMudar = aoMudarLatitude,
+            rotulo = "Latitude",
+            erro = uiState.erroCoordenadas != null,
+            teclado = KeyboardType.Decimal,
+            acaoNoFim = { BotaoSinal(campo = "latitude", aoClicar = aoInverterSinalLatitude) }
+        )
+        CampoTexto(
+            valor = uiState.longitude,
+            aoMudar = aoMudarLongitude,
+            rotulo = "Longitude",
+            erro = uiState.erroCoordenadas != null,
+            teclado = KeyboardType.Decimal,
+            acaoNoFim = { BotaoSinal(campo = "longitude", aoClicar = aoInverterSinalLongitude) }
+        )
 
         OutlinedButton(
             onClick = aoUsarMinhaLocalizacao,
@@ -182,7 +189,7 @@ fun PropriedadeFormScreen(
             )
         }
 
-        uiState.erroCoordenadas?.let { mensagem ->
+        (uiState.erroCoordenadas ?: uiState.avisoCoordenadas)?.let { mensagem ->
             Text(
                 text = mensagem,
                 style = MaterialTheme.typography.bodyMedium,
@@ -231,7 +238,11 @@ fun PropriedadeFormScreen(
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
             Text(
-                text = if (uiState.ehEdicao) "Salvar alterações" else "Salvar propriedade",
+                text = when {
+                    uiState.avisoCoordenadas != null -> "Salvar mesmo assim"
+                    uiState.ehEdicao -> "Salvar alterações"
+                    else -> "Salvar propriedade"
+                },
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -294,6 +305,17 @@ fun PropriedadeFormScreen(
     }
 }
 
+/** Põe ou tira o sinal de menos: o teclado numérico de alguns aparelhos não tem "−". */
+@Composable
+private fun BotaoSinal(campo: String, aoClicar: () -> Unit) {
+    IconButton(
+        onClick = aoClicar,
+        modifier = Modifier.semantics { contentDescription = "Trocar o sinal da $campo" }
+    ) {
+        Text("±", style = MaterialTheme.typography.titleLarge)
+    }
+}
+
 @Preview(showBackground = true, heightDp = 850)
 @Composable
 private fun PropriedadeFormNovaPreview() {
@@ -302,6 +324,7 @@ private fun PropriedadeFormNovaPreview() {
             uiState = PropriedadeFormUiState(),
             aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
             aoMudarLatitude = {}, aoMudarLongitude = {},
+            aoInverterSinalLatitude = {}, aoInverterSinalLongitude = {},
             buscandoLocalizacao = false, mensagemLocalizacao = null, aoUsarMinhaLocalizacao = {},
             aoSalvar = {}, aoExcluir = {}
         )
@@ -325,6 +348,7 @@ private fun PropriedadeFormComErroPreview() {
             ),
             aoMudarNome = {}, aoMudarCultura = {}, aoMudarArea = {},
             aoMudarLatitude = {}, aoMudarLongitude = {},
+            aoInverterSinalLatitude = {}, aoInverterSinalLongitude = {},
             buscandoLocalizacao = false, mensagemLocalizacao = null, aoUsarMinhaLocalizacao = {},
             aoSalvar = {}, aoExcluir = {}
         )

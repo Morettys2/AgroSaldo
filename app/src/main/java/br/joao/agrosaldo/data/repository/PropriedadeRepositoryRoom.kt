@@ -7,6 +7,7 @@ import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.PropriedadeExcluida
+import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,14 +27,19 @@ class PropriedadeRepositoryRoom(
     private val transacao: Transacao = Transacao.DIRETA
 ) : PropriedadeRepository {
 
-    /** Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. */
+    /**
+     * Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. Em ordem alfabética
+     * pt-BR ([emOrdemAlfabetica]): a primeira é a propriedade padrão das telas.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodas(): Flow<List<Propriedade>> =
         sessao.usuarioId.flatMapLatest { usuarioId ->
             if (usuarioId == null) {
                 flowOf(emptyList())
             } else {
-                dao.observarDoUsuario(usuarioId).map { entidades -> entidades.map { it.paraDominio() } }
+                dao.observarDoUsuario(usuarioId).map { entidades ->
+                    entidades.map { it.paraDominio() }.emOrdemAlfabetica()
+                }
             }
         }
 
@@ -44,9 +50,13 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun salvar(propriedade: Propriedade) {
         val usuarioId = usuarioConectado()
-        // O upsert casa só pelo id; impede sobrescrever propriedade de outra conta.
-        val dono = dao.donoDe(propriedade.id)
-        require(dono == null || dono == usuarioId) { "Esta propriedade pertence a outra conta." }
+        transacao.executar { gravar(propriedade, usuarioId) }
+    }
+
+    /** Checagem de posse e upsert; quem chama abre a transação. */
+    private suspend fun gravar(propriedade: Propriedade, usuarioId: String) {
+        // O upsert casa só pelo id; impede sobrescrever a propriedade de outra conta ou adotar uma sem dono.
+        require(!dao.existeSemSerDoUsuario(propriedade.id, usuarioId)) { "Esta propriedade pertence a outra conta." }
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
     }
 
@@ -65,9 +75,10 @@ class PropriedadeRepositoryRoom(
     }
 
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
+        val usuarioId = usuarioConectado()
         transacao.executar {
             // Propriedade antes dos lançamentos por causa da foreign key.
-            salvar(excluida.propriedade)
+            gravar(excluida.propriedade, usuarioId)
             lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade() })
         }
     }
