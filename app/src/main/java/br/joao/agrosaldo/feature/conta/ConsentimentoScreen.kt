@@ -105,7 +105,8 @@ fun ConsentimentoScreen(
 
         CartaoPonto(
             titulo = "Fica tudo no seu celular",
-            texto = "Conta, propriedades e lançamentos são gravados no aparelho e funcionam sem internet."
+            texto = "Conta, propriedades e lançamentos são gravados no aparelho e funcionam sem internet. " +
+                "Só o backup do Android, se estiver ligado, guarda uma cópia criptografada na sua conta."
         )
         CartaoPonto(
             titulo = "A previsão do tempo usa só as coordenadas",

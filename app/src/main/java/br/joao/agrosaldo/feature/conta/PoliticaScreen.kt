@@ -36,7 +36,10 @@ private val SECOES = listOf(
     Secao(
         "Onde fica",
         "Tudo fica num banco de dados privado dentro deste celular. Outros apps não têm acesso, " +
-            "e nada é enviado para servidores do AgroSaldo."
+            "e nada é enviado para servidores do AgroSaldo. Se o backup do Android estiver ligado, o " +
+            "próprio Android pode guardar uma cópia dos dados na nuvem da sua conta (como a do Google) " +
+            "e levá-los para um celular novo. O app só permite a cópia na nuvem quando ela é " +
+            "criptografada de ponta a ponta, o que exige bloqueio de tela no celular."
     ),
     Secao(
         "O que sai do celular",
@@ -57,13 +60,15 @@ private val SECOES = listOf(
     Secao(
         "Seus direitos",
         "Você pode ver seus dados a qualquer momento nas telas do app, corrigi-los editando cada " +
-            "cadastro, e apagar tudo em Conta › Excluir conta e todos os dados. A exclusão é " +
-            "imediata e definitiva (art. 18 da LGPD)."
+            "cadastro, e apagar tudo em Conta › Excluir conta e todos os dados. A exclusão apaga " +
+            "os dados deste celular na hora e é definitiva (art. 18 da LGPD)."
     ),
     Secao(
         "Por quanto tempo",
-        "Enquanto a conta existir. Ao excluir a conta ou desinstalar o app, os dados são apagados " +
-            "do aparelho."
+        "Enquanto a conta existir. Ao excluir a conta, os dados saem deste celular na hora, e a " +
+            "cópia do backup do Android é substituída no próximo backup automático. Ao desinstalar o " +
+            "app, os dados saem do celular, mas a cópia do backup pode continuar guardada pela sua " +
+            "conta por um tempo e voltar se você instalar o app de novo."
     )
 )
 

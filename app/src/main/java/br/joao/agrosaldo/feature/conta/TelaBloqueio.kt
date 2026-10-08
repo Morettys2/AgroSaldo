@@ -37,9 +37,9 @@ import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
- * Sobreposição de bloqueio do app. Abre o prompt biométrico ao entrar em composição;
- * "Desbloquear" reabre se cancelado. [aoUsarSenha] é a saída de emergência (sem
- * biometria/PIN): encerra a sessão e exige login com senha, sem expor dados.
+ * Tela de bloqueio do app, exibida no lugar do conteúdo. Abre o prompt biométrico ao
+ * entrar em composição; "Desbloquear" reabre se cancelado. [aoUsarSenha] é a saída de
+ * emergência (sem biometria/PIN): encerra a sessão e exige login com senha, sem expor dados.
  */
 @Composable
 fun TelaBloqueioRoute(
@@ -87,7 +87,6 @@ fun TelaBloqueioScreen(
     aoUsarSenha: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Surface opaca também consome os toques, impedindo interação com o conteúdo abaixo.
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

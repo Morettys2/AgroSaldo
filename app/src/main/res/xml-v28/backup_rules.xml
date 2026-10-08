@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup da API 28 à 30 (Android 8.x usa xml/backup_rules.xml; da API 31 em
+    diante vale data_extraction_rules.xml). Manter em sincronia com eles.
+
+    Com <include>, só o listado entra, e só em backup criptografado de ponta a ponta
+    (exige bloqueio de tela) ou na transferência direta entre aparelhos: o adb backup
+    não leva nada. requireFlags exige todas as flags listadas, daí uma linha por flag.
+    Ficam de fora a sessão (sessao.xml: exige novo login após restaurar) e o estado de
+    segurança do aparelho (seguranca.xml: tentativas de senha e bloqueio por digital).
+-->
+<full-backup-content>
+    <include domain="database" path="." requireFlags="clientSideEncryption" />
+    <include domain="database" path="." requireFlags="deviceToDeviceTransfer" />
+    <include domain="sharedpref" path="." requireFlags="clientSideEncryption" />
+    <include domain="sharedpref" path="." requireFlags="deviceToDeviceTransfer" />
+    <exclude domain="sharedpref" path="sessao.xml" />
+    <exclude domain="sharedpref" path="seguranca.xml" />
+</full-backup-content>

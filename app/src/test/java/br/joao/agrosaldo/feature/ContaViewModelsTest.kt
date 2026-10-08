@@ -2,6 +2,7 @@ package br.joao.agrosaldo.feature
 
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.core.navigation.SessaoViewModel
+import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryMemoria
 import br.joao.agrosaldo.data.sessao.BloqueioMemoria
@@ -12,12 +13,22 @@ import br.joao.agrosaldo.domain.conta.HashDeSenha
 import br.joao.agrosaldo.domain.conta.ResultadoCadastro
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
+import br.joao.agrosaldo.domain.model.Usuario
+import br.joao.agrosaldo.domain.repository.BloqueioRepository
+import br.joao.agrosaldo.domain.repository.UsuarioRepository
 import br.joao.agrosaldo.feature.conta.AlterarSenhaViewModel
 import br.joao.agrosaldo.feature.conta.CadastroViewModel
 import br.joao.agrosaldo.feature.conta.ContaViewModel
 import br.joao.agrosaldo.feature.conta.LoginViewModel
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,6 +62,15 @@ class ContaViewModelsTest {
         relogio = { 1_790_808_000_000L },
         dispatcherCalculo = Dispatchers.Unconfined
     )
+
+    private val propriedades = PropriedadeRepositoryMemoria()
+    private val selecionadas = mutableListOf<String>()
+
+    private fun sessaoViewModel(
+        conta: ContaService = this.conta,
+        bloqueio: BloqueioRepository = BloqueioMemoria(),
+        relogio: () -> Long = System::currentTimeMillis
+    ) = SessaoViewModel(conta, bloqueio, propriedades, relogio, selecionarPropriedade = { selecionadas += it })
 
     private fun cadastroPreenchido() = CadastroViewModel(conta).apply {
         aoMudarNome("Fábio Moretti")
@@ -187,10 +207,15 @@ class ContaViewModelsTest {
         contaCriadaESaiu()
         val vm = LoginViewModel(conta)
         vm.aoMudarEmail("fabio@exemplo.com")
-        repeat(ContaService.MAXIMO_TENTATIVAS + 1) {
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
             vm.aoMudarSenha("errada123")
             vm.aoEntrar()
+            assertEquals("E-mail ou senha incorretos.", vm.uiState.value.erro)
         }
+
+        vm.aoMudarSenha("errada123")
+        vm.aoEntrar()
+
         assertEquals("Muitas tentativas. Tente de novo em 30 segundos.", vm.uiState.value.erro)
     }
 
@@ -246,7 +271,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `navegacao acompanha entrar e sair`() = runTest {
-        val vm = SessaoViewModel(conta, BloqueioMemoria())
+        val vm = sessaoViewModel()
         assertFalse(vm.logado.value)
 
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
@@ -273,7 +298,7 @@ class ContaViewModelsTest {
     private var agora = 1_790_808_000_000L
 
     private fun sessaoComBloqueio(ativo: Boolean = true) =
-        SessaoViewModel(conta, BloqueioMemoria(ativo), relogio = { agora })
+        sessaoViewModel(bloqueio = BloqueioMemoria(ativo), relogio = { agora })
 
     @Test
     fun `abrir o app com sessao gravada e bloqueio ligado pede a digital`() = runTest {
@@ -343,11 +368,65 @@ class ContaViewModelsTest {
     fun `ligar o bloqueio na tela de conta nao trava na cara da pessoa`() = runTest {
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         val bloqueioDoApp = BloqueioMemoria(false)
-        val vm = SessaoViewModel(conta, bloqueioDoApp, relogio = { agora })
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp, relogio = { agora })
 
         bloqueioDoApp.definir(true)
 
         assertFalse(vm.precisaDesbloquear.value)
+    }
+
+    @Test
+    fun `quem acabou de criar a conta recebe a oferta do bloqueio`() = runTest {
+        val vm = sessaoViewModel()
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        assertTrue(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `entrar com a senha nao oferece o bloqueio`() = runTest {
+        contaCriadaESaiu()
+        val vm = sessaoViewModel()
+        conta.entrar("fabio@exemplo.com", "milho2026")
+        assertFalse(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `agora nao dispensa a oferta sem ligar o bloqueio`() = runTest {
+        val bloqueioDoApp = BloqueioMemoria(false)
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+
+        vm.aoDispensarOfertaDeBloqueio()
+
+        assertFalse(vm.oferecerBloqueio.value)
+        assertFalse(bloqueioDoApp.ativo.value)
+    }
+
+    @Test
+    fun `ligar pela oferta liga o bloqueio sem travar na hora`() = runTest {
+        val bloqueioDoApp = BloqueioMemoria(false)
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+
+        vm.aoLigarBloqueioPelaOferta()
+
+        assertTrue(bloqueioDoApp.ativo.value)
+        assertFalse(vm.oferecerBloqueio.value)
+        assertFalse(vm.precisaDesbloquear.value)
+        // Desligar depois, na tela de Conta, não traz a oferta de volta.
+        bloqueioDoApp.definir(false)
+        assertFalse(vm.oferecerBloqueio.value)
+    }
+
+    @Test
+    fun `sem oferta com o bloqueio ja ligado ou depois de sair`() = runTest {
+        val vm = sessaoViewModel(bloqueio = BloqueioMemoria(true))
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        assertFalse(vm.oferecerBloqueio.value)
+
+        val outro = sessaoViewModel()
+        conta.sair()
+        assertFalse(outro.oferecerBloqueio.value)
     }
 
     @Test
@@ -371,31 +450,139 @@ class ContaViewModelsTest {
     @Test
     fun `conta nova ja nasce com a versao atual e nao pede aceite`() = runTest {
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
-        val vm = SessaoViewModel(conta, BloqueioMemoria())
-        assertFalse(vm.precisaNovoAceite.value)
+        val vm = sessaoViewModel()
+        assertEquals(false, vm.precisaNovoAceite.value)
     }
 
     @Test
     fun `quem aceitou a versao antiga precisa aceitar de novo`() = runTest {
         contaQueAceitouVersao1()
-        val vm = SessaoViewModel(conta, BloqueioMemoria())
-        assertTrue(vm.precisaNovoAceite.value)
+        val vm = sessaoViewModel()
+        assertEquals(true, vm.precisaNovoAceite.value)
     }
 
     @Test
     fun `aceitar a politica nova grava a versao e a data`() = runTest {
         val id = contaQueAceitouVersao1()
-        val sessaoVm = SessaoViewModel(conta, BloqueioMemoria())
+        val sessaoVm = sessaoViewModel()
         val vm = NovoConsentimentoViewModel(conta)
 
         vm.aoAceitar()
 
-        assertFalse(sessaoVm.precisaNovoAceite.value)
+        assertEquals(false, sessaoVm.precisaNovoAceite.value)
         val gravado = usuarios.buscarPorId(id)
         assertEquals(TermoDePrivacidade.VERSAO_ATUAL, gravado?.versaoTermo)
         assertEquals(Instant.ofEpochMilli(1_790_808_000_000L), gravado?.consentimentoEm)
         assertFalse(vm.uiState.value.processando)
         assertNull(vm.uiState.value.erro)
+    }
+
+    /** Só entrega a conta depois de [liberado]: simula a leitura do banco ainda em curso. */
+    private class UsuariosDemorados(private val real: UsuarioRepository) : UsuarioRepository by real {
+        val liberado = MutableStateFlow(false)
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        override fun observar(id: String): Flow<Usuario?> = liberado.filter { it }.flatMapLatest { real.observar(id) }
+    }
+
+    private fun contaSobre(repositorio: UsuarioRepository) = ContaService(
+        usuarios = repositorio,
+        sessao = sessao,
+        tentativas = TentativasMemoria(),
+        hash = HashDeSenha(iteracoes = 1_000),
+        relogio = { 1_790_808_000_000L },
+        dispatcherCalculo = Dispatchers.Unconfined
+    )
+
+    @Test
+    fun `antes de ler a conta nao se sabe se a politica precisa de novo aceite`() = runTest {
+        contaQueAceitouVersao1()
+        val demorados = UsuariosDemorados(usuarios)
+        val vm = sessaoViewModel(contaSobre(demorados))
+
+        assertNull(vm.precisaNovoAceite.value)
+
+        demorados.liberado.value = true
+        assertEquals(true, vm.precisaNovoAceite.value)
+    }
+
+    @Test
+    fun `sem ninguem conectado nao ha aceite pendente`() = runTest {
+        val vm = sessaoViewModel(contaSobre(UsuariosDemorados(usuarios)))
+        assertEquals(false, vm.precisaNovoAceite.value)
+    }
+
+    @Test
+    fun `entrar em outra conta volta a nao saber ate ler a conta nova`() = runTest {
+        val demorados = UsuariosDemorados(usuarios).apply { liberado.value = true }
+        val conta = contaSobre(demorados)
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.sair()
+        val vm = sessaoViewModel(conta)
+
+        demorados.liberado.value = false
+        conta.entrar("fabio@exemplo.com", "milho2026")
+        assertNull(vm.precisaNovoAceite.value)
+
+        demorados.liberado.value = true
+        assertEquals(false, vm.precisaNovoAceite.value)
+    }
+
+    @Test
+    fun `notificacao nao abre o clima com novo aceite pendente`() = runTest {
+        contaQueAceitouVersao1()
+        assertFalse(sessaoViewModel().prepararAberturaDoClima(null))
+    }
+
+    @Test
+    fun `notificacao abre o clima com sessao e aceite em dia`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        assertTrue(sessaoViewModel().prepararAberturaDoClima(null))
+    }
+
+    @Test
+    fun `notificacao sem ninguem conectado e ignorada`() = runTest {
+        assertFalse(sessaoViewModel().prepararAberturaDoClima(null))
+    }
+
+    @Test
+    fun `notificacao seleciona a propriedade do aviso antes de abrir o clima`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoViewModel()
+
+        assertTrue(vm.prepararAberturaDoClima(DadosDeExemplo.ID_SITIO))
+        assertEquals(listOf(DadosDeExemplo.ID_SITIO), selecionadas)
+    }
+
+    @Test
+    fun `pedido com propriedade que nao e do usuario e ignorado`() = runTest {
+        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val vm = sessaoViewModel()
+
+        // O repositório real só encontra propriedades do usuário conectado.
+        assertFalse(vm.prepararAberturaDoClima("propriedade-de-outra-conta"))
+        assertTrue(selecionadas.isEmpty())
+    }
+
+    @Test
+    fun `aceite pendente nao deixa o pedido trocar a propriedade`() = runTest {
+        contaQueAceitouVersao1()
+        assertFalse(sessaoViewModel().prepararAberturaDoClima(DadosDeExemplo.ID_SITIO))
+        assertTrue(selecionadas.isEmpty())
+    }
+
+    @Test
+    fun `notificacao espera a conta ser lida antes de decidir`() = runTest {
+        contaQueAceitouVersao1()
+        val demorados = UsuariosDemorados(usuarios)
+        val vm = sessaoViewModel(contaSobre(demorados))
+
+        val decisao = async { vm.prepararAberturaDoClima(null) }
+        runCurrent()
+        assertFalse(decisao.isCompleted)
+
+        demorados.liberado.value = true
+        assertFalse(decisao.await())
     }
 
     @Test

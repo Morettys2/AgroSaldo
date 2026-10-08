@@ -1,7 +1,9 @@
 package br.joao.agrosaldo.data
 
+import android.app.backup.BackupManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
@@ -32,6 +34,8 @@ import br.joao.agrosaldo.domain.repository.PrivacidadeRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Service locator das dependências do app.
@@ -109,8 +113,40 @@ object Repositorios {
                 SelecaoAtual.limpar()
                 desfazer.esquecer()
                 NotificationManagerCompat.from(contextoAberto).cancelAll()
-            }
+            },
+            aoExcluirConta = { usuarioId -> apagarRastrosDaConta(usuarioId) }
         )
+    }
+
+    /**
+     * O que a conta excluída deixa fora das tabelas: os ajustes do aparelho que ela
+     * definiu (valores ocultos e bloqueio por digital voltam ao padrão), os ajustes do
+     * aviso de chuva e as páginas livres do SQLite, que guardam os registros apagados
+     * até o VACUUM. Avisa o backup do Android para a próxima cópia já sair sem a conta.
+     */
+    private suspend fun apagarRastrosDaConta(usuarioId: String) {
+        privacidade.definir(false)
+        bloqueio.definir(false)
+        ajustesAviso.excluirDadosDoUsuario(usuarioId)
+        BackupManager(contextoAberto).dataChanged()
+        compactarBanco()
+    }
+
+    /**
+     * VACUUM reescreve o banco sem as páginas livres; o checkpoint copia o resultado do
+     * WAL para o arquivo e esvazia o WAL. Precisa rodar fora de transação.
+     */
+    private suspend fun compactarBanco() {
+        withContext(Dispatchers.IO) {
+            try {
+                val banco = bancoAberto.openHelper.writableDatabase
+                banco.execSQL("VACUUM")
+                banco.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+            } catch (e: SQLiteException) {
+                // Os registros já foram apagados; sem espaço para o VACUUM, as páginas livres
+                // são reaproveitadas pelas próximas gravações.
+            }
+        }
     }
 
     val propriedades: PropriedadeRepository by lazy {

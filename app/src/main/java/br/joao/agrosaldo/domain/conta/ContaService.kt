@@ -11,12 +11,16 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 
@@ -60,6 +64,8 @@ sealed interface ResultadoAlteracaoSenha {
  * @param dispatcherCalculo dispatcher do PBKDF2; nunca a main thread.
  * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
  *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
+ * @param aoExcluirConta chamado com o id da conta logo depois de apagá-la do banco e antes
+ *   de encerrar a sessão, para apagar o que o app guarda dela fora do banco.
  */
 class ContaService(
     private val usuarios: UsuarioRepository,
@@ -69,10 +75,24 @@ class ContaService(
     private val relogio: () -> Long = System::currentTimeMillis,
     private val relogioMonotonico: () -> InstanteMonotonico? = { null },
     private val dispatcherCalculo: CoroutineDispatcher = Dispatchers.Default,
-    private val aoTrocarDeUsuario: () -> Unit = {}
+    private val aoTrocarDeUsuario: () -> Unit = {},
+    private val aoExcluirConta: suspend (usuarioId: String) -> Unit = {}
 ) {
 
     val usuarioLogadoId: StateFlow<String?> = sessao.usuarioId
+
+    private val _sessaoDeContaNova = MutableStateFlow(false)
+
+    /**
+     * true se a sessão atual começou no cadastro, até [esquecerContaNova] ou o fim da
+     * sessão. Permite oferecer, uma vez, o que só faz sentido para quem acabou de chegar
+     * (ex.: ligar o bloqueio por digital).
+     */
+    val sessaoDeContaNova: StateFlow<Boolean> = _sessaoDeContaNova.asStateFlow()
+
+    fun esquecerContaNova() {
+        _sessaoDeContaNova.value = false
+    }
 
     fun estaLogado(): Boolean = sessao.usuarioId.value != null
 
@@ -83,10 +103,24 @@ class ContaService(
             if (id == null) flowOf(null) else usuarios.observar(id)
         }
 
-    /** true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL]. */
-    fun precisaNovoAceite(): Flow<Boolean> =
-        observarUsuarioLogado()
-            .map { usuario -> usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL }
+    /**
+     * true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL];
+     * false sem sessão; null enquanto a conta recém-conectada não foi lida do banco.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun precisaNovoAceite(): Flow<Boolean?> =
+        sessao.usuarioId
+            .flatMapLatest { id ->
+                if (id == null) {
+                    flowOf(false)
+                } else {
+                    usuarios.observar(id)
+                        .map<Usuario?, Boolean?> { usuario ->
+                            usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL
+                        }
+                        .onStart { emit(null) }
+                }
+            }
             .distinctUntilChanged()
 
     /** Registra o aceite da versão atual do termo. Retorna false sem sessão válida. */
@@ -96,6 +130,14 @@ class ContaService(
         return true
     }
 
+    /**
+     * Revela se o e-mail já tem conta neste aparelho, de propósito: o cadastro precisa dizer
+     * isso antes do consentimento, e o índice único diria o mesmo ao criar a conta. As contas
+     * são locais, então só quem já tem o celular em mãos consegue perguntar. Não passa pelo
+     * limite de tentativas: barrar depois de N consultas não esconderia as N primeiras, e
+     * erros de digitação no cadastro bloqueariam o login. A proteção contra adivinhar senhas
+     * fica no login, que responde igual para e-mail inexistente e senha errada.
+     */
     suspend fun emailEmUso(email: String): Boolean =
         usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email)) != null
 
@@ -133,13 +175,15 @@ class ContaService(
         if (!usuarios.criar(usuario)) return ResultadoCadastro.EmailJaCadastrado
 
         conectar(usuario.id)
+        _sessaoDeContaNova.value = true
         return ResultadoCadastro.Sucesso(usuario)
     }
 
     // ---------- login ----------
 
     suspend fun entrar(email: String, senha: String): ResultadoLogin {
-        segundosDeBloqueio()?.let { return ResultadoLogin.Bloqueado(it) }
+        val chave = chaveDeTentativas(email)
+        segundosDeBloqueio(chave)?.let { return ResultadoLogin.Bloqueado(it) }
 
         val usuario = usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email))
 
@@ -148,11 +192,10 @@ class ContaService(
         val senhaConfere = conferir(senha, usuario?.senhaHash)
 
         if (usuario == null || !senhaConfere) {
-            registrarFalha()
-            return ResultadoLogin.CredenciaisInvalidas
+            return registrarFalha(chave)?.let { ResultadoLogin.Bloqueado(it) } ?: ResultadoLogin.CredenciaisInvalidas
         }
 
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         // Rehash transparente quando o hash gravado usa menos iterações que o padrão atual.
         if (hash.precisaAtualizar(usuario.senhaHash)) {
@@ -164,6 +207,7 @@ class ContaService(
     }
 
     fun sair() {
+        _sessaoDeContaNova.value = false
         aoTrocarDeUsuario()
         sessao.encerrar()
     }
@@ -172,13 +216,14 @@ class ContaService(
 
     suspend fun alterarSenha(senhaAtual: String, novaSenha: String): ResultadoAlteracaoSenha {
         val usuario = usuarioConectado() ?: return ResultadoAlteracaoSenha.SemSessao
-        segundosDeBloqueio()?.let { return ResultadoAlteracaoSenha.Bloqueado(it) }
+        val chave = chaveDeTentativas(usuario.email)
+        segundosDeBloqueio(chave)?.let { return ResultadoAlteracaoSenha.Bloqueado(it) }
 
         if (!conferir(senhaAtual, usuario.senhaHash)) {
-            registrarFalha()
-            return ResultadoAlteracaoSenha.SenhaAtualIncorreta
+            return registrarFalha(chave)?.let { ResultadoAlteracaoSenha.Bloqueado(it) }
+                ?: ResultadoAlteracaoSenha.SenhaAtualIncorreta
         }
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         if (novaSenha == senhaAtual) return ResultadoAlteracaoSenha.NovaIgualAAtual
         if (!RegrasDeConta.senhaValida(novaSenha, usuario.email, usuario.nome)) {
@@ -193,20 +238,26 @@ class ContaService(
 
     /**
      * Exclusão de dados (LGPD art. 18, VI): remove a conta, propriedades e
-     * lançamentos e encerra a sessão. Exige reautenticação por senha.
+     * lançamentos, o estado local da conta ([aoExcluirConta]) e encerra a sessão.
+     * Exige reautenticação por senha.
      */
     suspend fun excluirConta(senha: String): ResultadoExclusao {
         val usuario = usuarioConectado() ?: return ResultadoExclusao.SemSessao
-        segundosDeBloqueio()?.let { return ResultadoExclusao.Bloqueado(it) }
+        val chave = chaveDeTentativas(usuario.email)
+        segundosDeBloqueio(chave)?.let { return ResultadoExclusao.Bloqueado(it) }
 
         if (!conferir(senha, usuario.senhaHash)) {
-            registrarFalha()
-            return ResultadoExclusao.SenhaIncorreta
+            return registrarFalha(chave)?.let { ResultadoExclusao.Bloqueado(it) } ?: ResultadoExclusao.SenhaIncorreta
         }
-        tentativas.gravar(EstadoTentativas())
+        tentativas.gravar(chave, EstadoTentativas())
 
         usuarios.excluir(usuario.id)
-        sair()
+        try {
+            aoExcluirConta(usuario.id)
+        } finally {
+            // A conta já não existe: a sessão não pode continuar apontando para ela.
+            sair()
+        }
         return ResultadoExclusao.Sucesso
     }
 
@@ -221,20 +272,31 @@ class ContaService(
     // ---------- bloqueio contra tentativa e erro ----------
 
     /**
-     * Contador único para login, troca de senha e exclusão de conta, para que
-     * nenhum fluxo sirva de atalho para força bruta.
+     * Um contador por e-mail ([chaveDeTentativas]), o mesmo para login, troca de senha e
+     * exclusão da conta, para que nenhum fluxo sirva de atalho para força bruta. Só o
+     * acerto da senha desse e-mail zera o contador: entrar em outra conta (o cadastro é
+     * livre) não devolve tentativas no e-mail atacado.
+     *
+     * Não há contador global: com ele, quem pega o celular bloquearia todas as contas
+     * errando em e-mails inventados, e o ganho seria só contra tentar a mesma senha nas
+     * poucas contas do aparelho, cada uma já com o próprio limite.
      *
      * A partir de [MAXIMO_TENTATIVAS] falhas seguidas bloqueia por [BLOQUEIO_MS],
      * dobrando a cada falha adicional até [BLOQUEIO_MAXIMO_MS]. Estado persistido.
+     *
+     * @return segundos do bloqueio iniciado por esta falha, ou null se ainda não bloqueou;
+     *   assim a resposta à falha que bloqueia já avisa a espera.
      */
-    private fun registrarFalha() {
-        val falhas = tentativas.ler().falhasSeguidas + 1
+    private fun registrarFalha(chave: String): Long? {
+        val falhas = tentativas.ler(chave).falhasSeguidas + 1
         if (falhas < MAXIMO_TENTATIVAS) {
-            tentativas.gravar(EstadoTentativas(falhasSeguidas = falhas))
-            return
+            tentativas.gravar(chave, EstadoTentativas(falhasSeguidas = falhas))
+            return null
         }
         val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
-        bloquear(falhas, duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS))
+        val duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
+        bloquear(chave, falhas, duracao)
+        return duracao / 1000
     }
 
     /**
@@ -242,8 +304,9 @@ class ContaService(
      * aparelho não reinicia (alterar data/hora não tem efeito); o de parede é a
      * reserva depois de um reinício.
      */
-    private fun bloquear(falhas: Int, duracao: Long) {
+    private fun bloquear(chave: String, falhas: Int, duracao: Long) {
         tentativas.gravar(
+            chave,
             EstadoTentativas(
                 falhasSeguidas = falhas,
                 bloqueadoAte = relogio() + duracao,
@@ -253,8 +316,8 @@ class ContaService(
     }
 
     /** Segundos restantes de bloqueio (arredondados para cima), ou null se liberado. */
-    private fun segundosDeBloqueio(): Long? {
-        val estado = tentativas.ler()
+    private fun segundosDeBloqueio(chave: String): Long? {
+        val estado = tentativas.ler(chave)
         val fimMonotonico = estado.fimMonotonico
         val agoraMonotonico = relogioMonotonico()
         val restante = if (fimMonotonico != null && agoraMonotonico?.boot == fimMonotonico.boot) {
@@ -267,11 +330,17 @@ class ContaService(
         // Mais que o máximo só acontece se o relógio de parede mudou depois da
         // gravação: reancora no máximo para a espera não durar meses ou anos.
         if (restante > BLOQUEIO_MAXIMO_MS) {
-            bloquear(estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
+            bloquear(chave, estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
             return BLOQUEIO_MAXIMO_MS / 1000
         }
         return (restante + 999) / 1000
     }
+
+    /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */
+    private fun chaveDeTentativas(email: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(RegrasDeConta.normalizarEmail(email).toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
 
     // ---------- apoio ----------
 
@@ -284,6 +353,7 @@ class ContaService(
     }
 
     private fun conectar(usuarioId: String) {
+        _sessaoDeContaNova.value = false
         aoTrocarDeUsuario()
         sessao.iniciar(usuarioId)
     }
@@ -296,7 +366,8 @@ class ContaService(
     private suspend fun conferir(senha: String, armazenado: String?): Boolean =
         withContext(dispatcherCalculo) { hash.confere(senha, armazenado ?: hashFicticio) && armazenado != null }
 
-    private val hashFicticio: String by lazy { hash.gerar(UUID.randomUUID().toString()) }
+    // Montado sem PBKDF2: a primeira tentativa com e-mail inexistente custa o mesmo que as demais.
+    private val hashFicticio: String = hash.ficticio()
 
     companion object {
         const val MAXIMO_TENTATIVAS = 5

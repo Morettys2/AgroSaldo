@@ -21,15 +21,16 @@ class HashDeSenha(
 ) {
 
     fun gerar(senha: String): String {
-        val sal = ByteArray(TAMANHO_SAL).also { aleatorio.nextBytes(it) }
-        val hash = derivar(senha, sal, iteracoes)
-        return listOf(
-            ALGORITMO,
-            iteracoes.toString(),
-            CODIFICADOR.encodeToString(sal),
-            CODIFICADOR.encodeToString(hash)
-        ).joinToString(SEPARADOR)
+        val sal = bytesAleatorios(TAMANHO_SAL)
+        return formatar(sal, derivar(senha, sal, iteracoes))
     }
+
+    /**
+     * Registro bem-formado, com as iterações atuais e sal e hash aleatórios, sem rodar o
+     * PBKDF2. [confere] contra ele custa o mesmo que contra um hash real e, na prática,
+     * nunca dá true (a chance de uma senha derivar o hash sorteado é de 2^-256).
+     */
+    fun ficticio(): String = formatar(bytesAleatorios(TAMANHO_SAL), bytesAleatorios(TAMANHO_HASH_BITS / 8))
 
     /**
      * true se [armazenado] usa menos iterações que o configurado. O rehash só
@@ -68,6 +69,16 @@ class HashDeSenha(
             especificacao.clearPassword()
         }
     }
+
+    private fun formatar(sal: ByteArray, hash: ByteArray): String =
+        listOf(
+            ALGORITMO,
+            iteracoes.toString(),
+            CODIFICADOR.encodeToString(sal),
+            CODIFICADOR.encodeToString(hash)
+        ).joinToString(SEPARADOR)
+
+    private fun bytesAleatorios(tamanho: Int): ByteArray = ByteArray(tamanho).also { aleatorio.nextBytes(it) }
 
     private fun decodificar(texto: String): ByteArray? = try {
         DECODIFICADOR.decode(texto)
