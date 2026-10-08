@@ -56,6 +56,33 @@ Sem Android SDK no ambiente em que as correções foram feitas, o código de Act
 foi revisado manualmente, mas não compilado. Antes de publicar, rode `./gradlew assembleDebug test
 connectedAndroidTest lint`.
 
+### Roteiro de teste manual (aparelho ou emulador)
+
+1. **Bloqueio por digital (M2, M4):**
+   - Ligue o bloqueio em Conta.
+   - Abra o diálogo "Excluir esta propriedade?" e mande o app para o fundo por mais de 2 min.
+   - Ao voltar, só a tela de bloqueio aparece: o diálogo não pode estar visível nem clicável.
+   - Depois de desbloquear, o diálogo volta.
+   - Em Recentes, a miniatura do app deve aparecer em branco.
+2. **Rotação com o app bloqueado (risco R1):**
+   - Com um formulário de lançamento aberto e o app bloqueado, gire a tela duas vezes.
+   - Desbloqueie: o formulário precisa continuar aberto, com o que foi digitado.
+   - Se voltar para o Início, o Navigation 2.10.2 não regrava a back stack pendente. Nesse caso, defina o grafo
+     fora do `NavHost`: `createGraph` + `NavHost(navController, grafo)`.
+3. **Notificação de chuva (M7, M3, risco R3):**
+   - Use as ferramentas de teste do aviso (build debug) e toque na notificação.
+   - O Clima precisa abrir na propriedade do aviso.
+   - Repita com o app bloqueado: o Clima abre depois de desbloquear. Se a tela girar antes, o pedido se perde
+     (R3, aceito).
+4. **Novo aceite (M3):** a versão do termo subiu para 3, então ao abrir o app com uma conta existente a tela de
+   novo aceite aparece primeiro.
+5. **Permissão de notificação (M9):**
+   - Android 13+: no primeiro pedido, feche o diálogo tocando fora. Os ajustes **não** devem abrir.
+   - Negue duas vezes: o terceiro toque abre os ajustes do app.
+6. **Backup (M5):** confira se o `lint` não acusa `FullBackupContent`. Se acusar o `exclude` dentro do `include`
+   com `path="."`, liste os arquivos de preferências um a um.
+7. **Migração:** rode `connectedAndroidTest` (inclui `MigracaoTest` e os testes novos do `AgroSaldoDatabaseTest`).
+
 
 ---
 
