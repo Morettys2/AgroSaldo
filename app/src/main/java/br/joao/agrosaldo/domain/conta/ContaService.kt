@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.domain.conta
 
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.domain.model.Usuario
 import br.joao.agrosaldo.domain.repository.EstadoTentativas
@@ -54,6 +55,8 @@ sealed interface ResultadoAlteracaoSenha {
  * tentativas; os ViewModels só consomem os resultados selados.
  *
  * @param relogio fonte de tempo em epoch ms (injetável em testes).
+ * @param relogioMonotonico tempo imune a mudanças de data/hora, usado no bloqueio
+ *   por tentativas; null quando indisponível (cai para [relogio]).
  * @param dispatcherCalculo dispatcher do PBKDF2; nunca a main thread.
  * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
  *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
@@ -64,6 +67,7 @@ class ContaService(
     private val tentativas: TentativasRepository,
     private val hash: HashDeSenha = HashDeSenha(),
     private val relogio: () -> Long = System::currentTimeMillis,
+    private val relogioMonotonico: () -> InstanteMonotonico? = { null },
     private val dispatcherCalculo: CoroutineDispatcher = Dispatchers.Default,
     private val aoTrocarDeUsuario: () -> Unit = {}
 ) {
@@ -225,22 +229,48 @@ class ContaService(
      */
     private fun registrarFalha() {
         val falhas = tentativas.ler().falhasSeguidas + 1
-        val bloqueadoAte = if (falhas >= MAXIMO_TENTATIVAS) {
-            val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
-            relogio() + (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
-        } else {
-            0L
+        if (falhas < MAXIMO_TENTATIVAS) {
+            tentativas.gravar(EstadoTentativas(falhasSeguidas = falhas))
+            return
         }
-        tentativas.gravar(EstadoTentativas(falhasSeguidas = falhas, bloqueadoAte = bloqueadoAte))
+        val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
+        bloquear(falhas, duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS))
+    }
+
+    /**
+     * Grava o fim do bloqueio nos dois relógios: o monotônico decide enquanto o
+     * aparelho não reinicia (alterar data/hora não tem efeito); o de parede é a
+     * reserva depois de um reinício.
+     */
+    private fun bloquear(falhas: Int, duracao: Long) {
+        tentativas.gravar(
+            EstadoTentativas(
+                falhasSeguidas = falhas,
+                bloqueadoAte = relogio() + duracao,
+                fimMonotonico = relogioMonotonico()?.mais(duracao)
+            )
+        )
     }
 
     /** Segundos restantes de bloqueio (arredondados para cima), ou null se liberado. */
     private fun segundosDeBloqueio(): Long? {
-        val restante = tentativas.ler().bloqueadoAte - relogio()
+        val estado = tentativas.ler()
+        val fimMonotonico = estado.fimMonotonico
+        val agoraMonotonico = relogioMonotonico()
+        val restante = if (fimMonotonico != null && agoraMonotonico?.boot == fimMonotonico.boot) {
+            fimMonotonico.desdeOBootMs - agoraMonotonico.desdeOBootMs
+        } else {
+            estado.bloqueadoAte - relogio()
+        }
         if (restante <= 0L) return null
-        // Limita ao máximo caso o relógio do aparelho tenha sido atrasado.
-        val limitado = restante.coerceAtMost(BLOQUEIO_MAXIMO_MS)
-        return (limitado + 999) / 1000
+
+        // Mais que o máximo só acontece se o relógio de parede mudou depois da
+        // gravação: reancora no máximo para a espera não durar meses ou anos.
+        if (restante > BLOQUEIO_MAXIMO_MS) {
+            bloquear(estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
+            return BLOQUEIO_MAXIMO_MS / 1000
+        }
+        return (restante + 999) / 1000
     }
 
     // ---------- apoio ----------

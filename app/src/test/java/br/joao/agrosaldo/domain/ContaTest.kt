@@ -10,6 +10,7 @@ import br.joao.agrosaldo.domain.conta.ResultadoAlteracaoSenha
 import br.joao.agrosaldo.domain.conta.ResultadoCadastro
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -49,6 +50,20 @@ class ContaTest {
         relogio = { agora },
         dispatcherCalculo = Dispatchers.Unconfined,
         aoTrocarDeUsuario = { trocasDeUsuario++ }
+    )
+
+    private var boot = 1
+    private var desdeOBoot = 0L
+
+    /** Como o app real: bloqueio medido no relógio monotônico, com [agora] só como reserva após reinício. */
+    private fun contaComRelogioMonotonico() = ContaService(
+        usuarios = usuarios,
+        sessao = sessao,
+        tentativas = tentativas,
+        hash = hashRapido,
+        relogio = { agora },
+        relogioMonotonico = { InstanteMonotonico(boot, desdeOBoot) },
+        dispatcherCalculo = Dispatchers.Unconfined
     )
 
     private suspend fun cadastrarFabio(): ResultadoCadastro =
@@ -244,6 +259,63 @@ class ContaTest {
 
         val r = conta.entrar("fabio@exemplo.com", "milho2026") as ResultadoLogin.Bloqueado
         assertEquals(ContaService.BLOQUEIO_MAXIMO_MS / 1000, r.segundosRestantes)
+    }
+
+    @Test
+    fun `relogio adiantado ao errar nao trava a conta alem do maximo`() = runTest {
+        cadastrarFabio()
+        conta.sair()
+        val dezAnos = 10L * 365 * 24 * 60 * 60 * 1000
+
+        agora += dezAnos
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        agora -= dezAnos
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        agora += ContaService.BLOQUEIO_MAXIMO_MS
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+    }
+
+    @Test
+    fun `adiantar o relogio do celular nao encerra o bloqueio`() = runTest {
+        val conta = contaComRelogioMonotonico()
+        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.sair()
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+
+        agora += 24 * 60 * 60 * 1000L
+
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("fabio@exemplo.com", "milho2026"))
+    }
+
+    @Test
+    fun `bloqueio termina no tempo certo mesmo com o relogio do celular atrasado`() = runTest {
+        val conta = contaComRelogioMonotonico()
+        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.sair()
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+
+        agora -= 24 * 60 * 60 * 1000L
+        desdeOBoot += 30_000
+
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+    }
+
+    @Test
+    fun `depois de reiniciar o celular o bloqueio segue pelo relogio do sistema`() = runTest {
+        val conta = contaComRelogioMonotonico()
+        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.sair()
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+
+        // Reinício: o contador monotônico recomeça e o identificador do boot muda.
+        boot += 1
+        desdeOBoot = 0L
+        agora += 10_000
+
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 20), conta.entrar("fabio@exemplo.com", "milho2026"))
+        agora += 20_000
+        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test

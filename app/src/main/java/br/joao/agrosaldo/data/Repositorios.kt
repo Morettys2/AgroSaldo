@@ -3,6 +3,7 @@ package br.joao.agrosaldo.data
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
 import androidx.room.withTransaction
@@ -21,6 +22,7 @@ import br.joao.agrosaldo.data.sessao.SessaoPreferencias
 import br.joao.agrosaldo.data.sessao.TentativasPreferencias
 import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.conta.ContaService
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
@@ -81,6 +83,16 @@ object Repositorios {
     /** elapsedRealtime em ms: imune a mudanças no relógio do sistema. */
     val relogioMonotonico: () -> Long = { SystemClock.elapsedRealtime() }
 
+    /** Contagem de boots do aparelho; constante durante a vida do processo. null se o sistema não informa. */
+    private val bootAtual: Int? by lazy {
+        Settings.Global.getInt(contextoAberto.contentResolver, Settings.Global.BOOT_COUNT, -1).takeIf { it >= 0 }
+    }
+
+    /** [relogioMonotonico] com o boot atual, para comparar instantes gravados em disco. */
+    private val instanteMonotonico: () -> InstanteMonotonico? = {
+        bootAtual?.let { InstanteMonotonico(it, SystemClock.elapsedRealtime()) }
+    }
+
     val usuarios: UsuarioRepository by lazy {
         UsuarioRepositoryRoom(bancoAberto.usuarioDao())
     }
@@ -90,6 +102,7 @@ object Repositorios {
             usuarios = usuarios,
             sessao = sessao,
             tentativas = TentativasPreferencias(contextoAberto),
+            relogioMonotonico = instanteMonotonico,
             // Limpa estado da conta anterior: seleção, desfazer pendente e
             // notificações (contêm nomes de propriedades).
             aoTrocarDeUsuario = {
