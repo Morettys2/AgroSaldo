@@ -266,6 +266,9 @@ fun AppNavegacao(
         else -> null
     }
 
+    // Toque duplo não empilha a mesma tela: com launchSingleTop, a segunda navegação reaproveita o topo.
+    val abrir: (String) -> Unit = { rota -> navController.navigate(rota) { launchSingleTop = true } }
+
     // Ignora se o formulário já está no topo, evitando empilhar dois com toques rápidos.
     val abrirFormulario: (String) -> Unit = { rota ->
         if (navController.currentDestination?.route != Rotas.FORM_LANCAMENTO) navController.navigate(rota)
@@ -359,7 +362,7 @@ fun AppNavegacao(
                             // Fluxo não autenticado
 
                             composable(Rotas.LOGIN) {
-                                LoginRoute(aoCriarConta = { navController.navigate(Rotas.CRIAR_CONTA) })
+                                LoginRoute(aoCriarConta = { abrir(Rotas.CRIAR_CONTA) })
                             }
 
                             composable(Rotas.CRIAR_CONTA) {
@@ -368,7 +371,7 @@ fun AppNavegacao(
                                     viewModel(factory = CadastroViewModel.Factory)
                                 CadastroRoute(
                                     viewModel = cadastroViewModel,
-                                    aoIrParaConsentimento = { navController.navigate(Rotas.CONSENTIMENTO) },
+                                    aoIrParaConsentimento = { abrir(Rotas.CONSENTIMENTO) },
                                     aoVoltarParaLogin = { navController.popBackStack() }
                                 )
                             }
@@ -384,7 +387,7 @@ fun AppNavegacao(
                                 }
                                 ConsentimentoRoute(
                                     viewModel = cadastroViewModel,
-                                    aoLerPolitica = { navController.navigate(Rotas.POLITICA) },
+                                    aoLerPolitica = { abrir(Rotas.POLITICA) },
                                     // Recusa não persiste nada.
                                     aoRecusar = { navController.popBackStack(Rotas.LOGIN, inclusive = false) }
                                 )
@@ -396,16 +399,16 @@ fun AppNavegacao(
 
                             composable(Rotas.NOVO_CONSENTIMENTO) {
                                 // A navegação após aceitar/recusar vem do LaunchedEffect de sessão.
-                                NovoConsentimentoRoute(aoLerPolitica = { navController.navigate(Rotas.POLITICA) })
+                                NovoConsentimentoRoute(aoLerPolitica = { abrir(Rotas.POLITICA) })
                             }
 
                             // Área autenticada
 
                             composable(Rotas.CONTA) {
                                 ContaRoute(
-                                    aoAbrirPrivacidade = { navController.navigate(Rotas.POLITICA) },
-                                    aoAlterarSenha = { navController.navigate(Rotas.ALTERAR_SENHA) },
-                                    aoAbrirAvisoChuva = { navController.navigate(Rotas.AJUSTES_AVISO) },
+                                    aoAbrirPrivacidade = { abrir(Rotas.POLITICA) },
+                                    aoAlterarSenha = { abrir(Rotas.ALTERAR_SENHA) },
+                                    aoAbrirAvisoChuva = { abrir(Rotas.AJUSTES_AVISO) },
                                     aoAbrirPropriedades = { navegarParaAba(navController, Rotas.PROPRIEDADES) }
                                 )
                             }
@@ -426,11 +429,11 @@ fun AppNavegacao(
                                     aoNovoLancamento = { tipo -> abrirFormulario(Rotas.formLancamento(tipo = tipo)) },
                                     aoEditarLancamento = { id -> abrirFormulario(Rotas.formLancamento(id)) },
                                     aoAbrirClima = { navegarParaAba(navController, Rotas.CLIMA) },
-                                    aoAbrirHistorico = { navController.navigate(Rotas.HISTORICO) },
+                                    aoAbrirHistorico = { abrir(Rotas.HISTORICO) },
                                     aoAbrirLancamentos = { navegarParaAba(navController, Rotas.LANCAMENTOS) },
-                                    aoAbrirConta = { navController.navigate(Rotas.CONTA) },
+                                    aoAbrirConta = { abrir(Rotas.CONTA) },
                                     aoAlternarValores = privacidadeViewModel::aoAlternar,
-                                    aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
+                                    aoCadastrarPropriedade = { abrir(Rotas.formPropriedade()) }
                                 )
                             }
 
@@ -447,8 +450,8 @@ fun AppNavegacao(
 
                             composable(Rotas.CLIMA) {
                                 ClimaRoute(
-                                    aoAbrirAjustes = { navController.navigate(Rotas.AJUSTES_AVISO) },
-                                    aoCadastrarPropriedade = { navController.navigate(Rotas.formPropriedade()) }
+                                    aoAbrirAjustes = { abrir(Rotas.AJUSTES_AVISO) },
+                                    aoCadastrarPropriedade = { abrir(Rotas.formPropriedade()) }
                                 )
                             }
 
@@ -464,9 +467,9 @@ fun AppNavegacao(
 
                             composable(Rotas.PROPRIEDADES) {
                                 PropriedadeListaRoute(
-                                    aoAbrirNova = { navController.navigate(Rotas.formPropriedade()) },
-                                    aoAbrirPropriedade = { id -> navController.navigate(Rotas.formPropriedade(id)) },
-                                    aoAbrirConta = { navController.navigate(Rotas.CONTA) }
+                                    aoAbrirNova = { abrir(Rotas.formPropriedade()) },
+                                    aoAbrirPropriedade = { id -> abrir(Rotas.formPropriedade(id)) },
+                                    aoAbrirConta = { abrir(Rotas.CONTA) }
                                 )
                             }
 
@@ -504,6 +507,7 @@ fun AppNavegacao(
                                     aoCadastrarPropriedade = {
                                         navController.navigate(Rotas.formPropriedade()) {
                                             popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
+                                            launchSingleTop = true
                                         }
                                     },
                                     // Substitui a edição pela cópia, para "voltar" não retornar à edição.
