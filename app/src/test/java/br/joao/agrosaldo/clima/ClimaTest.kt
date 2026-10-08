@@ -30,6 +30,7 @@ import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -50,6 +51,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
+import java.util.concurrent.Executors
 
 /**
  * Clima e aviso de chuva (RF12, RF13, RF14, RN04).
@@ -291,8 +293,14 @@ class ClimaTest {
         val tabela = MutableStateFlow<Map<String, PrevisaoEntity>>(emptyMap())
         val propriedades = mutableSetOf("p1")
         var erroAoSalvar: RuntimeException? = null
-        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> = tabela.map { it[propriedadeId] }
-        override suspend fun buscar(propriedadeId: String) = tabela.value[propriedadeId]
+        /** Thread da última leitura; a conversão do JSON roda logo depois, na mesma. */
+        @Volatile var threadDaLeitura: String? = null
+        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> =
+            tabela.map { threadDaLeitura = Thread.currentThread().name; it[propriedadeId] }
+        override suspend fun buscar(propriedadeId: String): PrevisaoEntity? {
+            threadDaLeitura = Thread.currentThread().name
+            return tabela.value[propriedadeId]
+        }
         override suspend fun salvar(previsao: PrevisaoEntity) {
             erroAoSalvar?.let { throw it }
             if (previsao.propriedadeId !in propriedades) throw IllegalStateException("FOREIGN KEY constraint failed")
@@ -388,6 +396,24 @@ class ClimaTest {
         agoraMs += Duration.ofMinutes(31).toMillis()
         assertTrue(repositorio.atualizarSeNecessario(fazenda) is ResultadoAtualizacao.Sucesso)
         assertEquals(2, chamadas)
+    }
+
+    @Test
+    fun `JSON guardado e convertido fora da thread de quem observa`() = runTest {
+        val processamento = Executors.newSingleThreadExecutor { Thread(it, "processamento") }.asCoroutineDispatcher()
+        try {
+            val repo = ClimaRepositoryRoom(fonte, dao, processamento) { agoraMs }
+            repo.atualizar(fazenda)
+
+            assertNotNull(repo.observar(fazenda).first())
+            assertEquals("processamento", dao.threadDaLeitura)
+
+            dao.threadDaLeitura = null
+            assertNotNull(repo.emCache(fazenda))
+            assertEquals("processamento", dao.threadDaLeitura)
+        } finally {
+            processamento.close()
+        }
     }
 
     @Test
