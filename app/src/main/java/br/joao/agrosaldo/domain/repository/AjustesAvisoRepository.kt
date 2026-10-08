@@ -8,16 +8,15 @@ data class AjustesAviso(
     val ativo: Boolean = true,
     val limites: LimitesChuva = LimitesChuva(),
     /**
-     * Sítios que o produtor desligou do aviso. Guarda os desligados, e não os
-     * ligados, de propósito: uma propriedade nova já nasce avisando, sem
-     * ninguém precisar lembrar de marcar.
+     * Ids das propriedades com aviso desativado. Lista de exclusão (e não de
+     * inclusão) para que propriedades novas já nasçam monitoradas.
      */
     val propriedadesSemAviso: Set<String> = emptySet()
 ) {
     fun avisaSobre(propriedadeId: String): Boolean = propriedadeId !in propriedadesSemAviso
 }
 
-/** Ajustes do aviso de chuva (tela 18) e a hora do último aviso de cada propriedade. */
+/** Ajustes do aviso de chuva e instante do último aviso emitido por propriedade. */
 interface AjustesAvisoRepository {
     val ajustes: StateFlow<AjustesAviso>
     fun salvar(ajustes: AjustesAviso)
@@ -25,15 +24,10 @@ interface AjustesAvisoRepository {
     fun registrarAviso(propriedadeId: String, em: Instant)
 }
 
-/**
- * Liga e desliga a verificação em segundo plano.
- *
- * É uma interface para o ViewModel de ajustes não depender do WorkManager
- * (que precisa de Context). No teste, entra uma versão falsa que só anota.
- */
+/** Agendamento da verificação periódica; abstrai o WorkManager (que exige Context). */
 interface AgendaDeVerificacao {
     fun ligar()
     fun desligar()
-    /** Roda uma verificação já, fora do horário. Usado na ferramenta de teste. */
+    /** Enfileira uma verificação imediata, fora do agendamento periódico. */
     fun verificarAgora()
 }

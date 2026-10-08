@@ -6,32 +6,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
-/** Uma exclusão que ainda pode voltar atrás. */
+/** Exclusão que ainda pode ser desfeita. */
 class ExclusaoRecente(
-    /** "Lançamento excluído" — o texto da barra que aparece embaixo. */
+    /** Texto exibido no snackbar. */
     val mensagem: String,
-    /** Grava de volta o que foi apagado. */
+    /** Reinsere os dados removidos. */
     val restaurar: suspend () -> Unit,
-    /** Quando foi apagado, no relógio do [Desfazer]. */
+    /** Instante da exclusão, na base de tempo do [Desfazer]. */
     val criadaEm: Long
 ) {
-    /** Já foi desfeita (ou está sendo). Impede restaurar duas vezes. */
+    /** Marca restauração iniciada; impede execução dupla. */
     internal var usada = false
 }
 
 /**
- * "Excluiu sem querer? Desfazer."
+ * Desfazer de exclusões, compartilhado entre telas.
  *
- * Em vez de perguntar "tem certeza?" antes de cada exclusão, o app apaga na
- * hora e oferece desfazer por alguns segundos. É o padrão do Gmail e do
- * próprio Android: menos um toque no caminho certo, e o erro tem conserto.
- *
- * Quem apaga (o ViewModel do formulário) chama [oferecer] com o jeito de
- * restaurar. Quem mostra a barra (a AppNavegacao) observa [pendente], porque
- * a tela do formulário já fechou quando a barra aparece.
- *
- * Só a exclusão mais recente pode ser desfeita: uma nova substitui a anterior,
- * que fica apagada de vez.
+ * O ViewModel que exclui chama [oferecer]; a AppNavegacao observa [pendente]
+ * e exibe o snackbar, pois a tela de origem já pode ter sido fechada.
+ * Só a exclusão mais recente é desfazível; uma nova oferta descarta a anterior.
  */
 class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
 
@@ -42,21 +35,17 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
         _pendente.value = ExclusaoRecente(mensagem, restaurar, criadaEm = relogio())
     }
 
-    /**
-     * Passou do tempo da barra. Acontece quando o app foi fechado com a barra
-     * na tela: ao reabrir, a oferta de horas atrás não deve reaparecer.
-     */
+    /** true se a oferta passou de [VALIDADE_MS] (ex.: app foi para segundo plano com o snackbar aberto). */
     fun expirou(exclusao: ExclusaoRecente): Boolean = relogio() - exclusao.criadaEm > VALIDADE_MS
 
     /**
-     * Restaura e só depois tira a oferta da tela.
+     * Restaura [exclusao] e só então limpa [pendente].
      *
-     * - NonCancellable: girar o celular no meio recria a tela que chamou;
-     *   sem isto, uma propriedade voltaria só com parte dos lançamentos.
-     * - Confere se [exclusao] ainda é a pendente e se já não foi usada: dois
-     *   toques rápidos em "Desfazer" não restauram duas vezes.
+     * Roda em NonCancellable para não interromper a restauração se o escopo do
+     * chamador for cancelado (ex.: mudança de configuração). Ignora ofertas que
+     * não são a pendente ou que já foram usadas (toque duplo).
      *
-     * @return false se não deu para restaurar (a tela avisa a pessoa).
+     * @return false se a oferta não é válida ou a restauração falhou.
      */
     suspend fun desfazer(exclusao: ExclusaoRecente): Boolean {
         if (_pendente.value !== exclusao || exclusao.usada) return false
@@ -71,18 +60,18 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
         }
     }
 
-    /** Trocou de conta: o que foi apagado era da conta anterior e não volta mais. */
+    /** Descarta a oferta pendente (troca de conta). */
     fun esquecer() {
         _pendente.value = null
     }
 
-    /** A barra sumiu sem o toque em "Desfazer": a exclusão fica valendo. */
+    /** Snackbar fechado sem desfazer: a exclusão se torna definitiva. */
     fun dispensar(exclusao: ExclusaoRecente) {
         if (_pendente.value === exclusao) _pendente.value = null
     }
 
     companion object {
-        /** Um pouco mais que a barra longa do Material (10 s). */
+        /** Margem sobre a duração do snackbar longo do Material (10 s). */
         const val VALIDADE_MS = 15_000L
     }
 }

@@ -49,18 +49,14 @@ sealed interface ResultadoAlteracaoSenha {
 }
 
 /**
- * Tudo o que envolve conta: criar, entrar, sair, trocar a senha e excluir
- * (RF01, RF02, RNF10, RF16).
+ * Casos de uso de conta local: cadastro, login, logout, troca de senha e
+ * exclusão (RF01, RF02, RNF10, RF16). Encapsula hash, sessão e bloqueio por
+ * tentativas; os ViewModels só consomem os resultados selados.
  *
- * É uma classe de domínio, sem Android — o equivalente a um AuthService do
- * NestJS. Os ViewModels só chamam estes métodos; nenhum deles sabe o que é
- * hash, sal, sessão ou bloqueio.
- *
- * Os parâmetros com valor padrão existem para os testes:
- * - [relogio] fixa o horário (para testar o bloqueio sem esperar);
- * - [dispatcherCalculo] troca a thread do PBKDF2 por uma de teste;
- * - [aoTrocarDeUsuario] é avisado quando a pessoa conectada muda, para o app
- *   esquecer a propriedade que estava selecionada.
+ * @param relogio fonte de tempo em epoch ms (injetável em testes).
+ * @param dispatcherCalculo dispatcher do PBKDF2; nunca a main thread.
+ * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
+ *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
  */
 class ContaService(
     private val usuarios: UsuarioRepository,
@@ -76,23 +72,20 @@ class ContaService(
 
     fun estaLogado(): Boolean = sessao.usuarioId.value != null
 
-    /** Emite o usuário conectado, e emite de novo se ele mudar ou sair. */
+    /** Usuário da sessão atual; reemite em login, logout e alterações do registro. */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observarUsuarioLogado(): Flow<Usuario?> =
         sessao.usuarioId.flatMapLatest { id ->
             if (id == null) flowOf(null) else usuarios.observar(id)
         }
 
-    /**
-     * true quando a pessoa conectada aceitou uma versão antiga do termo de
-     * privacidade. A navegação mostra o termo novo antes de qualquer tela.
-     */
+    /** true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL]. */
     fun precisaNovoAceite(): Flow<Boolean> =
         observarUsuarioLogado()
             .map { usuario -> usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL }
             .distinctUntilChanged()
 
-    /** O usuário conectado aceitou o termo atual. */
+    /** Registra o aceite da versão atual do termo. Retorna false sem sessão válida. */
     suspend fun registrarNovoAceite(): Boolean {
         val usuario = usuarioConectado() ?: return false
         usuarios.registrarConsentimento(usuario.id, Instant.ofEpochMilli(relogio()), TermoDePrivacidade.VERSAO_ATUAL)
@@ -110,9 +103,7 @@ class ContaService(
         senha: String,
         aceitouTermo: Boolean
     ): ResultadoCadastro {
-        // A tela já valida tudo isto. Validar de novo aqui é a rede de
-        // segurança: nenhuma tela nova, feita às pressas, consegue gravar
-        // uma conta sem senha forte ou sem o aceite da LGPD.
+        // Revalida mesmo que a UI já tenha validado: o serviço é a última barreira.
         if (!aceitouTermo) return ResultadoCadastro.TermoNaoAceito
         if (!RegrasDeConta.nomeValido(nome)) return ResultadoCadastro.DadosInvalidos("Nome inválido.")
         if (!RegrasDeConta.emailValido(email)) return ResultadoCadastro.DadosInvalidos("E-mail inválido.")
@@ -134,8 +125,7 @@ class ContaService(
             criadoEm = agora
         )
 
-        // O banco tem índice único no e-mail. Se dois toques rápidos
-        // chegarem aqui juntos, o segundo é recusado por ele.
+        // Índice único no e-mail cobre a corrida entre a checagem acima e o insert.
         if (!usuarios.criar(usuario)) return ResultadoCadastro.EmailJaCadastrado
 
         conectar(usuario.id)
@@ -149,9 +139,8 @@ class ContaService(
 
         val usuario = usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email))
 
-        // Mesmo sem conta para esse e-mail, o PBKDF2 roda contra um hash de
-        // mentira. Assim "e-mail não existe" e "senha errada" demoram o mesmo
-        // tempo, e ninguém descobre quais e-mails têm conta cronometrando.
+        // Sem conta, confere contra um hash fictício: tempo de resposta igual
+        // ao de senha errada, evitando enumeração de e-mails por timing.
         val senhaConfere = conferir(senha, usuario?.senhaHash)
 
         if (usuario == null || !senhaConfere) {
@@ -161,9 +150,7 @@ class ContaService(
 
         tentativas.gravar(EstadoTentativas())
 
-        // Conta criada quando o custo do hash era menor: aproveita que a senha
-        // está em mãos e grava um hash novo, com o custo de hoje. A pessoa
-        // não percebe nada — é assim que se sobe o custo sem pedir senha nova.
+        // Rehash transparente quando o hash gravado usa menos iterações que o padrão atual.
         if (hash.precisaAtualizar(usuario.senhaHash)) {
             usuarios.atualizarSenha(usuario.id, calcularHash(senha))
         }
@@ -201,9 +188,8 @@ class ContaService(
     // ---------- exclusão ----------
 
     /**
-     * Direito de exclusão da LGPD (art. 18, VI): apaga a conta, as
-     * propriedades e os lançamentos. Pede a senha de novo para que um
-     * celular emprestado não perca tudo com dois toques.
+     * Exclusão de dados (LGPD art. 18, VI): remove a conta, propriedades e
+     * lançamentos e encerra a sessão. Exige reautenticação por senha.
      */
     suspend fun excluirConta(senha: String): ResultadoExclusao {
         val usuario = usuarioConectado() ?: return ResultadoExclusao.SemSessao
@@ -221,9 +207,8 @@ class ContaService(
     }
 
     /**
-     * Chamado ao abrir o app. Se a sessão aponta para uma conta que não
-     * existe mais no banco (dados apagados pelas configurações do Android,
-     * por exemplo), encerra a sessão em vez de abrir o app vazio.
+     * Chamado na abertura do app: encerra a sessão se ela aponta para uma
+     * conta que não existe mais no banco.
      */
     suspend fun validarSessao() {
         usuarioConectado()
@@ -232,12 +217,11 @@ class ContaService(
     // ---------- bloqueio contra tentativa e erro ----------
 
     /**
-     * Toda conferência de senha passa pelo mesmo contador: login, troca de
-     * senha e exclusão. Senão bastaria chutar senhas pela tela de exclusão.
+     * Contador único para login, troca de senha e exclusão de conta, para que
+     * nenhum fluxo sirva de atalho para força bruta.
      *
-     * A espera cresce: 5 erros seguidos travam 30 s; cada erro depois disso
-     * dobra a espera (1 min, 2 min, 4 min...) até o máximo de 15 min. O
-     * contador é gravado, então fechar e abrir o app não zera nada.
+     * A partir de [MAXIMO_TENTATIVAS] falhas seguidas bloqueia por [BLOQUEIO_MS],
+     * dobrando a cada falha adicional até [BLOQUEIO_MAXIMO_MS]. Estado persistido.
      */
     private fun registrarFalha() {
         val falhas = tentativas.ler().falhasSeguidas + 1
@@ -250,19 +234,18 @@ class ContaService(
         tentativas.gravar(EstadoTentativas(falhasSeguidas = falhas, bloqueadoAte = bloqueadoAte))
     }
 
-    /** Segundos que ainda faltam de bloqueio, ou null se está liberado. */
+    /** Segundos restantes de bloqueio (arredondados para cima), ou null se liberado. */
     private fun segundosDeBloqueio(): Long? {
         val restante = tentativas.ler().bloqueadoAte - relogio()
         if (restante <= 0L) return null
-        // Se alguém atrasar o relógio do celular, a espera não vira meses:
-        // nunca passa do máximo.
+        // Limita ao máximo caso o relógio do aparelho tenha sido atrasado.
         val limitado = restante.coerceAtMost(BLOQUEIO_MAXIMO_MS)
         return (limitado + 999) / 1000
     }
 
     // ---------- apoio ----------
 
-    /** O usuário da sessão, ou null. Sessão apontando para conta apagada é encerrada. */
+    /** Usuário da sessão, ou null. Encerra a sessão se a conta não existir mais. */
     private suspend fun usuarioConectado(): Usuario? {
         val id = sessao.usuarioId.value ?: return null
         val usuario = usuarios.buscarPorId(id)
@@ -275,12 +258,11 @@ class ContaService(
         sessao.iniciar(usuarioId)
     }
 
-    // PBKDF2 é cálculo pesado de propósito. Fora da thread principal, a tela
-    // continua respondendo enquanto ele roda.
+    // PBKDF2 é CPU-bound (centenas de ms): sempre em [dispatcherCalculo].
     private suspend fun calcularHash(senha: String): String =
         withContext(dispatcherCalculo) { hash.gerar(senha) }
 
-    /** Com [armazenado] nulo, confere contra o hash de mentira (e sempre dá false). */
+    /** Com [armazenado] nulo, roda contra [hashFicticio] e retorna sempre false. */
     private suspend fun conferir(senha: String, armazenado: String?): Boolean =
         withContext(dispatcherCalculo) { hash.confere(senha, armazenado ?: hashFicticio) && armazenado != null }
 

@@ -16,20 +16,16 @@ import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 
 /**
- * O banco SQLite do app, gerenciado pelo Room.
+ * Banco Room local ([NOME_ARQUIVO], armazenamento privado do app); fonte da
+ * verdade offline (RNF01).
  *
- * Fica num arquivo "agrosaldo.db" dentro da pasta privada do app no celular.
- * Outros apps não enxergam, e ele funciona sem internet — é a fonte da
- * verdade dos dados (RNF01).
+ * Histórico de versões:
+ * - 1: propriedades e lançamentos.
+ * - 2: usuários; propriedades ganham dono (`usuario_id`).
+ * - 3: cache de previsão do tempo (`previsoes`).
  *
- * Versões:
- *   1 — propriedades e lançamentos (fase 3)
- *   2 — usuários, e cada propriedade passa a ter dono (login e LGPD)
- *   3 — cache da previsão do tempo (clima e aviso de chuva)
- *
- * Toda vez que uma tabela muda, [version] sobe e entra uma [Migration]
- * dizendo como converter o banco antigo SEM perder dado. O exportSchema gera
- * um JSON por versão em app/schemas — versione essa pasta no Git.
+ * Toda mudança de schema exige incrementar a versão e adicionar uma [Migration]
+ * sem perda de dados. Os schemas exportados ficam em app/schemas (versionados).
  */
 @Database(
     entities = [
@@ -51,7 +47,6 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
     companion object {
         const val NOME_ARQUIVO = "agrosaldo.db"
 
-        /** Quem já tinha o app da fase 3 no celular passa por aqui ao atualizar. */
         val MIGRACAO_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 MigracoesSql.DE_1_PARA_2.forEach { sql -> db.execSQL(sql) }
@@ -64,16 +59,15 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
             }
         }
 
-        /** Todas, em ordem. Quem está na versão 1 passa pelas duas. */
+        /** Todas as migrações, em ordem. */
         val MIGRACOES: Array<Migration> = arrayOf(MIGRACAO_1_2, MIGRACAO_2_3)
 
         /**
-         * Cria o banco. Deve ser chamado uma vez só no app inteiro — abrir o
-         * mesmo arquivo SQLite por duas instâncias causa conflito de escrita.
-         * Quem garante a instância única é o [br.joao.agrosaldo.data.Repositorios].
+         * Abre o banco. Deve existir uma única instância por processo
+         * (garantida por [br.joao.agrosaldo.data.Repositorios]).
          *
-         * [comDadosDeExemplo]: quando true, o banco nasce com as duas
-         * propriedades e os lançamentos de exemplo.
+         * @param comDadosDeExemplo semeia [br.joao.agrosaldo.data.DadosDeExemplo]
+         *   quando o arquivo é criado.
          */
         fun criar(context: Context, comDadosDeExemplo: Boolean): AgroSaldoDatabase =
             Room.databaseBuilder(
@@ -81,16 +75,11 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
                 AgroSaldoDatabase::class.java,
                 NOME_ARQUIVO
             )
-                // Sem fallbackToDestructiveMigration de propósito: se faltar
-                // uma migração, o app avisa com erro em vez de apagar os
-                // dados do produtor em silêncio.
+                // Sem fallbackToDestructiveMigration: migração ausente deve falhar,
+                // nunca apagar dados do usuário.
                 .addMigrations(*MIGRACOES)
                 .addCallback(object : Callback() {
-                    /**
-                     * Roda UMA vez: quando o arquivo do banco é criado.
-                     * Não roda de novo nas próximas aberturas — então, se o
-                     * usuário apagar tudo, os exemplos não voltam sozinhos.
-                     */
+                    /** Só na criação do arquivo; não roda em aberturas ou migrações. */
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         if (comDadosDeExemplo) {

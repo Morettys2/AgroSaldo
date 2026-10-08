@@ -1,16 +1,14 @@
 package br.joao.agrosaldo.domain.repository
 
-/** Quantas senhas erradas seguidas e até quando a entrada está travada (em milissegundos). */
+/** Falhas de senha consecutivas e fim do bloqueio (epoch ms; 0 = sem bloqueio). */
 data class EstadoTentativas(
     val falhasSeguidas: Int = 0,
     val bloqueadoAte: Long = 0L
 )
 
 /**
- * Onde fica guardado o contador de senhas erradas.
- *
- * Precisa ser gravado, e não só ficar em memória: se fechar o app zerasse
- * o contador, bastaria fechar e abrir para tentar de novo sem espera.
+ * Persistência do contador de tentativas. Deve sobreviver ao fechamento do
+ * app; caso contrário reiniciar o processo zeraria o bloqueio.
  */
 interface TentativasRepository {
     fun ler(): EstadoTentativas

@@ -1,19 +1,14 @@
 package br.joao.agrosaldo.data.local
 
 /**
- * "Tudo ou nada" no banco: ou todas as operações do bloco acontecem, ou
- * nenhuma. Excluir uma propriedade apaga ela e os lançamentos dela — se o
- * celular desligar no meio, não pode sobrar metade.
- *
- * É uma interface, e não o `withTransaction` do Room direto, para os
- * repositórios continuarem testáveis no computador: nos testes entra a
- * [DIRETA], que só executa o bloco.
+ * Executa o bloco atomicamente (tudo ou nada). Abstrai o `withTransaction` do Room
+ * para que os repositórios sejam testáveis na JVM com [DIRETA].
  */
 interface Transacao {
     suspend fun <R> executar(bloco: suspend () -> R): R
 
     companion object {
-        /** Sem banco de verdade (testes): só executa. */
+        /** Executa o bloco sem transação (somente testes). */
         val DIRETA: Transacao = object : Transacao {
             override suspend fun <R> executar(bloco: suspend () -> R): R = bloco()
         }

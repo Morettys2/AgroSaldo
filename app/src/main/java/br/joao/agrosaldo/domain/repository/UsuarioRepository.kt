@@ -4,32 +4,30 @@ import br.joao.agrosaldo.domain.model.Usuario
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
-/** Contrato de acesso às contas de usuário guardadas no aparelho. */
+/** Contas locais do aparelho. */
 interface UsuarioRepository {
 
     fun observar(id: String): Flow<Usuario?>
 
     suspend fun buscarPorId(id: String): Usuario?
 
-    /** O e-mail chega aqui já normalizado (minúsculo, sem espaços). */
+    /** [email] deve vir normalizado ([br.joao.agrosaldo.domain.conta.RegrasDeConta.normalizarEmail]). */
     suspend fun buscarPorEmail(email: String): Usuario?
 
     /**
-     * Grava a conta nova. Devolve false se o e-mail já estiver em uso.
+     * Insere a conta; retorna false se o e-mail já existir.
      *
-     * As propriedades que já existiam no aparelho sem dono — de antes do
-     * login existir, ou os dados de exemplo — passam a ser desta conta.
-     * Sem isso, quem atualizasse o app perderia de vista tudo o que já tinha
-     * cadastrado.
+     * Propriedades sem dono (criadas antes da existência de contas ou dados de
+     * exemplo) são atribuídas a esta conta.
      */
     suspend fun criar(usuario: Usuario): Boolean
 
-    /** Troca só o hash da senha (alteração de senha e atualização do custo do hash). */
+    /** Substitui apenas o hash (troca de senha ou rehash com custo maior). */
     suspend fun atualizarSenha(id: String, senhaHash: String)
 
-    /** Grava um novo aceite do termo (quando a política muda de versão). */
+    /** Registra o aceite de uma nova versão do termo. */
     suspend fun registrarConsentimento(id: String, em: Instant, versao: Int)
 
-    /** Apaga a conta e, em cascata, as propriedades e os lançamentos dela. */
+    /** Remove a conta e, em cascata, suas propriedades e lançamentos. */
     suspend fun excluir(id: String)
 }

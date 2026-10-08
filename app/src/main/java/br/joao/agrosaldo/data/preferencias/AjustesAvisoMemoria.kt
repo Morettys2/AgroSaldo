@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
 
-/** Fakes para os testes. */
+/** Fake em memória para testes. */
 class AjustesAvisoMemoria(inicial: AjustesAviso = AjustesAviso()) : AjustesAvisoRepository {
     private val _ajustes = MutableStateFlow(inicial)
     override val ajustes: StateFlow<AjustesAviso> = _ajustes.asStateFlow()
@@ -25,6 +25,7 @@ class AjustesAvisoMemoria(inicial: AjustesAviso = AjustesAviso()) : AjustesAviso
     }
 }
 
+/** Fake que só registra as chamadas recebidas. */
 class AgendaFalsa : AgendaDeVerificacao {
     var ligada: Boolean? = null
         private set

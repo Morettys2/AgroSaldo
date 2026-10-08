@@ -3,15 +3,12 @@ package br.joao.agrosaldo.domain.repository
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Quem está conectado agora.
- *
- * É um StateFlow porque várias partes do app reagem à mesma informação: a
- * navegação troca de tela quando ela muda, e os repositórios passam a
- * mostrar só os dados do novo usuário.
+ * Sessão local. A navegação e os repositórios observam [usuarioId] para
+ * reagir a login/logout e filtrar dados pelo dono.
  */
 interface SessaoRepository {
 
-    /** Id do usuário conectado, ou null se ninguém estiver. */
+    /** Id do usuário conectado, ou null sem sessão. */
     val usuarioId: StateFlow<String?>
 
     fun iniciar(usuarioId: String)

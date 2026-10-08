@@ -3,14 +3,10 @@ package br.joao.agrosaldo.domain.model
 import java.util.UUID
 
 /**
- * MODEL — a camada M do MVVM.
+ * Propriedade rural (sítio) do usuário.
  *
- * É uma classe de domínio pura: não conhece Android, Compose, banco nem rede.
- * Se amanhã o app virar desktop ou web, esta classe vem junto sem mudar nada.
- *
- * O id é UUID gerado no cliente, e não autoincremento de banco, porque a API
- * em NestJS entra depois: autoincremento colidiria entre o banco do celular e
- * o do servidor.
+ * O id é um UUID gerado no cliente para evitar colisão com ids de um
+ * backend futuro, o que um autoincremento local não garantiria.
  */
 data class Propriedade(
     val id: String = UUID.randomUUID().toString(),
@@ -29,10 +25,8 @@ data class Propriedade(
 }
 
 /**
- * O que sumiu ao excluir uma propriedade: ela e os lançamentos dela (RN02).
- *
- * Guardar tudo junto é o que permite o "Desfazer" trazer de volta
- * exatamente o que existia, com os mesmos ids.
+ * Snapshot de uma exclusão em cascata (RN02): a propriedade e seus lançamentos,
+ * com os ids originais, para permitir desfazer.
  */
 data class PropriedadeExcluida(
     val propriedade: Propriedade,

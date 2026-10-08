@@ -15,22 +15,22 @@ data class AvisoDeChuva(
     val propriedadeId: String,
     val nomePropriedade: String,
     val avaliacao: AvaliacaoChuva,
-    /** A hora da verificação no fuso da propriedade, para escrever "amanhã às 2h". */
+    /** Momento da verificação no fuso da propriedade; base para textos relativos ("amanhã às 2h"). */
     val verificadoEm: LocalDateTime? = null
 )
 
 data class ResultadoVerificacao(
     val avisos: List<AvisoDeChuva>,
-    /** true se alguma propriedade ficou sem previsão por falta de internet. */
+    /** true se alguma atualização falhou por falta de conexão. */
     val faltouConexao: Boolean
 )
 
 /**
- * O que roda em segundo plano, duas vezes por dia (RN04).
+ * Verificação periódica de chuva (RN04), executada a cada 12 h pelo Worker.
  *
- * Fica no domínio, sem Android: o Worker do WorkManager só chama
- * [verificar] e mostra as notificações que voltarem. Assim a decisão
- * inteira — buscar, avaliar, evitar aviso repetido — é testada sem celular.
+ * Sem dependência de Android: o Worker chama [verificar] e apenas exibe os
+ * avisos retornados. Atualiza a previsão, aplica [RegraDeChuva] e
+ * [ControleDeAvisos] e registra cada aviso emitido.
  */
 class VerificadorDeChuva(
     private val sessao: SessaoRepository,
@@ -41,16 +41,13 @@ class VerificadorDeChuva(
 ) {
 
     /**
-     * @param podeNotificar false quando o celular não deixa o app notificar
-     *   (permissão negada ou notificações desligadas). A previsão é
-     *   atualizada mesmo assim, mas nenhum aviso é registrado: se fosse, o
-     *   app "lembraria" de ter avisado e ficaria 11 h sem avisar de verdade
-     *   — mesmo que a pessoa liberasse a notificação logo depois.
+     * @param podeNotificar false se a permissão de notificação foi negada ou as
+     *   notificações estão desativadas. A previsão é atualizada, mas nenhum aviso
+     *   é registrado, para não bloquear o próximo aviso real por [ControleDeAvisos].
      */
     suspend fun verificar(podeNotificar: Boolean = true): ResultadoVerificacao {
         val ajustesAtuais = ajustes.ajustes.value
-        // Ninguém conectado: não há de quem mostrar dados. Uma notificação
-        // com o nome da propriedade de outra conta seria vazamento.
+        // Sem sessão ativa não há dono dos dados; notificar exporia propriedades de outra conta.
         if (!ajustesAtuais.ativo || sessao.usuarioId.value == null) {
             return ResultadoVerificacao(emptyList(), faltouConexao = false)
         }
@@ -59,14 +56,12 @@ class VerificadorDeChuva(
         var faltouConexao = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
-        // Só os sítios que o produtor deixou ligados na tela de ajustes.
         val monitoradas = propriedades.observarTodas().first().filter { ajustesAtuais.avisaSobre(it.id) }
 
         for (propriedade in monitoradas) {
             val previsao = when (val resultado = clima.atualizar(propriedade)) {
                 is ResultadoAtualizacao.Sucesso -> resultado.previsao
-                // Sem internet, ainda dá para avisar com a previsão guardada,
-                // desde que ela seja recente (de até 12 h atrás).
+                // Offline: usa o cache se tiver no máximo VALIDADE_PARA_AVISO.
                 ResultadoAtualizacao.SemConexao -> {
                     faltouConexao = true
                     clima.emCache(propriedade)?.takeIf {

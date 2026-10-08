@@ -7,17 +7,13 @@ import br.joao.agrosaldo.data.local.entidade.LancamentoEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Lançamento não tem coluna de dono: ele pertence a uma propriedade, e a
- * propriedade pertence ao usuário. Por isso as consultas fazem JOIN com
- * propriedades para saber de quem é cada lançamento.
- *
- * Como a consulta envolve as duas tabelas, o Room observa as duas: se uma
- * propriedade for excluída, a lista de lançamentos se atualiza sozinha.
+ * `lancamentos` não tem coluna de dono: a posse é derivada via JOIN com
+ * `propriedades.usuario_id`. Os Flows observam as duas tabelas.
  */
 @Dao
 interface LancamentoDao {
 
-    /** Mais recentes primeiro. O índice em "data" deixa essa ordenação barata. */
+    /** Ordenado por data e depois por última gravação, mais recentes primeiro. */
     @Query(
         """
         SELECT lancamentos.* FROM lancamentos
@@ -37,18 +33,18 @@ interface LancamentoDao {
     )
     suspend fun buscarPorId(id: String, usuarioId: String): LancamentoEntity?
 
-    /** Impede gravar um lançamento numa propriedade de outra conta. */
+    /** Usado antes de gravar para impedir lançamento em propriedade de outra conta. */
     @Query("SELECT EXISTS(SELECT 1 FROM propriedades WHERE id = :propriedadeId AND usuario_id = :usuarioId)")
     suspend fun propriedadeEhDoUsuario(propriedadeId: String, usuarioId: String): Boolean
 
     @Upsert
     suspend fun salvar(lancamento: LancamentoEntity)
 
-    /** Vários de uma vez — usado pelo "Desfazer" da exclusão de uma propriedade. */
+    /** Usado ao desfazer a exclusão de uma propriedade. */
     @Upsert
     suspend fun salvarTodos(lancamentos: List<LancamentoEntity>)
 
-    /** Os lançamentos de uma propriedade, para guardar antes de excluí-la. */
+    /** Snapshot dos lançamentos antes da exclusão da propriedade (para desfazer). */
     @Query(
         """
         SELECT lancamentos.* FROM lancamentos
@@ -68,9 +64,8 @@ interface LancamentoDao {
     suspend fun excluir(id: String, usuarioId: String)
 
     /**
-     * O CASCADE da chave estrangeira já faz isso quando a propriedade é
-     * excluída. O repositório chama mesmo assim, dentro da mesma transação:
-     * deixa a intenção explícita no código, sem depender só da regra do banco.
+     * Redundante com o ON DELETE CASCADE; chamado explicitamente na mesma
+     * transação para não depender só da FK.
      */
     @Query(
         """
@@ -82,11 +77,8 @@ interface LancamentoDao {
     suspend fun excluirDaPropriedade(propriedadeId: String, usuarioId: String)
 
     /**
-     * Saldo de um período calculado pelo próprio SQLite (RN03).
-     *
-     * Ainda não é usado pelas telas — hoje os ViewModels somam em Kotlin, o que
-     * é rápido o bastante para o volume de um produtor. Fica pronto para quando
-     * o histórico crescer: aí a soma sai do Kotlin e vem pronta do banco.
+     * Saldo do período em centavos (RN03), intervalo de epochDay inclusivo.
+     * Não usado hoje (o saldo é somado nos ViewModels) e não filtra por usuário.
      */
     @Query(
         """

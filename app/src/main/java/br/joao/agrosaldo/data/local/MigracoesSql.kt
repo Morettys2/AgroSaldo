@@ -1,33 +1,20 @@
 package br.joao.agrosaldo.data.local
 
 /**
- * O SQL de cada migração do banco, separado do Room.
+ * SQL das migrações, sem dependência de Android: os testes executam estas
+ * instruções num SQLite e comparam com o schema gerado pelo Room.
  *
- * Fica num arquivo sem nenhuma dependência de Android para poder ser
- * conferido fora do celular: os testes executam exatamente estas linhas num
- * SQLite e comparam o resultado com o banco que o Room criaria do zero.
- *
- * Regra de ouro das migrações: depois que uma versão foi para o celular de
- * alguém, a migração dela NUNCA mais muda. Mudou o banco de novo? Nova versão,
- * nova migração.
+ * Migrações publicadas são imutáveis; qualquer mudança nova exige outra versão.
  */
 object MigracoesSql {
 
     /**
-     * Versão 1 → 2: entra o login.
+     * 1 -> 2: tabela `usuarios` (e-mail único) e coluna `propriedades.usuario_id`
+     * com FK e índice.
      *
-     * 1. Cria a tabela de usuários, com e-mail único.
-     * 2. Acrescenta o dono (usuario_id) em propriedades, com chave estrangeira.
-     * 3. Cria o índice do dono, que o Room exige para toda chave estrangeira.
-     *
-     * Por que ALTER TABLE e não "criar tabela nova, copiar e apagar a velha",
-     * que é a receita mais comum? Porque apagar a tabela propriedades faria o
-     * SQLite apagar as linhas dela uma a uma — e o CASCADE dos lançamentos
-     * levaria todos os lançamentos do produtor junto. Acrescentar a coluna
-     * não toca em nenhuma linha existente. (Há teste provando as duas coisas.)
-     *
-     * As propriedades antigas ficam com usuario_id nulo até a primeira conta
-     * ser criada, que fica com elas.
+     * Usa ALTER TABLE em vez de recriar a tabela: DROP TABLE em `propriedades`
+     * dispararia o ON DELETE CASCADE e apagaria os lançamentos (coberto por teste).
+     * Propriedades existentes ficam com usuario_id NULL até a primeira conta adotá-las.
      */
     val DE_1_PARA_2: List<String> = listOf(
         "CREATE TABLE IF NOT EXISTS `usuarios` (`id` TEXT NOT NULL, `nome` TEXT NOT NULL, " +
@@ -39,11 +26,7 @@ object MigracoesSql {
         "CREATE INDEX IF NOT EXISTS `index_propriedades_usuario_id` ON `propriedades` (`usuario_id`)"
     )
 
-    /**
-     * Versão 2 → 3: entra o cache da previsão do tempo.
-     *
-     * Só cria uma tabela nova; nenhuma linha existente é tocada.
-     */
+    /** 2 -> 3: cria a tabela `previsoes` (cache de clima). Não altera dados existentes. */
     val DE_2_PARA_3: List<String> = listOf(
         "CREATE TABLE IF NOT EXISTS `previsoes` (`propriedade_id` TEXT NOT NULL, `latitude` REAL NOT NULL, " +
             "`longitude` REAL NOT NULL, `resposta_json` TEXT NOT NULL, `obtida_em` INTEGER NOT NULL, " +

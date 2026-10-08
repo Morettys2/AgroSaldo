@@ -1,15 +1,8 @@
 package br.joao.agrosaldo.domain.conta
 
 /**
- * Senhas que aparecem no topo das listas de vazamentos no Brasil.
- *
- * A NIST (SP 800-63B) recomenda recusar senhas conhecidas por vazamentos em
- * vez de só exigir "letra e número": "senha123" cumpre qualquer regra de
- * composição e é a primeira que um atacante tenta.
- *
- * A lista é curta de propósito — cabe no app sem pesar e cobre o que mais
- * se tenta. Quando houver a API, a checagem pode consultar uma base
- * completa, como a do Have I Been Pwned.
+ * Senhas mais frequentes em vazamentos no Brasil, recusadas como senha
+ * (NIST SP 800-63B). Lista curta, embarcada; em minúsculas.
  */
 internal val SENHAS_COMUNS: Set<String> = setOf(
     "12345678", "123456789", "1234567890", "12341234", "11223344", "87654321",

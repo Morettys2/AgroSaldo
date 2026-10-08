@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import java.time.Instant
 
-/** Fake para os testes, no mesmo estilo dos outros repositórios em memória. */
+/** Fake em memória para testes. */
 class UsuarioRepositoryMemoria(
     iniciais: List<Usuario> = emptyList()
 ) : UsuarioRepository {

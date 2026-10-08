@@ -6,13 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Como uma conta fica guardada no SQLite.
- *
- * O índice ÚNICO no e-mail faz o próprio banco recusar duas contas com o
- * mesmo e-mail — do mesmo jeito que uma UNIQUE constraint no Oracle.
- *
- * Os instantes são guardados em milissegundos (INTEGER), pelo mesmo motivo
- * da data do lançamento: SQLite não tem tipo de data.
+ * Tabela `usuarios`. Índice único em `email` (normalizado). Instantes em epoch ms.
  */
 @Entity(
     tableName = "usuarios",
@@ -23,7 +17,7 @@ data class UsuarioEntity(
     val id: String,
     val nome: String,
     val email: String,
-    /** Nunca a senha. Só o resultado do PBKDF2, com sal e iterações. */
+    /** Hash no formato de [br.joao.agrosaldo.domain.conta.HashDeSenha]; nunca a senha. */
     @ColumnInfo(name = "senha_hash")
     val senhaHash: String,
     @ColumnInfo(name = "consentimento_em")

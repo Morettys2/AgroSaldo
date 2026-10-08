@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- O verde-noite do cabeçalho (ui/theme/Color.kt, VerdeNoite).
-         Repetido aqui porque a abertura aparece antes do Compose existir. -->
+    <!-- Igual a VerdeNoite (ui/theme/Color.kt); duplicado porque a splash é
+         desenhada antes do Compose. Manter os dois em sincronia. -->
     <color name="abertura_fundo">#163A2A</color>
 </resources>

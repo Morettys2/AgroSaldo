@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Sessão que some ao fechar o app. Usada nos testes. */
+/** Fake em memória para testes (não persiste). */
 class SessaoMemoria(inicial: String? = null) : SessaoRepository {
 
     private val _usuarioId = MutableStateFlow(inicial)

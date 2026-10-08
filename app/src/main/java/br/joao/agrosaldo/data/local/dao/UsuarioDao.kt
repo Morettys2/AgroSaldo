@@ -11,9 +11,8 @@ import kotlinx.coroutines.flow.Flow
 interface UsuarioDao {
 
     /**
-     * IGNORE, e não REPLACE: se o e-mail já existir, o SQLite simplesmente
-     * não insere e o Room devolve -1. O REPLACE apagaria a conta antiga — e,
-     * pelo CASCADE, todas as propriedades dela.
+     * IGNORE: e-mail duplicado retorna -1 sem inserir. REPLACE apagaria a conta
+     * existente e, pelo CASCADE, todos os seus dados.
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun inserir(usuario: UsuarioEntity): Long
@@ -33,14 +32,11 @@ interface UsuarioDao {
     @Query("UPDATE usuarios SET senha_hash = :senhaHash WHERE id = :id")
     suspend fun atualizarSenha(id: String, senhaHash: String)
 
-    /** Propriedades e lançamentos vão junto pelas chaves estrangeiras em CASCADE. */
+    /** Propriedades, lançamentos e previsões são removidos pelo CASCADE. */
     @Query("DELETE FROM usuarios WHERE id = :id")
     suspend fun excluir(id: String)
 
-    /**
-     * Dá dono às propriedades que não têm (as de antes do login e os
-     * exemplos). Devolve quantas foram adotadas.
-     */
+    /** Atribui a [usuarioId] as propriedades sem dono. Retorna quantas foram adotadas. */
     @Query("UPDATE propriedades SET usuario_id = :usuarioId WHERE usuario_id IS NULL")
     suspend fun adotarPropriedadesSemDono(usuarioId: String): Int
 }

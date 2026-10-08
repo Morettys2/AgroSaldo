@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
 
-/** Ajustes do aviso de chuva gravados no aparelho. */
+/**
+ * [AjustesAvisoRepository] em SharedPreferences (arquivo "aviso_chuva").
+ * O último aviso de cada propriedade fica em chaves `ultimo_aviso_<id>` (epoch ms).
+ */
 class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
 
     private val preferencias =
@@ -21,7 +24,7 @@ class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
 
     private fun ler(): AjustesAviso {
         val padrao = LimitesChuva()
-        // Valor gravado fora da faixa (versão antiga, arquivo mexido) volta ao padrão em vez de travar o app.
+        // Valores fora da faixa fazem o init de LimitesChuva lançar; volta ao padrão.
         val limites = runCatching {
             LimitesChuva(
                 probabilidadeMinima = preferencias.getInt(CHAVE_PROBABILIDADE, padrao.probabilidadeMinima),
@@ -32,8 +35,7 @@ class AjustesAvisoPreferencias(context: Context) : AjustesAvisoRepository {
         return AjustesAviso(
             ativo = preferencias.getBoolean(CHAVE_ATIVO, true),
             limites = limites,
-            // getStringSet devolve o conjunto interno do Android, que não pode
-            // ser alterado: toSet() faz uma cópia nossa.
+            // Cópia defensiva: o Set retornado por getStringSet não deve ser modificado.
             propriedadesSemAviso = preferencias.getStringSet(CHAVE_SEM_AVISO, null)?.toSet().orEmpty()
         )
     }

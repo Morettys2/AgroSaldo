@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Guarda só um sim ou não: se os valores estão escondidos. */
+/** [PrivacidadeRepository] em SharedPreferences (arquivo "privacidade"). */
 class PrivacidadePreferencias(context: Context) : PrivacidadeRepository {
 
     private val preferencias =

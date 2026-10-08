@@ -6,11 +6,8 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 /**
- * Condição do tempo a partir do código WMO que a Open-Meteo devolve.
- *
- * O código é um padrão da Organização Meteorológica Mundial: 0 é céu limpo,
- * 61 é chuva fraca, 95 é tempestade. A tela não precisa conhecer números —
- * ela recebe esta enum e escolhe o ícone.
+ * Condição do tempo derivada do código WMO (weather code) da Open-Meteo.
+ * Códigos não mapeados viram [DESCONHECIDA].
  */
 enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
     CEU_LIMPO("Céu limpo", false),
@@ -43,7 +40,7 @@ enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
 data class PrevisaoDia(
     val data: LocalDate,
     val condicao: CondicaoTempo,
-    /** Nulo quando o serviço não mandou o dado (acontece no último dia às vezes). */
+    /** Nulo quando a API não envia o valor (ocorre no último dia da série). */
     val temperaturaMaxima: Double?,
     val temperaturaMinima: Double?,
     val chuvaMm: Double,
@@ -52,17 +49,16 @@ data class PrevisaoDia(
 )
 
 data class PrevisaoHora(
-    /** Hora local da propriedade (o fuso vem na resposta da Open-Meteo). */
+    /** Hora local da propriedade (fuso informado pela Open-Meteo). */
     val horario: LocalDateTime,
     val probabilidadeChuva: Int,
     val chuvaMm: Double
 )
 
 /**
- * Uma previsão completa para um ponto: agora, hora a hora e dia a dia.
+ * Previsão de um ponto: condição atual, série horária e diária.
  *
- * Os horários estão no fuso da PROPRIEDADE, não do celular. Para o produtor
- * em Itobi tanto faz, mas é o certo: "chove às 18h" tem que ser 18h lá.
+ * Os horários estão no fuso da propriedade ([fusoSegundos]), não no do aparelho.
  */
 data class Previsao(
     val latitude: Double,
@@ -74,7 +70,7 @@ data class Previsao(
     val dias: List<PrevisaoDia>,
     val horas: List<PrevisaoHora>
 ) {
-    /** Converte um instante (ex.: agora) para a hora local da propriedade. */
+    /** Converte um instante para a hora local da propriedade. */
     fun horaLocal(instante: Instant): LocalDateTime =
         LocalDateTime.ofInstant(instante, ZoneOffset.ofTotalSeconds(fusoSegundos))
 }

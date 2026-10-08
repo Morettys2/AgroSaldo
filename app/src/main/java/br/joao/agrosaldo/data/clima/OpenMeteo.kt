@@ -14,27 +14,23 @@ import java.time.LocalDateTime
 import java.util.Locale
 
 /**
- * Tudo o que é específico da Open-Meteo: o endereço da chamada e o formato
- * da resposta. Se um dia o app trocar de serviço de clima, só este arquivo
- * e o [OpenMeteoHttp] mudam.
- *
- * A Open-Meteo não pede chave de API e é gratuita para uso não comercial.
+ * Montagem da URL da Open-Meteo (API sem chave; plano gratuito é só para uso
+ * não comercial). Junto com [LeitorOpenMeteo] e [OpenMeteoHttp], concentra o
+ * acoplamento com o provedor.
  */
 object OpenMeteo {
 
     private const val ENDERECO = "https://api.open-meteo.com/v1/forecast"
 
     /**
-     * Arredonda para 2 casas (≈ 1 km). Para previsão do tempo não muda nada
-     * — os modelos trabalham com quadrados de vários km — e o ponto exato da
-     * propriedade não sai do celular. Privacidade por padrão (LGPD art. 46).
+     * Arredonda para 2 casas (~1 km), abaixo da resolução dos modelos, para que
+     * a coordenada exata não saia do aparelho (privacidade por padrão, LGPD art. 46).
      */
     fun arredondar(coordenada: Double): Double =
         BigDecimal.valueOf(coordenada).setScale(2, RoundingMode.HALF_UP).toDouble()
 
     fun endereco(latitude: Double, longitude: Double): String {
-        // Locale.ROOT de propósito: com o celular em português, "%.2f" vira
-        // "-21,70", e a API não entende vírgula. Bug clássico de app brasileiro.
+        // Locale.ROOT: em pt-BR "%.2f" usaria vírgula decimal, rejeitada pela API.
         val lat = String.format(Locale.ROOT, "%.2f", arredondar(latitude))
         val lon = String.format(Locale.ROOT, "%.2f", arredondar(longitude))
         return ENDERECO +
@@ -47,14 +43,13 @@ object OpenMeteo {
     }
 }
 
-/** A resposta não tem o formato esperado. */
+/** Resposta HTTP de erro ou corpo fora do formato esperado. */
 class RespostaInvalidaException(mensagem: String) : Exception(mensagem)
 
 /**
- * Lê o JSON da Open-Meteo e devolve o modelo de domínio.
+ * Converte o JSON da Open-Meteo em [Previsao] usando org.json (embutido no Android).
  *
- * Usa o org.json, que já vem dentro do Android — nenhuma biblioteca a mais
- * para ler um único formato de resposta.
+ * @throws RespostaInvalidaException para qualquer erro de formato.
  */
 object LeitorOpenMeteo {
 
@@ -110,13 +105,12 @@ object LeitorOpenMeteo {
         } catch (e: RespostaInvalidaException) {
             throw e
         } catch (e: Exception) {
-            // JSONException, DateTimeParseException...: tudo vira um erro só,
-            // com a causa guardada para quem for investigar.
+            // Unifica JSONException, DateTimeParseException etc.; só a mensagem é preservada.
             throw RespostaInvalidaException("Resposta da Open-Meteo em formato inesperado: ${e.message}")
         }
     }
 
-    // A Open-Meteo manda null quando não tem o dado daquela hora.
+    // A API envia null para valores ausentes; índice fora do array também vira null.
     private fun JSONArray.doubleOuNulo(i: Int): Double? =
         if (i >= length() || isNull(i)) null else getDouble(i)
 

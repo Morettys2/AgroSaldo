@@ -23,7 +23,7 @@ class UsuarioRepositoryRoom(
         dao.buscarPorEmail(email)?.paraDominio()
 
     override suspend fun criar(usuario: Usuario): Boolean {
-        // -1 é o jeito do Room dizer "o IGNORE não inseriu": e-mail repetido.
+        // -1: OnConflictStrategy.IGNORE descartou a linha (e-mail duplicado).
         val inserido = dao.inserir(usuario.paraEntidade()) != -1L
         if (inserido) dao.adotarPropriedadesSemDono(usuario.id)
         return inserido

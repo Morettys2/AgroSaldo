@@ -4,11 +4,8 @@ import br.joao.agrosaldo.data.DadosDeExemplo
 import java.time.LocalDate
 
 /**
- * Monta os INSERTs dos dados de exemplo.
- *
- * Recebe uma função "executar" em vez de um banco. Assim a mesma rotina serve
- * para o SQLite de verdade (no callback do Room) e para os testes, que
- * conseguem conferir exatamente o SQL gerado sem precisar de Android.
+ * Gera os INSERTs de [DadosDeExemplo]. Recebe a função `executar` em vez do
+ * banco para ser usado tanto no callback do Room quanto em testes JVM.
  */
 object Semeador {
 
@@ -17,10 +14,9 @@ object Semeador {
         hoje: LocalDate = LocalDate.now(),
         agora: Long = System.currentTimeMillis()
     ) {
-        // Propriedades antes dos lançamentos: com a chave estrangeira ligada,
-        // a ordem contrária seria recusada pelo banco.
+        // Propriedades antes dos lançamentos por causa da foreign key.
         DadosDeExemplo.propriedades().forEach { p ->
-            // Sem dono: a primeira conta criada no aparelho fica com elas.
+            // Sem dono: adotadas pela primeira conta criada no aparelho.
             val e = p.paraEntidade(usuarioId = null, agora = agora)
             executar(
                 "INSERT INTO propriedades " +

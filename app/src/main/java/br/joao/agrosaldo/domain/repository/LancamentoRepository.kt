@@ -4,14 +4,9 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Contrato de acesso aos lançamentos — camada Model.
+ * Acesso aos lançamentos do usuário conectado.
  *
- * Expõe a lista inteira e deixa o filtro por propriedade e por mês para o
- * ViewModel. Com dados em memória isso é o mais simples e direto.
- *
- * Quando o Room entrar, os filtros descem para o SQL (WHERE e SUM no banco)
- * e a interface ganha métodos mais específicos. É a única parte do app que
- * vai precisar mudar.
+ * Expõe a lista completa; filtros por propriedade e período ficam no ViewModel.
  */
 interface LancamentoRepository {
 

@@ -6,9 +6,8 @@ import br.joao.agrosaldo.domain.repository.EstadoTentativas
 import br.joao.agrosaldo.domain.repository.TentativasRepository
 
 /**
- * Contador de senhas erradas gravado no aparelho, para sobreviver a fechar
- * o app. Fica fora do backup (veja res/xml/data_extraction_rules.xml): é um
- * estado deste aparelho, não algo que deva ir para um celular novo.
+ * [TentativasRepository] em SharedPreferences (arquivo "seguranca"). Estado
+ * por aparelho, excluído do backup (res/xml/data_extraction_rules.xml).
  */
 class TentativasPreferencias(context: Context) : TentativasRepository {
 

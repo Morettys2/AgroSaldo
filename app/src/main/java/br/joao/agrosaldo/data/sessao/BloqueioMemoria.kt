@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Usado nos testes. */
+/** Fake em memória para testes. */
 class BloqueioMemoria(inicial: Boolean = false) : BloqueioRepository {
     private val _ativo = MutableStateFlow(inicial)
     override val ativo: StateFlow<Boolean> = _ativo.asStateFlow()

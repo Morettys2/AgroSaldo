@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
-/** Mesma ideia do [PropriedadeRepositoryRoom]: a sessão diz de quem são os dados. */
+/** [LancamentoRepository] em Room, restrito ao usuário da [sessao]. */
 class LancamentoRepositoryRoom(
     private val dao: LancamentoDao,
     private val sessao: SessaoRepository
@@ -34,8 +34,9 @@ class LancamentoRepositoryRoom(
     }
 
     /**
-     * IllegalArgumentException é a mesma exceção das regras do modelo, e o
-     * formulário de lançamento já a transforma em mensagem na tela.
+     * @throws IllegalArgumentException se a propriedade não pertence ao usuário
+     *   (mesmo tipo das validações do modelo, já tratado pelo formulário).
+     * @throws IllegalStateException sem sessão.
      */
     override suspend fun salvar(lancamento: Lancamento) {
         val usuarioId = usuarioConectado()

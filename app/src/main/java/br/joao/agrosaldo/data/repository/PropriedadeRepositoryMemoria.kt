@@ -9,17 +9,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/**
- * Implementação em memória.
- *
- * O app não usa mais esta classe — ele usa a versão Room. Ela continua
- * existindo para os testes dos ViewModels: é rápida, não precisa de Android
- * e começa com dados conhecidos. Em teste, esse tipo de implementação
- * substituta é chamado de "fake".
- */
+/** Fake em memória para testes de ViewModel, sem filtro por usuário. */
 class PropriedadeRepositoryMemoria(
     iniciais: List<Propriedade> = DadosDeExemplo.propriedades(),
-    /** Passando os lançamentos, excluir uma propriedade leva os dela junto (como o CASCADE do banco). */
+    /** Se informado, [excluirComLancamentos] remove também os lançamentos (simula o CASCADE). */
     private val lancamentos: LancamentoRepositoryMemoria? = null
 ) : PropriedadeRepository {
 

@@ -2,17 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Fase B: buscar a previsão na Open-Meteo -->
+    <!-- Previsão do tempo (Open-Meteo, HTTPS). -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Fase B: aviso de chuva (Android 13+ pergunta ao usuário) -->
+    <!-- Aviso de chuva; permissão em tempo de execução a partir da API 33. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Refinamento: botão "Usar minha localização" no cadastro do sítio.
-         Pedidas só quando a pessoa toca no botão. Sem ACCESS_BACKGROUND_LOCATION:
-         o app nunca usa a localização com a tela fechada. -->
+    <!-- "Usar minha localização" no cadastro da propriedade; solicitadas só
+         sob ação do usuário. Sem ACCESS_BACKGROUND_LOCATION: uso apenas em primeiro plano. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- Celular sem GPS também pode instalar (usa a rede, ou digita à mão). -->
+    <!-- GPS opcional: sem ele, localização por rede ou digitação manual. -->
     <uses-feature
         android:name="android.hardware.location.gps"
         android:required="false" />

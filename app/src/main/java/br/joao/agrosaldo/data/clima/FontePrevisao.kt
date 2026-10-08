@@ -6,23 +6,22 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** De onde vem o JSON da previsão. Interface para os testes não usarem a internet. */
+/** Fonte do JSON bruto da previsão; substituível por fake nos testes. */
 fun interface FontePrevisao {
-    /** @throws IOException sem internet. @throws RespostaInvalidaException resposta de erro. */
+    /**
+     * @throws IOException falha de rede ou timeout.
+     * @throws RespostaInvalidaException resposta HTTP diferente de 200.
+     */
     suspend fun baixar(latitude: Double, longitude: Double): String
 }
 
 /**
- * Chamada HTTPS direta, com o HttpURLConnection do próprio Java.
- *
- * Retrofit ou Ktor fariam o mesmo com mais conforto, mas o app faz UMA
- * chamada GET para UM endereço. Uma biblioteca de rede inteira para isso
- * seria peso sem retorno. Se a API NestJS entrar, aí sim vale o Retrofit.
+ * GET HTTPS na Open-Meteo via HttpURLConnection. Uma única chamada não
+ * justifica uma biblioteca de rede.
  */
 class OpenMeteoHttp : FontePrevisao {
 
     override suspend fun baixar(latitude: Double, longitude: Double): String =
-        // Rede nunca na thread principal: o Android derruba o app se tentar.
         withContext(Dispatchers.IO) {
             val conexao = URL(OpenMeteo.endereco(latitude, longitude)).openConnection() as HttpURLConnection
             try {
@@ -33,7 +32,7 @@ class OpenMeteoHttp : FontePrevisao {
 
                 val codigo = conexao.responseCode
                 if (codigo != HttpURLConnection.HTTP_OK) {
-                    // 4xx/5xx: o servidor respondeu, então não é falta de internet.
+                    // Servidor respondeu: tratado como resposta inválida, não como falta de conexão.
                     val corpo = conexao.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
                     throw RespostaInvalidaException("HTTP $codigo ${corpo.take(200)}")
                 }

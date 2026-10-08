@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Backup automático do Android 6 a 11 (API 23 a 30).
+    Auto Backup para API 23 a 30. Manter em sincronia com data_extraction_rules.xml.
 
-    O banco (conta, propriedades e lançamentos) VAI para o backup: trocar de
-    celular não pode apagar o histórico do produtor. A senha está lá só como
-    hash PBKDF2, e o backup do Google é criptografado com o bloqueio de tela.
-
-    A sessão e o contador de senhas erradas NÃO vão: no celular novo o app
-    pede a senha de novo, e um bloqueio antigo não viaja junto.
+    O banco entra no backup (senhas apenas como hash PBKDF2). Ficam de fora a
+    sessão (sessao.xml: exige novo login após restauração) e o estado de
+    segurança do aparelho (seguranca.xml: tentativas de senha e bloqueio biométrico).
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="sessao.xml" />

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** Versão em memória, usada pelos testes. Ver [PropriedadeRepositoryMemoria]. */
+/** Fake em memória para testes, sem filtro por usuário. */
 class LancamentoRepositoryMemoria(
     iniciais: List<Lancamento> = DadosDeExemplo.lancamentos()
 ) : LancamentoRepository {
@@ -34,7 +34,7 @@ class LancamentoRepositoryMemoria(
         _lancamentos.update { lista -> lista.filterNot { it.id == id } }
     }
 
-    /** Para o [PropriedadeRepositoryMemoria] imitar o CASCADE do banco. */
+    /** Remove e retorna os lançamentos da propriedade; simula o CASCADE para [PropriedadeRepositoryMemoria]. */
     internal fun tirarDaPropriedade(propriedadeId: String): List<Lancamento> {
         val daPropriedade = _lancamentos.value.filter { it.propriedadeId == propriedadeId }
         _lancamentos.update { lista -> lista.filterNot { it.propriedadeId == propriedadeId } }

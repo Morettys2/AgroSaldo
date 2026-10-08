@@ -8,16 +8,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * Dados de exemplo usados em dois lugares:
- *
- *  - na primeira abertura do app em modo debug, para o banco não nascer vazio
- *    e a apresentação ter o que mostrar;
- *  - nos testes automatizados, como massa de dados conhecida.
- *
- * Ficar num lugar só garante que o que você vê no emulador é exatamente o
- * que os testes verificam.
- *
- * Em build de release o banco nasce vazio: o produtor começa do zero.
+ * Massa de dados fixa: semeia o banco na criação em builds debuggable e serve
+ * de fixture nos testes. Em release o banco é criado vazio.
  */
 object DadosDeExemplo {
 
@@ -43,19 +35,12 @@ object DadosDeExemplo {
         )
     )
 
-    /**
-     * Lançamentos no mês de [hoje] e no anterior, para a navegação entre meses
-     * (RF10) ter o que mostrar.
-     *
-     * [hoje] é parâmetro, e não LocalDate.now() direto, para os testes
-     * conseguirem fixar uma data e ter resultado previsível.
-     */
+    /** Lançamentos no mês de [hoje] e no anterior (exercita a navegação entre meses, RF10). */
     fun lancamentos(hoje: LocalDate = LocalDate.now()): List<Lancamento> {
         val mesAtual = YearMonth.from(hoje)
         val mesPassado = mesAtual.minusMonths(1)
 
-        // No mês corrente nenhum exemplo fica depois de hoje — senão a tela
-        // mostraria "últimos lançamentos" com data que ainda nem chegou.
+        // Limita o dia a [hoje] no mês corrente (sem datas futuras) e ao fim do mês nos demais.
         fun dia(mes: YearMonth, diaDoMes: Int): LocalDate {
             val limite = if (mes == mesAtual) hoje.dayOfMonth else mes.lengthOfMonth()
             return mes.atDay(minOf(diaDoMes, limite))

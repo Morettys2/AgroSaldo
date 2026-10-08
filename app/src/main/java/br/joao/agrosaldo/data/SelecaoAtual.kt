@@ -6,19 +6,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.YearMonth
 
 /**
- * O que o produtor está olhando agora: qual propriedade e qual mês.
+ * Propriedade e mês selecionados, compartilhados entre as telas (fora de
+ * ViewModel para que todas vejam a mesma seleção).
  *
- * Início, Lançamentos, Sítios e Clima precisam concordar sobre isso. Escolher
- * setembro no Início e abrir Lançamentos tem que mostrar setembro — por isso o
- * dado não pode viver dentro de um ViewModel, cada tela tem o seu.
- *
- * A propriedade escolhida é lembrada entre uma abertura e outra do app (quem
- * tem dois sítios não quer escolher o mesmo toda vez). O mês, não: abrir o app
- * sempre começa no mês corrente, que é o que a pessoa quer ver primeiro.
- *
- * Este objeto não sabe ONDE a escolha é guardada. Quem sabe é o
- * [Repositorios], que chama [configurar] ao abrir o app. Assim ele continua
- * Kotlin puro e os testes rodam sem Android.
+ * A propriedade é persistida via callback registrado em [configurar] pelo
+ * [Repositorios]; o mês não é persistido e sempre começa no mês corrente.
  */
 object SelecaoAtual {
 
@@ -31,10 +23,10 @@ object SelecaoAtual {
     private var aoMudarPropriedade: (String?) -> Unit = {}
 
     /**
-     * Chamado uma vez, ao abrir o app.
+     * Chamado uma vez na inicialização.
      *
-     * @param inicial a propriedade que estava escolhida da última vez.
-     * @param aoMudar onde gravar cada nova escolha.
+     * @param inicial id persistido da última seleção.
+     * @param aoMudar callback de persistência, chamado a cada mudança.
      */
     fun configurar(inicial: String?, aoMudar: (String?) -> Unit) {
         _propriedadeId.value = inicial
@@ -59,7 +51,7 @@ object SelecaoAtual {
         _mes.value = _mes.value.minusMonths(1)
     }
 
-    /** Ao trocar de conta: a propriedade escolhida era do usuário anterior. */
+    /** Reseta a seleção (troca de conta). */
     fun limpar() {
         mudarPropriedade(null)
         _mes.value = YearMonth.now()

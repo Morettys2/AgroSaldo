@@ -36,17 +36,15 @@ android {
     }
 }
 
-// O Room salva aqui um JSON com o formato de cada versão do banco.
-// Versione a pasta app/schemas no Git: é ela que permite escrever migrações.
+// Schemas exportados pelo Room (um JSON por versão). Versionar app/schemas:
+// é a referência para escrever e testar migrações.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
-    // O BOM ("bill of materials") escolhe a versão de todas as bibliotecas do
-    // Compose de uma vez. Guardado numa variável e usado nos dois lugares que
-    // precisam dele (app e testes do emulador) — é o padrão da documentação
-    // do Google e acaba com o aviso "declared multiple times".
+    // BOM em variável para reutilizar em implementation e androidTestImplementation
+    // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
@@ -63,25 +61,25 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
 
-    // Banco de dados (Room sobre SQLite). O "ksp" gera o código dos DAOs.
+    // Room
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
-    // Fase B: roda a verificação de chuva com o app fechado, 2x por dia.
+    // WorkManager: verificação periódica de chuva em segundo plano.
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Refinamento: bloqueio com digital ou PIN do celular.
+    // Bloqueio por biometria/credencial do aparelho. appcompat e fragment são
+    // declarados para sobrepor as versões antigas trazidas pelo biometric 1.1.0.
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.fragment.ktx)
 
-    // R4: tela de abertura com o broto, igual em todo Android a partir do 8.0.
+    // SplashScreen API compatível com API < 31.
     implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    // O org.json que vem no Android é só "casca" nos testes do computador.
-    // Este é o de verdade, para testar a leitura da resposta da Open-Meteo.
+    // Implementação real do org.json para testes JVM (o android.jar só tem stubs).
     testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

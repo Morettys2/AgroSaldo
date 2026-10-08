@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 /**
- * Fake para os testes: as previsões ficam num mapa, e [proximaAtualizacao]
- * define o que a "internet" responde (por padrão, falta de conexão).
+ * Fake para testes. O cache é um mapa por id de propriedade; [respostas] e
+ * [semInternet] definem o resultado de [atualizar] (sem resposta configurada:
+ * [ResultadoAtualizacao.Falha]).
  */
 class ClimaRepositoryMemoria(
     iniciais: Map<String, Previsao> = emptyMap()
@@ -19,7 +20,7 @@ class ClimaRepositoryMemoria(
 
     private val _previsoes = MutableStateFlow(iniciais)
 
-    /** O que a próxima busca "na internet" devolve, por propriedade. */
+    /** Previsão devolvida por [atualizar], por id de propriedade. */
     var respostas: Map<String, Previsao> = emptyMap()
     var semInternet: Boolean = false
     var atualizacoes: Int = 0

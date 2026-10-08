@@ -4,19 +4,9 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Contrato do repositório — ainda parte do MODEL.
- *
- * O ViewModel depende DESTA interface, nunca da implementação. É o que permite
- * trocar o guardador de dados sem tocar em ViewModel nem em tela.
- *
- * Hoje a implementação é em memória. Quando o Room entrar, só nasce uma classe
- * nova que implementa esta mesma interface — e nada mais no app muda.
- * É esse o argumento pra defender o padrão Repository na apresentação.
- */
+/** Acesso às propriedades do usuário conectado. */
 interface PropriedadeRepository {
 
-    /** Fluxo reativo: quem observar recebe a lista nova sozinho a cada mudança. */
     fun observarTodas(): Flow<List<Propriedade>>
 
     suspend fun buscarPorId(id: String): Propriedade?
@@ -26,12 +16,11 @@ interface PropriedadeRepository {
     suspend fun excluir(id: String)
 
     /**
-     * RN02 — exclui a propriedade e os lançamentos dela de uma vez só (tudo
-     * ou nada). Devolve o que foi apagado, para o "Desfazer"; null se a
-     * propriedade não existe.
+     * RN02: exclui a propriedade e seus lançamentos numa única transação.
+     * Retorna o que foi removido (para desfazer) ou null se o id não existe.
      */
     suspend fun excluirComLancamentos(id: String): PropriedadeExcluida?
 
-    /** Desfaz o [excluirComLancamentos]: volta tudo, também de uma vez só. */
+    /** Reinsere, numa única transação, o que [excluirComLancamentos] removeu. */
     suspend fun restaurar(excluida: PropriedadeExcluida)
 }

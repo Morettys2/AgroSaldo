@@ -1,23 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        As cores e fontes do app vêm do Compose (ui/theme). Este tema só
-        vale para o que o Android desenha por fora do Compose.
+        Tema da janela; cores e tipografia vêm do Compose (ui/theme).
 
-        Herda do AppCompat por causa da digital: nos Android 8.0 e 8.1, a
-        janela da digital é desenhada pela biblioteca androidx.biometric com
-        componentes do AppCompat, e eles fecham o app se o tema não for
-        AppCompat. DayNight deixa o fundo escuro no modo escuro do celular,
-        sem aquele clarão branco ao abrir.
+        Precisa herdar de AppCompat: em API 26-27 o androidx.biometric usa
+        componentes AppCompat e falha com outro tema. DayNight evita flash
+        branco ao abrir no modo escuro.
     -->
     <style name="Theme.AgroSaldo" parent="Theme.AppCompat.DayNight.NoActionBar" />
 
     <!--
-        Tema da tela de abertura (R4). A Activity começa com ele e, assim que
-        o app fica pronto, o installSplashScreen() da MainActivity troca para
-        o Theme.AgroSaldo de cima. Funciona igual do Android 8 ao 16: a
-        biblioteca core-splashscreen imita no Android antigo a abertura que
-        o Android 12 trouxe.
+        Tema inicial da MainActivity para a splash (core-splashscreen, compatível
+        com API < 31). installSplashScreen() troca para postSplashScreenTheme.
     -->
     <style name="Theme.AgroSaldo.Abertura" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/abertura_fundo</item>

@@ -7,15 +7,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Como um lançamento fica guardado no SQLite.
- *
- * FOREIGN KEY com CASCADE: o banco garante que não existe lançamento apontando
- * para propriedade inexistente, e que excluir uma propriedade leva junto os
- * lançamentos dela (RN02). É integridade referencial feita pelo banco, não
- * pelo código — do mesmo jeito que se faria num Oracle ou Postgres.
- *
- * Os índices aceleram as duas perguntas que o app mais faz:
- * "lançamentos desta propriedade" e "ordenados por data".
+ * Tabela `lancamentos`. FK com CASCADE para `propriedades` (RN02).
+ * Índices em `propriedade_id` (filtro) e `data` (ordenação).
  */
 @Entity(
     tableName = "lancamentos",
@@ -37,19 +30,14 @@ data class LancamentoEntity(
     val id: String,
     @ColumnInfo(name = "propriedade_id")
     val propriedadeId: String,
-    /** Nome da constante do enum: "RECEITA" ou "DESPESA". */
+    /** Nome de [br.joao.agrosaldo.domain.model.TipoLancamento]. */
     val tipo: String,
-    /** Nome da constante do enum: "ENERGIA", "ADUBO", ... */
+    /** Nome de [br.joao.agrosaldo.domain.model.CategoriaLancamento]. */
     val categoria: String,
-    /** Dinheiro em centavos, INTEGER no SQLite. Nunca REAL: REAL arredonda. */
+    /** Centavos (INTEGER); nunca REAL, para evitar erro de ponto flutuante. */
     @ColumnInfo(name = "valor_centavos")
     val valorCentavos: Long,
-    /**
-     * Data como número de dias desde 01/01/1970 (epochDay).
-     *
-     * SQLite não tem tipo de data. Guardar como inteiro faz a ordenação e a
-     * comparação funcionarem direto no SQL, sem converter texto.
-     */
+    /** epochDay (dias desde 1970-01-01); permite ordenar e comparar no SQL. */
     val data: Long,
     val descricao: String,
     @ColumnInfo(name = "atualizado_em")

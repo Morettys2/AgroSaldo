@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Fica no mesmo arquivo do contador de senhas erradas, que já está fora do backup. */
+/** Usa o arquivo "seguranca", o mesmo de [TentativasPreferencias], excluído do backup. */
 class BloqueioPreferencias(context: Context) : BloqueioRepository {
 
     private val preferencias =

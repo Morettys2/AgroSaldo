@@ -32,15 +32,11 @@ import br.joao.agrosaldo.domain.repository.SessaoRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
 
 /**
- * Ponto único de criação dos repositórios — um Service Locator simples.
+ * Service locator das dependências do app.
  *
- * Com a entrada do Room, ele passou a precisar de um Context para abrir o
- * banco. Por isso existe o [inicializar], chamado uma vez pelo
- * [br.joao.agrosaldo.AgroSaldoApp] quando o app sobe.
- *
- * Com o login, entraram a sessão, os usuários e o [conta]. Repare que os
- * repositórios de propriedade e lançamento recebem a sessão: é assim que
- * eles sabem de quem são os dados, sem nenhum ViewModel precisar saber.
+ * [inicializar] deve ser chamado em [br.joao.agrosaldo.AgroSaldoApp.onCreate]
+ * antes de qualquer acesso. Repositórios de propriedade e lançamento recebem a
+ * sessão para filtrar os dados pelo usuário conectado.
  */
 object Repositorios {
 
@@ -54,8 +50,7 @@ object Repositorios {
         if (banco != null) return
         synchronized(this) {
             if (banco != null) return
-            // Build de debug (rodando pelo Android Studio) nasce com exemplos.
-            // Build de release, o que vai para o produtor, nasce vazio.
+            // Só builds debuggable semeiam dados de exemplo.
             val ehDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
             contexto = context.applicationContext
             banco = AgroSaldoDatabase.criar(context, comDadosDeExemplo = ehDebug)
@@ -63,10 +58,7 @@ object Repositorios {
         }
     }
 
-    /**
-     * Quem tem dois sítios não quer escolher o mesmo toda vez que abre o app.
-     * Guarda só o id (um texto aleatório), nada que identifique a propriedade.
-     */
+    /** Persiste em SharedPreferences o id da propriedade selecionada (UUID, sem dado pessoal). */
     private fun lembrarPropriedadeEscolhida(context: Context) {
         val preferencias = context.getSharedPreferences(ARQUIVO_SELECAO, Context.MODE_PRIVATE)
         SelecaoAtual.configurar(inicial = preferencias.getString(CHAVE_PROPRIEDADE, null)) { id ->
@@ -86,7 +78,7 @@ object Repositorios {
 
     val bloqueio: BloqueioRepository by lazy { BloqueioPreferencias(contextoAberto) }
 
-    /** Milissegundos desde que o celular ligou. Não muda se alguém mexer na hora do celular. */
+    /** elapsedRealtime em ms: imune a mudanças no relógio do sistema. */
     val relogioMonotonico: () -> Long = { SystemClock.elapsedRealtime() }
 
     val usuarios: UsuarioRepository by lazy {
@@ -98,10 +90,8 @@ object Repositorios {
             usuarios = usuarios,
             sessao = sessao,
             tentativas = TentativasPreferencias(contextoAberto),
-            // Trocou de conta: esquece a propriedade escolhida e a exclusão
-            // que ainda dava para desfazer — as duas eram da conta anterior.
-            // E tira da barra os avisos de chuva já mostrados: eles têm o
-            // nome das propriedades de quem saiu.
+            // Limpa estado da conta anterior: seleção, desfazer pendente e
+            // notificações (contêm nomes de propriedades).
             aoTrocarDeUsuario = {
                 SelecaoAtual.limpar()
                 desfazer.esquecer()
@@ -126,7 +116,7 @@ object Repositorios {
         LancamentoRepositoryRoom(bancoAberto.lancamentoDao(), sessao)
     }
 
-    // ---------- clima e aviso de chuva ----------
+    // Clima e aviso de chuva
 
     val clima: ClimaRepository by lazy {
         ClimaRepositoryRoom(OpenMeteoHttp(), bancoAberto.previsaoDao())
@@ -140,10 +130,8 @@ object Repositorios {
         VerificadorDeChuva(sessao, propriedades, clima, ajustesAviso)
     }
 
-    /** O "olho" do Início: valores escondidos no app inteiro. */
     val privacidade: PrivacidadeRepository by lazy { PrivacidadePreferencias(contextoAberto) }
 
-    /** A última exclusão, que ainda pode ser desfeita pela barra de baixo. */
     val desfazer: Desfazer by lazy { Desfazer(relogioMonotonico) }
 
     private const val ARQUIVO_SELECAO = "selecao"

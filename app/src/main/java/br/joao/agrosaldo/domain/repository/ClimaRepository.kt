@@ -6,29 +6,26 @@ import kotlinx.coroutines.flow.Flow
 
 sealed interface ResultadoAtualizacao {
     data class Sucesso(val previsao: Previsao) : ResultadoAtualizacao
-    /** Sem internet ou servidor fora do ar. A previsão guardada continua valendo. */
+    /** Falha de rede ou servidor indisponível; o cache permanece. */
     data object SemConexao : ResultadoAtualizacao
-    /** O servidor respondeu algo que não entendemos. */
+    /** Resposta inesperada ou inválida da API. */
     data class Falha(val motivo: String) : ResultadoAtualizacao
 }
 
 /**
- * Previsão do tempo de uma propriedade.
- *
- * Funciona como "cache primeiro": a tela sempre mostra o que está guardado
- * no banco, e a internet só serve para trocar o guardado por um mais novo.
- * Sem sinal no sítio, o app continua mostrando a última previsão conhecida.
+ * Previsão do tempo por propriedade, cache-first: a UI observa o cache e a
+ * rede apenas substitui o valor guardado. Sem conexão, mantém a última previsão.
  */
 interface ClimaRepository {
 
-    /** A previsão guardada para as coordenadas atuais da propriedade (ou null). */
+    /** Previsão em cache para as coordenadas atuais da propriedade, ou null. */
     fun observar(propriedade: Propriedade): Flow<Previsao?>
 
     suspend fun emCache(propriedade: Propriedade): Previsao?
 
-    /** Busca na internet e guarda. */
+    /** Busca na API e grava no cache, ignorando a validade. */
     suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao
 
-    /** Só busca se a guardada tiver mais de 1 hora. Devolve null quando não precisou. */
+    /** Atualiza só se o cache venceu ([br.joao.agrosaldo.domain.clima.PoliticaDeAtualizacao]); null se não buscou. */
     suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao?
 }

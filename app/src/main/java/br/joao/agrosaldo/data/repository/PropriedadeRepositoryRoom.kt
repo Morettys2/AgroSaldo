@@ -16,15 +16,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
- * Implementação do contrato usando o Room.
- *
- * Esta é a prova do padrão Repository: o ViewModel continua conversando com
- * a mesma interface PropriedadeRepository de antes. Ele não sabe — e não
- * precisa saber — que os dados vêm de um arquivo SQLite, nem que existe
- * login. Nenhuma tela de propriedade foi alterada para o login entrar.
- *
- * Quem sabe de quem são os dados é este repositório: ele lê o usuário da
- * [sessao] e passa para o DAO em toda consulta.
+ * [PropriedadeRepository] em Room. Toda consulta é filtrada pelo usuário da
+ * [sessao]; escritas sem sessão lançam IllegalStateException.
  */
 class PropriedadeRepositoryRoom(
     private val dao: PropriedadeDao,
@@ -33,11 +26,7 @@ class PropriedadeRepositoryRoom(
     private val transacao: Transacao = Transacao.DIRETA
 ) : PropriedadeRepository {
 
-    /**
-     * flatMapLatest: quando o usuário muda, a consulta do anterior é
-     * cancelada e começa a do novo. Quem estiver observando recebe a lista
-     * certa sem saber que houve troca.
-     */
+    /** Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodas(): Flow<List<Propriedade>> =
         sessao.usuarioId.flatMapLatest { usuarioId ->
@@ -55,8 +44,7 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun salvar(propriedade: Propriedade) {
         val usuarioId = usuarioConectado()
-        // O upsert atualizaria a linha de qualquer dono se o id batesse.
-        // Esta checagem garante que uma conta não sobrescreve a da outra.
+        // O upsert casa só pelo id; impede sobrescrever propriedade de outra conta.
         val dono = dao.donoDe(propriedade.id)
         require(dono == null || dono == usuarioId) { "Esta propriedade pertence a outra conta." }
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
@@ -78,7 +66,7 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
         transacao.executar {
-            // A propriedade primeiro: os lançamentos apontam para ela.
+            // Propriedade antes dos lançamentos por causa da foreign key.
             salvar(excluida.propriedade)
             lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade() })
         }

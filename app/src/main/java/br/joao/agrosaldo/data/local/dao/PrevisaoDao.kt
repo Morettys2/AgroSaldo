@@ -15,7 +15,6 @@ interface PrevisaoDao {
     @Query("SELECT * FROM previsoes WHERE propriedade_id = :propriedadeId")
     suspend fun buscar(propriedadeId: String): PrevisaoEntity?
 
-    /** Sem filhos nesta tabela, então o upsert não tem o problema do REPLACE. */
     @Upsert
     suspend fun salvar(previsao: PrevisaoEntity)
 }

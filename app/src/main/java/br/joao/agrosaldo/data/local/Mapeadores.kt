@@ -12,10 +12,8 @@ import java.time.Instant
 import java.time.LocalDate
 
 /*
- * Tradução entre o formato do banco e o formato do domínio.
- *
- * É a fronteira da camada de dados: acima daqui ninguém sabe que existe
- * epochDay, snake_case ou enum guardado como texto.
+ * Conversões entidade <-> domínio. Formatos persistidos: datas em epochDay,
+ * instantes em epoch ms, enums pelo nome da constante.
  */
 
 fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
@@ -28,8 +26,9 @@ fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
 )
 
 /**
- * O dono não faz parte do modelo de domínio: quem decide é a sessão, no
- * repositório. [agora] é parâmetro para os testes conseguirem fixar o horário.
+ * @param usuarioId dono, definido pelo repositório a partir da sessão (não faz
+ *   parte do modelo de domínio).
+ * @param agora valor de `atualizado_em`, em epoch ms.
  */
 fun Propriedade.paraEntidade(
     usuarioId: String?,
@@ -47,11 +46,9 @@ fun Propriedade.paraEntidade(
     )
 
 /**
- * Enum volta do texto com valueOf.
- *
- * Por isso NUNCA renomeie uma constante de TipoLancamento ou
- * CategoriaLancamento depois que existir dado gravado: o valueOf não acharia
- * o nome antigo e a leitura quebraria. Acrescentar constante nova é seguro.
+ * Enums são lidos com valueOf: renomear ou remover constantes de
+ * [TipoLancamento]/[CategoriaLancamento] quebra a leitura de dados gravados.
+ * Adicionar constantes é seguro.
  */
 fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     id = id,

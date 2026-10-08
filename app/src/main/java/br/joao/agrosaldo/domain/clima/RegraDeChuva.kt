@@ -6,10 +6,10 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 /**
- * Os limites que o produtor escolhe na tela de ajustes (RN04).
+ * Limites configuráveis do aviso de chuva (RN04).
  *
- * Os valores padrão são os da proposta: 60% de chance OU 2 mm de chuva
- * somada, olhando as próximas 12 horas.
+ * Padrão: probabilidade >= 60% OU chuva acumulada >= 2 mm nas próximas 12 h.
+ * O construtor rejeita valores fora das faixas do companion.
  */
 data class LimitesChuva(
     val probabilidadeMinima: Int = 60,
@@ -45,20 +45,16 @@ data class AvaliacaoChuva(
 )
 
 /**
- * RN04 — a regra que decide se vale avisar o produtor.
+ * RN04: decide se a previsão justifica um aviso de chuva.
  *
- * Chove se, nas próximas [LimitesChuva.janelaHoras] horas:
- *   a maior probabilidade de chuva for ≥ o limite, OU
- *   a chuva somada for ≥ o limite em mm.
- *
- * Os dois testes são "maior ou igual": exatamente 60% já conta. É uma
- * função pura — mesma entrada, mesma saída — e por isso é toda coberta por
- * teste, que é o que o CLAUDE.md pede para esta regra.
+ * Chove se, nas próximas [LimitesChuva.janelaHoras] horas, a maior
+ * probabilidade horária for >= o limite OU a chuva somada for >= o limite em mm.
+ * Ambas as comparações são inclusivas. Função pura, coberta por testes.
  */
 object RegraDeChuva {
 
     fun avaliar(previsao: Previsao, agora: Instant, limites: LimitesChuva = LimitesChuva()): AvaliacaoChuva {
-        // A hora atual inteira conta: às 14h40, a janela começa nas 14h.
+        // A janela inclui a hora corrente inteira (14h40 -> começa às 14h).
         val inicio = previsao.horaLocal(agora).truncatedTo(ChronoUnit.HOURS)
         val fim = inicio.plusHours(limites.janelaHoras.toLong())
 
@@ -93,17 +89,15 @@ object RegraDeChuva {
         )
     }
 
-    // Soma de Double: 0.1 + 0.2 dá 0.30000000000000004. A tolerância evita
-    // que 1,9999999 mm deixe de contar como 2 mm.
+    // Absorve erro de arredondamento da soma de Double (ex.: 1,9999999 mm vs. 2 mm).
     private const val TOLERANCIA = 1e-9
 }
 
 /**
- * Evita mandar o mesmo aviso várias vezes.
+ * Antirrepetição de avisos por propriedade.
  *
- * A verificação em segundo plano roda a cada 12 h (2× por dia, RN04). O
- * intervalo mínimo entre avisos da mesma propriedade é um pouco menor que
- * isso, porque o Android pode atrasar ou adiantar a execução alguns minutos.
+ * A verificação periódica roda a cada 12 h (RN04); o intervalo mínimo é 11 h
+ * para tolerar a imprecisão de agendamento do WorkManager.
  */
 object ControleDeAvisos {
     val INTERVALO_MINIMO: Duration = Duration.ofHours(11)
@@ -113,16 +107,15 @@ object ControleDeAvisos {
 }
 
 /**
- * Quando vale buscar previsão nova na internet.
+ * Política de cache da previsão.
  *
- * A Open-Meteo atualiza os modelos de hora em hora; buscar mais que isso só
- * gasta a internet do produtor (que no sítio costuma ser fraca) e a cota
- * gratuita do serviço.
+ * A Open-Meteo atualiza os modelos de hora em hora; buscar com mais frequência
+ * só consome dados móveis e a cota gratuita da API.
  */
 object PoliticaDeAtualizacao {
     val VALIDADE: Duration = Duration.ofHours(1)
 
-    /** Previsão mais velha que isso não serve nem para mostrar como "última conhecida". */
+    /** Idade máxima para exibir a previsão em cache como "última conhecida". */
     val VALIDADE_MAXIMA_CACHE: Duration = Duration.ofDays(2)
 
     fun precisaAtualizar(obtidaEm: Instant?, agora: Instant): Boolean =

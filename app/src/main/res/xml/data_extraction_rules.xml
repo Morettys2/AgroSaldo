@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Backup na nuvem e transferência entre celulares, Android 12 em diante
-    (API 31+). Mesma regra do backup_rules.xml: o banco vai, a sessão e o
-    contador de senhas erradas ficam neste aparelho.
+    Backup em nuvem e transferência entre aparelhos (API 31+). Mesmas exclusões
+    de backup_rules.xml: sessao.xml e seguranca.xml não saem do aparelho.
 -->
 <data-extraction-rules>
     <cloud-backup>

@@ -20,7 +20,8 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Cache primeiro: lê sempre do Room; a internet só troca o que está guardado.
+ * [ClimaRepository] cache-first: a leitura vem sempre do Room; a rede só
+ * substitui o JSON guardado. O cache armazena a resposta bruta da API.
  */
 class ClimaRepositoryRoom(
     private val fonte: FontePrevisao,
@@ -28,8 +29,8 @@ class ClimaRepositoryRoom(
     private val relogio: () -> Long = System::currentTimeMillis
 ) : ClimaRepository {
 
-    // Início e Clima podem pedir atualização ao mesmo tempo. O Mutex faz o
-    // segundo esperar o primeiro e então perceber que já está atualizado.
+    // Serializa atualizações concorrentes (ex.: Início e Clima): a segunda
+    // encontra o cache já renovado em [atualizarSeNecessario].
     private val trava = Mutex()
 
     override fun observar(propriedade: Propriedade): Flow<Previsao?> =
@@ -54,7 +55,7 @@ class ClimaRepositoryRoom(
 
         return try {
             val json = fonte.baixar(latitude, longitude)
-            // Lê ANTES de guardar: resposta quebrada não pode apagar a boa que já estava no banco.
+            // Valida antes de gravar: resposta inválida não sobrescreve o cache bom.
             val previsao = LeitorOpenMeteo.ler(json, agora)
             dao.salvar(
                 PrevisaoEntity(
@@ -74,9 +75,9 @@ class ClimaRepositoryRoom(
     }
 
     /**
-     * O cache só vale se for das coordenadas ATUAIS da propriedade e tiver
-     * menos de 2 dias. Se o produtor corrigiu a localização do sítio, a
-     * previsão antiga era de outro lugar — melhor não mostrar nada.
+     * Cache válido só se corresponde às coordenadas atuais (arredondadas) da
+     * propriedade e não passou de [PoliticaDeAtualizacao.VALIDADE_MAXIMA_CACHE].
+     * Coordenadas alteradas invalidam a previsão anterior.
      */
     private fun PrevisaoEntity.paraPrevisaoValida(propriedade: Propriedade): Previsao? {
         if (latitude != OpenMeteo.arredondar(propriedade.latitude)) return null
