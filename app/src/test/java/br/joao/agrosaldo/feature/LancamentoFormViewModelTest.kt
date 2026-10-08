@@ -14,6 +14,7 @@ import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.lancamento.LancamentoFormViewModel
+import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 
 class LancamentoFormViewModelTest {
 
@@ -126,6 +128,34 @@ class LancamentoFormViewModelTest {
 
         assertEquals(total, lancamentos.observarTodos().first().size)
         assertEquals(130_000L, lancamentos.buscarPorId("exemplo-2")?.valorCentavos)
+    }
+
+    @Test
+    fun `salvar edicao sem mudar o mes nao troca o mes escolhido nem fecha a busca`() = runTest {
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 10))
+        val lista = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
+        lista.aoBuscar("pivo")
+        // exemplo-2 é de setembro; a pessoa o achou pela busca, olhando outubro.
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje })
+
+        vm.aoTeclar("0")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals(1_250_000L, lancamentos.buscarPorId("exemplo-2")?.valorCentavos)
+        assertEquals(YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+        assertTrue("a busca continua aberta", lista.uiState.value.buscando)
+    }
+
+    @Test
+    fun `salvar edicao que muda o mes leva a selecao para o mes novo`() = runTest {
+        SelecaoAtual.selecionarMes(YearMonth.of(2026, 9))
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje })
+
+        vm.aoEscolherData(LocalDate.of(2026, 10, 2))
+        vm.aoSalvar()
+
+        assertEquals("para ele não sumir da lista", YearMonth.of(2026, 10), SelecaoAtual.mes.value)
     }
 
     @Test

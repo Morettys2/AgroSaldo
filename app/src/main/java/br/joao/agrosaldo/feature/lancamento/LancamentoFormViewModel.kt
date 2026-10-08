@@ -101,6 +101,9 @@ class LancamentoFormViewModel(
     )
     val uiState: StateFlow<LancamentoFormUiState> = _uiState.asStateFlow()
 
+    /** Mês do lançamento em edição como estava no banco; nulo na criação e na cópia. */
+    private var mesOriginal: YearMonth? = null
+
     init {
         viewModelScope.launch {
             val propriedades = propriedadeRepository.observarTodas().first()
@@ -112,6 +115,7 @@ class LancamentoFormViewModel(
             val origem = (lancamentoId ?: copiaDe)?.let { lancamentoRepository.buscarPorId(it) }
             if (origem != null) {
                 val ehCopia = lancamentoId == null
+                if (!ehCopia) mesOriginal = YearMonth.from(origem.data)
                 _uiState.value = LancamentoFormUiState(
                     tipo = origem.tipo,
                     categoria = origem.categoria,
@@ -222,8 +226,11 @@ class LancamentoFormViewModel(
                 )
                 lancamentoRepository.salvar(lancamento)
                 // Seleciona propriedade e mês do lançamento salvo para que ele apareça nas listas.
+                // Na edição, o mês só muda se a data mudou de mês: trocar o mês fecharia a busca
+                // e tiraria a pessoa do mês em que estava.
                 SelecaoAtual.selecionar(lancamento.propriedadeId)
-                SelecaoAtual.selecionarMes(YearMonth.from(lancamento.data))
+                val mes = YearMonth.from(lancamento.data)
+                if (mes != mesOriginal) SelecaoAtual.selecionarMes(mes)
             }.onSuccess {
                 _uiState.update { it.copy(salvo = true, erroGeral = null) }
             }.onFailure { erro ->
