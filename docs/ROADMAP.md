@@ -124,7 +124,7 @@ Escrever `docs/rodadas/R6.md`, explicando por que regra de negócio mora no dom�
   - botões dos estados vazios.
 - **Testes do Worker** com `work-testing`, e das `*Preferencias`. A contagem de senhas erradas precisa sobreviver a reiniciar o app.
 
-## R9 — Play Store
+## R9 — Play Store (futuro, sem data)
 
 - **Política de privacidade num link público** (GitHub Pages), com:
   - nome do responsável e e-mail de contato (LGPD);
@@ -148,6 +148,7 @@ Escrever `docs/rodadas/R6.md`, explicando por que regra de negócio mora no dom�
   - classificação indicativa.
 - **Conta pessoal nova:** teste fechado com **12 testadores por 14 dias seguidos** antes de pedir produção. Planejar umas 3 semanas.
 
-## Depois — API própria em NestJS
+## Fora do escopo (decidido em out/2026)
 
-Sincronização online: backup na nuvem, uso em mais de um celular e "esqueci minha senha" por e-mail. Os ids já são UUID gerados no celular pensando nisso. Fica para o fim do projeto.
+- **API própria em NestJS:** o app continua 100% local (Room no celular). Sem sincronização, sem uso em vários celulares e sem "esqueci minha senha" por e-mail. Os ids já são UUID, então dá para retomar se um dia fizer sentido.
+- **Controle de irrigação (pivô):** não será implementado. O app usa a previsão só para recomendar adiar a irrigação ("Dá para adiar o pivô").
