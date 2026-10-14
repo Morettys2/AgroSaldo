@@ -1,0 +1,62 @@
+# Integração contínua: todo push e todo PR compilam o app, rodam os testes
+# de unidade e o lint. Se algo quebrar, o PR fica vermelho antes do merge.
+name: Android
+
+on:
+  push:
+    branches: [main, "rodada/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar, testar e lint
+        id: gradle
+        run: |
+          set -o pipefail
+          ./gradlew --no-configuration-cache --stacktrace \
+            ${{ vars.GRADLE_TASKS || 'testDebugUnitTest assembleDebug lintDebug' }} 2>&1 | tee build.log
+
+      - name: Erros como anotações
+        if: failure()
+        run: |
+          # Erros do Kotlin ("e: file:///...:linha:coluna mensagem") viram anotações no PR.
+          grep -E '^e: ' build.log | head -60 | while IFS= read -r l; do
+            f=$(echo "$l" | sed -E 's#^e: (file://)?([^:]+):([0-9]+):([0-9]+) .*#\2#')
+            n=$(echo "$l" | sed -E 's#^e: (file://)?([^:]+):([0-9]+):([0-9]+) .*#\3#')
+            m=$(echo "$l" | sed -E 's#^e: (file://)?[^ ]+ (.*)#\2#')
+            f=${f#$GITHUB_WORKSPACE/}
+            echo "::error file=$f,line=$n::$m"
+          done
+          # Testes que falharam e o resumo do Gradle.
+          grep -E 'FAILED|What went wrong|Execution failed|> .*Exception' build.log | head -40 | while IFS= read -r l; do
+            echo "::error::$l"
+          done
+          tail -80 build.log > resumo.txt
+
+      - name: Relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios
+          path: |
+            build.log
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 7
