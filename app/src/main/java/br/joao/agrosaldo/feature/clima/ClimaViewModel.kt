@@ -17,6 +17,7 @@ import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
@@ -118,7 +119,7 @@ class ClimaViewModel(
     /** Lista de propriedades e a selecionada em [SelecaoAtual] (fallback: a primeira). */
     private val selecao: Flow<Pair<List<Propriedade>, Propriedade?>> =
         combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
-            lista to (lista.firstOrNull { it.id == id } ?: lista.firstOrNull())
+            lista to ResumoFinanceiro.propriedadeAtual(lista, id)
         }
 
     init {

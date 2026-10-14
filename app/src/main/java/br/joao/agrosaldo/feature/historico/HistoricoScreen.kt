@@ -54,6 +54,7 @@ import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.nomeDoMes
 import br.joao.agrosaldo.core.util.siglaDoMes
+import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
@@ -356,7 +357,7 @@ private fun Destaque(titulo: String, mes: MesDoHistorico, modifier: Modifier = M
 }
 
 @Composable
-private fun CartaoGastos(gastos: List<GastoDoAno>, modifier: Modifier = Modifier) {
+private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = Modifier) {
     val oculto = LocalValoresOcultos.current
     Card(
         shape = MaterialTheme.shapes.large,
@@ -469,9 +470,9 @@ private fun HistoricoPreview() {
                 melhorMes = meses[4],
                 piorMes = meses[3],
                 gastosDoAno = listOf(
-                    GastoDoAno(CategoriaLancamento.ENERGIA, 1_250_000L, 1f),
-                    GastoDoAno(CategoriaLancamento.ADUBO, 640_000L, 0.51f),
-                    GastoDoAno(CategoriaLancamento.COMBUSTIVEL, 280_000L, 0.22f)
+                    GastoPorCategoria(CategoriaLancamento.ENERGIA, 1_250_000L, 1f),
+                    GastoPorCategoria(CategoriaLancamento.ADUBO, 640_000L, 0.51f),
+                    GastoPorCategoria(CategoriaLancamento.COMBUSTIVEL, 280_000L, 0.22f)
                 )
             ),
             aoVoltarAno = {}, aoAvancarAno = {}, aoSelecionarPropriedade = {}, aoAbrirMes = {}

@@ -5,10 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.core.util.rotuloRelativo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -144,8 +144,7 @@ class LancamentoListaViewModel(
     ): LancamentoListaUiState {
 
         // Sem seleção válida, usa a primeira propriedade.
-        val propriedade = propriedades.firstOrNull { it.id == selecionadaId }
-            ?: propriedades.firstOrNull()
+        val propriedade = ResumoFinanceiro.propriedadeAtual(propriedades, selecionadaId)
 
         val dataDeHoje = hoje()
 
@@ -161,7 +160,8 @@ class LancamentoListaViewModel(
         }
 
         val daPropriedade = todosLancamentos.filter { it.lancamento.propriedadeId == propriedade.id }
-        val doMes = daPropriedade.map { it.lancamento }.filter { it.data.pertenceAo(mes) }
+        val doMes = ResumoFinanceiro.doMes(daPropriedade.map { it.lancamento }, propriedade.id, mes)
+        val totaisDoMes = ResumoFinanceiro.totais(doMes)
 
         // A busca ignora o mês e considera todos os lançamentos da propriedade.
         val termo = normalizar(filtros.busca)
@@ -197,11 +197,11 @@ class LancamentoListaViewModel(
             categoriasDoMes = categoriasDoMes,
             lancamentos = filtrados,
             quantidade = filtrados.size,
-            totalFiltradoCentavos = filtrados.sumOf { it.valorComSinal },
+            totalFiltradoCentavos = ResumoFinanceiro.totais(filtrados).saldoCentavos,
             // Saldo e totais são do mês inteiro, independentes de filtro e busca.
-            saldoCentavos = doMes.sumOf { it.valorComSinal },
-            receitasCentavos = doMes.filter { it.ehReceita }.sumOf { it.valorCentavos },
-            despesasCentavos = doMes.filter { !it.ehReceita }.sumOf { it.valorCentavos },
+            saldoCentavos = totaisDoMes.saldoCentavos,
+            receitasCentavos = totaisDoMes.receitasCentavos,
+            despesasCentavos = totaisDoMes.despesasCentavos,
             propriedades = propriedades,
             grupos = agruparPorDia(filtrados, dataDeHoje),
             meses = mesesDoCabecalho(mes, dataDeHoje),

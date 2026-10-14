@@ -7,10 +7,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.domain.model.CategoriaLancamento
+import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
-import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,13 +33,6 @@ data class MesDoHistorico(
     val temMovimento: Boolean get() = receitasCentavos > 0L || despesasCentavos > 0L
 }
 
-/** Total anual de despesas de uma categoria; [proporcao] em 0..1 relativa à maior. */
-data class GastoDoAno(
-    val categoria: CategoriaLancamento,
-    val totalCentavos: Long,
-    val proporcao: Float
-)
-
 data class HistoricoUiState(
     val carregando: Boolean = true,
     val temPropriedade: Boolean = false,
@@ -56,7 +49,7 @@ data class HistoricoUiState(
     val melhorMes: MesDoHistorico? = null,
     /** Nulo se houver menos de dois meses não futuros com movimento ou se o menor saldo empatar com o maior. */
     val piorMes: MesDoHistorico? = null,
-    val gastosDoAno: List<GastoDoAno> = emptyList(),
+    val gastosDoAno: List<GastoPorCategoria> = emptyList(),
     val podeAvancar: Boolean = false
 ) {
     val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
@@ -99,7 +92,7 @@ class HistoricoViewModel(
         selecionadaId: String?,
         ano: Int
     ): HistoricoUiState {
-        val propriedade = propriedades.firstOrNull { it.id == selecionadaId } ?: propriedades.firstOrNull()
+        val propriedade = ResumoFinanceiro.propriedadeAtual(propriedades, selecionadaId)
         val podeAvancar = ano < anoMaximo()
 
         if (propriedade == null) {
@@ -112,11 +105,11 @@ class HistoricoViewModel(
         val porMes = doAno.groupBy { YearMonth.from(it.data) }
         val meses = (1..12).map { numero ->
             val mes = YearMonth.of(ano, numero)
-            val itens = porMes[mes].orEmpty()
+            val totais = ResumoFinanceiro.totais(porMes[mes].orEmpty())
             MesDoHistorico(
                 mes = mes,
-                receitasCentavos = itens.filter { it.ehReceita }.sumOf { it.valorCentavos },
-                despesasCentavos = itens.filter { !it.ehReceita }.sumOf { it.valorCentavos },
+                receitasCentavos = totais.receitasCentavos,
+                despesasCentavos = totais.despesasCentavos,
                 futuro = mes.isAfter(mesAtual)
             )
         }
@@ -130,14 +123,6 @@ class HistoricoViewModel(
             null
         }
 
-        val gastos = doAno
-            .filter { it.tipo == TipoLancamento.DESPESA }
-            .groupBy { it.categoria }
-            .map { (categoria, itens) -> categoria to itens.sumOf { it.valorCentavos } }
-            .sortedByDescending { it.second }
-            .take(MAXIMO_CATEGORIAS)
-        val maiorGasto = gastos.firstOrNull()?.second ?: 0L
-
         return HistoricoUiState(
             carregando = false,
             temPropriedade = true,
@@ -150,9 +135,7 @@ class HistoricoViewModel(
             maiorValorMensal = meses.maxOfOrNull { maxOf(it.receitasCentavos, it.despesasCentavos) } ?: 0L,
             melhorMes = melhor,
             piorMes = pior,
-            gastosDoAno = gastos.map { (categoria, total) ->
-                GastoDoAno(categoria, total, if (maiorGasto == 0L) 0f else total.toFloat() / maiorGasto)
-            },
+            gastosDoAno = ResumoFinanceiro.rankingDeGastos(doAno, quantos = MAXIMO_CATEGORIAS),
             podeAvancar = podeAvancar
         )
     }

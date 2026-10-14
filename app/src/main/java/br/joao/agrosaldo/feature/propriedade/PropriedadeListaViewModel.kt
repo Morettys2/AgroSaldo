@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
-import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
@@ -60,9 +60,7 @@ class PropriedadeListaViewModel(
             ) { propriedades, lancamentos, mes ->
 
                 val saldos = propriedades.map { propriedade ->
-                    propriedade to lancamentos
-                        .filter { it.propriedadeId == propriedade.id && it.data.pertenceAo(mes) }
-                        .sumOf { it.valorComSinal }
+                    propriedade to ResumoFinanceiro.resumoDoMes(lancamentos, propriedade.id, mes).saldoCentavos
                 }
 
                 val maior = saldos.maxOfOrNull { abs(it.second) }?.takeIf { it > 0 } ?: 1L

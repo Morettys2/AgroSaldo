@@ -59,6 +59,7 @@ import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.nomeDoMes
 import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.core.util.rotuloRelativoCurto
+import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento

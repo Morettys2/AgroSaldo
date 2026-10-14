@@ -6,17 +6,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
-import br.joao.agrosaldo.core.util.pertenceAo
 import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
-import br.joao.agrosaldo.domain.model.CategoriaLancamento
+import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
-import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
@@ -37,13 +36,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-
-/** Total de despesas de uma categoria no mês; [proporcao] em 0..1 relativa à maior. */
-data class GastoPorCategoria(
-    val categoria: CategoriaLancamento,
-    val totalCentavos: Long,
-    val proporcao: Float
-)
 
 data class InicioUiState(
     val carregando: Boolean = true,
@@ -132,7 +124,7 @@ class InicioViewModel(
 
         // Previsão vem do cache; atualizarSeNecessario busca nova se estiver vencida.
         val propriedadeAtual = combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
-            lista.firstOrNull { it.id == id } ?: lista.firstOrNull()
+            ResumoFinanceiro.propriedadeAtual(lista, id)
         }.distinctUntilChanged()
 
         viewModelScope.launch {
@@ -215,42 +207,11 @@ class InicioViewModel(
         mes: YearMonth
     ): InicioUiState {
 
-        val propriedade = propriedades.firstOrNull { it.id == selecionadaId }
-            ?: propriedades.firstOrNull()
+        val propriedade = ResumoFinanceiro.propriedadeAtual(propriedades, selecionadaId)
+            ?: return InicioUiState(carregando = false, temPropriedade = false, mes = mes, hoje = hoje())
 
-        if (propriedade == null) {
-            return InicioUiState(carregando = false, temPropriedade = false, mes = mes, hoje = hoje())
-        }
-
-        val doMes = todosLancamentos
-            .filter { it.propriedadeId == propriedade.id && it.data.pertenceAo(mes) }
-
-        val receitas = doMes.filter { it.tipo == TipoLancamento.RECEITA }
-            .sumOf { it.valorCentavos }
-        val despesas = doMes.filter { it.tipo == TipoLancamento.DESPESA }
-            .sumOf { it.valorCentavos }
-
-        val movimentado = receitas + despesas
-        val proporcao = if (movimentado == 0L) 0.5f else receitas.toFloat() / movimentado
-
-        // Top 3 categorias de despesa. Proporção relativa à maior (não ao total),
-        // de modo que a primeira barra fica sempre cheia.
-        val porCategoria = doMes
-            .filter { it.tipo == TipoLancamento.DESPESA }
-            .groupBy { it.categoria }
-            .map { (categoria, itens) -> categoria to itens.sumOf { it.valorCentavos } }
-            .sortedByDescending { it.second }
-            .take(3)
-
-        val maiorGasto = porCategoria.firstOrNull()?.second ?: 1L
-
-        val gastos = porCategoria.map { (categoria, total) ->
-            GastoPorCategoria(
-                categoria = categoria,
-                totalCentavos = total,
-                proporcao = if (maiorGasto == 0L) 0f else total.toFloat() / maiorGasto
-            )
-        }
+        val doMes = ResumoFinanceiro.doMes(todosLancamentos, propriedade.id, mes)
+        val totais = ResumoFinanceiro.totais(doMes)
 
         return InicioUiState(
             carregando = false,
@@ -258,11 +219,11 @@ class InicioViewModel(
             nomePropriedade = propriedade.nome,
             propriedades = propriedades,
             mes = mes,
-            saldoCentavos = receitas - despesas,
-            receitasCentavos = receitas,
-            despesasCentavos = despesas,
-            proporcaoReceitas = proporcao,
-            gastosPorCategoria = gastos,
+            saldoCentavos = totais.saldoCentavos,
+            receitasCentavos = totais.receitasCentavos,
+            despesasCentavos = totais.despesasCentavos,
+            proporcaoReceitas = totais.proporcaoReceitas,
+            gastosPorCategoria = ResumoFinanceiro.rankingDeGastos(doMes, quantos = MAXIMO_CATEGORIAS),
             ultimosLancamentos = doMes.sortedByDescending { it.data }.take(4),
             hoje = hoje()
         )
@@ -274,6 +235,9 @@ class InicioViewModel(
     fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
 
     companion object {
+        /** Quantas categorias o cartão "Maiores gastos" mostra. */
+        const val MAXIMO_CATEGORIAS = 3
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 InicioViewModel(
