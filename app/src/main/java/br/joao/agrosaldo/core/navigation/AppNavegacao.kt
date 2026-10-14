@@ -3,26 +3,14 @@ package br.joao.agrosaldo.core.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,59 +36,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.data.Desfazer
-import br.joao.agrosaldo.feature.clima.AjustesAvisoRoute
-import br.joao.agrosaldo.feature.clima.ClimaRoute
-import br.joao.agrosaldo.feature.conta.AlterarSenhaRoute
-import br.joao.agrosaldo.feature.conta.CadastroRoute
-import br.joao.agrosaldo.feature.conta.CadastroViewModel
-import br.joao.agrosaldo.feature.conta.ConsentimentoRoute
-import br.joao.agrosaldo.feature.conta.ContaRoute
-import br.joao.agrosaldo.feature.conta.LoginRoute
-import br.joao.agrosaldo.feature.conta.NovoConsentimentoRoute
 import br.joao.agrosaldo.feature.conta.OfertaDeBloqueioRoute
-import br.joao.agrosaldo.feature.conta.PoliticaScreen
 import br.joao.agrosaldo.feature.conta.TelaBloqueioRoute
-import br.joao.agrosaldo.feature.historico.HistoricoRoute
-import br.joao.agrosaldo.feature.inicio.InicioRoute
-import br.joao.agrosaldo.feature.lancamento.LancamentoFormRoute
-import br.joao.agrosaldo.feature.lancamento.LancamentoListaRoute
-import br.joao.agrosaldo.feature.propriedade.PropriedadeFormRoute
-import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
-import br.joao.agrosaldo.ui.theme.Espacos
-import br.joao.agrosaldo.ui.theme.IconesAgro
-import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -113,19 +69,6 @@ class PedidoDoClima(val propriedadeId: String?)
 
 /** Chave do estado das telas guardado enquanto o app está bloqueado. */
 private const val CHAVE_CONTEUDO = "conteudo"
-
-private data class Aba(
-    val rota: String,
-    val rotulo: String,
-    val icone: ImageVector
-)
-
-private val ABAS = listOf(
-    Aba(Rotas.INICIO, "Início", IconesAgro.Inicio),
-    Aba(Rotas.LANCAMENTOS, "Lançamentos", IconesAgro.Lista),
-    Aba(Rotas.CLIMA, "Clima", IconesAgro.Nuvem),
-    Aba(Rotas.PROPRIEDADES, "Sítios", IconesAgro.Sitio)
-)
 
 /**
  * Raiz da UI: Scaffold (barras superior/inferior), NavHost, snackbar de desfazer e,
@@ -159,6 +102,7 @@ fun AppNavegacao(
 
     val entradaAtual by navController.currentBackStackEntryAsState()
     val rotaAtual = entradaAtual?.destination?.route
+    val navegador = remember(navController) { Navegador(navController) }
 
     // Redireciona conforme a sessão. popUpTo(graph.id, inclusive) limpa a back stack para
     // que "voltar" não cruze a fronteira login/área autenticada nem pule o novo aceite.
@@ -196,7 +140,7 @@ fun AppNavegacao(
         val pedido = pedidoDoClima ?: return@LaunchedEffect
         // Aguarda o NavHost ter a primeira entrada na back stack.
         navController.currentBackStackEntryFlow.first()
-        if (sessaoViewModel.prepararAberturaDoClima(pedido.propriedadeId)) navegarParaAba(navController, Rotas.CLIMA)
+        if (sessaoViewModel.prepararAberturaDoClima(pedido.propriedadeId)) navegador.irParaAba(Rotas.CLIMA)
     }
 
     val contexto = LocalContext.current
@@ -269,14 +213,6 @@ fun AppNavegacao(
         else -> null
     }
 
-    // Toque duplo não empilha a mesma tela: com launchSingleTop, a segunda navegação reaproveita o topo.
-    val abrir: (String) -> Unit = { rota -> navController.navigate(rota) { launchSingleTop = true } }
-
-    // Ignora se o formulário já está no topo, evitando empilhar dois com toques rápidos.
-    val abrirFormulario: (String) -> Unit = { rota ->
-        if (navController.currentDestination?.route != Rotas.FORM_LANCAMENTO) navController.navigate(rota)
-    }
-    val abrirNovoLancamento = { abrirFormulario(Rotas.formLancamento()) }
 
     // Bloqueado, o conteúdo sai da composição: diálogos e menus abrem em janelas próprias,
     // acima de qualquer capa na janela do app, e o teclado alcançaria os campos debaixo
@@ -352,8 +288,8 @@ fun AppNavegacao(
                             if (ehAbaPrincipal) {
                                 BarraInferior(
                                     rotaAtual = entradaAtual?.destination,
-                                    aoSelecionar = { rota -> navegarParaAba(navController, rota) },
-                                    aoNovoLancamento = abrirNovoLancamento
+                                    aoSelecionar = navegador::irParaAba,
+                                    aoNovoLancamento = { navegador.abrirFormularioDeLancamento(Rotas.formLancamento()) }
                                 )
                             }
                         },
@@ -366,186 +302,9 @@ fun AppNavegacao(
                             modifier = Modifier.padding(espacoInterno)
                         ) {
 
-                            // Fluxo não autenticado
-
-                            composable(Rotas.LOGIN) {
-                                LoginRoute(aoCriarConta = { abrir(Rotas.CRIAR_CONTA) })
-                            }
-
-                            composable(Rotas.CRIAR_CONTA) {
-                                // Escopo da entrada CRIAR_CONTA; compartilhado com CONSENTIMENTO.
-                                val cadastroViewModel: CadastroViewModel =
-                                    viewModel(factory = CadastroViewModel.Factory)
-                                CadastroRoute(
-                                    viewModel = cadastroViewModel,
-                                    aoIrParaConsentimento = { abrir(Rotas.CONSENTIMENTO) },
-                                    aoVoltarParaLogin = { navController.popBackStack() }
-                                )
-                            }
-
-                            composable(Rotas.CONSENTIMENTO) { entrada ->
-                                // Reutiliza o CadastroViewModel da entrada CRIAR_CONTA. Precisa de remember:
-                                // após criar a conta a back stack é limpa e getBackStackEntry lançaria
-                                // exceção durante a animação de saída desta tela.
-                                val cadastroViewModel = remember(entrada) {
-                                    val donoDoCadastro = navController.getBackStackEntry(Rotas.CRIAR_CONTA)
-                                    val provedor = ViewModelProvider(donoDoCadastro, CadastroViewModel.Factory)
-                                    provedor[CadastroViewModel::class.java]
-                                }
-                                ConsentimentoRoute(
-                                    viewModel = cadastroViewModel,
-                                    aoLerPolitica = { abrir(Rotas.POLITICA) },
-                                    // Recusa não persiste nada.
-                                    aoRecusar = { navController.popBackStack(Rotas.LOGIN, inclusive = false) }
-                                )
-                            }
-
-                            composable(Rotas.POLITICA) {
-                                PoliticaScreen()
-                            }
-
-                            composable(Rotas.NOVO_CONSENTIMENTO) {
-                                // A navegação após aceitar/recusar vem do LaunchedEffect de sessão.
-                                NovoConsentimentoRoute(aoLerPolitica = { abrir(Rotas.POLITICA) })
-                            }
-
-                            // Área autenticada
-
-                            composable(Rotas.CONTA) {
-                                ContaRoute(
-                                    aoAbrirPrivacidade = { abrir(Rotas.POLITICA) },
-                                    aoAlterarSenha = { abrir(Rotas.ALTERAR_SENHA) },
-                                    aoAbrirAvisoChuva = { abrir(Rotas.AJUSTES_AVISO) },
-                                    aoAbrirPropriedades = { navegarParaAba(navController, Rotas.PROPRIEDADES) }
-                                )
-                            }
-
-                            composable(Rotas.ALTERAR_SENHA) {
-                                AlterarSenhaRoute(
-                                    aoConcluir = {
-                                        // Guarda contra pop duplo se o usuário já tiver voltado.
-                                        if (navController.currentDestination?.route == Rotas.ALTERAR_SENHA) {
-                                            navController.popBackStack()
-                                        }
-                                    }
-                                )
-                            }
-
-                            composable(Rotas.INICIO) {
-                                InicioRoute(
-                                    aoNovoLancamento = { tipo -> abrirFormulario(Rotas.formLancamento(tipo = tipo)) },
-                                    aoEditarLancamento = { id -> abrirFormulario(Rotas.formLancamento(id)) },
-                                    aoAbrirClima = { navegarParaAba(navController, Rotas.CLIMA) },
-                                    aoAbrirHistorico = { abrir(Rotas.HISTORICO) },
-                                    aoAbrirLancamentos = { navegarParaAba(navController, Rotas.LANCAMENTOS) },
-                                    aoAbrirConta = { abrir(Rotas.CONTA) },
-                                    aoAlternarValores = privacidadeViewModel::aoAlternar,
-                                    aoCadastrarPropriedade = { abrir(Rotas.formPropriedade()) }
-                                )
-                            }
-
-                            composable(Rotas.HISTORICO) {
-                                // O mês escolhido já foi gravado em SelecaoAtual pelo ViewModel.
-                                HistoricoRoute(aoAbrirMes = { navegarParaAba(navController, Rotas.LANCAMENTOS) })
-                            }
-
-                            composable(Rotas.LANCAMENTOS) {
-                                LancamentoListaRoute(
-                                    aoEditarLancamento = { id -> abrirFormulario(Rotas.formLancamento(id)) }
-                                )
-                            }
-
-                            composable(Rotas.CLIMA) {
-                                ClimaRoute(
-                                    aoAbrirAjustes = { abrir(Rotas.AJUSTES_AVISO) },
-                                    aoCadastrarPropriedade = { abrir(Rotas.formPropriedade()) }
-                                )
-                            }
-
-                            composable(Rotas.AJUSTES_AVISO) {
-                                AjustesAvisoRoute(
-                                    aoConcluir = {
-                                        if (navController.currentDestination?.route == Rotas.AJUSTES_AVISO) {
-                                            navController.popBackStack()
-                                        }
-                                    }
-                                )
-                            }
-
-                            composable(Rotas.PROPRIEDADES) {
-                                PropriedadeListaRoute(
-                                    aoAbrirNova = { abrir(Rotas.formPropriedade()) },
-                                    aoAbrirPropriedade = { id -> abrir(Rotas.formPropriedade(id)) },
-                                    aoAbrirConta = { abrir(Rotas.CONTA) }
-                                )
-                            }
-
-                            composable(
-                                route = Rotas.FORM_LANCAMENTO,
-                                arguments = listOf(
-                                    navArgument(Rotas.ARG_ID) {
-                                        type = NavType.StringType
-                                        nullable = true
-                                        defaultValue = null
-                                    },
-                                    navArgument(Rotas.ARG_COPIA) {
-                                        type = NavType.StringType
-                                        nullable = true
-                                        defaultValue = null
-                                    },
-                                    navArgument(Rotas.ARG_TIPO) {
-                                        type = NavType.StringType
-                                        nullable = true
-                                        defaultValue = null
-                                    }
-                                )
-                            ) { entrada ->
-                                LancamentoFormRoute(
-                                    lancamentoId = entrada.arguments?.getString(Rotas.ARG_ID),
-                                    copiaDe = entrada.arguments?.getString(Rotas.ARG_COPIA),
-                                    tipoInicial = Rotas.tipoDaRota(entrada.arguments?.getString(Rotas.ARG_TIPO)),
-                                    // Guarda contra pop duplo durante a animação de saída.
-                                    aoConcluir = {
-                                        if (navController.currentDestination?.route == Rotas.FORM_LANCAMENTO) {
-                                            navController.popBackStack()
-                                        }
-                                    },
-                                    // Sem propriedade cadastrada: substitui o formulário pelo cadastro.
-                                    aoCadastrarPropriedade = {
-                                        navController.navigate(Rotas.formPropriedade()) {
-                                            popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                    // Substitui a edição pela cópia, para "voltar" não retornar à edição.
-                                    aoLancarDeNovo = { id ->
-                                        navController.navigate(Rotas.formLancamento(copiaDe = id)) {
-                                            popUpTo(Rotas.FORM_LANCAMENTO) { inclusive = true }
-                                        }
-                                    }
-                                )
-                            }
-
-                            composable(
-                                route = Rotas.FORM_PROPRIEDADE,
-                                arguments = listOf(
-                                    navArgument(Rotas.ARG_ID) {
-                                        type = NavType.StringType
-                                        nullable = true
-                                        defaultValue = null
-                                    }
-                                )
-                            ) { entrada ->
-                                PropriedadeFormRoute(
-                                    propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
-                                    // Guarda contra pop duplo.
-                                    aoConcluir = {
-                                        if (navController.currentDestination?.route == Rotas.FORM_PROPRIEDADE) {
-                                            navController.popBackStack()
-                                        }
-                                    }
-                                )
-                            }
+                            grafoDaConta(navegador)
+                            grafoDoFinanceiro(navegador, aoAlternarValores = privacidadeViewModel::aoAlternar)
+                            grafoDoClima(navegador)
                         }
                     }
 
@@ -563,106 +322,6 @@ fun AppNavegacao(
                     aoDispensar = sessaoViewModel::aoDispensarOfertaDeBloqueio
                 )
             }
-        }
-    }
-}
-
-/**
- * Navegação entre abas sem empilhar destinos, preservando o estado de cada aba.
- *
- * popUpTo usa [Rotas.INICIO] e não o startDestination do grafo, que pode ser o login
- * (já removido da back stack após autenticar).
- */
-private fun navegarParaAba(navController: NavHostController, rota: String) {
-    navController.navigate(rota) {
-        popUpTo(Rotas.INICIO) {
-            saveState = true
-        }
-        launchSingleTop = true
-        restoreState = true
-    }
-}
-
-/**
- * Barra inferior flutuante em pílula, com o botão de novo lançamento no centro.
- * Rótulos usam autoSize para não truncar em telas estreitas.
- */
-@Composable
-private fun BarraInferior(
-    rotaAtual: androidx.navigation.NavDestination?,
-    aoSelecionar: (String) -> Unit,
-    aoNovoLancamento: () -> Unit
-) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = Espacos.medio, end = Espacos.medio, top = 6.dp, bottom = 10.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(elevation = 8.dp, shape = CircleShape)
-                .clip(CircleShape)
-                .background(MaterialTheme.agro.cabecalho)
-                .padding(6.dp)
-                .selectableGroup()
-        ) {
-            ABAS.forEachIndexed { indice, aba ->
-                // Botão "+" no centro da barra.
-                if (indice == ABAS.size / 2) BotaoNovoLancamento(aoNovoLancamento)
-                ItemDaBarra(
-                    aba = aba,
-                    selecionada = rotaAtual?.hierarchy?.any { it.route == aba.rota } == true,
-                    aoClicar = { aoSelecionar(aba.rota) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.ItemDaBarra(aba: Aba, selecionada: Boolean, aoClicar: () -> Unit) {
-    val corDoIcone = if (selecionada) MaterialTheme.agro.destaque else MaterialTheme.agro.sobreCabecalho
-    val corDoNome = if (selecionada) MaterialTheme.agro.destaque else MaterialTheme.agro.sobreCabecalhoSecundario
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 56.dp)
-            .clip(CircleShape)
-            .background(if (selecionada) MaterialTheme.agro.cabecalhoElevado else Color.Transparent)
-            .selectable(selected = selecionada, role = Role.Tab, onClick = aoClicar)
-    ) {
-        Icon(aba.icone, contentDescription = null, tint = corDoIcone, modifier = Modifier.size(22.dp))
-        BasicText(
-            text = aba.rotulo,
-            style = MaterialTheme.typography.labelSmall.copy(color = corDoNome),
-            maxLines = 1,
-            // 11 sp é o mínimo legível; abaixo disso o nome da aba some para quem usa fonte grande.
-            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 12.sp),
-            modifier = Modifier.padding(horizontal = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun BotaoNovoLancamento(aoClicar: () -> Unit) {
-    Surface(
-        onClick = aoClicar,
-        shape = CircleShape,
-        color = MaterialTheme.agro.destaque,
-        contentColor = MaterialTheme.agro.sobreDestaque,
-        modifier = Modifier
-            .size(width = 60.dp, height = 52.dp)
-            .semantics { contentDescription = "Novo lançamento" }
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(IconesAgro.Mais, contentDescription = null, modifier = Modifier.size(26.dp))
         }
     }
 }
