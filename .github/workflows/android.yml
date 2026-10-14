@@ -45,6 +45,24 @@ jobs:
           tail -60 build.log | anotar "Final do log" || true
           find app/build/reports/lint-results* -name '*.txt' -exec cat {} + 2>/dev/null | head -200 | anotar "Lint" || true
 
+      - name: Resumo
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          t=f=s=0
+          for x in glob.glob('app/build/test-results/**/*.xml', recursive=True):
+              r=ET.parse(x).getroot(); t+=int(r.get('tests',0)); f+=int(r.get('failures',0))+int(r.get('errors',0)); s+=int(r.get('skipped',0))
+          avisos={}
+          for x in glob.glob('app/build/reports/lint-results*.xml'):
+              for i in ET.parse(x).getroot().iter('issue'):
+                  k=i.get('severity')+' '+i.get('id'); avisos[k]=avisos.get(k,0)+1
+          kt=sum(1 for l in open('build.log', errors='ignore') if l.startswith('w: '))
+          linhas=[f"Testes: {t} ({f} falhas, {s} ignorados)", f"Avisos do Kotlin: {kt}", "Lint: "+(", ".join(f"{v}x {k}" for k,v in sorted(avisos.items())) or "nada")]
+          print("::notice title=Resumo::"+"%0A".join(linhas))
+          PY
+          grep -E '^w: ' build.log | sed "s#file://$GITHUB_WORKSPACE/##" | head -80 | python3 -c 'import sys;t=sys.stdin.read();t and print("::warning title=Avisos do Kotlin::"+t.replace("%","%25").replace("\n","%0A"))'
+
       - name: Relatórios
         if: always()
         uses: actions/upload-artifact@v5
