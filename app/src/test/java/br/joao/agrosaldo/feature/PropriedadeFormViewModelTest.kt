@@ -466,7 +466,7 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `na edicao o valor restaurado vale mais que o do banco`() {
         val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
-        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado, selecao = selecao)
+        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado, selecao = selecao)
 
         assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
         assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)
