@@ -17,6 +17,7 @@ import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -41,6 +42,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  *   saiu    R$  2.350   (energia 1.250 + adubo 780 + combustível 320)
  *   saldo   R$ 15.650
  */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle e runCurrent
 class ResumosViewModelTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */

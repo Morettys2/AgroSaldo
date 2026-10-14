@@ -45,6 +45,7 @@ import java.time.ZoneOffset
  *
  * Usa o [ContaService] real sobre repositórios em memória.
  */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle e runCurrent
 class ContaViewModelsTest {
 
     @get:Rule

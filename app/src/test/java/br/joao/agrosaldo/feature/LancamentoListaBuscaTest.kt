@@ -12,6 +12,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -29,6 +30,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  * Lista de lançamentos: agrupamento por dia, busca em todos os meses, pílulas de mês do
  * cabeçalho e ocultação de valores (PrivacidadeViewModel).
  */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle e runCurrent
 class LancamentoListaBuscaTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */

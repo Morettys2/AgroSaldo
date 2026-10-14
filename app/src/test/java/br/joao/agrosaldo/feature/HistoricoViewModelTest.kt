@@ -10,6 +10,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.feature.historico.HistoricoViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -32,6 +33,7 @@ import java.time.YearMonth
  *   agosto:   entrou R$ 9.400  · saiu R$ 2.100  · saldo R$  7.300
  *   setembro: entrou R$ 18.000 · saiu R$ 2.350  · saldo R$ 15.650
  */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle e runCurrent
 class HistoricoViewModelTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
