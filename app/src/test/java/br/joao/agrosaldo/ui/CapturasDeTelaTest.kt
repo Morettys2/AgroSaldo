@@ -51,8 +51,8 @@ import org.robolectric.annotation.Config
  * Capturas das telas principais, desenhadas no JVM (Robolectric + Roborazzi), com os
  * ViewModels de verdade sobre os dados de exemplo dos testes.
  *
- * Servem para o README e para revisar o visual de um PR sem abrir o emulador: o CI grava
- * as imagens em `app/build/capturas`. Não comparam com uma imagem anterior (isso quebraria
+ * Servem para revisar o visual de um PR sem abrir o emulador: o CI grava as imagens em
+ * `app/build/capturas` e as publica na branch `ci/capturas`. Não comparam com uma imagem anterior (isso quebraria
  * a cada ajuste de pixel); só garantem que a tela desenha sem erro.
  */
 @RunWith(RobolectricTestRunner::class)
