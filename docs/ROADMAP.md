@@ -83,7 +83,7 @@ Escrever `docs/rodadas/R6.md`, explicando por que regra de negócio mora no dom�
 
 ---
 
-## R7 — Componentes visuais e acessibilidade
+## ✅ R7 — Componentes visuais e acessibilidade (feita, ver `docs/rodadas/R7.md`)
 
 - **Componentes compartilhados em `core/ui`:**
   - `BotaoPrincipal`, `BotaoSecundario` e `BotaoDestaque` com `heightIn(min = 56.dp)`. Hoje há uns 12 botões refeitos à mão, com `.height(56.dp)` fixo que corta o texto com fonte grande e alturas 52/56 misturadas.
@@ -100,7 +100,7 @@ Escrever `docs/rodadas/R6.md`, explicando por que regra de negócio mora no dom�
 - ~~**Formulários:** rascunho sobrevivendo ao processo morrer~~: feito na auditoria (M12).
 - ~~**Política nova:** Início piscando antes do aceite~~: feito na auditoria (M3).
 
-## R8 — Padrão profissional
+## ✅ R8 — Padrão profissional (feita, ver `docs/rodadas/R8.md`)
 
 - **Quebrar os arquivos grandes:**
   - `LancamentoFormScreen` (956 linhas) → teclado, campos, topo;
