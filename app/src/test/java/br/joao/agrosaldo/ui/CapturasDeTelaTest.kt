@@ -85,7 +85,7 @@ class CapturasDeTelaTest {
         compose.onRoot().captureRoboImage("build/capturas/$nome.png")
     }
 
-    private fun inicio() = InicioViewModel(
+    private fun viewModelDoInicio() = InicioViewModel(
         lancamentoRepository = lancamentos,
         propriedadeRepository = propriedades,
         clima = clima,
@@ -107,13 +107,13 @@ class CapturasDeTelaTest {
 
     @Test
     fun inicio() {
-        val viewModel = inicio()
+        val viewModel = viewModelDoInicio()
         capturar("01-inicio") { TelaInicio(viewModel) }
     }
 
     @Test
     fun inicioEscuro() {
-        val viewModel = inicio()
+        val viewModel = viewModelDoInicio()
         capturar("02-inicio-escuro", escuro = true) { TelaInicio(viewModel) }
     }
 
