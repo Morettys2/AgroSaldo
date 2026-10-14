@@ -48,6 +48,12 @@ android {
 // Os testes de captura (CapturasDeTelaTest) gravam as imagens em app/build/capturas.
 tasks.withType<Test>().configureEach {
     systemProperty("roborazzi.test.record", "true")
+    // O Robolectric do Android 16 mexe em internals do Java (FileDescriptor) que o JDK 17+
+    // esconde por padrão.
+    jvmArgs(
+        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED"
+    )
 }
 
 // Schemas exportados pelo Room (um JSON por versão). Versionar app/schemas:
