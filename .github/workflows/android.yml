@@ -15,6 +15,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Escrita só para publicar as capturas de tela na branch ci/capturas.
+    permissions:
+      contents: write
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -62,6 +65,19 @@ jobs:
           print("::notice title=Resumo::"+"%0A".join(linhas))
           PY
           grep -E '^w: ' build.log | sed "s#file://$GITHUB_WORKSPACE/##" | head -80 | python3 -c 'import sys;t=sys.stdin.read();t and print("::warning title=Avisos do Kotlin::"+t.replace("%","%25").replace("\n","%0A"))'
+
+      - name: Publicar capturas de tela
+        # As imagens das telas (CapturasDeTelaTest) vão para a branch ci/capturas, para revisar o
+        # visual de um PR sem emulador: é só abrir a branch no GitHub.
+        if: always() && hashFiles('app/build/capturas/*.png') != ''
+        run: |
+          mkdir -p /tmp/capturas && cp app/build/capturas/*.png /tmp/capturas/
+          cd /tmp/capturas
+          git init -q -b ci/capturas
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -qm "Capturas de ${{ github.head_ref || github.ref_name }} (${{ github.sha }})"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci/capturas
 
       - name: Relatórios
         if: always()

@@ -39,6 +39,15 @@ android {
     testFixtures {
         enable = true
     }
+    testOptions {
+        // Robolectric precisa dos recursos (fontes, temas, strings) para desenhar as telas.
+        unitTests.isIncludeAndroidResources = true
+    }
+}
+
+// Os testes de captura (CapturasDeTelaTest) gravam as imagens em app/build/capturas.
+tasks.withType<Test>().configureEach {
+    systemProperty("roborazzi.test.record", "true")
 }
 
 // Schemas exportados pelo Room (um JSON por versão). Versionar app/schemas:
@@ -92,6 +101,13 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     // Implementação real do org.json para testes JVM (o android.jar só tem stubs).
     testImplementation(libs.org.json)
+    // Telas Compose testadas no JVM: cliques, textos e capturas de tela, sem emulador.
+    testImplementation(composeBom)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
