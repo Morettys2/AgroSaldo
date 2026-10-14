@@ -55,10 +55,7 @@ import br.joao.agrosaldo.ui.theme.agro
  * sob a status bar; statusBarsPadding afasta apenas o conteúdo.
  */
 @Composable
-fun CabecalhoSafra(
-    modifier: Modifier = Modifier,
-    conteudo: @Composable ColumnScope.() -> Unit
-) {
+fun CabecalhoSafra(modifier: Modifier = Modifier, conteudo: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -85,13 +82,7 @@ fun Modifier.sangrarNasLaterais(margem: Dp): Modifier = layout { medida, limites
 
 /** Botão circular de 48dp para o cabeçalho. */
 @Composable
-fun BotaoCabecalho(
-    icone: ImageVector,
-    descricao: String,
-    aoClicar: () -> Unit,
-    modifier: Modifier = Modifier,
-    habilitado: Boolean = true
-) {
+fun BotaoCabecalho(icone: ImageVector, descricao: String, aoClicar: () -> Unit, modifier: Modifier = Modifier, habilitado: Boolean = true) {
     Surface(
         onClick = aoClicar,
         enabled = habilitado,
@@ -108,13 +99,7 @@ fun BotaoCabecalho(
 
 /** Rótulo e valor no cabeçalho, mesclados em um único nó de acessibilidade. */
 @Composable
-fun CartaoNoCabecalho(
-    rotulo: String,
-    valor: String,
-    corDoValor: Color,
-    modifier: Modifier = Modifier,
-    oculto: Boolean = false
-) {
+fun CartaoNoCabecalho(rotulo: String, valor: String, corDoValor: Color, modifier: Modifier = Modifier, oculto: Boolean = false) {
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
@@ -163,11 +148,7 @@ fun ValorGrande(
 
 /** Cartão de superfície do corpo das telas (shapes.large). */
 @Composable
-fun CartaoSafra(
-    modifier: Modifier = Modifier,
-    preenchimento: Dp = 20.dp,
-    conteudo: @Composable ColumnScope.() -> Unit
-) {
+fun CartaoSafra(modifier: Modifier = Modifier, preenchimento: Dp = 20.dp, conteudo: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
@@ -179,12 +160,7 @@ fun CartaoSafra(
 
 /** Título de cartão com ação textual opcional à direita. Marcado como heading para navegação por acessibilidade. */
 @Composable
-fun TituloDeCartao(
-    titulo: String,
-    modifier: Modifier = Modifier,
-    acao: String? = null,
-    aoClicarAcao: () -> Unit = {}
-) {
+fun TituloDeCartao(titulo: String, modifier: Modifier = Modifier, acao: String? = null, aoClicarAcao: () -> Unit = {}) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -212,13 +188,7 @@ fun TituloDeCartao(
 
 /** FilterChip do app. O ícone de confirmação indica seleção sem depender só da cor. */
 @Composable
-fun ChipSafra(
-    rotulo: String,
-    selecionado: Boolean,
-    aoClicar: () -> Unit,
-    modifier: Modifier = Modifier,
-    iconeFinal: ImageVector? = null
-) {
+fun ChipSafra(rotulo: String, selecionado: Boolean, aoClicar: () -> Unit, modifier: Modifier = Modifier, iconeFinal: ImageVector? = null) {
     FilterChip(
         selected = selecionado,
         onClick = aoClicar,

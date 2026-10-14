@@ -33,7 +33,6 @@ import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
 
 /** Login, cadastro, consentimento LGPD, política e a área "Conta". */
 internal fun NavGraphBuilder.grafoDaConta(navegador: Navegador) {
-
     // Fluxo não autenticado
 
     composable(Rotas.LOGIN) {
@@ -98,7 +97,6 @@ internal fun NavGraphBuilder.grafoDaConta(navegador: Navegador) {
  * @param aoAlternarValores o "olho" do Início, que esconde os valores em todas as telas.
  */
 internal fun NavGraphBuilder.grafoDoFinanceiro(navegador: Navegador, aoAlternarValores: () -> Unit) {
-
     composable(Rotas.INICIO) {
         InicioRoute(
             aoNovoLancamento = { tipo -> navegador.abrirFormularioDeLancamento(Rotas.formLancamento(tipo = tipo)) },
@@ -169,7 +167,6 @@ internal fun NavGraphBuilder.grafoDoFinanceiro(navegador: Navegador, aoAlternarV
 
 /** Previsão do tempo e ajustes do aviso de chuva. */
 internal fun NavGraphBuilder.grafoDoClima(navegador: Navegador) {
-
     composable(Rotas.CLIMA) {
         ClimaRoute(
             aoAbrirAjustes = { navegador.abrir(Rotas.AJUSTES_AVISO) },

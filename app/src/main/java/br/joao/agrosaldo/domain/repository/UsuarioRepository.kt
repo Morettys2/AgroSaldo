@@ -1,8 +1,8 @@
 package br.joao.agrosaldo.domain.repository
 
 import br.joao.agrosaldo.domain.model.Usuario
-import kotlinx.coroutines.flow.Flow
 import java.time.Instant
+import kotlinx.coroutines.flow.Flow
 
 /** Contas locais do aparelho. */
 interface UsuarioRepository {

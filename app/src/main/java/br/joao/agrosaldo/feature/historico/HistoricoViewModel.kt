@@ -15,14 +15,14 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.YearMonth
 
 /** Totais de um mês, em centavos. */
 data class MesDoHistorico(
@@ -75,9 +75,9 @@ class HistoricoViewModel(
 ) : ViewModel() {
 
     // Ano inicial: o do mês selecionado globalmente.
-    private val _ano = MutableStateFlow(selecao.mes.value.year)
+    private val anoEscolhido = MutableStateFlow(selecao.mes.value.year)
 
-    private val _uiState = MutableStateFlow(HistoricoUiState(ano = _ano.value))
+    private val _uiState = MutableStateFlow(HistoricoUiState(ano = anoEscolhido.value))
     val uiState: StateFlow<HistoricoUiState> = _uiState.asStateFlow()
 
     init {
@@ -86,7 +86,7 @@ class HistoricoViewModel(
                 lancamentoRepository.observarTodos(),
                 propriedadeRepository.observarTodas(),
                 selecao.propriedadeId,
-                _ano
+                anoEscolhido
             ) { lancamentos, propriedades, selecionadaId, ano ->
                 montarEstado(lancamentos, propriedades, selecionadaId, ano)
             }.repetirAposErro { erro ->
@@ -153,11 +153,11 @@ class HistoricoViewModel(
     private fun anoMaximo(): Int = hoje().year + 1
 
     fun aoVoltarAno() {
-        _ano.value = _ano.value - 1
+        anoEscolhido.value = anoEscolhido.value - 1
     }
 
     fun aoAvancarAno() {
-        if (_ano.value < anoMaximo()) _ano.value = _ano.value + 1
+        if (anoEscolhido.value < anoMaximo()) anoEscolhido.value = anoEscolhido.value + 1
     }
 
     fun aoSelecionarPropriedade(id: String) = selecao.selecionar(id)

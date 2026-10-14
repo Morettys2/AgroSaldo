@@ -1,19 +1,18 @@
 package br.joao.agrosaldo.core.util
 
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.retryWhen
-import kotlin.coroutines.cancellation.CancellationException
 
 /** Equivalente a `runCatching` que relança CancellationException, preservando o cancelamento cooperativo. */
-inline fun <T> tentar(bloco: () -> T): Result<T> =
-    try {
-        Result.success(bloco())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Result.failure(e)
-    }
+inline fun <T> tentar(bloco: () -> T): Result<T> = try {
+    Result.success(bloco())
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    Result.failure(e)
+}
 
 /**
  * Mensagem exibível ao usuário. IllegalArgumentException (vinda de `require` no domínio)
@@ -34,10 +33,9 @@ private const val ESPERA_MAXIMA_MS = 30_000L
  * de novo depois de uma espera crescente — 1 s, 2 s, 4 s… até 30 s —, para um erro que
  * persiste não virar um laço apertado. Cancelamento nunca é tratado como erro.
  */
-fun <T> Flow<T>.repetirAposErro(aoFalhar: (Throwable) -> Unit): Flow<T> =
-    retryWhen { erro, tentativa ->
-        if (erro is CancellationException) return@retryWhen false
-        aoFalhar(erro)
-        delay(minOf(ESPERA_INICIAL_MS shl tentativa.coerceAtMost(5L).toInt(), ESPERA_MAXIMA_MS))
-        true
-    }
+fun <T> Flow<T>.repetirAposErro(aoFalhar: (Throwable) -> Unit): Flow<T> = retryWhen { erro, tentativa ->
+    if (erro is CancellationException) return@retryWhen false
+    aoFalhar(erro)
+    delay(minOf(ESPERA_INICIAL_MS shl tentativa.coerceAtMost(5L).toInt(), ESPERA_MAXIMA_MS))
+    true
+}

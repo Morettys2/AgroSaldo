@@ -88,8 +88,7 @@ fun LinhaLancamento(
 }
 
 /** "Ontem · Venda de milho", ou só o dia se não houver descrição. */
-fun apoioComData(dia: String, descricao: String): String =
-    if (descricao.isBlank()) dia else "$dia · $descricao"
+fun apoioComData(dia: String, descricao: String): String = if (descricao.isBlank()) dia else "$dia · $descricao"
 
 @Preview(showBackground = true)
 @Composable

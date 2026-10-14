@@ -48,7 +48,6 @@ object Rotas {
      */
     val COM_CABECALHO_ESCURO = ABAS + FORM_LANCAMENTO
 
-
     /**
      * Parâmetros mutuamente exclusivos, nesta prioridade.
      * @param id edição de um lançamento existente.
@@ -65,6 +64,5 @@ object Rotas {
     /** Converte o argumento `tipo` da rota; valor inválido vira null. */
     fun tipoDaRota(texto: String?): TipoLancamento? = TipoLancamento.entries.firstOrNull { it.name == texto }
 
-    fun formPropriedade(id: String? = null): String =
-        if (id == null) "propriedade/form" else "propriedade/form?$ARG_ID=$id"
+    fun formPropriedade(id: String? = null): String = if (id == null) "propriedade/form" else "propriedade/form?$ARG_ID=$id"
 }

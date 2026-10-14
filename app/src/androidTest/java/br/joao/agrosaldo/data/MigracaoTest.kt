@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
 import br.joao.agrosaldo.data.local.Semeador
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
+import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -15,7 +16,6 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.LocalDate
 
 /**
  * Atualização direta do banco v1 para a versão atual (1→2: usuários/login; 2→3: previsão do clima).
@@ -72,8 +72,13 @@ class MigracaoTest {
             runBlocking {
                 // Primeira consulta: o Room abre o banco, migra e valida o esquema.
                 val conta = UsuarioEntity(
-                    id = "u1", nome = "Fábio", email = "fabio@exemplo.com", senhaHash = "hash",
-                    consentimentoEm = 1L, versaoTermo = 1, criadoEm = 1L
+                    id = "u1",
+                    nome = "Fábio",
+                    email = "fabio@exemplo.com",
+                    senhaHash = "hash",
+                    consentimentoEm = 1L,
+                    versaoTermo = 1,
+                    criadoEm = 1L
                 )
                 banco.usuarioDao().inserir(conta)
 

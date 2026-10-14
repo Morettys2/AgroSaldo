@@ -15,10 +15,7 @@ import javax.crypto.spec.PBEKeySpec
  * (Base64 padrão, sem padding). As iterações ficam no registro para permitir
  * aumentar o custo sem invalidar hashes antigos; ver [precisaAtualizar].
  */
-class HashDeSenha(
-    private val iteracoes: Int = ITERACOES_PADRAO,
-    private val aleatorio: SecureRandom = SecureRandom()
-) {
+class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val aleatorio: SecureRandom = SecureRandom()) {
 
     fun gerar(senha: String): String {
         val sal = bytesAleatorios(TAMANHO_SAL)
@@ -70,13 +67,12 @@ class HashDeSenha(
         }
     }
 
-    private fun formatar(sal: ByteArray, hash: ByteArray): String =
-        listOf(
-            ALGORITMO,
-            iteracoes.toString(),
-            CODIFICADOR.encodeToString(sal),
-            CODIFICADOR.encodeToString(hash)
-        ).joinToString(SEPARADOR)
+    private fun formatar(sal: ByteArray, hash: ByteArray): String = listOf(
+        ALGORITMO,
+        iteracoes.toString(),
+        CODIFICADOR.encodeToString(sal),
+        CODIFICADOR.encodeToString(hash)
+    ).joinToString(SEPARADOR)
 
     private fun bytesAleatorios(tamanho: Int): ByteArray = ByteArray(tamanho).also { aleatorio.nextBytes(it) }
 

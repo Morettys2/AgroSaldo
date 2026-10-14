@@ -16,9 +16,7 @@ import org.junit.runner.Description
  * ViewModel já está atualizado quando a função chamada retorna.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class MainDispatcherRule(
-    private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()
-) : TestWatcher() {
+class MainDispatcherRule(private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()) : TestWatcher() {
 
     override fun starting(description: Description) {
         Dispatchers.setMain(dispatcher)

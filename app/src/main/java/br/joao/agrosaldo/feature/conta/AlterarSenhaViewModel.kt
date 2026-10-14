@@ -39,9 +39,7 @@ data class AlterarSenhaUiState(
  * Troca de senha do usuário logado. Exige a senha atual para que alguém com o
  * aparelho desbloqueado não consiga tomar a conta.
  */
-class AlterarSenhaViewModel(
-    private val conta: ContaService
-) : ViewModel() {
+class AlterarSenhaViewModel(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AlterarSenhaUiState())
     val uiState: StateFlow<AlterarSenhaUiState> = _uiState.asStateFlow()

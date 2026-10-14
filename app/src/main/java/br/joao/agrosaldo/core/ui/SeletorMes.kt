@@ -22,12 +22,7 @@ import java.time.YearMonth
 
 /** Navegação entre meses (RF10), usada no Início e em Lançamentos. */
 @Composable
-fun SeletorMes(
-    mes: YearMonth,
-    aoVoltar: () -> Unit,
-    aoAvancar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun SeletorMes(mes: YearMonth, aoVoltar: () -> Unit, aoAvancar: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()

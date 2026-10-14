@@ -29,22 +29,19 @@ object RegrasDeConta {
     /** Forma canônica usada para busca e unicidade: trim + minúsculas. */
     fun normalizarEmail(email: String): String = email.trim().lowercase()
 
-    fun emailValido(email: String): Boolean =
-        FORMATO_EMAIL.matches(normalizarEmail(email))
+    fun emailValido(email: String): Boolean = FORMATO_EMAIL.matches(normalizarEmail(email))
 
-    fun nomeValido(nome: String): Boolean =
-        nome.isNotBlank() && nome.trim().length <= NOME_MAXIMO
+    fun nomeValido(nome: String): Boolean = nome.isNotBlank() && nome.trim().length <= NOME_MAXIMO
 
     /**
      * [email] e [nome] são usados para recusar senhas com termos do contexto
      * do usuário (NIST 800-63B).
      */
-    fun requisitosDaSenha(senha: String, email: String = "", nome: String = ""): RequisitosSenha =
-        RequisitosSenha(
-            temTamanhoMinimo = senha.length >= SENHA_MINIMO,
-            temLetraENumero = senha.any { it.isLetter() } && senha.any { it.isDigit() },
-            naoEhPrevisivel = senha.isNotEmpty() && !ehPrevisivel(senha, email, nome)
-        )
+    fun requisitosDaSenha(senha: String, email: String = "", nome: String = ""): RequisitosSenha = RequisitosSenha(
+        temTamanhoMinimo = senha.length >= SENHA_MINIMO,
+        temLetraENumero = senha.any { it.isLetter() } && senha.any { it.isDigit() },
+        naoEhPrevisivel = senha.isNotEmpty() && !ehPrevisivel(senha, email, nome)
+    )
 
     fun senhaValida(senha: String, email: String = "", nome: String = ""): Boolean =
         requisitosDaSenha(senha, email, nome).todosCumpridos && senha.length <= SENHA_MAXIMO

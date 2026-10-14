@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -76,15 +77,17 @@ fun PropriedadeFormRoute(
         aoFalhar = { mensagem -> mensagemLocalizacao = mensagem }
     )
 
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoConcluirAtual by rememberUpdatedState(aoConcluir)
     LaunchedEffect(uiState.salvo, uiState.excluido) {
-        if (uiState.salvo || uiState.excluido) aoConcluir()
+        if (uiState.salvo || uiState.excluido) aoConcluirAtual()
     }
 
     val contexto = LocalContext.current
     LaunchedEffect(uiState.naoEncontrado) {
         if (uiState.naoEncontrado) {
             Toast.makeText(contexto, PropriedadeFormViewModel.AVISO_NAO_ENCONTRADO, Toast.LENGTH_SHORT).show()
-            aoConcluir()
+            aoConcluirAtual()
         }
     }
 
@@ -136,7 +139,6 @@ fun PropriedadeFormScreen(
             .padding(top = Espacos.pequeno, bottom = Espacos.enorme),
         verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
-
         CampoTexto(
             valor = uiState.nome,
             aoMudar = aoMudarNome,

@@ -37,11 +37,7 @@ import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
-private data class Aba(
-    val rota: String,
-    val rotulo: String,
-    val icone: ImageVector
-)
+private data class Aba(val rota: String, val rotulo: String, val icone: ImageVector)
 
 private val ABAS = listOf(
     Aba(Rotas.INICIO, "Início", IconesAgro.Inicio),
@@ -55,11 +51,7 @@ private val ABAS = listOf(
  * Rótulos usam autoSize para não truncar em telas estreitas.
  */
 @Composable
-internal fun BarraInferior(
-    rotaAtual: NavDestination?,
-    aoSelecionar: (String) -> Unit,
-    aoNovoLancamento: () -> Unit
-) {
+internal fun BarraInferior(rotaAtual: NavDestination?, aoSelecionar: (String) -> Unit, aoNovoLancamento: () -> Unit) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier

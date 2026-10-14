@@ -21,8 +21,11 @@ object RegrasDeNavegacao {
             precisaNovoAceite == null -> null
             // Antes do novo aceite, só a política pode ser lida.
             precisaNovoAceite ->
-                if (rota == Rotas.NOVO_CONSENTIMENTO || politicaAbertaDe(setOf(Rotas.NOVO_CONSENTIMENTO))) null
-                else Rotas.NOVO_CONSENTIMENTO
+                if (rota == Rotas.NOVO_CONSENTIMENTO || politicaAbertaDe(setOf(Rotas.NOVO_CONSENTIMENTO))) {
+                    null
+                } else {
+                    Rotas.NOVO_CONSENTIMENTO
+                }
             rota in Rotas.DE_ENTRADA || rota == Rotas.NOVO_CONSENTIMENTO -> Rotas.INICIO
             else -> null
         }
@@ -33,7 +36,7 @@ object RegrasDeNavegacao {
      * conhecido e nenhum desvio de [destino] está pendente. Enquanto false, a navegação
      * cobre o conteúdo, para nenhuma tela aparecer por alguns quadros antes do desvio.
      */
-    fun telaPodeAparecer(rota: String?, anterior: String?, logado: Boolean, precisaNovoAceite: Boolean?): Boolean =
-        rota != null && (!logado || precisaNovoAceite != null) &&
-            destino(rota, anterior, logado, precisaNovoAceite) == null
+    fun telaPodeAparecer(rota: String?, anterior: String?, logado: Boolean, precisaNovoAceite: Boolean?): Boolean = rota != null &&
+        (!logado || precisaNovoAceite != null) &&
+        destino(rota, anterior, logado, precisaNovoAceite) == null
 }

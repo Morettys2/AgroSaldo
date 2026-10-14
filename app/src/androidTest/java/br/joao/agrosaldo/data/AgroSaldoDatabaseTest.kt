@@ -17,6 +17,7 @@ import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -28,7 +29,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.LocalDate
 
 /**
  * DAOs e restrições do SQLite (chaves estrangeiras, CASCADE, índice único) sobre o Room real.
@@ -60,8 +60,13 @@ class AgroSaldoDatabaseTest {
     }
 
     private fun usuario(id: String, email: String) = UsuarioEntity(
-        id = id, nome = "Conta $id", email = email, senhaHash = "hash",
-        consentimentoEm = 1L, versaoTermo = 1, criadoEm = 1L
+        id = id,
+        nome = "Conta $id",
+        email = email,
+        senhaHash = "hash",
+        consentimentoEm = 1L,
+        versaoTermo = 1,
+        criadoEm = 1L
     )
 
     /** Cria a conta "u1" com as duas propriedades e os nove lançamentos de exemplo. */
@@ -72,11 +77,10 @@ class AgroSaldoDatabaseTest {
     }
 
     /** Conta as linhas direto no SQLite, sem passar pelos filtros dos DAOs. */
-    private fun contarLinhas(tabela: String): Int =
-        banco.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $tabela").use { cursor ->
-            cursor.moveToFirst()
-            cursor.getInt(0)
-        }
+    private fun contarLinhas(tabela: String): Int = banco.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $tabela").use { cursor ->
+        cursor.moveToFirst()
+        cursor.getInt(0)
+    }
 
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
@@ -131,8 +135,11 @@ class AgroSaldoDatabaseTest {
     @Test
     fun bancoRecusaLancamentoDePropriedadeInexistente() = runBlocking {
         val orfao = Lancamento(
-            propriedadeId = "nao-existe", tipo = TipoLancamento.DESPESA,
-            categoria = CategoriaLancamento.ADUBO, valorCentavos = 100L, data = hoje
+            propriedadeId = "nao-existe",
+            tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ADUBO,
+            valorCentavos = 100L,
+            data = hoje
         )
         try {
             lancamentoDao.salvar(orfao.paraEntidade())

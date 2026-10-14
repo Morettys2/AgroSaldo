@@ -10,6 +10,7 @@ import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormViewModel
+import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -21,7 +22,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.LocalDate
 
 class PropriedadeFormViewModelTest {
 
@@ -249,7 +249,14 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `numero grande na edicao aparece por extenso e nao como 1E7`() = runTest {
         propriedades.salvar(
-            Propriedade(id = "grande", nome = "Latifúndio", cultura = "Soja", areaHectares = 12_000_000.0, latitude = -0.0001, longitude = -46.5)
+            Propriedade(
+                id = "grande",
+                nome = "Latifúndio",
+                cultura = "Soja",
+                areaHectares = 12_000_000.0,
+                latitude = -0.0001,
+                longitude = -46.5
+            )
         )
         val vm = editando("grande")
 
@@ -258,8 +265,7 @@ class PropriedadeFormViewModelTest {
         assertEquals("-46,5", vm.uiState.value.longitude)
     }
 
-    private suspend fun gravada(nome: String = "Sítio Novo") =
-        propriedades.observarTodas().first().first { it.nome == nome }
+    private suspend fun gravada(nome: String = "Sítio Novo") = propriedades.observarTodas().first().first { it.nome == nome }
 
     @Test
     fun `area com ponto de milhar vale mil hectares, nao um`() = runTest {
@@ -466,7 +472,8 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `na edicao o valor restaurado vale mais que o do banco`() {
         val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
-        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado, selecao = selecao)
+        val vm =
+            PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado, selecao = selecao)
 
         assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
         assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)

@@ -7,6 +7,9 @@ import br.joao.agrosaldo.domain.repository.EstadoTentativas
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import br.joao.agrosaldo.domain.repository.TentativasRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
+import java.security.MessageDigest
+import java.time.Instant
+import java.util.UUID
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,9 +23,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
-import java.time.Instant
-import java.util.UUID
 
 sealed interface ResultadoCadastro {
     data class Sucesso(val usuario: Usuario) : ResultadoCadastro
@@ -98,30 +98,28 @@ class ContaService(
 
     /** Usuário da sessão atual; reemite em login, logout e alterações do registro. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun observarUsuarioLogado(): Flow<Usuario?> =
-        sessao.usuarioId.flatMapLatest { id ->
-            if (id == null) flowOf(null) else usuarios.observar(id)
-        }
+    fun observarUsuarioLogado(): Flow<Usuario?> = sessao.usuarioId.flatMapLatest { id ->
+        if (id == null) flowOf(null) else usuarios.observar(id)
+    }
 
     /**
      * true se o usuário conectado aceitou uma versão anterior a [TermoDePrivacidade.VERSAO_ATUAL];
      * false sem sessão; null enquanto a conta recém-conectada não foi lida do banco.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun precisaNovoAceite(): Flow<Boolean?> =
-        sessao.usuarioId
-            .flatMapLatest { id ->
-                if (id == null) {
-                    flowOf(false)
-                } else {
-                    usuarios.observar(id)
-                        .map<Usuario?, Boolean?> { usuario ->
-                            usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL
-                        }
-                        .onStart { emit(null) }
-                }
+    fun precisaNovoAceite(): Flow<Boolean?> = sessao.usuarioId
+        .flatMapLatest { id ->
+            if (id == null) {
+                flowOf(false)
+            } else {
+                usuarios.observar(id)
+                    .map<Usuario?, Boolean?> { usuario ->
+                        usuario != null && usuario.versaoTermo < TermoDePrivacidade.VERSAO_ATUAL
+                    }
+                    .onStart { emit(null) }
             }
-            .distinctUntilChanged()
+        }
+        .distinctUntilChanged()
 
     /** Registra o aceite da versão atual do termo. Retorna false sem sessão válida. */
     suspend fun registrarNovoAceite(): Boolean {
@@ -138,17 +136,11 @@ class ContaService(
      * erros de digitação no cadastro bloqueariam o login. A proteção contra adivinhar senhas
      * fica no login, que responde igual para e-mail inexistente e senha errada.
      */
-    suspend fun emailEmUso(email: String): Boolean =
-        usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email)) != null
+    suspend fun emailEmUso(email: String): Boolean = usuarios.buscarPorEmail(RegrasDeConta.normalizarEmail(email)) != null
 
     // ---------- cadastro ----------
 
-    suspend fun cadastrar(
-        nome: String,
-        email: String,
-        senha: String,
-        aceitouTermo: Boolean
-    ): ResultadoCadastro {
+    suspend fun cadastrar(nome: String, email: String, senha: String, aceitouTermo: Boolean): ResultadoCadastro {
         // Revalida mesmo que a UI já tenha validado: o serviço é a última barreira.
         if (!aceitouTermo) return ResultadoCadastro.TermoNaoAceito
         if (!RegrasDeConta.nomeValido(nome)) return ResultadoCadastro.DadosInvalidos("Nome inválido.")
@@ -337,10 +329,9 @@ class ContaService(
     }
 
     /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */
-    private fun chaveDeTentativas(email: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(RegrasDeConta.normalizarEmail(email).toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+    private fun chaveDeTentativas(email: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(RegrasDeConta.normalizarEmail(email).toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 
     // ---------- apoio ----------
 
@@ -359,8 +350,7 @@ class ContaService(
     }
 
     // PBKDF2 é CPU-bound (centenas de ms): sempre em [dispatcherCalculo].
-    private suspend fun calcularHash(senha: String): String =
-        withContext(dispatcherCalculo) { hash.gerar(senha) }
+    private suspend fun calcularHash(senha: String): String = withContext(dispatcherCalculo) { hash.gerar(senha) }
 
     /** Com [armazenado] nulo, roda contra [hashFicticio] e retorna sempre false. */
     private suspend fun conferir(senha: String, armazenado: String?): Boolean =

@@ -10,6 +10,8 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.feature.historico.HistoricoViewModel
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -23,8 +25,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.LocalDate
-import java.time.YearMonth
 
 /**
  * Histórico do ano (RF10).
@@ -89,8 +89,10 @@ class HistoricoViewModelTest {
     fun `a escala do grafico considera um mes em que saiu mais do que entrou`() = runTest {
         lancamentos.salvar(
             Lancamento(
-                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-                categoria = CategoriaLancamento.SEMENTES, valorCentavos = 2_500_000L,
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.SEMENTES,
+                valorCentavos = 2_500_000L,
                 data = LocalDate.of(2026, 2, 10)
             )
         )
@@ -101,8 +103,10 @@ class HistoricoViewModelTest {
     fun `lancamento de outro ano nao entra no ano escolhido`() = runTest {
         lancamentos.salvar(
             Lancamento(
-                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-                categoria = CategoriaLancamento.DEFENSIVOS, valorCentavos = 900_000L,
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.DEFENSIVOS,
+                valorCentavos = 900_000L,
                 data = LocalDate.of(2025, 9, 10)
             )
         )
@@ -129,15 +133,19 @@ class HistoricoViewModelTest {
     fun `mes futuro com lancamento agendado nao vira melhor nem mais fraco`() = runTest {
         lancamentos.salvar(
             Lancamento(
-                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.RECEITA,
-                categoria = CategoriaLancamento.ARRENDAMENTO, valorCentavos = 5_000_000L,
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.RECEITA,
+                categoria = CategoriaLancamento.ARRENDAMENTO,
+                valorCentavos = 5_000_000L,
                 data = LocalDate.of(2026, 11, 10)
             )
         )
         lancamentos.salvar(
             Lancamento(
-                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-                categoria = CategoriaLancamento.SEMENTES, valorCentavos = 9_000_000L,
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.SEMENTES,
+                valorCentavos = 9_000_000L,
                 data = LocalDate.of(2026, 12, 10)
             )
         )
@@ -152,8 +160,11 @@ class HistoricoViewModelTest {
         lancamentos = LancamentoRepositoryMemoria(
             listOf(
                 Lancamento(
-                    propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-                    categoria = CategoriaLancamento.ENERGIA, valorCentavos = 10_000L, data = hoje
+                    propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                    tipo = TipoLancamento.DESPESA,
+                    categoria = CategoriaLancamento.ENERGIA,
+                    valorCentavos = 10_000L,
+                    data = hoje
                 )
             )
         )
@@ -167,8 +178,11 @@ class HistoricoViewModelTest {
         lancamentos = LancamentoRepositoryMemoria(
             listOf(8, 9).map { mes ->
                 Lancamento(
-                    propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-                    categoria = CategoriaLancamento.ENERGIA, valorCentavos = 10_000L, data = LocalDate.of(2026, mes, 5)
+                    propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                    tipo = TipoLancamento.DESPESA,
+                    categoria = CategoriaLancamento.ENERGIA,
+                    valorCentavos = 10_000L,
+                    data = LocalDate.of(2026, mes, 5)
                 )
             }
         )
@@ -183,8 +197,10 @@ class HistoricoViewModelTest {
 
         assertEquals(
             listOf(
-                CategoriaLancamento.MAO_DE_OBRA, CategoriaLancamento.ENERGIA,
-                CategoriaLancamento.ADUBO, CategoriaLancamento.COMBUSTIVEL
+                CategoriaLancamento.MAO_DE_OBRA,
+                CategoriaLancamento.ENERGIA,
+                CategoriaLancamento.ADUBO,
+                CategoriaLancamento.COMBUSTIVEL
             ),
             gastos.map { it.categoria }
         )
@@ -249,8 +265,10 @@ class HistoricoViewModelTest {
         val vm = viewModel()
         lancamentos.salvar(
             Lancamento(
-                propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.RECEITA,
-                categoria = CategoriaLancamento.ARRENDAMENTO, valorCentavos = 100_000L,
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.RECEITA,
+                categoria = CategoriaLancamento.ARRENDAMENTO,
+                valorCentavos = 100_000L,
                 data = LocalDate.of(2026, 1, 10)
             )
         )
@@ -277,7 +295,10 @@ class HistoricoViewModelTest {
 
     @Test
     fun `sem propriedade nao quebra`() {
-        val vm = HistoricoViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), hoje = { hoje }, selecao = selecao)
+        val vm =
+            HistoricoViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), hoje = {
+                hoje
+            }, selecao = selecao)
         assertFalse(vm.uiState.value.carregando)
         assertFalse(vm.uiState.value.temPropriedade)
     }

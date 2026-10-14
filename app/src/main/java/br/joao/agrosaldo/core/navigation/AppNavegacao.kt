@@ -84,11 +84,12 @@ private const val CHAVE_CONTEUDO = "conteudo"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavegacao(
+    desfazer: Desfazer,
+    modifier: Modifier = Modifier,
     pedidoDoClima: PedidoDoClima? = null,
     navController: NavHostController = rememberNavController(),
     sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
-    privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory),
-    desfazer: Desfazer
+    privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory)
 ) {
     val valoresOcultos by privacidadeViewModel.valoresOcultos.collectAsStateWithLifecycle()
     val logado by sessaoViewModel.logado.collectAsStateWithLifecycle()
@@ -193,7 +194,8 @@ fun AppNavegacao(
             contexto.acharFragmentActivity()?.window?.let { janela ->
                 // A tela de bloqueio e a capa têm fundo claro e ficam no lugar de qualquer rota.
                 WindowCompat.getInsetsController(janela, vista).isAppearanceLightStatusBars =
-                    !modoEscuro && (precisaDesbloquear || !telaPodeAparecer || !cabecalhoEscuro)
+                    !modoEscuro &&
+                    (precisaDesbloquear || !telaPodeAparecer || !cabecalhoEscuro)
             }
         }
     }
@@ -206,13 +208,15 @@ fun AppNavegacao(
         Rotas.POLITICA -> "Privacidade e dados"
         Rotas.HISTORICO -> "Histórico"
         Rotas.FORM_PROPRIEDADE ->
-            if (entradaAtual?.arguments?.getString(Rotas.ARG_ID) == null) "Nova propriedade"
-            else "Editar propriedade"
+            if (entradaAtual?.arguments?.getString(Rotas.ARG_ID) == null) {
+                "Nova propriedade"
+            } else {
+                "Editar propriedade"
+            }
         // Sem TopAppBar: abas e formulário de lançamento têm cabeçalho próprio; login e
         // consentimento exibem a marca.
         else -> null
     }
-
 
     // Bloqueado, o conteúdo sai da composição: diálogos e menus abrem em janelas próprias,
     // acima de qualquer capa na janela do app, e o teclado alcançaria os campos debaixo
@@ -228,6 +232,7 @@ fun AppNavegacao(
             // Com o app bloqueado, "voltar" envia a task para segundo plano.
             BackHandler { contexto.acharFragmentActivity()?.moveTaskToBack(true) }
             TelaBloqueioRoute(
+                modifier = modifier,
                 aoDesbloquear = sessaoViewModel::aoDesbloquear,
                 aoUsarSenha = {
                     // Sai da conta: o estado guardado das telas (ex.: diálogo aberto) era dela.
@@ -237,7 +242,7 @@ fun AppNavegacao(
             )
         } else {
             estadoDoConteudo.SaveableStateProvider(CHAVE_CONTEUDO) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = modifier.fillMaxSize()) {
                     Scaffold(
                         // Coberto, o conteúdo segue composto, mas oculto também da acessibilidade.
                         modifier = Modifier
@@ -301,7 +306,6 @@ fun AppNavegacao(
                             startDestination = destinoInicial,
                             modifier = Modifier.padding(espacoInterno)
                         ) {
-
                             grafoDaConta(navegador)
                             grafoDoFinanceiro(navegador, aoAlternarValores = privacidadeViewModel::aoAlternar)
                             grafoDoClima(navegador)

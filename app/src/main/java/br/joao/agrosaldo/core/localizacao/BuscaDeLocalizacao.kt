@@ -14,10 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 
 /** Estado e ação do botão "Usar minha localização". */
-class BuscaDeLocalizacao(
-    val buscando: Boolean,
-    val buscar: () -> Unit
-)
+class BuscaDeLocalizacao(val buscando: Boolean, val buscar: () -> Unit)
 
 /**
  * Solicita permissão de localização sob demanda (no toque) e obtém a posição atual.

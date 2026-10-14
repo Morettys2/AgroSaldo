@@ -31,6 +31,13 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import java.io.IOException
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.util.Locale
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -48,13 +55,6 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import java.io.IOException
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.util.Locale
-import java.util.concurrent.Executors
 
 /**
  * Clima e aviso de chuva (RF12, RF13, RF14, RN04).
@@ -146,8 +146,8 @@ class ClimaTest {
 
     @Test
     fun `previsao velha que nao cobre a janela nao inventa aviso`() {
-        val dois_dias_depois = AGORA.plus(Duration.ofDays(2))
-        val a = RegraDeChuva.avaliar(previsao(mapOf(18 to (100 to 50.0))), dois_dias_depois)
+        val doisDiasDepois = AGORA.plus(Duration.ofDays(2))
+        val a = RegraDeChuva.avaliar(previsao(mapOf(18 to (100 to 50.0))), doisDiasDepois)
         assertFalse(a.vaiChover)
         assertFalse(a.temDados)
     }
@@ -296,10 +296,13 @@ class ClimaTest {
         val tabela = MutableStateFlow<Map<String, PrevisaoEntity>>(emptyMap())
         val propriedades = mutableSetOf("p1")
         var erroAoSalvar: RuntimeException? = null
+
         /** Thread da última leitura; a conversão do JSON roda logo depois, na mesma. */
         @Volatile var threadDaLeitura: String? = null
-        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> =
-            tabela.map { threadDaLeitura = Thread.currentThread().name; it[propriedadeId] }
+        override fun observar(propriedadeId: String): Flow<PrevisaoEntity?> = tabela.map {
+            threadDaLeitura = Thread.currentThread().name
+            it[propriedadeId]
+        }
         override suspend fun buscar(propriedadeId: String): PrevisaoEntity? {
             threadDaLeitura = Thread.currentThread().name
             return tabela.value[propriedadeId]
@@ -313,15 +316,22 @@ class ClimaTest {
     }
 
     private val fazenda = Propriedade(
-        id = "p1", nome = "Fazenda Santa Clara", cultura = "Café",
-        areaHectares = 42.0, latitude = -21.7049, longitude = -46.9312
+        id = "p1",
+        nome = "Fazenda Santa Clara",
+        cultura = "Café",
+        areaHectares = 42.0,
+        latitude = -21.7049,
+        longitude = -46.9312
     )
 
     private var agoraMs = AGORA.toEpochMilli()
     private var resposta: () -> String = { jsonOpenMeteo() }
     private var chamadas = 0
     private val dao = PrevisaoDaoFalso()
-    private val fonte = FontePrevisao { _, _ -> chamadas++; resposta() }
+    private val fonte = FontePrevisao { _, _ ->
+        chamadas++
+        resposta()
+    }
     private val repositorio = ClimaRepositoryRoom(fonte, dao) { agoraMs }
 
     @Test
@@ -436,8 +446,12 @@ class ClimaTest {
     }
 
     private val sitio = Propriedade(
-        id = "p2", nome = "Sítio Boa Vista", cultura = "Milho",
-        areaHectares = 10.0, latitude = -21.8, longitude = -46.8
+        id = "p2",
+        nome = "Sítio Boa Vista",
+        cultura = "Milho",
+        areaHectares = 10.0,
+        latitude = -21.8,
+        longitude = -46.8
     )
 
     private fun verificador(
@@ -513,7 +527,10 @@ class ClimaTest {
         val interrompida = runCatching {
             VerificadorDeChuva(SessaoMemoria("u1"), PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, ajustes) {
                 AGORA.toEpochMilli()
-            }.verificar { notificados += it.propriedadeId; true }
+            }.verificar {
+                notificados += it.propriedadeId
+                true
+            }
         }
 
         assertTrue(interrompida.exceptionOrNull() is CancellationException)
@@ -551,7 +568,10 @@ class ClimaTest {
 
             val r = VerificadorDeChuva(sessao, PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, AjustesAvisoMemoria()) {
                 AGORA.toEpochMilli()
-            }.verificar { notificados += it.nomePropriedade; true }
+            }.verificar {
+                notificados += it.nomePropriedade
+                true
+            }
 
             assertTrue("notificou $notificados", notificados.isEmpty())
             assertTrue(r.avisos.isEmpty())

@@ -44,9 +44,7 @@ data class CadastroUiState(
  * A rota de consentimento na AppNavegacao obtém esta instância a partir da
  * back stack entry do cadastro.
  */
-class CadastroViewModel(
-    private val conta: ContaService
-) : ViewModel() {
+class CadastroViewModel(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CadastroUiState())
     val uiState: StateFlow<CadastroUiState> = _uiState.asStateFlow()

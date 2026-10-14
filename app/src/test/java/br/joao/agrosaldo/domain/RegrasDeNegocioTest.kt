@@ -4,11 +4,11 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
 
 /** Regras de negócio validadas no próprio modelo (Lancamento, CategoriaLancamento, Propriedade). */
 class RegrasDeNegocioTest {
@@ -20,13 +20,20 @@ class RegrasDeNegocioTest {
         data: LocalDate = LocalDate.now(),
         propriedadeId: String = "p1"
     ) = Lancamento(
-        propriedadeId = propriedadeId, tipo = tipo, categoria = categoria,
-        valorCentavos = valor, data = data
+        propriedadeId = propriedadeId,
+        tipo = tipo,
+        categoria = categoria,
+        valorCentavos = valor,
+        data = data
     )
 
     /** true se [bloco] lançar IllegalArgumentException. */
-    private fun recusa(bloco: () -> Unit): Boolean =
-        try { bloco(); false } catch (e: IllegalArgumentException) { true }
+    private fun recusa(bloco: () -> Unit): Boolean = try {
+        bloco()
+        false
+    } catch (e: IllegalArgumentException) {
+        true
+    }
 
     @Test
     fun `RN06 - valor zero ou negativo e recusado`() {
@@ -36,12 +43,16 @@ class RegrasDeNegocioTest {
 
     @Test
     fun `categoria de receita nao pode ser usada em despesa`() {
-        assertTrue(recusa {
-            lancamento(tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.VENDA_SAFRA)
-        })
-        assertTrue(recusa {
-            lancamento(tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.ADUBO)
-        })
+        assertTrue(
+            recusa {
+                lancamento(tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.VENDA_SAFRA)
+            }
+        )
+        assertTrue(
+            recusa {
+                lancamento(tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.ADUBO)
+            }
+        )
     }
 
     @Test
@@ -68,7 +79,9 @@ class RegrasDeNegocioTest {
     @Test
     fun `RN03 - receita soma e despesa subtrai no saldo`() {
         val receita = lancamento(
-            tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.VENDA_SAFRA, valor = 1_000_00L
+            tipo = TipoLancamento.RECEITA,
+            categoria = CategoriaLancamento.VENDA_SAFRA,
+            valor = 1_000_00L
         )
         val despesa = lancamento(valor = 300_00L)
         assertEquals(1_000_00L, receita.valorComSinal)
@@ -88,12 +101,16 @@ class RegrasDeNegocioTest {
 
     @Test
     fun `cada lado tem a sua categoria Outras e elas nao se misturam`() {
-        assertTrue(recusa {
-            lancamento(tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.OUTRAS_DESPESAS)
-        })
-        assertTrue(recusa {
-            lancamento(tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.OUTROS)
-        })
+        assertTrue(
+            recusa {
+                lancamento(tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.OUTRAS_DESPESAS)
+            }
+        )
+        assertTrue(
+            recusa {
+                lancamento(tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.OUTROS)
+            }
+        )
     }
 
     @Test

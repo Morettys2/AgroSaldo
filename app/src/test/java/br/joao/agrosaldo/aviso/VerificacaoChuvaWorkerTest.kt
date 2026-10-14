@@ -22,22 +22,25 @@ import org.junit.Test
 class VerificacaoChuvaWorkerTest {
 
     private val fazenda = Propriedade(
-        id = "p1", nome = "Fazenda Santa Clara", cultura = "Milho",
-        areaHectares = 50.0, latitude = -21.7, longitude = -46.9
+        id = "p1",
+        nome = "Fazenda Santa Clara",
+        cultura = "Milho",
+        areaHectares = 50.0,
+        latitude = -21.7,
+        longitude = -46.9
     )
     private val comChuva = previsao(mapOf(18 to (85 to 6.0)))
 
     private fun verificador(clima: ClimaRepositoryMemoria) = VerificadorDeChuva(
-        SessaoMemoria("u1"), PropriedadeRepositoryMemoria(listOf(fazenda)), clima, AjustesAvisoMemoria()
+        SessaoMemoria("u1"),
+        PropriedadeRepositoryMemoria(listOf(fazenda)),
+        clima,
+        AjustesAvisoMemoria()
     ) { AGORA.toEpochMilli() }
 
     private val mostrados = mutableListOf<Pair<AvisoDeChuva, Int>>()
 
-    private suspend fun rodar(
-        clima: ClimaRepositoryMemoria,
-        tentativa: Int = 0,
-        podeNotificar: Boolean = true
-    ) = verificarChuva(
+    private suspend fun rodar(clima: ClimaRepositoryMemoria, tentativa: Int = 0, podeNotificar: Boolean = true) = verificarChuva(
         verificador = verificador(clima),
         janelaHoras = 12,
         tentativa = tentativa,

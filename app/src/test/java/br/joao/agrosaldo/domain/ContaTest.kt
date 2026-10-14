@@ -12,6 +12,7 @@ import br.joao.agrosaldo.domain.conta.ResultadoExclusao
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -21,7 +22,6 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.Instant
 
 /**
  * Regras de conta: senha, e-mail, hash, cadastro, login, bloqueio e exclusão
@@ -71,9 +71,9 @@ class ContaTest {
 
     @Test
     fun `senha precisa de 8 caracteres com letra e numero`() {
-        assertFalse(RegrasDeConta.senhaValida("abc123"))       // curta
+        assertFalse(RegrasDeConta.senhaValida("abc123")) // curta
         assertFalse(RegrasDeConta.senhaValida("somenteletras")) // sem número
-        assertFalse(RegrasDeConta.senhaValida("12345678"))      // sem letra
+        assertFalse(RegrasDeConta.senhaValida("12345678")) // sem letra
         assertTrue(RegrasDeConta.senhaValida("milho2026"))
         assertFalse(RegrasDeConta.senhaValida("a1" + "x".repeat(RegrasDeConta.SENHA_MAXIMO)))
     }
@@ -442,8 +442,14 @@ class ContaTest {
 
     @Test
     fun `login refaz o hash antigo com o custo atual sem a pessoa perceber`() = runTest {
-        val antigo = ContaService(usuarios, sessao, tentativas, hash = HashDeSenha(iteracoes = 500),
-            relogio = { agora }, dispatcherCalculo = Dispatchers.Unconfined)
+        val antigo = ContaService(
+            usuarios,
+            sessao,
+            tentativas,
+            hash = HashDeSenha(iteracoes = 500),
+            relogio = { agora },
+            dispatcherCalculo = Dispatchers.Unconfined
+        )
         antigo.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         antigo.sair()
         assertTrue(usuarios.todos.single().senhaHash.startsWith("pbkdf2_sha256\$500\$"))
@@ -498,10 +504,10 @@ class ContaTest {
         assertFalse(RegrasDeConta.senhaValida("Brasil123"))
         assertFalse(RegrasDeConta.senhaValida("agrosaldo1"))
         assertFalse(RegrasDeConta.senhaValida("aaaaaaa1"))
-        assertFalse(RegrasDeConta.senhaValida("12345678a"))      // sequência
-        assertFalse(RegrasDeConta.senhaValida("abcdef12"))       // sequência
-        assertFalse(RegrasDeConta.senhaValida("senha1234!"))     // variação da lista
-        assertFalse(RegrasDeConta.senhaValida("987654zz"))       // sequência descendo
+        assertFalse(RegrasDeConta.senhaValida("12345678a")) // sequência
+        assertFalse(RegrasDeConta.senhaValida("abcdef12")) // sequência
+        assertFalse(RegrasDeConta.senhaValida("senha1234!")) // variação da lista
+        assertFalse(RegrasDeConta.senhaValida("987654zz")) // sequência descendo
         assertFalse(RegrasDeConta.senhaValida("moretti2026", email = "x@y.com", nome = "Fábio Moretti"))
         assertFalse(RegrasDeConta.senhaValida("fabio2026x", email = "fabio@exemplo.com"))
         assertTrue(RegrasDeConta.senhaValida("colheita2026", email = "fabio@exemplo.com", nome = "Fábio Moretti"))

@@ -22,9 +22,7 @@ class ArmazenamentoMemoria(iniciais: Map<String, Any> = emptyMap()) : Armazename
  * Fake em memória para testes: [AjustesAvisoPorConta] sobre [ArmazenamentoMemoria]. Sem [sessao]
  * informada, os dados são de uma conta fixa, já conectada, que começa com os ajustes [inicial].
  */
-class AjustesAvisoMemoria private constructor(
-    private val porConta: AjustesAvisoPorConta
-) : AjustesAvisoRepository by porConta {
+class AjustesAvisoMemoria private constructor(private val porConta: AjustesAvisoPorConta) : AjustesAvisoRepository by porConta {
 
     constructor(
         inicial: AjustesAviso = AjustesAviso(),

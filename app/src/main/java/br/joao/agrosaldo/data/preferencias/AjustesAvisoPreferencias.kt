@@ -14,17 +14,14 @@ private const val ARQUIVO = "aviso_chuva"
  *
  * @param aoEntrarEmConta ver [AjustesAvisoPorConta].
  */
-class AjustesAvisoPreferencias(
-    context: Context,
-    sessao: SessaoRepository,
-    aoEntrarEmConta: (AjustesAviso) -> Unit = {}
-) : AjustesAvisoRepository by AjustesAvisoPorConta(
-    armazenamento = ArmazenamentoPreferencias(
-        context.applicationContext.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE)
-    ),
-    sessao = sessao,
-    aoEntrarEmConta = aoEntrarEmConta
-)
+class AjustesAvisoPreferencias(context: Context, sessao: SessaoRepository, aoEntrarEmConta: (AjustesAviso) -> Unit = {}) :
+    AjustesAvisoRepository by AjustesAvisoPorConta(
+        armazenamento = ArmazenamentoPreferencias(
+            context.applicationContext.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE)
+        ),
+        sessao = sessao,
+        aoEntrarEmConta = aoEntrarEmConta
+    )
 
 private class ArmazenamentoPreferencias(private val preferencias: SharedPreferences) : ArmazenamentoDeAjustes {
 

@@ -16,15 +16,14 @@ class PropriedadeRepositoryMemoria(
     private val lancamentos: LancamentoRepositoryMemoria? = null
 ) : PropriedadeRepository {
 
-    private val _propriedades = MutableStateFlow(iniciais)
+    private val propriedadesGuardadas = MutableStateFlow(iniciais)
 
-    override fun observarTodas(): Flow<List<Propriedade>> = _propriedades.asStateFlow()
+    override fun observarTodas(): Flow<List<Propriedade>> = propriedadesGuardadas.asStateFlow()
 
-    override suspend fun buscarPorId(id: String): Propriedade? =
-        _propriedades.value.firstOrNull { it.id == id }
+    override suspend fun buscarPorId(id: String): Propriedade? = propriedadesGuardadas.value.firstOrNull { it.id == id }
 
     override suspend fun salvar(propriedade: Propriedade) {
-        _propriedades.update { lista ->
+        propriedadesGuardadas.update { lista ->
             if (lista.any { it.id == propriedade.id }) {
                 lista.map { if (it.id == propriedade.id) propriedade else it }
             } else {
@@ -34,7 +33,7 @@ class PropriedadeRepositoryMemoria(
     }
 
     override suspend fun excluir(id: String) {
-        _propriedades.update { lista -> lista.filterNot { it.id == id } }
+        propriedadesGuardadas.update { lista -> lista.filterNot { it.id == id } }
     }
 
     override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {

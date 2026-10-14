@@ -67,15 +67,14 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
          * Deve existir uma única instância por processo (garantida por
          * [br.joao.agrosaldo.di.Dependencias]).
          */
-        fun criar(context: Context): AgroSaldoDatabase =
-            Room.databaseBuilder(
-                context.applicationContext,
-                AgroSaldoDatabase::class.java,
-                NOME_ARQUIVO
-            )
-                // Sem fallbackToDestructiveMigration: migração ausente deve falhar,
-                // nunca apagar dados do usuário.
-                .addMigrations(*MIGRACOES)
-                .build()
+        fun criar(context: Context): AgroSaldoDatabase = Room.databaseBuilder(
+            context.applicationContext,
+            AgroSaldoDatabase::class.java,
+            NOME_ARQUIVO
+        )
+            // Sem fallbackToDestructiveMigration: migração ausente deve falhar,
+            // nunca apagar dados do usuário.
+            .addMigrations(*MIGRACOES)
+            .build()
     }
 }

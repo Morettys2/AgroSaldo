@@ -11,11 +11,7 @@ import java.time.temporal.ChronoUnit
  * Padrão: probabilidade >= 60% OU chuva acumulada >= 2 mm nas próximas 12 h.
  * O construtor rejeita valores fora das faixas do companion.
  */
-data class LimitesChuva(
-    val probabilidadeMinima: Int = 60,
-    val chuvaMinimaMm: Double = 2.0,
-    val janelaHoras: Int = 12
-) {
+data class LimitesChuva(val probabilidadeMinima: Int = 60, val chuvaMinimaMm: Double = 2.0, val janelaHoras: Int = 12) {
     init {
         require(probabilidadeMinima in PROBABILIDADE_FAIXA) { "Probabilidade fora da faixa." }
         require(chuvaMinimaMm in CHUVA_FAIXA) { "Volume de chuva fora da faixa." }
@@ -124,6 +120,5 @@ object PoliticaDeAtualizacao {
     /** Idade máxima para exibir a previsão em cache como "última conhecida". */
     val VALIDADE_MAXIMA_CACHE: Duration = Duration.ofDays(2)
 
-    fun precisaAtualizar(obtidaEm: Instant?, agora: Instant): Boolean =
-        obtidaEm == null || Duration.between(obtidaEm, agora) >= VALIDADE
+    fun precisaAtualizar(obtidaEm: Instant?, agora: Instant): Boolean = obtidaEm == null || Duration.between(obtidaEm, agora) >= VALIDADE
 }

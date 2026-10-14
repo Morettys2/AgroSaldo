@@ -103,26 +103,24 @@ object IconesAgro {
     private const val BROTO = "M12 21v-8M12 13c0-4-3-6-7-6 0 4 3 6 7 6zM12 11c0-4 3-6 7-6 0 4-3 6-7 6z"
 
     /** Círculo em path data: dois arcos de 180°. */
-    private fun circulo(cx: Float, cy: Float, r: Float): String =
-        "M${cx - r} ${cy}a$r $r 0 1 0 ${2 * r} 0a$r $r 0 1 0 ${-2 * r} 0"
+    private fun circulo(cx: Float, cy: Float, r: Float): String = "M${cx - r} ${cy}a$r $r 0 1 0 ${2 * r} 0a$r $r 0 1 0 ${-2 * r} 0"
 
-    private fun icone(nome: String, vararg caminhos: String): ImageVector =
-        ImageVector.Builder(
-            name = nome,
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            caminhos.forEach { caminho ->
-                addPath(
-                    pathData = addPathNodes(caminho),
-                    fill = null,
-                    stroke = SolidColor(Color.Black),
-                    strokeLineWidth = 2f,
-                    strokeLineCap = StrokeCap.Round,
-                    strokeLineJoin = StrokeJoin.Round
-                )
-            }
-        }.build()
+    private fun icone(nome: String, vararg caminhos: String): ImageVector = ImageVector.Builder(
+        name = nome,
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        caminhos.forEach { caminho ->
+            addPath(
+                pathData = addPathNodes(caminho),
+                fill = null,
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            )
+        }
+    }.build()
 }

@@ -14,6 +14,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,10 +41,12 @@ fun CadastroRoute(
 
     // Evento de navegação consumido antes de navegar; sem isso, voltar do
     // consentimento reabriria o consentimento.
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoIrParaConsentimentoAtual by rememberUpdatedState(aoIrParaConsentimento)
     LaunchedEffect(uiState.irParaConsentimento) {
         if (uiState.irParaConsentimento) {
             viewModel.aoAbrirConsentimento()
-            aoIrParaConsentimento()
+            aoIrParaConsentimentoAtual()
         }
     }
 
@@ -151,8 +154,12 @@ private fun CadastroPreview() {
                 senha = "milho20",
                 confirmacao = ""
             ),
-            aoMudarNome = {}, aoMudarEmail = {}, aoMudarSenha = {}, aoMudarConfirmacao = {},
-            aoContinuar = {}, aoVoltarParaLogin = {}
+            aoMudarNome = {},
+            aoMudarEmail = {},
+            aoMudarSenha = {},
+            aoMudarConfirmacao = {},
+            aoContinuar = {},
+            aoVoltarParaLogin = {}
         )
     }
 }
@@ -167,8 +174,12 @@ private fun CadastroComErrosPreview() {
                 erroEmail = "Informe um e-mail válido, como nome@exemplo.com.",
                 erroSenha = "A senha não cumpre os requisitos abaixo."
             ),
-            aoMudarNome = {}, aoMudarEmail = {}, aoMudarSenha = {}, aoMudarConfirmacao = {},
-            aoContinuar = {}, aoVoltarParaLogin = {}
+            aoMudarNome = {},
+            aoMudarEmail = {},
+            aoMudarSenha = {},
+            aoMudarConfirmacao = {},
+            aoContinuar = {},
+            aoVoltarParaLogin = {}
         )
     }
 }

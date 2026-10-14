@@ -358,7 +358,10 @@ private fun ClimaSemInternetPreview() {
                 mensagem = ClimaViewModel.MENSAGEM_SEM_INTERNET
             ),
             PermissaoNotificacao(concedida = false, pedir = {}),
-            {}, {}, {}, {}
+            {},
+            {},
+            {},
+            {}
         )
     }
 }

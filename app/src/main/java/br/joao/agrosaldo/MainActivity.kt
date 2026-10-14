@@ -17,8 +17,8 @@ import br.joao.agrosaldo.core.navigation.AppNavegacao
 import br.joao.agrosaldo.core.navigation.PedidoDoClima
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
-import kotlinx.coroutines.launch
 import java.time.YearMonth
+import kotlinx.coroutines.launch
 
 /**
  * Activity única: aplica o tema e delega a navegação para [AppNavegacao].

@@ -25,6 +25,10 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -39,10 +43,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 
 /** Linha da previsão diária, com valores já formatados para exibição. */
 data class DiaUi(
@@ -103,13 +103,13 @@ class ClimaViewModel(
     private val zona: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
 
-    private val _atualizando = MutableStateFlow(false)
+    private val atualizandoAgora = MutableStateFlow(false)
 
     /** Motivo da última atualização ter falhado; o texto depende de haver previsão salva. */
-    private val _falha = MutableStateFlow<FalhaDeAtualizacao?>(null)
+    private val ultimaFalha = MutableStateFlow<FalhaDeAtualizacao?>(null)
 
     /** Incrementado a cada retorno à tela para recalcular o que depende do relógio. */
-    private val _voltas = MutableStateFlow(0)
+    private val voltasATela = MutableStateFlow(0)
     private var jaApareceu = false
 
     /**
@@ -133,7 +133,7 @@ class ClimaViewModel(
         viewModelScope.launch {
             listaESelecionada.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
                 // A mensagem pertencia à propriedade anterior.
-                _falha.value = null
+                ultimaFalha.value = null
                 if (propriedade != null) buscar(propriedade, forcar = false)
             }
         }
@@ -146,7 +146,13 @@ class ClimaViewModel(
                     clima.observar(propriedade).map { previsao -> Triple(lista, propriedade, previsao) }
                 }
             }
-            combine(comPrevisao, ajustes.ajustes, _atualizando, _falha, _voltas) { (lista, propriedade, previsao), aj, atualizando, falha, _ ->
+            combine(comPrevisao, ajustes.ajustes, atualizandoAgora, ultimaFalha, voltasATela) {
+                    (lista, propriedade, previsao),
+                    aj,
+                    atualizando,
+                    falha,
+                    _
+                ->
                 montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha)
             }.repetirAposErro { erro ->
                 _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
@@ -160,7 +166,7 @@ class ClimaViewModel(
     fun aoAtualizar() {
         val propriedade = propriedadeExibida() ?: return
         // Ignora toques repetidos enquanto uma busca está em andamento.
-        if (_atualizando.value) return
+        if (atualizandoAgora.value) return
         buscar(propriedade, forcar = true)
     }
 
@@ -174,9 +180,9 @@ class ClimaViewModel(
             jaApareceu = true
             return
         }
-        _voltas.update { it + 1 }
+        voltasATela.update { it + 1 }
         val propriedade = propriedadeExibida() ?: return
-        if (!_atualizando.value) buscar(propriedade, forcar = false)
+        if (!atualizandoAgora.value) buscar(propriedade, forcar = false)
     }
 
     private fun propriedadeExibida(): Propriedade? {
@@ -188,20 +194,20 @@ class ClimaViewModel(
         val minha = ++geracao
         busca?.cancel()
         busca = viewModelScope.launch {
-            _atualizando.value = true
+            atualizandoAgora.value = true
             // finally cobre o cancelamento (troca de propriedade); sem ele
             // "atualizando" poderia ficar preso em true.
             try {
                 val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
                 if (minha == geracao) {
-                    _falha.value = when (resultado) {
+                    ultimaFalha.value = when (resultado) {
                         ResultadoAtualizacao.SemConexao -> FalhaDeAtualizacao.SEM_INTERNET
                         is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> FalhaDeAtualizacao.SERVICO
                         is ResultadoAtualizacao.Sucesso, null -> null
                     }
                 }
             } finally {
-                if (minha == geracao) _atualizando.value = false
+                if (minha == geracao) atualizandoAgora.value = false
             }
         }
     }

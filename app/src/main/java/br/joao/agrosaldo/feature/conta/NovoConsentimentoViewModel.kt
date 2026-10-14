@@ -13,18 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class NovoConsentimentoUiState(
-    val processando: Boolean = false,
-    val erro: String? = null
-)
+data class NovoConsentimentoUiState(val processando: Boolean = false, val erro: String? = null)
 
 /**
  * Reaceite após mudança da política. Aceitar grava a versão nova e a navegação
  * segue ao Início; recusar encerra a sessão, pois sem aceite o tratamento não é permitido.
  */
-class NovoConsentimentoViewModel(
-    private val conta: ContaService
-) : ViewModel() {
+class NovoConsentimentoViewModel(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NovoConsentimentoUiState())
     val uiState: StateFlow<NovoConsentimentoUiState> = _uiState.asStateFlow()
@@ -35,8 +30,11 @@ class NovoConsentimentoViewModel(
         viewModelScope.launch {
             val gravou = conta.registrarNovoAceite()
             _uiState.update {
-                if (gravou) it.copy(processando = false)
-                else it.copy(processando = false, erro = "Não foi possível registrar o aceite. Entre de novo.")
+                if (gravou) {
+                    it.copy(processando = false)
+                } else {
+                    it.copy(processando = false, erro = "Não foi possível registrar o aceite. Entre de novo.")
+                }
             }
         }
     }

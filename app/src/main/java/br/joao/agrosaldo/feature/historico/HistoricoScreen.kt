@@ -481,7 +481,10 @@ private fun HistoricoPreview() {
                     GastoPorCategoria(CategoriaLancamento.COMBUSTIVEL, 280_000L, 0.22f)
                 )
             ),
-            aoVoltarAno = {}, aoAvancarAno = {}, aoSelecionarPropriedade = {}, aoAbrirMes = {}
+            aoVoltarAno = {},
+            aoAvancarAno = {},
+            aoSelecionarPropriedade = {},
+            aoAbrirMes = {}
         )
     }
 }

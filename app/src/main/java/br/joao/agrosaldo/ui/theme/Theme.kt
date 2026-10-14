@@ -12,10 +12,7 @@ import androidx.compose.runtime.ReadOnlyComposable
  * cores de receita/despesa têm significado e não podem vir do papel de parede.
  */
 @Composable
-fun AgroSaldoTheme(
-    escuro: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun AgroSaldoTheme(escuro: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalCoresAgro provides if (escuro) CoresAgroEscuro else CoresAgroClaro,
         LocalCoresCategorias provides if (escuro) CoresCategoriasEscuro else CoresCategoriasClaro

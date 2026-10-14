@@ -139,8 +139,11 @@ fun ContaScreen(
         ItemConta(
             icone = Icons.Outlined.Shield,
             titulo = "Privacidade e dados",
-            apoio = if (uiState.consentimentoEm.isBlank()) "O que o app guarda"
-            else "Termo aceito em ${uiState.consentimentoEm}",
+            apoio = if (uiState.consentimentoEm.isBlank()) {
+                "O que o app guarda"
+            } else {
+                "Termo aceito em ${uiState.consentimentoEm}"
+            },
             aoClicar = aoAbrirPrivacidade
         )
         ItemBloqueio(
@@ -237,12 +240,7 @@ private fun Cabecalho(iniciais: String, nome: String, email: String) {
 }
 
 @Composable
-private fun ItemConta(
-    icone: ImageVector,
-    titulo: String,
-    apoio: String,
-    aoClicar: () -> Unit
-) {
+private fun ItemConta(icone: ImageVector, titulo: String, apoio: String, aoClicar: () -> Unit) {
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -329,12 +327,7 @@ private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
 
 /** Confirmação de exclusão; exige a senha para evitar exclusão por terceiros. */
 @Composable
-private fun DialogoExclusao(
-    excluindo: Boolean,
-    erro: String?,
-    aoConfirmar: (String) -> Unit,
-    aoCancelar: () -> Unit
-) {
+private fun DialogoExclusao(excluindo: Boolean, erro: String?, aoConfirmar: (String) -> Unit, aoCancelar: () -> Unit) {
     var senha by remember { mutableStateOf("") }
 
     AlertDialog(

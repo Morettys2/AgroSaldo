@@ -71,6 +71,5 @@ data class Previsao(
     val horas: List<PrevisaoHora>
 ) {
     /** Converte um instante para a hora local da propriedade. */
-    fun horaLocal(instante: Instant): LocalDateTime =
-        LocalDateTime.ofInstant(instante, ZoneOffset.ofTotalSeconds(fusoSegundos))
+    fun horaLocal(instante: Instant): LocalDateTime = LocalDateTime.ofInstant(instante, ZoneOffset.ofTotalSeconds(fusoSegundos))
 }

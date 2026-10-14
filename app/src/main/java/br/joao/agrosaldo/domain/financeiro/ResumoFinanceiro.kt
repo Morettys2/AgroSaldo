@@ -12,10 +12,7 @@ import java.time.YearMonth
  * O saldo segue a RN03 (receitas − despesas). [proporcaoReceitas] alimenta a barra
  * receitas × despesas do Início: 0.5 quando não há movimento, para a barra ficar neutra.
  */
-data class TotaisDoPeriodo(
-    val receitasCentavos: Long = 0L,
-    val despesasCentavos: Long = 0L
-) {
+data class TotaisDoPeriodo(val receitasCentavos: Long = 0L, val despesasCentavos: Long = 0L) {
     val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
 
     val temMovimento: Boolean get() = receitasCentavos > 0L || despesasCentavos > 0L
@@ -36,11 +33,7 @@ data class TotaisDoPeriodo(
  * Total de despesas de uma categoria. [proporcao] em 0..1 é relativa à MAIOR categoria
  * (não ao total), para a primeira barra do ranking ficar sempre cheia.
  */
-data class GastoPorCategoria(
-    val categoria: CategoriaLancamento,
-    val totalCentavos: Long,
-    val proporcao: Float
-)
+data class GastoPorCategoria(val categoria: CategoriaLancamento, val totalCentavos: Long, val proporcao: Float)
 
 /**
  * Regras de negócio das contas do produtor: totais, saldo e ranking de gastos.

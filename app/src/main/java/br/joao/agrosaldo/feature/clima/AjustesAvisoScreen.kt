@@ -24,6 +24,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,10 +56,12 @@ fun AjustesAvisoRoute(
     // FLAG_DEBUGGABLE em runtime: ferramentas de teste só em builds debug.
     val ehDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoConcluirAtual by rememberUpdatedState(aoConcluir)
     LaunchedEffect(uiState.salvo) {
         if (uiState.salvo) {
             Toast.makeText(context, "Ajustes salvos", Toast.LENGTH_SHORT).show()
-            aoConcluir()
+            aoConcluirAtual()
         }
     }
 
@@ -88,10 +91,7 @@ fun AjustesAvisoRoute(
 }
 
 /** Ações de teste exibidas apenas em builds debug. */
-class FerramentasDeTeste(
-    val aoMostrarExemplo: () -> Unit,
-    val aoVerificarAgora: () -> Unit
-)
+class FerramentasDeTeste(val aoMostrarExemplo: () -> Unit, val aoVerificarAgora: () -> Unit)
 
 @Composable
 fun AjustesAvisoScreen(
@@ -284,7 +284,11 @@ private fun AjustesAvisoPreview() {
                 )
             ),
             permissao = PermissaoNotificacao(concedida = false, pedir = {}),
-            aoMudarAtivo = {}, aoMudarProbabilidade = {}, aoMudarChuva = {}, aoMudarSitio = { _, _ -> }, aoSalvar = {}
+            aoMudarAtivo = {},
+            aoMudarProbabilidade = {},
+            aoMudarChuva = {},
+            aoMudarSitio = { _, _ -> },
+            aoSalvar = {}
         )
     }
 }

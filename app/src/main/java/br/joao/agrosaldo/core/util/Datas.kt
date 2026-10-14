@@ -30,8 +30,7 @@ fun LocalDate.formatarBr(): String = format(FORMATO_BR)
 fun LocalDate.formatarCurto(): String = format(FORMATO_CURTO)
 
 /** "30/09/2026 às 19:40", no fuso informado (padrão: o do sistema). */
-fun Instant.formatarDataHoraBr(zona: ZoneId = ZoneId.systemDefault()): String =
-    FORMATO_DATA_HORA.format(atZone(zona))
+fun Instant.formatarDataHoraBr(zona: ZoneId = ZoneId.systemDefault()): String = FORMATO_DATA_HORA.format(atZone(zona))
 
 /** Parse de "dd/MM/aaaa" estrito; null se inválido. */
 fun String.paraLocalDateOuNulo(): LocalDate? = try {
@@ -46,8 +45,7 @@ fun YearMonth.rotulo(): String {
     return nomeDoMes.replaceFirstChar { it.uppercase(BRASIL) } + " de " + year
 }
 
-fun LocalDate.pertenceAo(mes: YearMonth): Boolean =
-    YearMonth.from(this) == mes
+fun LocalDate.pertenceAo(mes: YearMonth): Boolean = YearMonth.from(this) == mes
 
 /**
  * Conversões para o DatePicker do Material 3, que usa epoch millis em UTC.
@@ -58,8 +56,7 @@ fun LocalDate.emMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toE
 fun Long.paraLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
 
 /** "Jan", "Fev"... (eixo do gráfico do histórico). */
-fun YearMonth.siglaDoMes(): String =
-    month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).replaceFirstChar { it.uppercase(BRASIL) }
+fun YearMonth.siglaDoMes(): String = month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).replaceFirstChar { it.uppercase(BRASIL) }
 
 /** "Hoje", "Ontem", "Amanhã", "2 de outubro" ou, em outro ano, "2 de outubro de 2025". */
 fun LocalDate.rotuloRelativo(hoje: LocalDate): String = when (this) {
@@ -87,11 +84,9 @@ fun LocalDate.rotuloDeData(hoje: LocalDate): String = when (this) {
 }
 
 /** "4 out". take(3) remove o ponto que algumas versões do JDK/ICU incluem ("out."). */
-private fun LocalDate.diaEMesCurto(): String =
-    "$dayOfMonth " + month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).lowercase(BRASIL)
+private fun LocalDate.diaEMesCurto(): String = "$dayOfMonth " + month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).lowercase(BRASIL)
 
-fun YearMonth.nomeDoMes(): String =
-    month.getDisplayName(TextStyle.FULL, BRASIL).replaceFirstChar { it.uppercase(BRASIL) }
+fun YearMonth.nomeDoMes(): String = month.getDisplayName(TextStyle.FULL, BRASIL).replaceFirstChar { it.uppercase(BRASIL) }
 
 /** "30 segundos", "1 minuto", "2 minutos e 30 segundos". Mínimo de 1 s, nunca "0 segundos". */
 fun formatarEspera(segundos: Long): String {

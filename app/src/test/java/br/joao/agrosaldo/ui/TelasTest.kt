@@ -25,6 +25,7 @@ import br.joao.agrosaldo.feature.lancamento.LancamentoFormViewModel
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaScreen
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaUiState
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -32,7 +33,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.time.LocalDate
 
 /**
  * Testes de interface: a tela de verdade, desenhada no JVM pelo Robolectric, recebe

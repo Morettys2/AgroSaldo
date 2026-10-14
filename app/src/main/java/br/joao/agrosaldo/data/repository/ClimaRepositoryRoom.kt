@@ -12,6 +12,9 @@ import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import java.io.IOException
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -21,9 +24,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.IOException
-import java.time.Duration
-import java.time.Instant
 
 /**
  * [ClimaRepository] cache-first: a leitura vem sempre do Room; a rede só
@@ -47,14 +47,12 @@ class ClimaRepositoryRoom(
     override suspend fun emCache(propriedade: Propriedade): Previsao? =
         withContext(processamento) { dao.buscar(propriedade.id)?.paraPrevisaoValida(propriedade) }
 
-    override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao =
-        trava.withLock { buscarEGuardar(propriedade) }
+    override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao = trava.withLock { buscarEGuardar(propriedade) }
 
-    override suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao? =
-        trava.withLock {
-            val guardada = emCache(propriedade)
-            if (PoliticaDeAtualizacao.precisaAtualizar(guardada?.obtidaEm, agora())) buscarEGuardar(propriedade) else null
-        }
+    override suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao? = trava.withLock {
+        val guardada = emCache(propriedade)
+        if (PoliticaDeAtualizacao.precisaAtualizar(guardada?.obtidaEm, agora())) buscarEGuardar(propriedade) else null
+    }
 
     private suspend fun buscarEGuardar(propriedade: Propriedade): ResultadoAtualizacao {
         val latitude = OpenMeteo.arredondar(propriedade.latitude)
@@ -107,16 +105,15 @@ class ClimaRepositoryRoom(
      *
      * @return false se a propriedade não existe mais; outros erros do banco são relançados.
      */
-    private suspend fun guardar(previsao: PrevisaoEntity): Boolean =
-        try {
-            dao.salvar(previsao)
-            true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: RuntimeException) {
-            if (dao.propriedadeExiste(previsao.propriedadeId)) throw e
-            false
-        }
+    private suspend fun guardar(previsao: PrevisaoEntity): Boolean = try {
+        dao.salvar(previsao)
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: RuntimeException) {
+        if (dao.propriedadeExiste(previsao.propriedadeId)) throw e
+        false
+    }
 
     private fun agora(): Instant = Instant.ofEpochMilli(relogio())
 

@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -51,7 +52,6 @@ import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
-import java.time.LocalDate
 
 @Composable
 fun LancamentoFormRoute(
@@ -70,14 +70,16 @@ fun LancamentoFormRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val contexto = LocalContext.current
 
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoConcluirAtual by rememberUpdatedState(aoConcluir)
     LaunchedEffect(uiState.salvo, uiState.excluido) {
-        if (uiState.salvo || uiState.excluido) aoConcluir()
+        if (uiState.salvo || uiState.excluido) aoConcluirAtual()
     }
 
     LaunchedEffect(uiState.naoEncontrado) {
         if (uiState.naoEncontrado) {
             Toast.makeText(contexto, LancamentoFormViewModel.AVISO_NAO_ENCONTRADO, Toast.LENGTH_SHORT).show()
-            aoConcluir()
+            aoConcluirAtual()
         }
     }
 
@@ -122,12 +124,7 @@ fun LancamentoFormRoute(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LancamentoFormScreen(
-    uiState: LancamentoFormUiState,
-    titulo: String,
-    acoes: LancamentoFormAcoes,
-    modifier: Modifier = Modifier
-) {
+fun LancamentoFormScreen(uiState: LancamentoFormUiState, titulo: String, acoes: LancamentoFormAcoes, modifier: Modifier = Modifier) {
     var escolhendoData by rememberSaveable { mutableStateOf(false) }
     // Com o IME aberto (campo de descrição), o teclado numérico é ocultado.
     val tecladoDoSistemaAberto = WindowInsets.isImeVisible
@@ -178,7 +175,12 @@ fun LancamentoFormScreen(
                     )
                     Folha {
                         Column(
-                            modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.largo, bottom = Espacos.pequeno),
+                            modifier = Modifier.padding(
+                                start = Espacos.margemDaTela,
+                                end = Espacos.margemDaTela,
+                                top = Espacos.largo,
+                                bottom = Espacos.pequeno
+                            ),
                             verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
                         ) {
                             // No modo compacto o teclado vem antes dos campos, logo abaixo do valor.
@@ -201,7 +203,12 @@ fun LancamentoFormScreen(
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
-                            .padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.largo, bottom = Espacos.pequeno),
+                            .padding(
+                                start = Espacos.margemDaTela,
+                                end = Espacos.margemDaTela,
+                                top = Espacos.largo,
+                                bottom = Espacos.pequeno
+                            ),
                         verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
                     ) {
                         campos()

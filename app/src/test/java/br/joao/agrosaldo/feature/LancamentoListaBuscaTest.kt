@@ -12,6 +12,9 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
+import java.time.LocalDate
+import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -22,9 +25,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.LocalDate
-import java.time.YearMonth
-import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Lista de lançamentos: agrupamento por dia, busca em todos os meses, pílulas de mês do
@@ -56,7 +56,9 @@ class LancamentoListaBuscaTest {
     }
 
     /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
-    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext, selecao = selecao)
+    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = {
+        hoje
+    }, processamento = EmptyCoroutineContext, selecao = selecao)
 
     /** Dia fixo, para "Hoje" e "Ontem" não dependerem do dia em que o teste roda. */
     private val quinzeDeSetembro = LocalDate.of(2026, 9, 15)
@@ -80,7 +82,9 @@ class LancamentoListaBuscaTest {
             )
         )
         selecao.selecionarMes(YearMonth.of(2026, 9))
-        return LancamentoListaViewModel(repo, propriedades, hoje = { quinzeDeSetembro }, processamento = EmptyCoroutineContext, selecao = selecao)
+        return LancamentoListaViewModel(repo, propriedades, hoje = {
+            quinzeDeSetembro
+        }, processamento = EmptyCoroutineContext, selecao = selecao)
     }
 
     @Test

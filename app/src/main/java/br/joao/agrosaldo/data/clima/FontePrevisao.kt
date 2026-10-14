@@ -1,5 +1,8 @@
 package br.joao.agrosaldo.data.clima
 
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
@@ -7,9 +10,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 
 /** Fonte do JSON bruto da previsão; substituível por fake nos testes. */
 fun interface FontePrevisao {
@@ -50,6 +50,7 @@ class OpenMeteoHttp : FontePrevisao {
     private companion object {
         const val TEMPO_CONEXAO_MS = 10_000
         const val TEMPO_LEITURA_MS = 15_000
+
         /** Limite do download inteiro; os dois acima valem para cada operação. */
         const val TEMPO_TOTAL_MS = 30_000L
     }
@@ -65,11 +66,7 @@ class OpenMeteoHttp : FontePrevisao {
  * @throws IOException se o tempo total acabar. O cancelamento de quem chamou continua
  *   chegando como CancellationException.
  */
-internal suspend fun <T : Any> chamadaBloqueante(
-    tempoTotalMs: Long,
-    interromper: () -> Unit,
-    bloqueante: () -> T
-): T =
+internal suspend fun <T : Any> chamadaBloqueante(tempoTotalMs: Long, interromper: () -> Unit, bloqueante: () -> T): T =
     withTimeoutOrNull(tempoTotalMs) {
         withContext(Dispatchers.IO) {
             // UNDISPATCHED: o finally fica armado antes de bloqueante() começar.

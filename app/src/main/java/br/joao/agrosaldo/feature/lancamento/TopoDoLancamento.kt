@@ -41,7 +41,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
-import br.joao.agrosaldo.core.ui.cor
 import br.joao.agrosaldo.core.ui.icone
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.domain.model.TipoLancamento

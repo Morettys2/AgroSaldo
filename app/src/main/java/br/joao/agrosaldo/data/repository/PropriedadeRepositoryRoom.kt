@@ -32,16 +32,15 @@ class PropriedadeRepositoryRoom(
      * pt-BR ([emOrdemAlfabetica]): a primeira é a propriedade padrão das telas.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun observarTodas(): Flow<List<Propriedade>> =
-        sessao.usuarioId.flatMapLatest { usuarioId ->
-            if (usuarioId == null) {
-                flowOf(emptyList())
-            } else {
-                dao.observarDoUsuario(usuarioId).map { entidades ->
-                    entidades.map { it.paraDominio() }.emOrdemAlfabetica()
-                }
+    override fun observarTodas(): Flow<List<Propriedade>> = sessao.usuarioId.flatMapLatest { usuarioId ->
+        if (usuarioId == null) {
+            flowOf(emptyList())
+        } else {
+            dao.observarDoUsuario(usuarioId).map { entidades ->
+                entidades.map { it.paraDominio() }.emOrdemAlfabetica()
             }
         }
+    }
 
     override suspend fun buscarPorId(id: String): Propriedade? {
         val usuarioId = sessao.usuarioId.value ?: return null
@@ -60,8 +59,7 @@ class PropriedadeRepositoryRoom(
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
     }
 
-    override suspend fun excluir(id: String) =
-        dao.excluir(id, usuarioConectado())
+    override suspend fun excluir(id: String) = dao.excluir(id, usuarioConectado())
 
     override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {
         val usuarioId = usuarioConectado()
@@ -83,6 +81,5 @@ class PropriedadeRepositoryRoom(
         }
     }
 
-    private fun usuarioConectado(): String =
-        checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
+    private fun usuarioConectado(): String = checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

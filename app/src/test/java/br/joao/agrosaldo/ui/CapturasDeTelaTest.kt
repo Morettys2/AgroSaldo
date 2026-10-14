@@ -37,15 +37,15 @@ import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import com.github.takahirom.roborazzi.captureRoboImage
+import java.time.LocalDate
+import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.time.LocalDate
-import java.time.YearMonth
-import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Capturas das telas principais, desenhadas no JVM (Robolectric + Roborazzi), com os
@@ -96,6 +96,8 @@ class CapturasDeTelaTest {
         hoje = { hoje }
     )
 
+    // Só nos testes: a tela recebe o ViewModel pronto, com os dados de exemplo.
+    @Suppress("ktlint:compose:vm-forwarding-check")
     @Composable
     private fun TelaInicio(viewModel: InicioViewModel) {
         InicioRoute(
@@ -147,7 +149,8 @@ class CapturasDeTelaTest {
     fun novoLancamento() {
         val viewModel = formulario()
         capturar("04-novo-lancamento") {
-            LancamentoFormRoute(lancamentoId = null, aoConcluir = {}, aoLancarDeNovo = {}, aoCadastrarPropriedade = {}, viewModel = viewModel)
+            LancamentoFormRoute(lancamentoId = null, aoConcluir = {
+            }, aoLancarDeNovo = {}, aoCadastrarPropriedade = {}, viewModel = viewModel)
         }
     }
 
@@ -155,7 +158,8 @@ class CapturasDeTelaTest {
     fun novoLancamentoComFonteGrande() {
         val viewModel = formulario()
         capturar("05-novo-lancamento-fonte-2x", escalaDaFonte = 2f) {
-            LancamentoFormRoute(lancamentoId = null, aoConcluir = {}, aoLancarDeNovo = {}, aoCadastrarPropriedade = {}, viewModel = viewModel)
+            LancamentoFormRoute(lancamentoId = null, aoConcluir = {
+            }, aoLancarDeNovo = {}, aoCadastrarPropriedade = {}, viewModel = viewModel)
         }
     }
 
@@ -190,7 +194,10 @@ class CapturasDeTelaTest {
             ClimaScreen(
                 uiState = estado,
                 permissao = PermissaoNotificacao(concedida = true, pedir = {}),
-                aoSelecionarPropriedade = {}, aoAtualizar = {}, aoAbrirAjustes = {}, aoCadastrarPropriedade = {}
+                aoSelecionarPropriedade = {},
+                aoAtualizar = {},
+                aoAbrirAjustes = {},
+                aoCadastrarPropriedade = {}
             )
         }
     }
@@ -223,7 +230,10 @@ class CapturasDeTelaTest {
         capturar("09-login") {
             LoginScreen(
                 uiState = LoginUiState(email = "produtor@exemplo.com"),
-                aoMudarEmail = {}, aoMudarSenha = {}, aoEntrar = {}, aoCriarConta = {}
+                aoMudarEmail = {},
+                aoMudarSenha = {},
+                aoEntrar = {},
+                aoCriarConta = {}
             )
         }
     }

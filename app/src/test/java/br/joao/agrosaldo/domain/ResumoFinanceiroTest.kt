@@ -6,13 +6,13 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import java.time.LocalDate
+import java.time.YearMonth
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
-import java.time.YearMonth
 
 /**
  * Regras de saldo e ranking de gastos testadas direto na função pura, sem ViewModel,
@@ -28,17 +28,19 @@ class ResumoFinanceiroTest {
         data: LocalDate = LocalDate.of(2026, 10, 5),
         propriedadeId: String = "p1"
     ) = Lancamento(
-        propriedadeId = propriedadeId, tipo = TipoLancamento.DESPESA, categoria = categoria,
-        valorCentavos = valor, data = data
+        propriedadeId = propriedadeId,
+        tipo = TipoLancamento.DESPESA,
+        categoria = categoria,
+        valorCentavos = valor,
+        data = data
     )
 
-    private fun receita(
-        valor: Long,
-        data: LocalDate = LocalDate.of(2026, 10, 5),
-        propriedadeId: String = "p1"
-    ) = Lancamento(
-        propriedadeId = propriedadeId, tipo = TipoLancamento.RECEITA,
-        categoria = CategoriaLancamento.VENDA_SAFRA, valorCentavos = valor, data = data
+    private fun receita(valor: Long, data: LocalDate = LocalDate.of(2026, 10, 5), propriedadeId: String = "p1") = Lancamento(
+        propriedadeId = propriedadeId,
+        tipo = TipoLancamento.RECEITA,
+        categoria = CategoriaLancamento.VENDA_SAFRA,
+        valorCentavos = valor,
+        data = data
     )
 
     private fun propriedade(id: String, nome: String = id) =

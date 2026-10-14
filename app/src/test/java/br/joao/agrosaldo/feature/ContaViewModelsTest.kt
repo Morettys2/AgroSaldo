@@ -21,6 +21,8 @@ import br.joao.agrosaldo.feature.conta.CadastroViewModel
 import br.joao.agrosaldo.feature.conta.ContaViewModel
 import br.joao.agrosaldo.feature.conta.LoginViewModel
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoViewModel
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -37,8 +39,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import java.time.Instant
-import java.time.ZoneOffset
 
 /**
  * ViewModels de cadastro, login, conta, sessão/bloqueio, novo aceite e alteração de senha.
@@ -298,8 +298,7 @@ class ContaViewModelsTest {
 
     private var agora = 1_790_808_000_000L
 
-    private fun sessaoComBloqueio(ativo: Boolean = true) =
-        sessaoViewModel(bloqueio = BloqueioMemoria(ativo), relogio = { agora })
+    private fun sessaoComBloqueio(ativo: Boolean = true) = sessaoViewModel(bloqueio = BloqueioMemoria(ativo), relogio = { agora })
 
     @Test
     fun `abrir o app com sessao gravada e bloqueio ligado pede a digital`() = runTest {

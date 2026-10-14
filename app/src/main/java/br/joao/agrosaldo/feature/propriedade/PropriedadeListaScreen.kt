@@ -98,7 +98,10 @@ fun PropriedadeListaScreen(
         }
 
         item(key = "nova") {
-            BotaoNova(aoClicar = aoAbrirNova, modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.pequeno))
+            BotaoNova(
+                aoClicar = aoAbrirNova,
+                modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.pequeno)
+            )
         }
 
         when {
@@ -138,12 +141,7 @@ fun PropriedadeListaScreen(
 }
 
 @Composable
-private fun Cabecalho(
-    uiState: PropriedadeListaUiState,
-    aoVoltarMes: () -> Unit,
-    aoAvancarMes: () -> Unit,
-    aoAbrirConta: () -> Unit
-) {
+private fun Cabecalho(uiState: PropriedadeListaUiState, aoVoltarMes: () -> Unit, aoAvancarMes: () -> Unit, aoAbrirConta: () -> Unit) {
     val oculto = LocalValoresOcultos.current
     val negativo = uiState.totalCentavos < 0
 
@@ -205,11 +203,7 @@ private fun BotaoNova(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CartaoPropriedade(
-    item: PropriedadeComSaldo,
-    aoClicar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, modifier: Modifier = Modifier) {
     val oculto = LocalValoresOcultos.current
     val negativo = item.saldoCentavos < 0
     // Com valores ocultos, cor e sinal ficam neutros para não revelar saldo negativo.
@@ -307,23 +301,33 @@ private fun PreviewComDados() {
                 itens = listOf(
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Fazenda Santa Clara", cultura = "Milho",
-                            areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
+                            nome = "Fazenda Santa Clara",
+                            cultura = "Milho",
+                            areaHectares = 50.0,
+                            latitude = -21.7333,
+                            longitude = -46.9667
                         ),
                         saldoCentavos = 1_247_000L,
                         proporcao = 1f
                     ),
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Sítio Boa Vista", cultura = "Soja",
-                            areaHectares = 18.0, latitude = -21.8012, longitude = -46.9021
+                            nome = "Sítio Boa Vista",
+                            cultura = "Soja",
+                            areaHectares = 18.0,
+                            latitude = -21.8012,
+                            longitude = -46.9021
                         ),
                         saldoCentavos = 171_000L,
                         proporcao = 0.14f
                     )
                 )
             ),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
+            aoVoltarMes = {},
+            aoAvancarMes = {},
+            aoAbrirNova = {},
+            aoAbrirPropriedade = {},
+            aoAbrirConta = {}
         )
     }
 }
@@ -334,7 +338,11 @@ private fun PreviewVazio() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(carregando = false),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
+            aoVoltarMes = {},
+            aoAvancarMes = {},
+            aoAbrirNova = {},
+            aoAbrirPropriedade = {},
+            aoAbrirConta = {}
         )
     }
 }
@@ -345,7 +353,11 @@ private fun PreviewCarregando() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(carregando = true),
-            aoVoltarMes = {}, aoAvancarMes = {}, aoAbrirNova = {}, aoAbrirPropriedade = {}, aoAbrirConta = {}
+            aoVoltarMes = {},
+            aoAvancarMes = {},
+            aoAbrirNova = {},
+            aoAbrirPropriedade = {},
+            aoAbrirConta = {}
         )
     }
 }

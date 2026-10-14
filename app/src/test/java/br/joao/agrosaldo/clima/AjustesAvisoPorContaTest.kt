@@ -18,8 +18,7 @@ class AjustesAvisoPorContaTest {
     private val armazenamento = ArmazenamentoMemoria()
     private val sessao = SessaoMemoria("ana")
 
-    private fun repositorio(aoEntrarEmConta: (AjustesAviso) -> Unit = {}) =
-        AjustesAvisoPorConta(armazenamento, sessao, aoEntrarEmConta)
+    private fun repositorio(aoEntrarEmConta: (AjustesAviso) -> Unit = {}) = AjustesAvisoPorConta(armazenamento, sessao, aoEntrarEmConta)
 
     @Test
     fun `ajustes e ultimo aviso valem so para a conta que gravou`() {

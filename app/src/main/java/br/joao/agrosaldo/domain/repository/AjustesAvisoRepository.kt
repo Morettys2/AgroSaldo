@@ -1,8 +1,8 @@
 package br.joao.agrosaldo.domain.repository
 
 import br.joao.agrosaldo.domain.clima.LimitesChuva
-import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
+import kotlinx.coroutines.flow.StateFlow
 
 data class AjustesAviso(
     val ativo: Boolean = true,
@@ -37,6 +37,7 @@ interface AjustesAvisoRepository {
 interface AgendaDeVerificacao {
     fun ligar()
     fun desligar()
+
     /** Enfileira uma verificação imediata, fora do agendamento periódico. */
     fun verificarAgora()
 }

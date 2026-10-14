@@ -19,6 +19,8 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.model.Usuario
+import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -32,8 +34,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import java.time.Instant
-import java.time.LocalDate
 
 /**
  * Camada de dados na JVM: mapeadores, semeador, SQL de migração e repositórios Room sobre
@@ -54,9 +54,13 @@ class CamadaDeDadosTest {
     @Test
     fun `lancamento guarda enum como texto e data como epochDay`() {
         val original = Lancamento(
-            id = "l1", propriedadeId = "p1",
-            tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.MAO_DE_OBRA,
-            valorCentavos = 210_000L, data = LocalDate.of(2026, 9, 22), descricao = "Diarista"
+            id = "l1",
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.MAO_DE_OBRA,
+            valorCentavos = 210_000L,
+            data = LocalDate.of(2026, 9, 22),
+            descricao = "Diarista"
         )
         val entidade = original.paraEntidade(agora = 0L)
 
@@ -70,8 +74,11 @@ class CamadaDeDadosTest {
     fun `todas as categorias sobrevivem a ida e volta`() {
         CategoriaLancamento.entries.forEach { categoria ->
             val l = Lancamento(
-                propriedadeId = "p1", tipo = categoria.tipo, categoria = categoria,
-                valorCentavos = 1L, data = LocalDate.of(2026, 1, 1)
+                propriedadeId = "p1",
+                tipo = categoria.tipo,
+                categoria = categoria,
+                valorCentavos = 1L,
+                data = LocalDate.of(2026, 1, 1)
             )
             assertEquals(categoria, l.paraEntidade().paraDominio().categoria)
         }
@@ -224,8 +231,12 @@ class CamadaDeDadosTest {
     }
 
     private fun usuario(id: String, email: String) = Usuario(
-        id = id, nome = "Fábio Moretti", email = email, senhaHash = "hash-de-teste",
-        consentimentoEm = Instant.ofEpochMilli(1_000L), versaoTermo = 1,
+        id = id,
+        nome = "Fábio Moretti",
+        email = email,
+        senhaHash = "hash-de-teste",
+        consentimentoEm = Instant.ofEpochMilli(1_000L),
+        versaoTermo = 1,
         criadoEm = Instant.ofEpochMilli(1_000L)
     )
 
@@ -454,8 +465,11 @@ class CamadaDeDadosTest {
         assertNull(repositorio.buscarPorId("exemplo-1"))
 
         val intruso = Lancamento(
-            propriedadeId = DadosDeExemplo.ID_FAZENDA, tipo = TipoLancamento.DESPESA,
-            categoria = CategoriaLancamento.ADUBO, valorCentavos = 100L, data = LocalDate.of(2026, 9, 1)
+            propriedadeId = DadosDeExemplo.ID_FAZENDA,
+            tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ADUBO,
+            valorCentavos = 100L,
+            data = LocalDate.of(2026, 9, 1)
         )
         try {
             repositorio.salvar(intruso)
@@ -477,10 +491,7 @@ class CamadaDeDadosTest {
     }
 
     /** Transação falsa com rollback: restaura as tabelas em memória se o bloco falhar. */
-    private class TransacaoEmMemoria(
-        private val usuarios: UsuarioDaoFalso,
-        private val propriedades: PropriedadeDaoFalso
-    ) : Transacao {
+    private class TransacaoEmMemoria(private val usuarios: UsuarioDaoFalso, private val propriedades: PropriedadeDaoFalso) : Transacao {
         var execucoes = 0
         override suspend fun <R> executar(bloco: suspend () -> R): R {
             execucoes++
@@ -502,8 +513,7 @@ class CamadaDeDadosTest {
         propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null))
         val usuarios = UsuarioDaoFalso(propriedades)
         val adocaoQuebrada = object : UsuarioDao by usuarios {
-            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int =
-                throw IllegalStateException("disco cheio")
+            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int = throw IllegalStateException("disco cheio")
         }
         val transacao = TransacaoEmMemoria(usuarios, propriedades)
         val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)

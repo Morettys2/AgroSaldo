@@ -9,19 +9,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** Fake em memória para testes, sem filtro por usuário. */
-class LancamentoRepositoryMemoria(
-    iniciais: List<Lancamento> = DadosDeExemplo.lancamentos()
-) : LancamentoRepository {
+class LancamentoRepositoryMemoria(iniciais: List<Lancamento> = DadosDeExemplo.lancamentos()) : LancamentoRepository {
 
-    private val _lancamentos = MutableStateFlow(iniciais)
+    private val lancamentosGuardados = MutableStateFlow(iniciais)
 
-    override fun observarTodos(): Flow<List<Lancamento>> = _lancamentos.asStateFlow()
+    override fun observarTodos(): Flow<List<Lancamento>> = lancamentosGuardados.asStateFlow()
 
-    override suspend fun buscarPorId(id: String): Lancamento? =
-        _lancamentos.value.firstOrNull { it.id == id }
+    override suspend fun buscarPorId(id: String): Lancamento? = lancamentosGuardados.value.firstOrNull { it.id == id }
 
     override suspend fun salvar(lancamento: Lancamento) {
-        _lancamentos.update { lista ->
+        lancamentosGuardados.update { lista ->
             if (lista.any { it.id == lancamento.id }) {
                 lista.map { if (it.id == lancamento.id) lancamento else it }
             } else {
@@ -31,17 +28,17 @@ class LancamentoRepositoryMemoria(
     }
 
     override suspend fun excluir(id: String) {
-        _lancamentos.update { lista -> lista.filterNot { it.id == id } }
+        lancamentosGuardados.update { lista -> lista.filterNot { it.id == id } }
     }
 
     /** Remove e retorna os lançamentos da propriedade; simula o CASCADE para [PropriedadeRepositoryMemoria]. */
     internal fun tirarDaPropriedade(propriedadeId: String): List<Lancamento> {
-        val daPropriedade = _lancamentos.value.filter { it.propriedadeId == propriedadeId }
-        _lancamentos.update { lista -> lista.filterNot { it.propriedadeId == propriedadeId } }
+        val daPropriedade = lancamentosGuardados.value.filter { it.propriedadeId == propriedadeId }
+        lancamentosGuardados.update { lista -> lista.filterNot { it.propriedadeId == propriedadeId } }
         return daPropriedade
     }
 
     internal fun devolver(lancamentos: List<Lancamento>) {
-        _lancamentos.update { lista -> lista.filterNot { l -> lancamentos.any { it.id == l.id } } + lancamentos }
+        lancamentosGuardados.update { lista -> lista.filterNot { l -> lancamentos.any { it.id == l.id } } + lancamentos }
     }
 }

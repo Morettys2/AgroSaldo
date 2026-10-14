@@ -13,13 +13,13 @@ import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.ZoneId
 
 data class ContaUiState(
     val carregando: Boolean = true,
@@ -54,7 +54,7 @@ class ContaViewModel(
     private val zona: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
 
-    private val _exclusao = MutableStateFlow(EstadoExclusao())
+    private val exclusaoEmAndamento = MutableStateFlow(EstadoExclusao())
 
     private val _uiState = MutableStateFlow(ContaUiState())
     val uiState: StateFlow<ContaUiState> = _uiState.asStateFlow()
@@ -65,7 +65,7 @@ class ContaViewModel(
                 conta.observarUsuarioLogado(),
                 propriedadeRepository.observarTodas(),
                 bloqueio.ativo,
-                _exclusao
+                exclusaoEmAndamento
             ) { usuario, propriedades, bloqueioAtivo, exclusao ->
                 if (usuario == null) {
                     // Transitório após sair/excluir, até a navegação trocar de tela.
@@ -97,15 +97,15 @@ class ContaViewModel(
     fun aoDefinirBloqueio(ativo: Boolean) = bloqueio.definir(ativo)
 
     fun aoExcluirConta(senha: String) {
-        if (_exclusao.value.excluindo) return
+        if (exclusaoEmAndamento.value.excluindo) return
         if (senha.isEmpty()) {
-            _exclusao.value = EstadoExclusao(erro = "Digite sua senha para confirmar.")
+            exclusaoEmAndamento.value = EstadoExclusao(erro = "Digite sua senha para confirmar.")
             return
         }
 
-        _exclusao.value = EstadoExclusao(excluindo = true)
+        exclusaoEmAndamento.value = EstadoExclusao(excluindo = true)
         viewModelScope.launch {
-            _exclusao.value = when (val resultado = conta.excluirConta(senha)) {
+            exclusaoEmAndamento.value = when (val resultado = conta.excluirConta(senha)) {
                 // Sessão encerrada; a navegação leva ao login.
                 ResultadoExclusao.Sucesso -> EstadoExclusao()
                 ResultadoExclusao.SenhaIncorreta -> EstadoExclusao(erro = "Senha incorreta.")
@@ -118,7 +118,7 @@ class ContaViewModel(
     }
 
     /** Limpa o erro para não reaparecer na próxima abertura do diálogo. */
-    fun aoCancelarExclusao() = _exclusao.update { EstadoExclusao() }
+    fun aoCancelarExclusao() = exclusaoEmAndamento.update { EstadoExclusao() }
 
     private data class EstadoExclusao(val excluindo: Boolean = false, val erro: String? = null)
 

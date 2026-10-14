@@ -376,15 +376,19 @@ private val ESTADO_DE_EXEMPLO = InicioUiState(
     ),
     ultimosLancamentos = listOf(
         Lancamento(
-            propriedadeId = "p1", tipo = TipoLancamento.RECEITA,
+            propriedadeId = "p1",
+            tipo = TipoLancamento.RECEITA,
             categoria = CategoriaLancamento.VENDA_SAFRA,
-            valorCentavos = 1_800_000L, data = LocalDate.now().minusDays(1),
+            valorCentavos = 1_800_000L,
+            data = LocalDate.now().minusDays(1),
             descricao = "Venda de milho"
         ),
         Lancamento(
-            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
             categoria = CategoriaLancamento.ENERGIA,
-            valorCentavos = 125_000L, data = LocalDate.now().minusDays(2),
+            valorCentavos = 125_000L,
+            data = LocalDate.now().minusDays(2),
             descricao = "Conta do pivô"
         )
     )

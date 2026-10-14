@@ -17,9 +17,8 @@ import androidx.core.location.LocationManagerCompat
  */
 object LocalizacaoDoCelular {
 
-    fun temPermissao(context: Context): Boolean =
-        concedida(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
-            concedida(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+    fun temPermissao(context: Context): Boolean = concedida(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
+        concedida(context, Manifest.permission.ACCESS_COARSE_LOCATION)
 
     /**
      * Callbacks na main thread; falhas chegam como mensagem pronta para o usuário.

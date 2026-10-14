@@ -34,8 +34,14 @@ object Semeador {
                     "(id, propriedade_id, tipo, categoria, valor_centavos, data, descricao, atualizado_em) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 arrayOf(
-                    e.id, e.propriedadeId, e.tipo, e.categoria,
-                    e.valorCentavos, e.data, e.descricao, e.atualizadoEm
+                    e.id,
+                    e.propriedadeId,
+                    e.tipo,
+                    e.categoria,
+                    e.valorCentavos,
+                    e.data,
+                    e.descricao,
+                    e.atualizadoEm
                 )
             )
         }

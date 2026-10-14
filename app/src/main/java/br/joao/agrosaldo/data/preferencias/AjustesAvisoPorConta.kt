@@ -4,6 +4,7 @@ import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -11,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.Instant
 
 /**
  * Chave-valor onde [AjustesAvisoPorConta] guarda os dados: SharedPreferences no app, um mapa
@@ -143,8 +143,7 @@ class AjustesAvisoPorConta(
 
     private fun prefixo(usuarioId: String) = "$usuarioId:"
 
-    private fun chaveDoUltimoAviso(usuarioId: String, propriedadeId: String) =
-        prefixo(usuarioId) + PREFIXO_ULTIMO + propriedadeId
+    private fun chaveDoUltimoAviso(usuarioId: String, propriedadeId: String) = prefixo(usuarioId) + PREFIXO_ULTIMO + propriedadeId
 
     private companion object {
         const val CHAVE_ATIVO = "ativo"

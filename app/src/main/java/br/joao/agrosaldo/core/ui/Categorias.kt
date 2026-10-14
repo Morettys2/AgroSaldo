@@ -58,11 +58,7 @@ fun CategoriaLancamento.cor(): CorCategoria {
 
 /** Ícone da categoria sobre fundo na cor dela. */
 @Composable
-fun IconeCategoria(
-    categoria: CategoriaLancamento,
-    modifier: Modifier = Modifier,
-    tamanho: Dp = 44.dp
-) {
+fun IconeCategoria(categoria: CategoriaLancamento, modifier: Modifier = Modifier, tamanho: Dp = 44.dp) {
     val cor = categoria.cor()
     Surface(
         shape = MaterialTheme.shapes.small,

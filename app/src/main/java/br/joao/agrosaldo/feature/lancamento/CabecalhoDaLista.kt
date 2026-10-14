@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,19 +126,15 @@ internal fun Cabecalho(
 }
 
 @Composable
-internal fun CampoDeBusca(
-    texto: String,
-    focar: Boolean,
-    aoFocar: () -> Unit,
-    aoMudar: (String) -> Unit,
-    aoFechar: () -> Unit
-) {
+internal fun CampoDeBusca(texto: String, focar: Boolean, aoFocar: () -> Unit, aoMudar: (String) -> Unit, aoFechar: () -> Unit) {
     val foco = remember { FocusRequester() }
     val gerenteDeFoco = LocalFocusManager.current
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoFocarAtual by rememberUpdatedState(aoFocar)
     LaunchedEffect(focar) {
         if (focar) {
             foco.requestFocus()
-            aoFocar()
+            aoFocarAtual()
         }
     }
 

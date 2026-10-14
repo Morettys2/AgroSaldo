@@ -30,20 +30,16 @@ fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
  *   parte do modelo de domínio).
  * @param agora valor de `atualizado_em`, em epoch ms.
  */
-fun Propriedade.paraEntidade(
-    usuarioId: String?,
-    agora: Long = System.currentTimeMillis()
-): PropriedadeEntity =
-    PropriedadeEntity(
-        id = id,
-        nome = nome,
-        cultura = cultura,
-        areaHectares = areaHectares,
-        latitude = latitude,
-        longitude = longitude,
-        atualizadoEm = agora,
-        usuarioId = usuarioId
-    )
+fun Propriedade.paraEntidade(usuarioId: String?, agora: Long = System.currentTimeMillis()): PropriedadeEntity = PropriedadeEntity(
+    id = id,
+    nome = nome,
+    cultura = cultura,
+    areaHectares = areaHectares,
+    latitude = latitude,
+    longitude = longitude,
+    atualizadoEm = agora,
+    usuarioId = usuarioId
+)
 
 /**
  * Enums são lidos com valueOf: renomear ou remover constantes de
@@ -60,17 +56,16 @@ fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     descricao = descricao
 )
 
-fun Lancamento.paraEntidade(agora: Long = System.currentTimeMillis()): LancamentoEntity =
-    LancamentoEntity(
-        id = id,
-        propriedadeId = propriedadeId,
-        tipo = tipo.name,
-        categoria = categoria.name,
-        valorCentavos = valorCentavos,
-        data = data.toEpochDay(),
-        descricao = descricao,
-        atualizadoEm = agora
-    )
+fun Lancamento.paraEntidade(agora: Long = System.currentTimeMillis()): LancamentoEntity = LancamentoEntity(
+    id = id,
+    propriedadeId = propriedadeId,
+    tipo = tipo.name,
+    categoria = categoria.name,
+    valorCentavos = valorCentavos,
+    data = data.toEpochDay(),
+    descricao = descricao,
+    atualizadoEm = agora
+)
 
 fun UsuarioEntity.paraDominio(): Usuario = Usuario(
     id = id,

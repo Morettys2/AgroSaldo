@@ -43,11 +43,7 @@ import br.joao.agrosaldo.ui.theme.Espacos
  * emergência (sem biometria/PIN): encerra a sessão e exige login com senha, sem expor dados.
  */
 @Composable
-fun TelaBloqueioRoute(
-    aoDesbloquear: () -> Unit,
-    aoUsarSenha: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun TelaBloqueioRoute(aoDesbloquear: () -> Unit, aoUsarSenha: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var mensagem by remember { mutableStateOf<String?>(null) }
     val aoDesbloquearAtual by rememberUpdatedState(aoDesbloquear)
@@ -82,12 +78,7 @@ fun TelaBloqueioRoute(
 }
 
 @Composable
-fun TelaBloqueioScreen(
-    mensagem: String?,
-    aoDesbloquear: () -> Unit,
-    aoUsarSenha: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun TelaBloqueioScreen(mensagem: String?, aoDesbloquear: () -> Unit, aoUsarSenha: () -> Unit, modifier: Modifier = Modifier) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

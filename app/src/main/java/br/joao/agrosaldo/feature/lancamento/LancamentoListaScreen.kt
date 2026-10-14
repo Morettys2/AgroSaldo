@@ -146,7 +146,12 @@ fun LancamentoListaScreen(
                         aoMudarFiltro = aoMudarFiltro,
                         aoMudarCategoria = aoMudarCategoria,
                         aoLimparFiltros = aoLimparFiltros,
-                        modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = 18.dp, bottom = Espacos.padrao)
+                        modifier = Modifier.padding(
+                            start = Espacos.margemDaTela,
+                            end = Espacos.margemDaTela,
+                            top = 18.dp,
+                            bottom = Espacos.padrao
+                        )
                     )
                 }
 
@@ -175,10 +180,7 @@ fun LancamentoListaScreen(
  * Emite títulos de dia e linhas como itens separados da LazyColumn, desenhados como um
  * único cartão: [ItemDoCartao] arredonda o topo do primeiro item e a base do último.
  */
-private fun LazyListScope.itensDaLista(
-    grupos: List<GrupoDoDia>,
-    aoEditarLancamento: (String) -> Unit
-) {
+private fun LazyListScope.itensDaLista(grupos: List<GrupoDoDia>, aoEditarLancamento: (String) -> Unit) {
     val total = grupos.sumOf { it.lancamentos.size + 1 }
     var posicao = 0
     grupos.forEachIndexed { indiceDoGrupo, grupo ->
@@ -246,28 +248,37 @@ private fun ItemDoCartao(posicao: Int, total: Int, conteudo: @Composable () -> U
 // ---------- prévias ----------
 
 private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
-    nome = "Fazenda Santa Clara", cultura = "Milho",
-    areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
+    nome = "Fazenda Santa Clara",
+    cultura = "Milho",
+    areaHectares = 50.0,
+    latitude = -21.7333,
+    longitude = -46.9667
 )
 
 private fun estadoDeExemplo(): LancamentoListaUiState {
     val hoje = LocalDate.now()
     val lancamentos = listOf(
         Lancamento(
-            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
             categoria = CategoriaLancamento.ADUBO,
-            valorCentavos = 78_000L, data = hoje
+            valorCentavos = 78_000L,
+            data = hoje
         ),
         Lancamento(
-            propriedadeId = "p1", tipo = TipoLancamento.RECEITA,
+            propriedadeId = "p1",
+            tipo = TipoLancamento.RECEITA,
             categoria = CategoriaLancamento.VENDA_SAFRA,
-            valorCentavos = 1_800_000L, data = hoje.minusDays(1),
+            valorCentavos = 1_800_000L,
+            data = hoje.minusDays(1),
             descricao = "Venda de milho"
         ),
         Lancamento(
-            propriedadeId = "p1", tipo = TipoLancamento.DESPESA,
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
             categoria = CategoriaLancamento.ENERGIA,
-            valorCentavos = 125_000L, data = hoje.minusDays(2),
+            valorCentavos = 125_000L,
+            data = hoje.minusDays(2),
             descricao = "Conta do pivô"
         )
     )

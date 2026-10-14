@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
@@ -7,11 +8,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import java.time.YearMonth
 
 /** [Desfazer] (oferta de desfazer exclusão) e [SelecaoAtual] (propriedade e mês compartilhados entre as abas). */
 class DesfazerESelecaoTest {

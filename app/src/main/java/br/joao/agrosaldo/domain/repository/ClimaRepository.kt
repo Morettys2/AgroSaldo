@@ -6,10 +6,13 @@ import kotlinx.coroutines.flow.Flow
 
 sealed interface ResultadoAtualizacao {
     data class Sucesso(val previsao: Previsao) : ResultadoAtualizacao
+
     /** Falha de rede ou tempo esgotado; o cache permanece. */
     data object SemConexao : ResultadoAtualizacao
+
     /** Serviço sobrecarregado ou fora do ar (HTTP 429 ou 5xx); passageiro, o cache permanece. */
     data class Indisponivel(val motivo: String) : ResultadoAtualizacao
+
     /** Falha que tentar de novo não resolve: resposta inválida da API ou propriedade excluída. */
     data class Falha(val motivo: String) : ResultadoAtualizacao
 }

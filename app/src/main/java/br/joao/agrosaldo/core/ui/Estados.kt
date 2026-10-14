@@ -113,12 +113,7 @@ fun EstadoVazio(
  * texto quando ele aparece ou muda, sem a pessoa precisar achar a faixa.
  */
 @Composable
-fun FaixaDeAviso(
-    texto: String,
-    modifier: Modifier = Modifier,
-    icone: ImageVector = IconesAgro.Nuvem,
-    erro: Boolean = false
-) {
+fun FaixaDeAviso(texto: String, modifier: Modifier = Modifier, icone: ImageVector = IconesAgro.Nuvem, erro: Boolean = false) {
     val cor = if (erro) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     CartaoSafra(modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite }, preenchimento = Espacos.padrao) {
         Row(

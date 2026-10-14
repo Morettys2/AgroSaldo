@@ -19,6 +19,10 @@ import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.feature.clima.AjustesAvisoViewModel
 import br.joao.agrosaldo.feature.clima.ClimaViewModel
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -28,10 +32,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 
 /** ClimaViewModel, AjustesAvisoViewModel e o cartão de chuva do InicioViewModel. */
 class ClimaViewModelsTest {
@@ -122,9 +122,8 @@ class ClimaViewModelsTest {
 
     @Test
     fun `previsao salva de outro dia diz o dia em que foi atualizada`() {
-        fun atualizadaEm(obtidaEm: Instant) =
-            climaViewModel(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva.copy(obtidaEm = obtidaEm))))
-                .uiState.value.atualizadaEm
+        fun atualizadaEm(obtidaEm: Instant) = climaViewModel(ClimaRepositoryMemoria(mapOf(fazendaId to comChuva.copy(obtidaEm = obtidaEm))))
+            .uiState.value.atualizadaEm
 
         assertEquals("Atualizada às 14:40", atualizadaEm(AGORA))
         assertEquals("Atualizada ontem às 14:40", atualizadaEm(AGORA.minus(Duration.ofDays(1))))
@@ -176,8 +175,12 @@ class ClimaViewModelsTest {
         var agora = AGORA // 14:40 local do dia 1.
         val clima = ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0)))))
         val vm = ClimaViewModel(
-            PropriedadeRepositoryMemoria(), clima, AjustesAvisoMemoria(),
-            relogio = { agora.toEpochMilli() }, zona = ZoneOffset.ofHours(-3), selecao = selecao
+            PropriedadeRepositoryMemoria(),
+            clima,
+            AjustesAvisoMemoria(),
+            relogio = { agora.toEpochMilli() },
+            zona = ZoneOffset.ofHours(-3),
+            selecao = selecao
         )
         assertEquals("Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
         assertEquals(7, vm.uiState.value.dias.size)
@@ -312,17 +315,14 @@ class ClimaViewModelsTest {
         assertTrue(AjustesAvisoViewModel(ajustes, AgendaFalsa(), um).uiState.value.mostrarSitios)
     }
 
-    private fun inicio(
-        clima: ClimaRepositoryMemoria,
-        agora: Instant = AGORA,
-        nome: String? = null
-    ) = InicioViewModel(
+    private fun inicio(clima: ClimaRepositoryMemoria, agora: Instant = AGORA, nome: String? = null) = InicioViewModel(
         LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))),
         PropriedadeRepositoryMemoria(),
         clima,
         AjustesAvisoMemoria(),
         relogio = { agora.toEpochMilli() },
-        nomeDoUsuario = flowOf(nome), selecao = selecao
+        nomeDoUsuario = flowOf(nome),
+        selecao = selecao
     )
 
     private fun cartaoCom(chuvaPorHora: Map<Int, Pair<Int, Double>>) =
@@ -410,7 +410,8 @@ class ClimaViewModelsTest {
             PropriedadeRepositoryMemoria(),
             ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)),
             AjustesAvisoMemoria(),
-            relogio = { AGORA.toEpochMilli() }, selecao = selecao
+            relogio = { AGORA.toEpochMilli() },
+            selecao = selecao
         )
         val antes = vm.uiState.value
         assertTrue(antes.chuva?.vaiChover == true)
@@ -438,7 +439,8 @@ class ClimaViewModelsTest {
             PropriedadeRepositoryMemoria(),
             ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0))))),
             AjustesAvisoMemoria(),
-            relogio = { agora.toEpochMilli() }, selecao = selecao
+            relogio = { agora.toEpochMilli() },
+            selecao = selecao
         )
         assertEquals("Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 

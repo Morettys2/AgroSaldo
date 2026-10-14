@@ -12,8 +12,7 @@ import androidx.compose.ui.semantics.semantics
 val LocalValoresOcultos = compositionLocalOf { false }
 
 /** Substitui a leitura de "R$ ••••" pelo TalkBack por "Valor escondido". */
-fun Modifier.valorEscondido(oculto: Boolean): Modifier =
-    if (oculto) semantics { contentDescription = "Valor escondido" } else this
+fun Modifier.valorEscondido(oculto: Boolean): Modifier = if (oculto) semantics { contentDescription = "Valor escondido" } else this
 
 /** Variante com rótulo: o TalkBack lê "[rotulo]: valor escondido". */
 fun Modifier.textoComValor(rotulo: String, oculto: Boolean): Modifier =

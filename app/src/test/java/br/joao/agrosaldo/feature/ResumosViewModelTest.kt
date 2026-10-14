@@ -17,6 +17,9 @@ import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
+import java.time.LocalDate
+import java.time.YearMonth
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -30,9 +33,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.LocalDate
-import java.time.YearMonth
-import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
@@ -68,10 +68,14 @@ class ResumosViewModelTest {
         selecao.selecionarMes(mesDeHoje)
     }
 
-    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }, selecao = selecao)
+    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = {
+        hoje
+    }, selecao = selecao)
 
     /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
-    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext, selecao = selecao)
+    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = {
+        hoje
+    }, processamento = EmptyCoroutineContext, selecao = selecao)
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
@@ -123,8 +127,10 @@ class ResumosViewModelTest {
         lancamentos.salvar(
             Lancamento(
                 propriedadeId = DadosDeExemplo.ID_FAZENDA,
-                tipo = TipoLancamento.RECEITA, categoria = CategoriaLancamento.ARRENDAMENTO,
-                valorCentavos = 50_000L, data = hoje
+                tipo = TipoLancamento.RECEITA,
+                categoria = CategoriaLancamento.ARRENDAMENTO,
+                valorCentavos = 50_000L,
+                data = hoje
             )
         )
 
@@ -145,7 +151,8 @@ class ResumosViewModelTest {
         var dia = hoje
         selecao.limpar(agora = mesDeHoje)
         selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia }, selecao = selecao)
+        val vm =
+            InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia }, selecao = selecao)
         vm.aoVoltarParaATela() // Abertura da tela.
 
         dia = hoje.plusDays(1)
@@ -158,8 +165,12 @@ class ResumosViewModelTest {
     @Test
     fun `sem nenhuma propriedade o inicio pede para cadastrar`() {
         val vm = InicioViewModel(
-            LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()),
-            ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }, selecao = selecao
+            LancamentoRepositoryMemoria(emptyList()),
+            PropriedadeRepositoryMemoria(emptyList()),
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            hoje = { hoje },
+            selecao = selecao
         )
         assertFalse(vm.uiState.value.temPropriedade)
         assertFalse(vm.uiState.value.carregando)
@@ -198,8 +209,10 @@ class ResumosViewModelTest {
         lancamentos.salvar(
             Lancamento(
                 propriedadeId = DadosDeExemplo.ID_SITIO,
-                tipo = TipoLancamento.DESPESA, categoria = CategoriaLancamento.MANUTENCAO,
-                valorCentavos = 2_000_000L, data = hoje
+                tipo = TipoLancamento.DESPESA,
+                categoria = CategoriaLancamento.MANUTENCAO,
+                valorCentavos = 2_000_000L,
+                data = hoje
             )
         )
         val sitio = PropriedadeListaViewModel(propriedades, lancamentos, selecao = selecao).uiState.value
@@ -239,8 +252,12 @@ class ResumosViewModelTest {
     @Test
     fun `erro ao ler os lancamentos no inicio vira mensagem e a tela volta sozinha`() = runTest {
         val vm = InicioViewModel(
-            lancamentosInstaveis(), propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(),
-            hoje = { hoje }, selecao = selecao
+            lancamentosInstaveis(),
+            propriedades,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            hoje = { hoje },
+            selecao = selecao
         )
 
         assertEquals(InicioViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
@@ -254,8 +271,11 @@ class ResumosViewModelTest {
     @Test
     fun `erro ao ler os lancamentos na lista vira mensagem e a lista volta sozinha`() = runTest {
         val vm = LancamentoListaViewModel(
-            lancamentosInstaveis(), propriedades, hoje = { hoje },
-            processamento = EmptyCoroutineContext, selecao = selecao
+            lancamentosInstaveis(),
+            propriedades,
+            hoje = { hoje },
+            processamento = EmptyCoroutineContext,
+            selecao = selecao
         )
 
         assertEquals(LancamentoListaViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
@@ -283,8 +303,10 @@ class ResumosViewModelTest {
         val categorias = lista().uiState.value.categoriasDoMes
         assertEquals(
             listOf(
-                CategoriaLancamento.ENERGIA, CategoriaLancamento.ADUBO,
-                CategoriaLancamento.COMBUSTIVEL, CategoriaLancamento.VENDA_SAFRA
+                CategoriaLancamento.ENERGIA,
+                CategoriaLancamento.ADUBO,
+                CategoriaLancamento.COMBUSTIVEL,
+                CategoriaLancamento.VENDA_SAFRA
             ),
             categorias
         )

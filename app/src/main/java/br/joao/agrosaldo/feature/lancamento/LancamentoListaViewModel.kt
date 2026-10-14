@@ -17,6 +17,10 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.text.Normalizer
+import java.time.LocalDate
+import java.time.YearMonth
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,20 +31,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.Normalizer
-import java.time.LocalDate
-import java.time.YearMonth
-import kotlin.coroutines.CoroutineContext
 
 /** Filtro por tipo (RF09). */
 enum class FiltroLancamento { TUDO, DESPESAS, RECEITAS }
 
 /** Lançamentos de um dia, com rótulo relativo ("Hoje", "Ontem", "2 de outubro"). */
-data class GrupoDoDia(
-    val data: LocalDate,
-    val rotulo: String,
-    val lancamentos: List<Lancamento>
-)
+data class GrupoDoDia(val data: LocalDate, val rotulo: String, val lancamentos: List<Lancamento>)
 
 data class LancamentoListaUiState(
     val carregando: Boolean = true,
@@ -105,10 +101,10 @@ class LancamentoListaViewModel(
     private val processamento: CoroutineContext = Dispatchers.Default
 ) : ViewModel() {
 
-    private val _filtros = MutableStateFlow(Filtros())
+    private val filtrosAtivos = MutableStateFlow(Filtros())
 
     /** Incrementado ao retomar a tela para recalcular rótulos relativos após a meia-noite. */
-    private val _voltas = MutableStateFlow(0)
+    private val voltasATela = MutableStateFlow(0)
 
     private val _uiState = MutableStateFlow(LancamentoListaUiState())
     val uiState: StateFlow<LancamentoListaUiState> = _uiState.asStateFlow()
@@ -120,7 +116,7 @@ class LancamentoListaViewModel(
                 propriedadeRepository.observarTodas(),
                 selecao.propriedadeId,
                 selecao.mes,
-                _filtros.combine(_voltas) { filtros, _ -> filtros }
+                filtrosAtivos.combine(voltasATela) { filtros, _ -> filtros }
             ) { lancamentos, propriedades, selecionadaId, mes, filtros ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes, filtros)
             }
@@ -141,7 +137,7 @@ class LancamentoListaViewModel(
     /** Chamado em ON_RESUME: acompanha a virada do mês e recalcula os rótulos relativos ("Hoje"). */
     fun aoVoltarParaATela() {
         selecao.acompanharMesCorrente(YearMonth.from(hoje()))
-        _voltas.update { it + 1 }
+        voltasATela.update { it + 1 }
     }
 
     private fun montarEstado(
@@ -151,7 +147,6 @@ class LancamentoListaViewModel(
         mes: YearMonth,
         filtros: Filtros
     ): LancamentoListaUiState {
-
         // Sem seleção válida, usa a primeira propriedade.
         val propriedade = ResumoFinanceiro.propriedadeAtual(propriedades, selecionadaId)
 
@@ -224,30 +219,30 @@ class LancamentoListaViewModel(
             GrupoDoDia(data = data, rotulo = data.rotuloRelativo(hoje), lancamentos = doDia)
         }
 
-    private fun combinaComBusca(item: LancamentoParaBusca, termo: String): Boolean =
-        item.descricao.contains(termo) ||
-            CATEGORIAS_NORMALIZADAS.getValue(item.lancamento.categoria).contains(termo)
+    private fun combinaComBusca(item: LancamentoParaBusca, termo: String): Boolean = item.descricao.contains(termo) ||
+        CATEGORIAS_NORMALIZADAS.getValue(item.lancamento.categoria).contains(termo)
 
     // Mês global em SelecaoAtual, compartilhado entre as abas.
     fun aoAvancarMes() = selecao.avancarMes()
     fun aoVoltarMes() = selecao.voltarMes()
+
     /** Troca o filtro de tipo e desmarca a categoria se ela não pertencer ao novo tipo. */
-    fun aoMudarFiltro(filtro: FiltroLancamento) = _filtros.update { atual ->
+    fun aoMudarFiltro(filtro: FiltroLancamento) = filtrosAtivos.update { atual ->
         val categoria = atual.categoria?.takeIf { combina(it, filtro) }
         atual.copy(tipo = filtro, categoria = categoria)
     }
 
     /** Alterna a categoria: selecionar a já marcada a desmarca. */
-    fun aoMudarCategoria(categoria: CategoriaLancamento) = _filtros.update { atual ->
+    fun aoMudarCategoria(categoria: CategoriaLancamento) = filtrosAtivos.update { atual ->
         if (atual.categoria == categoria) atual.copy(categoria = null) else atual.copy(categoria = categoria)
     }
 
     /** Limpa tipo e categoria; preserva a busca. */
-    fun aoLimparFiltros() = _filtros.update { Filtros(busca = it.busca) }
+    fun aoLimparFiltros() = filtrosAtivos.update { Filtros(busca = it.busca) }
 
-    fun aoBuscar(texto: String) = _filtros.update { it.copy(busca = texto.take(TAMANHO_MAXIMO_BUSCA)) }
+    fun aoBuscar(texto: String) = filtrosAtivos.update { it.copy(busca = texto.take(TAMANHO_MAXIMO_BUSCA)) }
 
-    fun aoFecharBusca() = _filtros.update { it.copy(busca = "") }
+    fun aoFecharBusca() = filtrosAtivos.update { it.copy(busca = "") }
 
     fun aoSelecionarMes(mes: YearMonth) = selecao.selecionarMes(mes)
 
@@ -278,10 +273,9 @@ class LancamentoListaViewModel(
         }
 
         /** Normaliza para busca: trim, sem acentos (NFD + remoção de marcas) e minúsculas. */
-        fun normalizar(texto: String): String =
-            Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
-                .replace(MARCAS_DE_ACENTO, "")
-                .lowercase()
+        fun normalizar(texto: String): String = Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
+            .replace(MARCAS_DE_ACENTO, "")
+            .lowercase()
 
         private val MARCAS_DE_ACENTO = Regex("\\p{Mn}+")
 

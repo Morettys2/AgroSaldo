@@ -22,18 +22,19 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
     COMBUSTIVEL(TipoLancamento.DESPESA, "Combustível"),
     MAO_DE_OBRA(TipoLancamento.DESPESA, "Mão de obra"),
     MANUTENCAO(TipoLancamento.DESPESA, "Manutenção"),
+
     // Mantida por último entre as despesas: a ordem define a do seletor.
     OUTRAS_DESPESAS(TipoLancamento.DESPESA, "Outras despesas"),
 
     VENDA_SAFRA(TipoLancamento.RECEITA, "Venda de safra"),
     ARRENDAMENTO(TipoLancamento.RECEITA, "Arrendamento"),
+
     // Nome persistido no banco; o rótulo pode mudar, a constante não.
     OUTROS(TipoLancamento.RECEITA, "Outras receitas");
 
     companion object {
         /** Categorias do [tipo], na ordem de declaração. */
-        fun porTipo(tipo: TipoLancamento): List<CategoriaLancamento> =
-            entries.filter { it.tipo == tipo }
+        fun porTipo(tipo: TipoLancamento): List<CategoriaLancamento> = entries.filter { it.tipo == tipo }
     }
 }
 
@@ -79,7 +80,6 @@ data class Lancamento(
         const val MESES_NO_FUTURO = 12L
 
         /** RN07: true se [data] não passa de [MESES_NO_FUTURO] meses após [hoje]. */
-        fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean =
-            !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
+        fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean = !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
     }
 }

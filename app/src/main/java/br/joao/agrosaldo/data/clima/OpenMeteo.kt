@@ -4,14 +4,14 @@ import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.PrevisaoDia
 import br.joao.agrosaldo.domain.clima.PrevisaoHora
-import org.json.JSONArray
-import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Montagem da URL da Open-Meteo (API sem chave; plano gratuito é só para uso
@@ -26,8 +26,7 @@ object OpenMeteo {
      * Arredonda para 2 casas (~1 km), abaixo da resolução dos modelos, para que
      * a coordenada exata não saia do aparelho (privacidade por padrão, LGPD art. 46).
      */
-    fun arredondar(coordenada: Double): Double =
-        BigDecimal.valueOf(coordenada).setScale(2, RoundingMode.HALF_UP).toDouble()
+    fun arredondar(coordenada: Double): Double = BigDecimal.valueOf(coordenada).setScale(2, RoundingMode.HALF_UP).toDouble()
 
     fun endereco(latitude: Double, longitude: Double): String {
         // Locale.ROOT: em pt-BR "%.2f" usaria vírgula decimal, rejeitada pela API.
@@ -129,15 +128,11 @@ object LeitorOpenMeteo {
     }
 
     // A API envia null para valores ausentes; índice fora do array também vira null.
-    private fun JSONArray.doubleOuNulo(i: Int): Double? =
-        if (i >= length() || isNull(i)) null else getDouble(i)
+    private fun JSONArray.doubleOuNulo(i: Int): Double? = if (i >= length() || isNull(i)) null else getDouble(i)
 
-    private fun JSONArray.intOuNulo(i: Int): Int? =
-        if (i >= length() || isNull(i)) null else getDouble(i).toInt()
+    private fun JSONArray.intOuNulo(i: Int): Int? = if (i >= length() || isNull(i)) null else getDouble(i).toInt()
 
-    private fun JSONObject.doubleOuNulo(chave: String): Double? =
-        if (!has(chave) || isNull(chave)) null else getDouble(chave)
+    private fun JSONObject.doubleOuNulo(chave: String): Double? = if (!has(chave) || isNull(chave)) null else getDouble(chave)
 
-    private fun JSONObject.intOuNulo(chave: String): Int? =
-        if (!has(chave) || isNull(chave)) null else getDouble(chave).toInt()
+    private fun JSONObject.intOuNulo(chave: String): Int? = if (!has(chave) || isNull(chave)) null else getDouble(chave).toInt()
 }

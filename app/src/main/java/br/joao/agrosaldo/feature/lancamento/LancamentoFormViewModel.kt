@@ -25,6 +25,9 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.LocalDate
+import java.time.YearMonth
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,9 +35,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.YearMonth
-import java.util.UUID
 
 data class LancamentoFormUiState(
     val tipo: TipoLancamento = TipoLancamento.DESPESA,
@@ -107,8 +107,11 @@ class LancamentoFormViewModel(
 
     private val _uiState = MutableStateFlow(
         LancamentoFormUiState(ehEdicao = lancamentoId != null, data = hoje().formatarBr(), hoje = hoje()).let { estado ->
-            if (tipoInicial == null) estado
-            else estado.copy(tipo = tipoInicial, categoria = CategoriaLancamento.porTipo(tipoInicial).first())
+            if (tipoInicial == null) {
+                estado
+            } else {
+                estado.copy(tipo = tipoInicial, categoria = CategoriaLancamento.porTipo(tipoInicial).first())
+            }
         }
     )
     val uiState: StateFlow<LancamentoFormUiState> = _uiState.asStateFlow()
@@ -201,8 +204,7 @@ class LancamentoFormViewModel(
         it.copy(tipo = tipo, categoria = CategoriaLancamento.porTipo(tipo).first())
     }
 
-    fun aoMudarCategoria(categoria: CategoriaLancamento) =
-        editar { it.copy(categoria = categoria) }
+    fun aoMudarCategoria(categoria: CategoriaLancamento) = editar { it.copy(categoria = categoria) }
 
     /**
      * Tecla do teclado numérico ("1", "00"...). Os dígitos entram pela direita, nos centavos.
@@ -332,23 +334,20 @@ class LancamentoFormViewModel(
         internal const val CHAVE_PROPRIEDADE = "propriedade"
         internal const val CHAVE_DESCRICAO = "descricao"
 
-        fun Factory(
-            lancamentoId: String?,
-            copiaDe: String? = null,
-            tipoInicial: TipoLancamento? = null
-        ): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                LancamentoFormViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades,
-                    lancamentoId = lancamentoId,
-                    copiaDe = copiaDe,
-                    desfazer = dependencias.desfazer,
-                    tipoInicial = tipoInicial,
-                    estadoSalvo = createSavedStateHandle()
-                )
+        fun Factory(lancamentoId: String?, copiaDe: String? = null, tipoInicial: TipoLancamento? = null): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer {
+                    LancamentoFormViewModel(
+                        selecao = dependencias.selecao,
+                        lancamentoRepository = dependencias.lancamentos,
+                        propriedadeRepository = dependencias.propriedades,
+                        lancamentoId = lancamentoId,
+                        copiaDe = copiaDe,
+                        desfazer = dependencias.desfazer,
+                        tipoInicial = tipoInicial,
+                        estadoSalvo = createSavedStateHandle()
+                    )
+                }
             }
-        }
     }
 }

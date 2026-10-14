@@ -24,14 +24,13 @@ class LancamentoRepositoryRoom(
 ) : LancamentoRepository {
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun observarTodos(): Flow<List<Lancamento>> =
-        sessao.usuarioId.flatMapLatest { usuarioId ->
-            if (usuarioId == null) {
-                flowOf(emptyList())
-            } else {
-                dao.observarDoUsuario(usuarioId).map { entidades -> entidades.map { it.paraDominio() } }
-            }
+    override fun observarTodos(): Flow<List<Lancamento>> = sessao.usuarioId.flatMapLatest { usuarioId ->
+        if (usuarioId == null) {
+            flowOf(emptyList())
+        } else {
+            dao.observarDoUsuario(usuarioId).map { entidades -> entidades.map { it.paraDominio() } }
         }
+    }
 
     override suspend fun buscarPorId(id: String): Lancamento? {
         val usuarioId = sessao.usuarioId.value ?: return null
@@ -58,9 +57,7 @@ class LancamentoRepositoryRoom(
         }
     }
 
-    override suspend fun excluir(id: String) =
-        dao.excluir(id, usuarioConectado())
+    override suspend fun excluir(id: String) = dao.excluir(id, usuarioConectado())
 
-    private fun usuarioConectado(): String =
-        checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
+    private fun usuarioConectado(): String = checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

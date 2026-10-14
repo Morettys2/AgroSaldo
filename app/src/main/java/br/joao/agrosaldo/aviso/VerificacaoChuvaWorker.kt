@@ -22,10 +22,7 @@ import java.util.concurrent.TimeUnit
  * Worker da verificação periódica de chuva. Delega para o VerificadorDeChuva (domínio),
  * que chama de volta para exibir cada notificação.
  */
-class VerificacaoChuvaWorker(
-    contexto: Context,
-    parametros: WorkerParameters
-) : CoroutineWorker(contexto, parametros) {
+class VerificacaoChuvaWorker(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
 
     override suspend fun doWork(): Result {
         // O AgroSaldoApp sempre existe antes do Worker, mesmo quando o processo sobe só para ele.
@@ -103,6 +100,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
     private companion object {
         const val NOME = "verificacao-de-chuva"
         const val NOME_AGORA = "verificacao-de-chuva-agora"
+
         /** Duas verificações por dia (RN04). */
         const val INTERVALO_HORAS = 12L
     }

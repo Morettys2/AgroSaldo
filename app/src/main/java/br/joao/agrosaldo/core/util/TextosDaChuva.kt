@@ -21,8 +21,7 @@ object TextosDaChuva {
     private const val VOLUME_DESPREZIVEL_MM = 0.05
 
     /** "6 mm", ou null quando a chuva prevista é desprezível. */
-    fun volume(chuvaMm: Double): String? =
-        if (chuvaMm < VOLUME_DESPREZIVEL_MM) null else chuvaMm.emMilimetros()
+    fun volume(chuvaMm: Double): String? = if (chuvaMm < VOLUME_DESPREZIVEL_MM) null else chuvaMm.emMilimetros()
 
     /** "85% de chance · 6 mm", ou só "85% de chance" quando o volume é zero. */
     fun chanceEVolume(avaliacao: AvaliacaoChuva, separador: String = " · "): String =
@@ -34,13 +33,11 @@ object TextosDaChuva {
         listOfNotNull("${avaliacao.probabilidadeMaxima}%", volume(avaliacao.chuvaTotalMm)).joinToString(" · ")
 
     /** Limites configurados: "90% ou 2 mm". */
-    fun limites(limites: LimitesChuva): String =
-        "${limites.probabilidadeMinima}% ou ${limites.chuvaMinimaMm.emMilimetros()}"
+    fun limites(limites: LimitesChuva): String = "${limites.probabilidadeMinima}% ou ${limites.chuvaMinimaMm.emMilimetros()}"
 
     /** Abaixo do limite de aviso, mas com chance ou volume não desprezível. */
-    fun podeChoverAbaixoDoLimite(avaliacao: AvaliacaoChuva): Boolean =
-        !avaliacao.vaiChover &&
-            (avaliacao.probabilidadeMaxima >= CHANCE_DESPREZIVEL || volume(avaliacao.chuvaTotalMm) != null)
+    fun podeChoverAbaixoDoLimite(avaliacao: AvaliacaoChuva): Boolean = !avaliacao.vaiChover &&
+        (avaliacao.probabilidadeMaxima >= CHANCE_DESPREZIVEL || volume(avaliacao.chuvaTotalMm) != null)
 
     /** true se o início é na hora corrente ou antes. */
     fun jaComecou(inicio: LocalDateTime, agora: LocalDateTime): Boolean = !inicio.isAfter(agora.truncatedTo(ChronoUnit.HOURS))
@@ -69,8 +66,7 @@ object TextosDaChuva {
     fun aPartirDaHora(inicio: LocalDateTime): String = "a partir ${horaComArtigo(inicio.hour, "da", "das")}"
 
     /** Fim da janela de previsão: "até as 2h de amanhã", "até a meia-noite". */
-    fun ate(fim: LocalDateTime, agora: LocalDateTime): String =
-        "até ${horaComArtigo(fim.hour, "a", "as")}${deQueDia(agora, fim)}"
+    fun ate(fim: LocalDateTime, agora: LocalDateTime): String = "até ${horaComArtigo(fim.hour, "a", "as")}${deQueDia(agora, fim)}"
 
     /** Artigo concorda com a hora: [singular] para 1h e meia-noite ("à 1h"), [plural] nas demais ("às 2h"). */
     private fun horaComArtigo(hora: Int, singular: String, plural: String): String = when (hora) {

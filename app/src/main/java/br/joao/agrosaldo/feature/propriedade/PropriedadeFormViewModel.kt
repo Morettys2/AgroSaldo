@@ -15,13 +15,13 @@ import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
-import java.util.UUID
 
 /**
  * Estado do formulário de propriedade. Campos numéricos (área em hectares, latitude,
@@ -187,8 +187,7 @@ class PropriedadeFormViewModel(
 
     fun aoInverterSinalLongitude() = aoMudarLongitude(_uiState.value.longitude.comSinalInvertido())
 
-    private fun String.comSinalInvertido(): String =
-        trim().let { if (it.startsWith("-")) it.removePrefix("-") else "-$it" }
+    private fun String.comSinalInvertido(): String = trim().let { if (it.startsWith("-")) it.removePrefix("-") else "-$it" }
 
     /** Preenche as coordenadas obtidas do GPS com 6 casas decimais (~10 cm) e vírgula decimal. */
     fun aoUsarLocalizacao(latitude: Double, longitude: Double) {
@@ -208,15 +207,13 @@ class PropriedadeFormViewModel(
         }
     }
 
-    private fun formatarCoordenada(valor: Double): String =
-        String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
+    private fun formatarCoordenada(valor: Double): String = String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
     /** Formata para o campo: "18", "12,5", "-21,7333" (sem notação científica nem agrupamento). */
     private fun Double.paraCampo(): String = numeroBr(agrupar = false)
 
     /** Coordenada: aceita vírgula ou ponto decimal; rejeita NaN e infinito. */
-    private fun String.paraNumero(): Double? =
-        replace(',', '.').trim().toDoubleOrNull()?.takeIf { it.isFinite() }
+    private fun String.paraNumero(): Double? = replace(',', '.').trim().toDoubleOrNull()?.takeIf { it.isFinite() }
 
     fun aoSalvar() {
         val estado = _uiState.value
@@ -333,8 +330,7 @@ class PropriedadeFormViewModel(
          * Retângulo que cobre o território brasileiro, ilhas oceânicas incluídas. Abrange faixas
          * dos países vizinhos: serve para pegar o sinal de menos esquecido, não para validar fronteira.
          */
-        fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean =
-            latitude in -34.0..5.5 && longitude in -74.5..-28.5
+        fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean = latitude in -34.0..5.5 && longitude in -74.5..-28.5
 
         /** @param propriedadeId id vindo da rota de navegação; nulo para criação. */
         fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {

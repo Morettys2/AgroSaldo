@@ -54,11 +54,11 @@ class SessaoViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // Começa bloqueado: sessão restaurada exige biometria.
-    private val _desbloqueado = MutableStateFlow(false)
+    private val desbloqueadoNestaSessao = MutableStateFlow(false)
     private var foiParaSegundoPlanoEm: Long? = null
 
     val precisaDesbloquear: StateFlow<Boolean> =
-        combine(logado, bloqueio.ativo, _desbloqueado) { estaLogado, ativo, desbloqueado ->
+        combine(logado, bloqueio.ativo, desbloqueadoNestaSessao) { estaLogado, ativo, desbloqueado ->
             estaLogado && ativo && !desbloqueado
         }.stateIn(viewModelScope, SharingStarted.Eagerly, conta.estaLogado() && bloqueio.ativo.value)
 
@@ -76,17 +76,17 @@ class SessaoViewModel(
 
         // drop(1) ignora a sessão restaurada. Login com senha desbloqueia; logout bloqueia.
         viewModelScope.launch {
-            conta.usuarioLogadoId.drop(1).collect { id -> _desbloqueado.value = id != null }
+            conta.usuarioLogadoId.drop(1).collect { id -> desbloqueadoNestaSessao.value = id != null }
         }
 
         // Ativar o bloqueio já exige biometria; não bloqueia imediatamente.
         viewModelScope.launch {
-            bloqueio.ativo.drop(1).collect { ativo -> if (ativo) _desbloqueado.value = true }
+            bloqueio.ativo.drop(1).collect { ativo -> if (ativo) desbloqueadoNestaSessao.value = true }
         }
     }
 
     fun aoDesbloquear() {
-        _desbloqueado.value = true
+        desbloqueadoNestaSessao.value = true
         // O prompt de PIN/credencial do sistema põe o app em segundo plano; descarta essa saída.
         foiParaSegundoPlanoEm = null
     }
@@ -129,7 +129,7 @@ class SessaoViewModel(
     fun aoVoltarParaPrimeiroPlano() {
         val saiu = foiParaSegundoPlanoEm ?: return
         foiParaSegundoPlanoEm = null
-        if (relogio() - saiu >= TEMPO_PARA_TRAVAR_MS) _desbloqueado.value = false
+        if (relogio() - saiu >= TEMPO_PARA_TRAVAR_MS) desbloqueadoNestaSessao.value = false
     }
 
     companion object {

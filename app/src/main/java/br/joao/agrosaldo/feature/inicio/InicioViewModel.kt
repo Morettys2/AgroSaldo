@@ -22,6 +22,9 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,9 +38,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.YearMonth
 
 data class InicioUiState(
     val carregando: Boolean = true,
@@ -66,12 +66,7 @@ data class InicioUiState(
  * Textos do cartão de chuva. Ex.: [rotulo] "Previsão · próximas 12 h",
  * [frase] "Chuva às 18h. Dá para adiar o pivô.", [detalhe] "92% de chance · 5 mm".
  */
-data class CartaoChuvaUi(
-    val rotulo: String,
-    val frase: String,
-    val detalhe: String,
-    val vaiChover: Boolean
-)
+data class CartaoChuvaUi(val rotulo: String, val frase: String, val detalhe: String, val vaiChover: Boolean)
 
 /**
  * Tela inicial: saldo, receitas/despesas e maiores gastos do mês da propriedade
@@ -101,7 +96,7 @@ class InicioViewModel(
      * Incrementado a cada retorno à tela para recalcular o que depende do relógio
      * (rótulos "Hoje"/"Ontem" e a frase da chuva).
      */
-    private val _voltas = MutableStateFlow(0)
+    private val voltasATela = MutableStateFlow(0)
     private var jaApareceu = false
     private var propriedadeDaPrevisao: Propriedade? = null
 
@@ -112,7 +107,7 @@ class InicioViewModel(
                 propriedadeRepository.observarTodas(),
                 selecao.propriedadeId,
                 selecao.mes,
-                _voltas
+                voltasATela
             ) { lancamentos, propriedades, selecionadaId, mes, _ ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
             }.repetirAposErro { erro ->
@@ -146,7 +141,7 @@ class InicioViewModel(
             propriedadeAtual
                 .flatMapLatest { propriedade -> if (propriedade == null) flowOf(null) else clima.observar(propriedade) }
                 .combine(ajustes.ajustes) { previsao, aj -> previsao to aj }
-                .combine(_voltas) { (previsao, aj), _ -> previsao?.let { cartaoChuva(it, aj.limites) } }
+                .combine(voltasATela) { (previsao, aj), _ -> previsao?.let { cartaoChuva(it, aj.limites) } }
                 .collect { cartao -> _uiState.update { it.copy(chuva = cartao) } }
         }
     }
@@ -162,7 +157,7 @@ class InicioViewModel(
             jaApareceu = true
             return
         }
-        _voltas.update { it + 1 }
+        voltasATela.update { it + 1 }
         val propriedade = propriedadeDaPrevisao ?: return
         viewModelScope.launch { clima.atualizarSeNecessario(propriedade) }
     }
@@ -181,8 +176,11 @@ class InicioViewModel(
             avaliacao.vaiChover -> {
                 val agora = previsao.horaLocal(instante)
                 val quando = avaliacao.inicioPrevisto?.let { inicio ->
-                    if (TextosDaChuva.jaComecou(inicio, agora)) "Chuva já nesta hora"
-                    else "Chuva ${TextosDaChuva.quando(inicio, agora)}"
+                    if (TextosDaChuva.jaComecou(inicio, agora)) {
+                        "Chuva já nesta hora"
+                    } else {
+                        "Chuva ${TextosDaChuva.quando(inicio, agora)}"
+                    }
                 } ?: "Chuva prevista"
                 CartaoChuvaUi(
                     rotulo = rotulo,
@@ -214,7 +212,6 @@ class InicioViewModel(
         selecionadaId: String?,
         mes: YearMonth
     ): InicioUiState {
-
         val propriedade = ResumoFinanceiro.propriedadeAtual(propriedades, selecionadaId)
             ?: return InicioUiState(carregando = false, temPropriedade = false, mes = mes, hoje = hoje())
 

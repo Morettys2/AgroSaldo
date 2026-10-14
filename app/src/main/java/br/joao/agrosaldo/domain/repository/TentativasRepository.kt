@@ -9,11 +9,7 @@ import br.joao.agrosaldo.domain.model.InstanteMonotonico
  * @property fimMonotonico fim do bloqueio no relógio monotônico do boot em que foi gravado;
  *   null se o relógio monotônico não estava disponível.
  */
-data class EstadoTentativas(
-    val falhasSeguidas: Int = 0,
-    val bloqueadoAte: Long = 0L,
-    val fimMonotonico: InstanteMonotonico? = null
-)
+data class EstadoTentativas(val falhasSeguidas: Int = 0, val bloqueadoAte: Long = 0L, val fimMonotonico: InstanteMonotonico? = null)
 
 /**
  * Persistência dos contadores de tentativas, um por [chave] (resumo do e-mail; ver

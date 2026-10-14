@@ -14,11 +14,9 @@ import kotlinx.coroutines.flow.update
  * [semInternet] e [indisponivel] definem o resultado de [atualizar] (sem resposta
  * configurada: [ResultadoAtualizacao.Falha], como quando a propriedade é excluída).
  */
-class ClimaRepositoryMemoria(
-    iniciais: Map<String, Previsao> = emptyMap()
-) : ClimaRepository {
+class ClimaRepositoryMemoria(iniciais: Map<String, Previsao> = emptyMap()) : ClimaRepository {
 
-    private val _previsoes = MutableStateFlow(iniciais)
+    private val previsoesGuardadas = MutableStateFlow(iniciais)
 
     /** Previsão devolvida por [atualizar], por id de propriedade. */
     var respostas: Map<String, Previsao> = emptyMap()
@@ -27,20 +25,19 @@ class ClimaRepositoryMemoria(
     var atualizacoes: Int = 0
         private set
 
-    override fun observar(propriedade: Propriedade): Flow<Previsao?> =
-        _previsoes.map { it[propriedade.id] }
+    override fun observar(propriedade: Propriedade): Flow<Previsao?> = previsoesGuardadas.map { it[propriedade.id] }
 
-    override suspend fun emCache(propriedade: Propriedade): Previsao? = _previsoes.value[propriedade.id]
+    override suspend fun emCache(propriedade: Propriedade): Previsao? = previsoesGuardadas.value[propriedade.id]
 
     override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao {
         atualizacoes++
         if (semInternet) return ResultadoAtualizacao.SemConexao
         if (indisponivel) return ResultadoAtualizacao.Indisponivel("HTTP 503")
         val nova = respostas[propriedade.id] ?: return ResultadoAtualizacao.Falha("sem resposta de teste")
-        _previsoes.update { it + (propriedade.id to nova) }
+        previsoesGuardadas.update { it + (propriedade.id to nova) }
         return ResultadoAtualizacao.Sucesso(nova)
     }
 
     override suspend fun atualizarSeNecessario(propriedade: Propriedade): ResultadoAtualizacao? =
-        if (_previsoes.value.containsKey(propriedade.id)) null else atualizar(propriedade)
+        if (previsoesGuardadas.value.containsKey(propriedade.id)) null else atualizar(propriedade)
 }

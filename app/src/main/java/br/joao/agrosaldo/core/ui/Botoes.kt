@@ -138,7 +138,13 @@ fun BotaoSecundario(
         onClick = aoClicar,
         enabled = habilitado && !carregando,
         shape = CircleShape,
-        border = if (perigo) BorderStroke(1.dp, MaterialTheme.agro.despesa) else ButtonDefaults.outlinedButtonBorder(habilitado && !carregando),
+        border = if (perigo) {
+            BorderStroke(1.dp, MaterialTheme.agro.despesa)
+        } else {
+            ButtonDefaults.outlinedButtonBorder(
+                habilitado && !carregando
+            )
+        },
         colors = if (perigo) ButtonDefaults.outlinedButtonColors(contentColor = cor) else ButtonDefaults.outlinedButtonColors(),
         modifier = modifier.heightIn(min = alturaMinima(tamanho))
     ) {
@@ -158,12 +164,7 @@ private fun alturaMinima(tamanho: TamanhoBotao) = when (tamanho) {
 }
 
 @Composable
-private fun RowScope.ConteudoDoBotao(
-    texto: String,
-    icone: ImageVector?,
-    carregando: Boolean,
-    tamanho: TamanhoBotao
-) {
+private fun RowScope.ConteudoDoBotao(texto: String, icone: ImageVector?, carregando: Boolean, tamanho: TamanhoBotao) {
     val estilo = when (tamanho) {
         TamanhoBotao.GRANDE -> MaterialTheme.typography.titleMedium
         TamanhoBotao.COMPACTO -> MaterialTheme.typography.labelLarge

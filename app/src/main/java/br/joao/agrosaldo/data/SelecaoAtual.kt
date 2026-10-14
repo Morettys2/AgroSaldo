@@ -1,9 +1,9 @@
 package br.joao.agrosaldo.data
 
+import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.time.YearMonth
 
 /**
  * Propriedade e mês selecionados, compartilhados entre as telas: escolher a propriedade

@@ -30,10 +30,7 @@ data class Propriedade(
  * Snapshot de uma exclusão em cascata (RN02): a propriedade e seus lançamentos,
  * com os ids originais, para permitir desfazer.
  */
-data class PropriedadeExcluida(
-    val propriedade: Propriedade,
-    val lancamentos: List<Lancamento>
-)
+data class PropriedadeExcluida(val propriedade: Propriedade, val lancamentos: List<Lancamento>)
 
 /**
  * Ordem alfabética do português: acento e maiúscula não mandam o nome para o fim da lista

@@ -70,11 +70,7 @@ import java.time.LocalDate
 /** Todas as categorias do tipo, sem truncamento. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun Categorias(
-    categorias: List<CategoriaLancamento>,
-    escolhida: CategoriaLancamento,
-    aoEscolher: (CategoriaLancamento) -> Unit
-) {
+internal fun Categorias(categorias: List<CategoriaLancamento>, escolhida: CategoriaLancamento, aoEscolher: (CategoriaLancamento) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "Categoria",
@@ -188,12 +184,21 @@ internal fun CampoData(
                 modifier = Modifier.fillMaxWidth()
             )
             DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-                DropdownMenuItem(text = { Text("Hoje") }, onClick = { aberto = false; aoUsarHoje() })
-                DropdownMenuItem(text = { Text("Ontem") }, onClick = { aberto = false; aoUsarOntem() })
+                DropdownMenuItem(text = { Text("Hoje") }, onClick = {
+                    aberto = false
+                    aoUsarHoje()
+                })
+                DropdownMenuItem(text = { Text("Ontem") }, onClick = {
+                    aberto = false
+                    aoUsarOntem()
+                })
                 DropdownMenuItem(
                     text = { Text("Escolher no calendário") },
                     leadingIcon = { Icon(IconesAgro.Calendario, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                    onClick = { aberto = false; aoAbrirCalendario() }
+                    onClick = {
+                        aberto = false
+                        aoAbrirCalendario()
+                    }
                 )
             }
         }
@@ -209,12 +214,7 @@ internal fun CampoData(
 }
 
 @Composable
-internal fun CampoSitio(
-    propriedades: List<Propriedade>,
-    escolhidaId: String,
-    aoEscolher: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
+internal fun CampoSitio(propriedades: List<Propriedade>, escolhidaId: String, aoEscolher: (String) -> Unit, modifier: Modifier = Modifier) {
     var aberto by remember { mutableStateOf(false) }
     val nome = propriedades.firstOrNull { it.id == escolhidaId }?.nome ?: TextosComuns.ESCOLHA_A_PROPRIEDADE
     Box(modifier = modifier) {
@@ -273,12 +273,7 @@ internal fun CampoDescricao(texto: String, aoMudar: (String) -> Unit) {
 /** DatePicker com datas após [ultimaPermitida] desabilitadas (RN07). Datas em millis UTC. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CalendarioDialogo(
-    dataAtual: LocalDate?,
-    ultimaPermitida: LocalDate,
-    aoEscolher: (LocalDate) -> Unit,
-    aoFechar: () -> Unit
-) {
+internal fun CalendarioDialogo(dataAtual: LocalDate?, ultimaPermitida: LocalDate, aoEscolher: (LocalDate) -> Unit, aoFechar: () -> Unit) {
     val limite = ultimaPermitida.emMillisUtc()
     val estado = rememberDatePickerState(
         initialSelectedDateMillis = (dataAtual ?: LocalDate.now()).emMillisUtc(),

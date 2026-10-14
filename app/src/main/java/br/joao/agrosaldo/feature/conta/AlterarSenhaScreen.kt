@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,11 +33,13 @@ fun AlterarSenhaRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    // Sempre a versão mais nova do callback, sem reiniciar o efeito quando ela muda.
+    val aoConcluirAtual by rememberUpdatedState(aoConcluir)
     LaunchedEffect(uiState.concluido) {
         if (uiState.concluido) {
             // Toast em vez de Snackbar: continua visível após voltar para Conta.
             Toast.makeText(context, "Senha alterada", Toast.LENGTH_SHORT).show()
-            aoConcluir()
+            aoConcluirAtual()
         }
     }
 
@@ -111,7 +114,10 @@ private fun AlterarSenhaPreview() {
     AgroSaldoTheme {
         AlterarSenhaScreen(
             uiState = AlterarSenhaUiState(senhaAtual = "milho2026", novaSenha = "soja20", nome = "Fábio"),
-            aoMudarSenhaAtual = {}, aoMudarNovaSenha = {}, aoMudarConfirmacao = {}, aoSalvar = {}
+            aoMudarSenhaAtual = {},
+            aoMudarNovaSenha = {},
+            aoMudarConfirmacao = {},
+            aoSalvar = {}
         )
     }
 }

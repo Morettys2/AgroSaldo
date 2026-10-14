@@ -37,12 +37,7 @@ import br.joao.agrosaldo.ui.theme.agro
  * recusar não grava nada. Compartilha o [CadastroViewModel] com o formulário.
  */
 @Composable
-fun ConsentimentoRoute(
-    viewModel: CadastroViewModel,
-    aoLerPolitica: () -> Unit,
-    aoRecusar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun ConsentimentoRoute(viewModel: CadastroViewModel, aoLerPolitica: () -> Unit, aoRecusar: () -> Unit, modifier: Modifier = Modifier) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ConsentimentoScreen(

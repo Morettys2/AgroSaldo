@@ -52,11 +52,7 @@ import java.time.LocalDate
 
 /** Atalhos Despesa/Receita/Histórico, com rolagem horizontal para fontes grandes. */
 @Composable
-internal fun Atalhos(
-    aoNovaDespesa: () -> Unit,
-    aoNovaReceita: () -> Unit,
-    aoAbrirHistorico: () -> Unit
-) {
+internal fun Atalhos(aoNovaDespesa: () -> Unit, aoNovaReceita: () -> Unit, aoAbrirHistorico: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -89,13 +85,7 @@ internal fun Atalhos(
 }
 
 @Composable
-internal fun Atalho(
-    rotulo: String,
-    descricao: String,
-    icone: ImageVector,
-    corDoIcone: Color,
-    aoClicar: () -> Unit
-) {
+internal fun Atalho(rotulo: String, descricao: String, icone: ImageVector, corDoIcone: Color, aoClicar: () -> Unit) {
     Surface(
         onClick = aoClicar,
         shape = CircleShape,
@@ -248,7 +238,12 @@ internal fun CartaoUltimos(
                 text = "Nenhum lançamento neste mês. Toque no + verde-limão lá embaixo para lançar o primeiro.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.minimo, bottom = Espacos.largo)
+                modifier = Modifier.padding(
+                    start = Espacos.margemDaTela,
+                    end = Espacos.margemDaTela,
+                    top = Espacos.minimo,
+                    bottom = Espacos.largo
+                )
             )
         } else {
             lancamentos.forEach { lancamento ->

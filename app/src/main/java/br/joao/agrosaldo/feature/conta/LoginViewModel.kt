@@ -15,20 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class LoginUiState(
-    val email: String = "",
-    val senha: String = "",
-    val erro: String? = null,
-    val entrando: Boolean = false
-)
+data class LoginUiState(val email: String = "", val senha: String = "", val erro: String? = null, val entrando: Boolean = false)
 
 /**
  * Login (RF02). Não navega: o sucesso abre a sessão no [ContaService], que é a
  * fonte única de "logado ou não" observada pela navegação.
  */
-class LoginViewModel(
-    private val conta: ContaService
-) : ViewModel() {
+class LoginViewModel(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()

@@ -5,10 +5,10 @@ import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import br.joao.agrosaldo.domain.repository.SessaoRepository
-import kotlinx.coroutines.flow.first
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
+import kotlinx.coroutines.flow.first
 
 /** Um aviso pronto para virar notificação. */
 data class AvisoDeChuva(
