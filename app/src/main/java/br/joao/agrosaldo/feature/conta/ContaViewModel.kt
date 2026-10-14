@@ -7,7 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarDataHoraBr
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
@@ -124,7 +124,7 @@ class ContaViewModel(
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { ContaViewModel(Repositorios.conta, Repositorios.propriedades, Repositorios.bloqueio) }
+            initializer { ContaViewModel(dependencias.conta, dependencias.propriedades, dependencias.bloqueio) }
         }
     }
 }

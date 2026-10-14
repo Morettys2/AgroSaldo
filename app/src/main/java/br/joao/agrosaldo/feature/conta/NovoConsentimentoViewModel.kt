@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +45,7 @@ class NovoConsentimentoViewModel(
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { NovoConsentimentoViewModel(Repositorios.conta) }
+            initializer { NovoConsentimentoViewModel(dependencias.conta) }
         }
     }
 }

@@ -38,6 +38,7 @@ import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.core.util.emMilimetros
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.agro
 
@@ -72,7 +73,9 @@ fun AjustesAvisoRoute(
         modifier = modifier,
         ferramentasDeTeste = if (ehDebug) {
             FerramentasDeTeste(
-                aoMostrarExemplo = { NotificadorDeChuva.mostrarExemplo(context) },
+                aoMostrarExemplo = {
+                    NotificadorDeChuva.mostrarExemplo(context, context.dependencias.selecao.propriedadeId.value)
+                },
                 aoVerificarAgora = {
                     viewModel.aoVerificarAgora()
                     Toast.makeText(context, "Verificação iniciada", Toast.LENGTH_SHORT).show()
@@ -284,7 +287,7 @@ private fun AjustesAvisoPreview() {
         AjustesAvisoScreen(
             uiState = AjustesAvisoUiState(
                 sitios = listOf(
-                    SitioDoAviso("1", "Fazenda São João da Serra", avisa = true),
+                    SitioDoAviso("1", "Fazenda Santa Clara", avisa = true),
                     SitioDoAviso("2", "Sítio Boa Vista", avisa = false)
                 )
             ),

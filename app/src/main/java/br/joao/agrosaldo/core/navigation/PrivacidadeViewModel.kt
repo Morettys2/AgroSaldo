@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.repository.PrivacidadeRepository
 import kotlinx.coroutines.flow.StateFlow
 
@@ -20,7 +20,7 @@ class PrivacidadeViewModel(private val privacidade: PrivacidadeRepository) : Vie
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { PrivacidadeViewModel(Repositorios.privacidade) }
+            initializer { PrivacidadeViewModel(dependencias.privacidade) }
         }
     }
 }

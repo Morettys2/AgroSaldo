@@ -11,8 +11,8 @@ import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +101,8 @@ private fun lerArea(texto: String): Area {
  */
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val propriedadeId: String?,
     private val desfazer: Desfazer = Desfazer(),
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
@@ -277,7 +279,7 @@ class PropriedadeFormViewModel(
                     longitude = lon
                 )
                 propriedadeRepository.salvar(propriedade)
-                SelecaoAtual.selecionar(propriedade.id)
+                selecao.selecionar(propriedade.id)
             }.onSuccess {
                 _uiState.update { it.copy(salvo = true) }
             }.onFailure { erro ->
@@ -298,7 +300,7 @@ class PropriedadeFormViewModel(
             // Exclusão transacional; retorna os dados removidos para o "Desfazer".
             tentar { propriedadeRepository.excluirComLancamentos(id) }
                 .onSuccess { excluida ->
-                    SelecaoAtual.limparSeFor(id)
+                    selecao.limparSeFor(id)
                     if (excluida != null) {
                         desfazer.oferecer("Propriedade excluída") { propriedadeRepository.restaurar(excluida) }
                     }
@@ -338,9 +340,10 @@ class PropriedadeFormViewModel(
         fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PropriedadeFormViewModel(
-                    propriedadeRepository = Repositorios.propriedades,
+                    selecao = dependencias.selecao,
+                    propriedadeRepository = dependencias.propriedades,
                     propriedadeId = propriedadeId,
-                    desfazer = Repositorios.desfazer,
+                    desfazer = dependencias.desfazer,
                     estadoSalvo = createSavedStateHandle()
                 )
             }

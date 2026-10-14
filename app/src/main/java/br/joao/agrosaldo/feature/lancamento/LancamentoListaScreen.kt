@@ -604,7 +604,7 @@ private fun Aviso(texto: String, acao: String? = null, aoAcao: () -> Unit = {}) 
 // ---------- prévias ----------
 
 private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
-    nome = "Fazenda São João da Serra", cultura = "Milho",
+    nome = "Fazenda Santa Clara", cultura = "Milho",
     areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
 )
 

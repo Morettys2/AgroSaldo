@@ -35,12 +35,15 @@ import kotlin.coroutines.EmptyCoroutineContext
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
  *
- * Com [DadosDeExemplo], a Fazenda São João no mês corrente tem:
+ * Com [DadosDeExemplo], a Fazenda Santa Clara no mês corrente tem:
  *   entrou  R$ 18.000   (venda de milho)
  *   saiu    R$  2.350   (energia 1.250 + adubo 780 + combustível 320)
  *   saldo   R$ 15.650
  */
 class ResumosViewModelTest {
+
+    /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
+    private val selecao = SelecaoAtual()
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -57,23 +60,22 @@ class ResumosViewModelTest {
         propriedades = PropriedadeRepositoryMemoria()
         // Datas relativas a [hoje]: as telas abrem no mês corrente.
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
-        // SelecaoAtual é global (compartilhada entre as abas); limpa para isolar os testes.
-        SelecaoAtual.limpar()
-        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
-        SelecaoAtual.selecionarMes(mesDeHoje)
+        selecao.limpar()
+        selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
+        selecao.selecionarMes(mesDeHoje)
     }
 
-    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje })
+    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }, selecao = selecao)
 
     /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
-    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
+    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext, selecao = selecao)
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
         val estado = inicio().uiState.value
 
         assertFalse(estado.carregando)
-        assertEquals("Fazenda São João da Serra", estado.nomePropriedade)
+        assertEquals("Fazenda Santa Clara", estado.nomePropriedade)
         assertEquals(1_800_000L, estado.receitasCentavos)
         assertEquals(235_000L, estado.despesasCentavos)
         assertEquals(1_565_000L, estado.saldoCentavos)
@@ -138,9 +140,9 @@ class ResumosViewModelTest {
     @Test
     fun `voltar ao inicio depois da virada do mes mostra o mes novo`() {
         var dia = hoje
-        SelecaoAtual.limpar(agora = mesDeHoje)
-        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
-        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia })
+        selecao.limpar(agora = mesDeHoje)
+        selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
+        val vm = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia }, selecao = selecao)
         vm.aoVoltarParaATela() // Abertura da tela.
 
         dia = hoje.plusDays(1)
@@ -154,7 +156,7 @@ class ResumosViewModelTest {
     fun `sem nenhuma propriedade o inicio pede para cadastrar`() {
         val vm = InicioViewModel(
             LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()),
-            ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }
+            ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { hoje }, selecao = selecao
         )
         assertFalse(vm.uiState.value.temPropriedade)
         assertFalse(vm.uiState.value.carregando)
@@ -179,7 +181,7 @@ class ResumosViewModelTest {
 
     @Test
     fun `RF11 - comparativo mostra o saldo de cada propriedade e o total`() {
-        val estado = PropriedadeListaViewModel(propriedades, lancamentos).uiState.value
+        val estado = PropriedadeListaViewModel(propriedades, lancamentos, selecao = selecao).uiState.value
 
         val porId = estado.itens.associateBy { it.propriedade.id }
         assertEquals(1_565_000L, porId.getValue(DadosDeExemplo.ID_FAZENDA).saldoCentavos)
@@ -197,7 +199,7 @@ class ResumosViewModelTest {
                 valorCentavos = 2_000_000L, data = hoje
             )
         )
-        val sitio = PropriedadeListaViewModel(propriedades, lancamentos).uiState.value
+        val sitio = PropriedadeListaViewModel(propriedades, lancamentos, selecao = selecao).uiState.value
             .itens.first { it.propriedade.id == DadosDeExemplo.ID_SITIO }
 
         assertTrue(sitio.saldoCentavos < 0)
@@ -213,7 +215,7 @@ class ResumosViewModelTest {
                 emitAll(propriedades.observarTodas())
             }
         }
-        val vm = PropriedadeListaViewModel(instavel, lancamentos)
+        val vm = PropriedadeListaViewModel(instavel, lancamentos, selecao = selecao)
 
         assertEquals("Não foi possível carregar as propriedades. Tentando de novo…", vm.uiState.value.erro)
 
@@ -311,7 +313,7 @@ class ResumosViewModelTest {
     fun `o mes escolhido no inicio e o mesmo em lancamentos e sitios`() {
         val inicio = inicio()
         val lista = lista()
-        val sitios = PropriedadeListaViewModel(propriedades, lancamentos)
+        val sitios = PropriedadeListaViewModel(propriedades, lancamentos, selecao = selecao)
 
         inicio.aoVoltarMes()
 

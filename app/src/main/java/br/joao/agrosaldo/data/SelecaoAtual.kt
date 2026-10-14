@@ -6,36 +6,34 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.YearMonth
 
 /**
- * Propriedade e mês selecionados, compartilhados entre as telas (fora de
- * ViewModel para que todas vejam a mesma seleção).
+ * Propriedade e mês selecionados, compartilhados entre as telas: escolher a propriedade
+ * no Início vale também em Lançamentos, Clima e Histórico.
  *
- * A propriedade é persistida via callback registrado em [configurar] pelo
- * [Repositorios]; o mês não é persistido, começa no mês corrente e acompanha a
- * virada do mês via [acompanharMesCorrente].
+ * Existe UMA instância por app, criada em [br.joao.agrosaldo.di.Dependencias] e passada
+ * no construtor de cada ViewModel que precisa dela. Antes era um `object` global, que os
+ * ViewModels acessavam direto e os testes precisavam zerar à mão; como classe, cada teste
+ * cria a sua e nenhum estado vaza de um teste para outro.
+ *
+ * A propriedade é persistida pelo callback [aoMudarPropriedade]; o mês não é persistido,
+ * começa no mês corrente e acompanha a virada do mês via [acompanharMesCorrente].
+ *
+ * @param propriedadeInicial id gravado da última seleção.
+ * @param aoMudarPropriedade chamado a cada mudança de propriedade (para gravar).
  */
-object SelecaoAtual {
+class SelecaoAtual(
+    propriedadeInicial: String? = null,
+    private val aoMudarPropriedade: (String?) -> Unit = {},
+    mesInicial: YearMonth = YearMonth.now()
+) {
 
-    private val _propriedadeId = MutableStateFlow<String?>(null)
+    private val _propriedadeId = MutableStateFlow(propriedadeInicial)
     val propriedadeId: StateFlow<String?> = _propriedadeId.asStateFlow()
 
-    private val _mes = MutableStateFlow(YearMonth.now())
+    private val _mes = MutableStateFlow(mesInicial)
     val mes: StateFlow<YearMonth> = _mes.asStateFlow()
 
     /** Mês do calendário na última sincronização; [mes] igual a ele significa que ninguém escolheu outro. */
-    private var mesCorrente: YearMonth = _mes.value
-
-    private var aoMudarPropriedade: (String?) -> Unit = {}
-
-    /**
-     * Chamado uma vez na inicialização.
-     *
-     * @param inicial id persistido da última seleção.
-     * @param aoMudar callback de persistência, chamado a cada mudança.
-     */
-    fun configurar(inicial: String?, aoMudar: (String?) -> Unit) {
-        _propriedadeId.value = inicial
-        aoMudarPropriedade = aoMudar
-    }
+    private var mesCorrente: YearMonth = mesInicial
 
     fun selecionar(id: String) = mudarPropriedade(id)
 

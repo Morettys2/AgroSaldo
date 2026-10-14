@@ -63,13 +63,11 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
         val MIGRACOES: Array<Migration> = arrayOf(MIGRACAO_1_2, MIGRACAO_2_3)
 
         /**
-         * Abre o banco. Deve existir uma única instância por processo
-         * (garantida por [br.joao.agrosaldo.data.Repositorios]).
-         *
-         * @param comDadosDeExemplo semeia [br.joao.agrosaldo.data.DadosDeExemplo]
-         *   quando o arquivo é criado.
+         * Abre o banco, sempre vazio na primeira vez: nenhum dado de exemplo é gravado.
+         * Deve existir uma única instância por processo (garantida por
+         * [br.joao.agrosaldo.di.Dependencias]).
          */
-        fun criar(context: Context, comDadosDeExemplo: Boolean): AgroSaldoDatabase =
+        fun criar(context: Context): AgroSaldoDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 AgroSaldoDatabase::class.java,
@@ -78,15 +76,6 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
                 // Sem fallbackToDestructiveMigration: migração ausente deve falhar,
                 // nunca apagar dados do usuário.
                 .addMigrations(*MIGRACOES)
-                .addCallback(object : Callback() {
-                    /** Só na criação do arquivo; não roda em aberturas ou migrações. */
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        if (comDadosDeExemplo) {
-                            Semeador.semear(executar = { sql, argumentos -> db.execSQL(sql, argumentos) })
-                        }
-                    }
-                })
                 .build()
     }
 }

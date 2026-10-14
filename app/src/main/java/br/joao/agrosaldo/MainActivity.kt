@@ -15,8 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.navigation.AppNavegacao
 import br.joao.agrosaldo.core.navigation.PedidoDoClima
-import br.joao.agrosaldo.data.Repositorios
-import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -55,7 +54,7 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             AgroSaldoTheme {
-                AppNavegacao(pedidoDoClima = pedidoDoClima)
+                AppNavegacao(pedidoDoClima = pedidoDoClima, desfazer = dependencias.desfazer)
             }
         }
     }
@@ -73,11 +72,11 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         // Virada do mês com o app vivo: segue o mês corrente, preservando um mês escolhido à mão.
-        SelecaoAtual.acompanharMesCorrente()
+        dependencias.selecao.acompanharMesCorrente()
     }
 
     private fun irParaOMesAtual() {
-        SelecaoAtual.selecionarMes(YearMonth.now())
+        dependencias.selecao.selecionarMes(YearMonth.now())
     }
 
     /**
@@ -87,7 +86,7 @@ class MainActivity : FragmentActivity() {
      */
     private fun protegerTelaComOBloqueio() {
         lifecycleScope.launch {
-            Repositorios.bloqueio.ativo.collect { ativo ->
+            dependencias.bloqueio.ativo.collect { ativo ->
                 if (ativo) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 } else {

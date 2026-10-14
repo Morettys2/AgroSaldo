@@ -97,7 +97,7 @@ class AgroSaldoDatabaseTest {
         val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"))
 
         val nomes = repositorio.observarTodas().first().map { it.nome }
-        assertEquals(listOf("Água Limpa", "Fazenda São João da Serra", "Sítio Boa Vista"), nomes)
+        assertEquals(listOf("Água Limpa", "Fazenda Santa Clara", "Sítio Boa Vista"), nomes)
     }
 
     /**
@@ -110,11 +110,11 @@ class AgroSaldoDatabaseTest {
         val antes = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
 
         val fazenda = checkNotNull(propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1"))
-        propriedadeDao.salvar(fazenda.copy(nome = "Fazenda São João (editada)"))
+        propriedadeDao.salvar(fazenda.copy(nome = "Fazenda Santa Clara (editada)"))
 
         val depois = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
         assertEquals(antes, depois)
-        assertEquals("Fazenda São João (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1")?.nome)
+        assertEquals("Fazenda Santa Clara (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1")?.nome)
     }
 
     @Test

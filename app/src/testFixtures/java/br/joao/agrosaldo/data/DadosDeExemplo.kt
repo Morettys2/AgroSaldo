@@ -8,18 +8,19 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * Massa de dados fixa: semeia o banco na criação em builds debuggable e serve
- * de fixture nos testes. Em release o banco é criado vazio.
+ * Massa de dados fixa dos testes (unitários e instrumentados). Fica em `src/testFixtures`,
+ * fora do APK: o app sempre começa com o banco vazio, inclusive no build debug.
+ * Nomes e coordenadas são fictícios.
  */
 object DadosDeExemplo {
 
-    const val ID_FAZENDA = "exemplo-fazenda-sao-joao"
+    const val ID_FAZENDA = "exemplo-fazenda"
     const val ID_SITIO = "exemplo-sitio-boa-vista"
 
     fun propriedades(): List<Propriedade> = listOf(
         Propriedade(
             id = ID_FAZENDA,
-            nome = "Fazenda São João da Serra",
+            nome = "Fazenda Santa Clara",
             cultura = "Milho",
             areaHectares = 50.0,
             latitude = -21.7333,

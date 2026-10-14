@@ -11,7 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import java.util.concurrent.TimeUnit
 
@@ -25,11 +25,11 @@ class VerificacaoChuvaWorker(
 ) : CoroutineWorker(contexto, parametros) {
 
     override suspend fun doWork(): Result {
-        // Idempotente; normalmente o AgroSaldoApp já inicializou.
-        Repositorios.inicializar(applicationContext)
+        // O AgroSaldoApp sempre existe antes do Worker, mesmo quando o processo sobe só para ele.
+        val dependencias = applicationContext.dependencias
 
-        val janela = Repositorios.ajustesAviso.ajustes.value.limites.janelaHoras
-        val resultado = Repositorios.verificadorDeChuva.verificar { aviso ->
+        val janela = dependencias.ajustesAviso.ajustes.value.limites.janelaHoras
+        val resultado = dependencias.verificadorDeChuva.verificar { aviso ->
             // Conferido a cada aviso: a permissão ou o canal podem mudar durante a verificação.
             val pode = NotificadorDeChuva.podeNotificar(applicationContext)
             if (pode) NotificadorDeChuva.mostrar(applicationContext, aviso, janela)

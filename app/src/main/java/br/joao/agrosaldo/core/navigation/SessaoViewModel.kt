@@ -5,8 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.data.Repositorios
-import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
@@ -38,7 +37,8 @@ class SessaoViewModel(
     private val propriedades: PropriedadeRepository,
     /** Em milissegundos; deve ser monotônico (ver Factory). */
     private val relogio: () -> Long = System::currentTimeMillis,
-    private val selecionarPropriedade: (String) -> Unit = SelecaoAtual::selecionar
+    /** Escolhe a propriedade do aviso de chuva ([br.joao.agrosaldo.data.SelecaoAtual.selecionar]). */
+    private val selecionarPropriedade: (String) -> Unit
 ) : ViewModel() {
 
     /** Valor inicial lido da sessão gravada, para evitar um frame com a tela de login. */
@@ -139,10 +139,11 @@ class SessaoViewModel(
             initializer {
                 // Relógio monotônico (inclui deep sleep): imune a mudança da hora do sistema.
                 SessaoViewModel(
-                    Repositorios.conta,
-                    Repositorios.bloqueio,
-                    Repositorios.propriedades,
-                    Repositorios.relogioMonotonico
+                    conta = dependencias.conta,
+                    bloqueio = dependencias.bloqueio,
+                    propriedades = dependencias.propriedades,
+                    relogio = dependencias.relogioMonotonico,
+                    selecionarPropriedade = dependencias.selecao::selecionar
                 )
             }
         }

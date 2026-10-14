@@ -13,7 +13,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import br.joao.agrosaldo.MainActivity
 import br.joao.agrosaldo.R
-import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 import br.joao.agrosaldo.domain.clima.MotivoChuva
@@ -110,12 +109,12 @@ object NotificadorDeChuva {
 
     /**
      * Exibe uma notificação com dados fictícios. Usado só pelas ferramentas de teste de builds debug.
-     * Leva a propriedade selecionada para o toque abrir o Clima como num aviso real (um id
+     * Recebe a propriedade selecionada para o toque abrir o Clima como num aviso real (um id
      * que não é do usuário conectado seria ignorado).
      */
-    fun mostrarExemplo(context: Context) {
+    fun mostrarExemplo(context: Context, propriedadeId: String?) {
         val aviso = AvisoDeChuva(
-            propriedadeId = SelecaoAtual.propriedadeId.value ?: "exemplo",
+            propriedadeId = propriedadeId ?: "exemplo",
             nomePropriedade = "Propriedade de exemplo",
             avaliacao = AvaliacaoChuva(
                 vaiChover = true,

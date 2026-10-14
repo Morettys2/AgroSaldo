@@ -5,7 +5,8 @@ import java.time.LocalDate
 
 /**
  * Gera os INSERTs de [DadosDeExemplo]. Recebe a função `executar` em vez do
- * banco para ser usado tanto no callback do Room quanto em testes JVM.
+ * banco para ser usado tanto nos testes instrumentados (SQLite de verdade, inclusive
+ * nas migrações) quanto nos testes JVM.
  */
 object Semeador {
 

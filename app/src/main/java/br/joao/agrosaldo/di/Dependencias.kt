@@ -1,15 +1,19 @@
-package br.joao.agrosaldo.data
+package br.joao.agrosaldo.di
 
 import android.app.backup.BackupManager
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.room.withTransaction
+import br.joao.agrosaldo.AgroSaldoApp
 import br.joao.agrosaldo.aviso.AgendaWorkManager
+import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
 import br.joao.agrosaldo.data.local.Transacao
@@ -38,47 +42,37 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Service locator das dependências do app.
+ * Container de dependências do app (injeção de dependência manual).
  *
- * [inicializar] deve ser chamado em [br.joao.agrosaldo.AgroSaldoApp.onCreate]
- * antes de qualquer acesso. Repositórios de propriedade e lançamento recebem a
- * sessão para filtrar os dados pelo usuário conectado.
+ * Cria, UMA vez, o banco, os repositórios e os serviços, e liga uns aos outros. Os
+ * ViewModels não conhecem este container: recebem só o que usam no construtor, e quem
+ * faz a ligação são as `Factory` de cada ViewModel, que leem a instância guardada pelo
+ * [AgroSaldoApp] (veja [dependencias]).
+ *
+ * É o padrão do guia oficial "Manual dependency injection" do Android. Um framework como
+ * o Hilt faria o mesmo gerando este código; num app deste tamanho, escrever à mão deixa
+ * claro de onde vem cada objeto e não acrescenta nenhuma biblioteca.
+ *
+ * Tudo é `by lazy`: um objeto só é criado quando alguém pede, e o processo subido pelo
+ * WorkManager para checar a chuva não abre o que as telas usam.
  */
-object Repositorios {
+class Dependencias(contexto: Context) {
 
-    @Volatile
-    private var banco: AgroSaldoDatabase? = null
+    private val contextoAberto: Context = contexto.applicationContext
 
-    @Volatile
-    private var contexto: Context? = null
+    /** Banco aberto na primeira consulta, sem dados de exemplo: o app começa vazio. */
+    private val bancoAberto: AgroSaldoDatabase by lazy { AgroSaldoDatabase.criar(contextoAberto) }
 
-    fun inicializar(context: Context) {
-        if (banco != null) return
-        synchronized(this) {
-            if (banco != null) return
-            // Só builds debuggable semeiam dados de exemplo.
-            val ehDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            contexto = context.applicationContext
-            banco = AgroSaldoDatabase.criar(context, comDadosDeExemplo = ehDebug)
-            lembrarPropriedadeEscolhida(context.applicationContext)
-        }
-    }
-
-    /** Persiste em SharedPreferences o id da propriedade selecionada (UUID, sem dado pessoal). */
-    private fun lembrarPropriedadeEscolhida(context: Context) {
-        val preferencias = context.getSharedPreferences(ARQUIVO_SELECAO, Context.MODE_PRIVATE)
-        SelecaoAtual.configurar(inicial = preferencias.getString(CHAVE_PROPRIEDADE, null)) { id ->
+    /** Propriedade e mês escolhidos, compartilhados entre as telas; a propriedade fica gravada. */
+    val selecao: SelecaoAtual by lazy {
+        val preferencias = contextoAberto.getSharedPreferences(ARQUIVO_SELECAO, Context.MODE_PRIVATE)
+        // Só o id da propriedade (UUID, sem dado pessoal).
+        SelecaoAtual(propriedadeInicial = preferencias.getString(CHAVE_PROPRIEDADE, null)) { id ->
             preferencias.edit {
                 if (id == null) remove(CHAVE_PROPRIEDADE) else putString(CHAVE_PROPRIEDADE, id)
             }
         }
     }
-
-    private val bancoAberto: AgroSaldoDatabase
-        get() = checkNotNull(banco) { MENSAGEM_SEM_INICIALIZAR }
-
-    private val contextoAberto: Context
-        get() = checkNotNull(contexto) { MENSAGEM_SEM_INICIALIZAR }
 
     val sessao: SessaoRepository by lazy { SessaoPreferencias(contextoAberto) }
 
@@ -118,7 +112,7 @@ object Repositorios {
             // Limpa estado da conta anterior: seleção, desfazer pendente e
             // notificações (contêm nomes de propriedades).
             aoTrocarDeUsuario = {
-                SelecaoAtual.limpar()
+                selecao.limpar()
                 desfazer.esquecer()
                 NotificationManagerCompat.from(contextoAberto).cancelAll()
             },
@@ -191,10 +185,25 @@ object Repositorios {
 
     val desfazer: Desfazer by lazy { Desfazer(relogioMonotonico) }
 
-    private const val ARQUIVO_SELECAO = "selecao"
-    private const val CHAVE_PROPRIEDADE = "propriedade_id"
-
-    private const val MENSAGEM_SEM_INICIALIZAR =
-        "O banco não foi inicializado. Confira se o AndroidManifest.xml tem " +
-            "android:name=\".AgroSaldoApp\" na tag <application>."
+    private companion object {
+        const val ARQUIVO_SELECAO = "selecao"
+        const val CHAVE_PROPRIEDADE = "propriedade_id"
+    }
 }
+
+/**
+ * O container do app, a partir de qualquer Context (Activity, Worker, Composable).
+ * Falha com uma mensagem clara se o manifesto não registrar o [AgroSaldoApp].
+ */
+val Context.dependencias: Dependencias
+    get() {
+        val app = applicationContext as? AgroSaldoApp
+            ?: error("O AndroidManifest.xml precisa de android:name=\".AgroSaldoApp\" na tag <application>.")
+        return app.dependencias
+    }
+
+/** O container dentro de `viewModelFactory { initializer { ... } }`. */
+val CreationExtras.dependencias: Dependencias
+    get() = checkNotNull(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
+        "A Factory precisa ser usada por viewModel(), que fornece a Application."
+    }.dependencias

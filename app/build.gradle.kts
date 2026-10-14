@@ -34,6 +34,11 @@ android {
     buildFeatures {
         compose = true
     }
+    // src/testFixtures: fakes em memória e dados de exemplo, compartilhados pelos testes
+    // unitários (src/test) e instrumentados (src/androidTest), mas fora do APK.
+    testFixtures {
+        enable = true
+    }
 }
 
 // Schemas exportados pelo Room (um JSON por versão). Versionar app/schemas:
@@ -76,6 +81,8 @@ dependencies {
 
     // SplashScreen API compatível com API < 31.
     implementation(libs.androidx.core.splashscreen)
+
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

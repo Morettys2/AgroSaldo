@@ -233,14 +233,14 @@ class CamadaDeDadosTest {
     fun `propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo`() = runTest {
         val dao = PropriedadeDaoFalso()
         val modelo = DadosDeExemplo.propriedades().first()
-        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda São João").forEachIndexed { i, nome ->
+        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara").forEachIndexed { i, nome ->
             dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1"))
         }
         val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
 
         assertEquals(
             "a primeira da lista é a propriedade padrão",
-            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda São João", "Sítio Boa Vista"),
+            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara", "Sítio Boa Vista"),
             repositorio.observarTodas().first().map { it.nome }
         )
     }
@@ -294,7 +294,7 @@ class CamadaDeDadosTest {
             repositorio.salvar(fazenda.copy(nome = "Tomada"))
             fail("Deveria recusar a gravação")
         } catch (esperado: IllegalArgumentException) {
-            assertEquals("Fazenda São João da Serra", dao.tabela.value.single().nome)
+            assertEquals("Fazenda Santa Clara", dao.tabela.value.single().nome)
         }
     }
 

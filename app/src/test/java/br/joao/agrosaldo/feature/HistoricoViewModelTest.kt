@@ -23,11 +23,14 @@ import java.time.YearMonth
 /**
  * Histórico do ano (RF10).
  *
- * Com os dados de exemplo e "hoje" em 30/09/2026, a Fazenda São João tem:
+ * Com os dados de exemplo e "hoje" em 30/09/2026, a Fazenda Santa Clara tem:
  *   agosto:   entrou R$ 9.400  · saiu R$ 2.100  · saldo R$  7.300
  *   setembro: entrou R$ 18.000 · saiu R$ 2.350  · saldo R$ 15.650
  */
 class HistoricoViewModelTest {
+
+    /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
+    private val selecao = SelecaoAtual()
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -37,13 +40,13 @@ class HistoricoViewModelTest {
 
     @Before
     fun preparar() {
-        SelecaoAtual.limpar()
-        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
-        SelecaoAtual.selecionarMes(YearMonth.of(2026, 9))
+        selecao.limpar()
+        selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
+        selecao.selecionarMes(YearMonth.of(2026, 9))
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
     }
 
-    private fun viewModel() = HistoricoViewModel(lancamentos, PropriedadeRepositoryMemoria(), hoje = { hoje })
+    private fun viewModel() = HistoricoViewModel(lancamentos, PropriedadeRepositoryMemoria(), hoje = { hoje }, selecao = selecao)
 
     @Test
     fun `RF10 - mostra os 12 meses do ano com entradas e saidas de cada um`() {
@@ -224,14 +227,14 @@ class HistoricoViewModelTest {
 
     @Test
     fun `abre no ano do mes que estava escolhido`() {
-        SelecaoAtual.selecionarMes(YearMonth.of(2025, 3))
+        selecao.selecionarMes(YearMonth.of(2025, 3))
         assertEquals(2025, viewModel().uiState.value.ano)
     }
 
     @Test
     fun `tocar num mes deixa ele escolhido para a aba Lancamentos`() {
         viewModel().aoAbrirMes(YearMonth.of(2026, 8))
-        assertEquals(YearMonth.of(2026, 8), SelecaoAtual.mes.value)
+        assertEquals(YearMonth.of(2026, 8), selecao.mes.value)
     }
 
     @Test
@@ -249,7 +252,7 @@ class HistoricoViewModelTest {
 
     @Test
     fun `sem propriedade nao quebra`() {
-        val vm = HistoricoViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), hoje = { hoje })
+        val vm = HistoricoViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), hoje = { hoje }, selecao = selecao)
         assertFalse(vm.uiState.value.carregando)
         assertFalse(vm.uiState.value.temPropriedade)
     }

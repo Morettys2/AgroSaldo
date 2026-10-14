@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.rotuloRelativo
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -95,6 +95,8 @@ private data class Filtros(
 class LancamentoListaViewModel(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val hoje: () -> LocalDate = LocalDate::now,
     private val processamento: CoroutineContext = Dispatchers.Default
 ) : ViewModel() {
@@ -112,8 +114,8 @@ class LancamentoListaViewModel(
             combine(
                 lancamentoRepository.observarTodos().map { lista -> lista.map(::LancamentoParaBusca) },
                 propriedadeRepository.observarTodas(),
-                SelecaoAtual.propriedadeId,
-                SelecaoAtual.mes,
+                selecao.propriedadeId,
+                selecao.mes,
                 _filtros.combine(_voltas) { filtros, _ -> filtros }
             ) { lancamentos, propriedades, selecionadaId, mes, filtros ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes, filtros)
@@ -125,13 +127,13 @@ class LancamentoListaViewModel(
         // Mudança de mês (vinda de outra tela) limpa a busca, que ocultaria o mês escolhido.
         // drop(1) ignora o valor inicial do StateFlow.
         viewModelScope.launch {
-            SelecaoAtual.mes.drop(1).collect { aoFecharBusca() }
+            selecao.mes.drop(1).collect { aoFecharBusca() }
         }
     }
 
     /** Chamado em ON_RESUME: acompanha a virada do mês e recalcula os rótulos relativos ("Hoje"). */
     fun aoVoltarParaATela() {
-        SelecaoAtual.acompanharMesCorrente(YearMonth.from(hoje()))
+        selecao.acompanharMesCorrente(YearMonth.from(hoje()))
         _voltas.update { it + 1 }
     }
 
@@ -220,8 +222,8 @@ class LancamentoListaViewModel(
             CATEGORIAS_NORMALIZADAS.getValue(item.lancamento.categoria).contains(termo)
 
     // Mês global em SelecaoAtual, compartilhado entre as abas.
-    fun aoAvancarMes() = SelecaoAtual.avancarMes()
-    fun aoVoltarMes() = SelecaoAtual.voltarMes()
+    fun aoAvancarMes() = selecao.avancarMes()
+    fun aoVoltarMes() = selecao.voltarMes()
     /** Troca o filtro de tipo e desmarca a categoria se ela não pertencer ao novo tipo. */
     fun aoMudarFiltro(filtro: FiltroLancamento) = _filtros.update { atual ->
         val categoria = atual.categoria?.takeIf { combina(it, filtro) }
@@ -240,14 +242,14 @@ class LancamentoListaViewModel(
 
     fun aoFecharBusca() = _filtros.update { it.copy(busca = "") }
 
-    fun aoSelecionarMes(mes: YearMonth) = SelecaoAtual.selecionarMes(mes)
+    fun aoSelecionarMes(mes: YearMonth) = selecao.selecionarMes(mes)
 
     private fun combina(categoria: CategoriaLancamento, filtro: FiltroLancamento) = when (filtro) {
         FiltroLancamento.TUDO -> true
         FiltroLancamento.DESPESAS -> categoria.tipo == TipoLancamento.DESPESA
         FiltroLancamento.RECEITAS -> categoria.tipo == TipoLancamento.RECEITA
     }
-    fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
+    fun aoSelecionarPropriedade(id: String) = selecao.selecionar(id)
 
     companion object {
         /** Faixa de meses do seletor, relativa ao mês atual. */
@@ -280,8 +282,9 @@ class LancamentoListaViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 LancamentoListaViewModel(
-                    lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeRepository = Repositorios.propriedades
+                    selecao = dependencias.selecao,
+                    lancamentoRepository = dependencias.lancamentos,
+                    propriedadeRepository = dependencias.propriedades
                 )
             }
         }

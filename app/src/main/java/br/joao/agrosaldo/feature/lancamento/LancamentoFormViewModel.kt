@@ -16,8 +16,8 @@ import br.joao.agrosaldo.core.util.rotuloDeData
 import br.joao.agrosaldo.core.util.rotuloRelativoCurto
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -72,7 +72,7 @@ data class LancamentoFormUiState(
     val rotuloData: String
         get() = data.paraLocalDateOuNulo()?.rotuloDeData(hoje) ?: data
 
-    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda São João". */
+    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda Santa Clara". */
     val resumo: String
         get() = listOfNotNull(
             categoria.rotulo,
@@ -94,6 +94,8 @@ data class LancamentoFormUiState(
 class LancamentoFormViewModel(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val lancamentoId: String?,
     private val copiaDe: String? = null,
     private val desfazer: Desfazer = Desfazer(),
@@ -117,7 +119,7 @@ class LancamentoFormViewModel(
         viewModelScope.launch {
             val propriedades = propriedadeRepository.observarTodas().first()
             // A propriedade selecionada pode ter sido excluída; cai para a primeira da lista.
-            val selecionada = SelecaoAtual.propriedadeId.value
+            val selecionada = selecao.propriedadeId.value
                 ?.takeIf { id -> propriedades.any { it.id == id } }
                 ?: propriedades.firstOrNull()?.id.orEmpty()
 
@@ -275,9 +277,9 @@ class LancamentoFormViewModel(
                 // Seleciona propriedade e mês do lançamento salvo para que ele apareça nas listas.
                 // Na edição, o mês só muda se a data mudou de mês: trocar o mês fecharia a busca
                 // e tiraria a pessoa do mês em que estava.
-                SelecaoAtual.selecionar(lancamento.propriedadeId)
+                selecao.selecionar(lancamento.propriedadeId)
                 val mes = YearMonth.from(lancamento.data)
-                if (mes != mesOriginal) SelecaoAtual.selecionarMes(mes)
+                if (mes != mesOriginal) selecao.selecionarMes(mes)
             }.onSuccess {
                 _uiState.update { it.copy(salvo = true, erroGeral = null) }
             }.onFailure { erro ->
@@ -336,11 +338,12 @@ class LancamentoFormViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 LancamentoFormViewModel(
-                    lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeRepository = Repositorios.propriedades,
+                    selecao = dependencias.selecao,
+                    lancamentoRepository = dependencias.lancamentos,
+                    propriedadeRepository = dependencias.propriedades,
                     lancamentoId = lancamentoId,
                     copiaDe = copiaDe,
-                    desfazer = Repositorios.desfazer,
+                    desfazer = dependencias.desfazer,
                     tipoInicial = tipoInicial,
                     estadoSalvo = createSavedStateHandle()
                 )

@@ -10,8 +10,8 @@ import br.joao.agrosaldo.core.util.diaEHora
 import br.joao.agrosaldo.core.util.emGraus
 import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.rotuloDoDia
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
@@ -93,6 +93,8 @@ class ClimaViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val relogio: () -> Long = System::currentTimeMillis,
     private val zona: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
@@ -117,15 +119,15 @@ class ClimaViewModel(
     val uiState: StateFlow<ClimaUiState> = _uiState.asStateFlow()
 
     /** Lista de propriedades e a selecionada em [SelecaoAtual] (fallback: a primeira). */
-    private val selecao: Flow<Pair<List<Propriedade>, Propriedade?>> =
-        combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
+    private val listaESelecionada: Flow<Pair<List<Propriedade>, Propriedade?>> =
+        combine(propriedadeRepository.observarTodas(), selecao.propriedadeId) { lista, id ->
             lista to ResumoFinanceiro.propriedadeAtual(lista, id)
         }
 
     init {
         // A cada troca de propriedade, atualiza o cache se estiver vencido.
         viewModelScope.launch {
-            selecao.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
+            listaESelecionada.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
                 // A mensagem pertencia à propriedade anterior.
                 _falha.value = null
                 if (propriedade != null) buscar(propriedade, forcar = false)
@@ -133,7 +135,7 @@ class ClimaViewModel(
         }
 
         viewModelScope.launch {
-            val comPrevisao = selecao.flatMapLatest { (lista, propriedade) ->
+            val comPrevisao = listaESelecionada.flatMapLatest { (lista, propriedade) ->
                 if (propriedade == null) {
                     flowOf(Triple(lista, null, null))
                 } else {
@@ -146,7 +148,7 @@ class ClimaViewModel(
         }
     }
 
-    fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
+    fun aoSelecionarPropriedade(id: String) = selecao.selecionar(id)
 
     /** Atualização manual: ignora a validade do cache. */
     fun aoAtualizar() {
@@ -301,7 +303,12 @@ class ClimaViewModel(
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                ClimaViewModel(Repositorios.propriedades, Repositorios.clima, Repositorios.ajustesAviso)
+                ClimaViewModel(
+                    selecao = dependencias.selecao,
+                    propriedadeRepository = dependencias.propriedades,
+                    clima = dependencias.clima,
+                    ajustes = dependencias.ajustesAviso
+                )
             }
         }
     }

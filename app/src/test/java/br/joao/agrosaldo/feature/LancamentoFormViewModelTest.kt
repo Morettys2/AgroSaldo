@@ -35,6 +35,9 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 class LancamentoFormViewModelTest {
 
+    /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
+    private val selecao = SelecaoAtual()
+
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
@@ -45,14 +48,14 @@ class LancamentoFormViewModelTest {
     fun preparar() {
         propriedades = PropriedadeRepositoryMemoria()
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)))
-        SelecaoAtual.limpar()
-        SelecaoAtual.selecionar(DadosDeExemplo.ID_FAZENDA)
+        selecao.limpar()
+        selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
     }
 
     private val hoje = LocalDate.of(2026, 10, 4)
     private val desfazer = Desfazer()
 
-    private fun novo() = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje })
+    private fun novo() = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, selecao = selecao)
 
     @Test
     fun `formulario novo ja vem com a propriedade selecionada e a data de hoje`() {
@@ -89,10 +92,10 @@ class LancamentoFormViewModelTest {
     fun `data invalida restaurada aparece como estava e salvar pede a data de novo`() = runTest {
         val antes = lancamentos.observarTodos().first().size
         val restaurado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_DATA to "31/02/2026"))
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado, selecao = selecao)
 
         assertEquals("31/02/2026", vm.uiState.value.rotuloData)
-        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda São João da Serra", vm.uiState.value.resumo)
+        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda Santa Clara", vm.uiState.value.resumo)
 
         vm.aoTeclar("1000")
         vm.aoSalvar()
@@ -119,14 +122,14 @@ class LancamentoFormViewModelTest {
         assertEquals(32_000L, gravado.valorCentavos)
         assertEquals(DadosDeExemplo.ID_SITIO, gravado.propriedadeId)
         assertEquals(LocalDate.of(2026, 9, 28), gravado.data)
-        assertEquals("a propriedade do lançamento vira a selecionada", DadosDeExemplo.ID_SITIO, SelecaoAtual.propriedadeId.value)
-        assertEquals("e o mês dele também, para ele não sumir da lista", YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+        assertEquals("a propriedade do lançamento vira a selecionada", DadosDeExemplo.ID_SITIO, selecao.propriedadeId.value)
+        assertEquals("e o mês dele também, para ele não sumir da lista", YearMonth.of(2026, 9), selecao.mes.value)
     }
 
     @Test
     fun `edicao carrega o lancamento e salvar nao duplica`() = runTest {
         val total = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2")
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao)
 
         assertTrue(vm.uiState.value.ehEdicao)
         assertEquals("125000", vm.uiState.value.valorDigitos)
@@ -143,36 +146,36 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `salvar edicao sem mudar o mes nao troca o mes escolhido nem fecha a busca`() = runTest {
-        SelecaoAtual.selecionarMes(YearMonth.of(2026, 10))
-        val lista = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext)
+        selecao.selecionarMes(YearMonth.of(2026, 10))
+        val lista = LancamentoListaViewModel(lancamentos, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext, selecao = selecao)
         lista.aoBuscar("pivo")
         // exemplo-2 é de setembro; a pessoa o achou pela busca, olhando outubro.
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje })
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, selecao = selecao)
 
         vm.aoTeclar("0")
         vm.aoSalvar()
 
         assertTrue(vm.uiState.value.salvo)
         assertEquals(1_250_000L, lancamentos.buscarPorId("exemplo-2")?.valorCentavos)
-        assertEquals(YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+        assertEquals(YearMonth.of(2026, 10), selecao.mes.value)
         assertTrue("a busca continua aberta", lista.uiState.value.buscando)
     }
 
     @Test
     fun `salvar edicao que muda o mes leva a selecao para o mes novo`() = runTest {
-        SelecaoAtual.selecionarMes(YearMonth.of(2026, 9))
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje })
+        selecao.selecionarMes(YearMonth.of(2026, 9))
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, selecao = selecao)
 
         vm.aoEscolherData(LocalDate.of(2026, 10, 2))
         vm.aoSalvar()
 
-        assertEquals("para ele não sumir da lista", YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+        assertEquals("para ele não sumir da lista", YearMonth.of(2026, 10), selecao.mes.value)
     }
 
     @Test
     fun `editar lancamento que nao existe mais avisa e salvar nao o recria`() = runTest {
         val total = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "apagado", hoje = { hoje })
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "apagado", hoje = { hoje }, selecao = selecao)
 
         assertTrue(vm.uiState.value.naoEncontrado)
 
@@ -186,14 +189,14 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `lancamento existente nao e marcado como nao encontrado`() {
-        assertFalse(LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2").uiState.value.naoEncontrado)
+        assertFalse(LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao).uiState.value.naoEncontrado)
         assertFalse(novo().uiState.value.naoEncontrado)
     }
 
     @Test
     fun `excluir remove na hora e oferece desfazer, que traz de volta igual`() = runTest {
         val original = lancamentos.buscarPorId("exemplo-3")
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer)
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
         vm.aoExcluir()
 
         assertTrue(vm.uiState.value.excluido)
@@ -247,7 +250,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `lancar de novo copia tudo menos a data, que vira hoje`() = runTest {
         val total = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, copiaDe = "exemplo-2", hoje = { hoje })
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, copiaDe = "exemplo-2", hoje = { hoje }, selecao = selecao)
 
         val estado = vm.uiState.value
         assertFalse("é um lançamento novo, não uma edição", estado.ehEdicao)
@@ -264,10 +267,10 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `propriedade escolhida que nao existe mais cai na primeira da lista`() {
-        SelecaoAtual.selecionar("propriedade-apagada")
+        selecao.selecionar("propriedade-apagada")
         val estado = novo().uiState.value
         assertEquals(DadosDeExemplo.ID_FAZENDA, estado.propriedadeId)
-        assertEquals("Fazenda São João da Serra", estado.nomePropriedadeSelecionada)
+        assertEquals("Fazenda Santa Clara", estado.nomePropriedadeSelecionada)
     }
 
     @Test
@@ -353,7 +356,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `atalho receita abre o formulario ja em receita`() {
         val vm = LancamentoFormViewModel(
-            lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, tipoInicial = TipoLancamento.RECEITA
+            lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, tipoInicial = TipoLancamento.RECEITA, selecao = selecao
         )
         assertEquals(TipoLancamento.RECEITA, vm.uiState.value.tipo)
         assertEquals(CategoriaLancamento.VENDA_SAFRA, vm.uiState.value.categoria)
@@ -363,7 +366,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `na edicao o tipo do lancamento manda, nao o do atalho`() {
         val vm = LancamentoFormViewModel(
-            lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, tipoInicial = TipoLancamento.RECEITA
+            lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, tipoInicial = TipoLancamento.RECEITA, selecao = selecao
         )
         assertEquals(TipoLancamento.DESPESA, vm.uiState.value.tipo)
         assertEquals(CategoriaLancamento.ENERGIA, vm.uiState.value.categoria)
@@ -385,7 +388,7 @@ class LancamentoFormViewModelTest {
     fun `linha de resumo junta categoria, dia e sitio`() {
         val vm = novo()
         vm.aoMudarCategoria(CategoriaLancamento.COMBUSTIVEL)
-        assertEquals("Combustível · Hoje · Fazenda São João da Serra", vm.uiState.value.resumo)
+        assertEquals("Combustível · Hoje · Fazenda Santa Clara", vm.uiState.value.resumo)
     }
 
     /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
@@ -401,7 +404,7 @@ class LancamentoFormViewModelTest {
     fun `dois toques em salvar gravam um lancamento so`() = runTest {
         val lentos = LancamentosLentos(lancamentos)
         val antes = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lentos, propriedades, lancamentoId = null, hoje = { hoje })
+        val vm = LancamentoFormViewModel(lentos, propriedades, lancamentoId = null, hoje = { hoje }, selecao = selecao)
         vm.aoTeclar("5000")
 
         vm.aoSalvar()
@@ -418,7 +421,7 @@ class LancamentoFormViewModelTest {
         val quebrado = object : LancamentoRepository by lancamentos {
             override suspend fun salvar(lancamento: Lancamento) = throw IllegalArgumentException("Banco recusou.")
         }
-        val vm = LancamentoFormViewModel(quebrado, propriedades, lancamentoId = null, hoje = { hoje })
+        val vm = LancamentoFormViewModel(quebrado, propriedades, lancamentoId = null, hoje = { hoje }, selecao = selecao)
         vm.aoTeclar("5000")
         vm.aoSalvar()
 
@@ -433,7 +436,7 @@ class LancamentoFormViewModelTest {
         val lentas = object : PropriedadeRepository by propriedades {
             override fun observarTodas(): Flow<List<Propriedade>> = aindaCarregando
         }
-        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, hoje = { hoje })
+        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, hoje = { hoje }, selecao = selecao)
         assertFalse(vm.uiState.value.carregado)
 
         vm.aoTeclar("5")
@@ -449,7 +452,7 @@ class LancamentoFormViewModelTest {
     fun `lancar de novo usa o tipo do original, nao o do atalho`() {
         val vm = LancamentoFormViewModel(
             lancamentos, propriedades, lancamentoId = null, copiaDe = "exemplo-1", hoje = { hoje },
-            tipoInicial = TipoLancamento.DESPESA
+            tipoInicial = TipoLancamento.DESPESA, selecao = selecao
         )
         assertEquals(TipoLancamento.RECEITA, vm.uiState.value.tipo)
         assertFalse(vm.uiState.value.ehEdicao)
@@ -464,7 +467,7 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `sem nenhum sitio o formulario sabe que carregou e esta vazio`() {
-        val vm = LancamentoFormViewModel(lancamentos, PropriedadeRepositoryMemoria(emptyList()), lancamentoId = null, hoje = { hoje })
+        val vm = LancamentoFormViewModel(lancamentos, PropriedadeRepositoryMemoria(emptyList()), lancamentoId = null, hoje = { hoje }, selecao = selecao)
         assertTrue(vm.uiState.value.carregado)
         assertTrue(vm.uiState.value.propriedades.isEmpty())
     }
@@ -472,7 +475,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `o que foi preenchido volta depois que o Android mata o processo`() {
         val guardado = SavedStateHandle()
-        val antes = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado)
+        val antes = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado, selecao = selecao)
         antes.aoMudarTipo(TipoLancamento.RECEITA)
         antes.aoMudarCategoria(CategoriaLancamento.ARRENDAMENTO)
         antes.aoTeclar("4500")
@@ -483,7 +486,7 @@ class LancamentoFormViewModelTest {
         // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
         assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
         val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
-        val depois = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+        val depois = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado, selecao = selecao)
 
         val estado = depois.uiState.value
         assertEquals(TipoLancamento.RECEITA, estado.tipo)
@@ -502,7 +505,7 @@ class LancamentoFormViewModelTest {
                 LancamentoFormViewModel.CHAVE_DESCRICAO to "Conta do pivô corrigida"
             )
         )
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, estadoSalvo = restaurado)
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", hoje = { hoje }, estadoSalvo = restaurado, selecao = selecao)
 
         val estado = vm.uiState.value
         assertTrue(estado.ehEdicao)
@@ -521,7 +524,7 @@ class LancamentoFormViewModelTest {
                 LancamentoFormViewModel.CHAVE_PROPRIEDADE to "sitio-excluido"
             )
         )
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado)
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, hoje = { hoje }, estadoSalvo = restaurado, selecao = selecao)
 
         assertEquals(TipoLancamento.RECEITA, vm.uiState.value.tipo)
         assertEquals(CategoriaLancamento.VENDA_SAFRA, vm.uiState.value.categoria)
@@ -535,7 +538,7 @@ class LancamentoFormViewModelTest {
             override fun observarTodas(): Flow<List<Propriedade>> = aindaCarregando
         }
         val guardado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_VALOR to "777"))
-        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado)
+        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, hoje = { hoje }, estadoSalvo = guardado, selecao = selecao)
 
         vm.aoMudarTipo(TipoLancamento.RECEITA)
         assertEquals("777", guardado.get<String>(LancamentoFormViewModel.CHAVE_VALOR))

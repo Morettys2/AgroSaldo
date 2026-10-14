@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
@@ -45,7 +45,9 @@ data class PropriedadeListaUiState(
  */
 class PropriedadeListaViewModel(
     private val propriedadeRepository: PropriedadeRepository,
-    private val lancamentoRepository: LancamentoRepository
+    private val lancamentoRepository: LancamentoRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PropriedadeListaUiState())
@@ -56,7 +58,7 @@ class PropriedadeListaViewModel(
             combine(
                 propriedadeRepository.observarTodas(),
                 lancamentoRepository.observarTodos(),
-                SelecaoAtual.mes
+                selecao.mes
             ) { propriedades, lancamentos, mes ->
 
                 val saldos = propriedades.map { propriedade ->
@@ -92,8 +94,8 @@ class PropriedadeListaViewModel(
     }
 
     // Mês global em SelecaoAtual, compartilhado entre as abas.
-    fun aoAvancarMes() = SelecaoAtual.avancarMes()
-    fun aoVoltarMes() = SelecaoAtual.voltarMes()
+    fun aoAvancarMes() = selecao.avancarMes()
+    fun aoVoltarMes() = selecao.voltarMes()
 
     companion object {
         private const val MENSAGEM_ERRO = "Não foi possível carregar as propriedades. Tentando de novo…"
@@ -103,8 +105,9 @@ class PropriedadeListaViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PropriedadeListaViewModel(
-                    propriedadeRepository = Repositorios.propriedades,
-                    lancamentoRepository = Repositorios.lancamentos
+                    selecao = dependencias.selecao,
+                    propriedadeRepository = dependencias.propriedades,
+                    lancamentoRepository = dependencias.lancamentos
                 )
             }
         }

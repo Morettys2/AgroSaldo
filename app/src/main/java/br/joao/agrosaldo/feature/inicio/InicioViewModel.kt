@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
@@ -82,6 +82,8 @@ class InicioViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val relogio: () -> Long = System::currentTimeMillis,
     /** Nome do usuário logado, usado para as iniciais. */
     nomeDoUsuario: Flow<String?> = flowOf(null),
@@ -104,8 +106,8 @@ class InicioViewModel(
             combine(
                 lancamentoRepository.observarTodos(),
                 propriedadeRepository.observarTodas(),
-                SelecaoAtual.propriedadeId,
-                SelecaoAtual.mes,
+                selecao.propriedadeId,
+                selecao.mes,
                 _voltas
             ) { lancamentos, propriedades, selecionadaId, mes, _ ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
@@ -123,7 +125,7 @@ class InicioViewModel(
         }
 
         // Previsão vem do cache; atualizarSeNecessario busca nova se estiver vencida.
-        val propriedadeAtual = combine(propriedadeRepository.observarTodas(), SelecaoAtual.propriedadeId) { lista, id ->
+        val propriedadeAtual = combine(propriedadeRepository.observarTodas(), selecao.propriedadeId) { lista, id ->
             ResumoFinanceiro.propriedadeAtual(lista, id)
         }.distinctUntilChanged()
 
@@ -149,7 +151,7 @@ class InicioViewModel(
      * pois o init já cobre esse caso.
      */
     fun aoVoltarParaATela() {
-        SelecaoAtual.acompanharMesCorrente(YearMonth.from(hoje()))
+        selecao.acompanharMesCorrente(YearMonth.from(hoje()))
         if (!jaApareceu) {
             jaApareceu = true
             return
@@ -230,9 +232,9 @@ class InicioViewModel(
     }
 
     // Mês global em SelecaoAtual, compartilhado entre as abas.
-    fun aoAvancarMes() = SelecaoAtual.avancarMes()
-    fun aoVoltarMes() = SelecaoAtual.voltarMes()
-    fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
+    fun aoAvancarMes() = selecao.avancarMes()
+    fun aoVoltarMes() = selecao.voltarMes()
+    fun aoSelecionarPropriedade(id: String) = selecao.selecionar(id)
 
     companion object {
         /** Quantas categorias o cartão "Maiores gastos" mostra. */
@@ -241,11 +243,12 @@ class InicioViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 InicioViewModel(
-                    lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeRepository = Repositorios.propriedades,
-                    clima = Repositorios.clima,
-                    ajustes = Repositorios.ajustesAviso,
-                    nomeDoUsuario = Repositorios.conta.observarUsuarioLogado().map { it?.nome }
+                    selecao = dependencias.selecao,
+                    lancamentoRepository = dependencias.lancamentos,
+                    propriedadeRepository = dependencias.propriedades,
+                    clima = dependencias.clima,
+                    ajustes = dependencias.ajustesAviso,
+                    nomeDoUsuario = dependencias.conta.observarUsuarioLogado().map { it?.nome }
                 )
             }
         }

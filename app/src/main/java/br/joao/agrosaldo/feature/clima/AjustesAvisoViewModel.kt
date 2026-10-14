@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAviso
@@ -121,7 +121,7 @@ class AjustesAvisoViewModel(
         const val CHUVA_MAX = 10.0
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { AjustesAvisoViewModel(Repositorios.ajustesAviso, Repositorios.agendaAviso, Repositorios.propriedades) }
+            initializer { AjustesAvisoViewModel(dependencias.ajustesAviso, dependencias.agendaAviso, dependencias.propriedades) }
         }
     }
 }

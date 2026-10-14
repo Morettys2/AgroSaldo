@@ -500,7 +500,7 @@ private val PERMISSAO_OK = PermissaoNotificacao(concedida = true, pedir = {})
 private val ESTADO_EXEMPLO = ClimaUiState(
     carregando = false,
     temPropriedade = true,
-    nomePropriedade = "Fazenda São João da Serra",
+    nomePropriedade = "Fazenda Santa Clara",
     temPrevisao = true,
     temperaturaAtual = "26°",
     condicaoAtual = CondicaoTempo.NUBLADO,

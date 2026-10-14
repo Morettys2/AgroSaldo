@@ -10,7 +10,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Assert.fail
-import org.junit.Before
 import org.junit.Test
 import java.time.YearMonth
 
@@ -144,73 +143,69 @@ class DesfazerESelecaoTest {
         assertNull(desfazer.pendente.value)
     }
 
-    // SelecaoAtual é global: desliga a persistência e zera o estado antes de cada teste.
-    @Before
-    fun limpar() {
-        SelecaoAtual.configurar(inicial = null) { }
-        SelecaoAtual.limpar()
-    }
+    /** Uma seleção nova por teste (antes era um `object` global zerado no @Before). */
+    private val selecao = SelecaoAtual()
 
     @Test
     fun `lembra a propriedade escolhida da ultima vez`() {
         val gravadas = mutableListOf<String?>()
-        SelecaoAtual.configurar(inicial = "sitio-1") { gravadas += it }
+        val selecao = SelecaoAtual(propriedadeInicial = "sitio-1") { gravadas += it }
 
-        assertEquals("sitio-1", SelecaoAtual.propriedadeId.value)
+        assertEquals("sitio-1", selecao.propriedadeId.value)
 
-        SelecaoAtual.selecionar("sitio-2")
-        SelecaoAtual.selecionar("sitio-2") // Mesma seleção: não deve gravar de novo.
-        SelecaoAtual.limparSeFor("sitio-2")
+        selecao.selecionar("sitio-2")
+        selecao.selecionar("sitio-2") // Mesma seleção: não deve gravar de novo.
+        selecao.limparSeFor("sitio-2")
 
         assertEquals(listOf("sitio-2", null), gravadas)
-        assertNull(SelecaoAtual.propriedadeId.value)
+        assertNull(selecao.propriedadeId.value)
     }
 
     @Test
     fun `o mes e o mesmo em todas as abas e volta para o atual ao trocar de conta`() {
-        SelecaoAtual.voltarMes()
-        SelecaoAtual.voltarMes()
-        SelecaoAtual.avancarMes()
-        assertEquals(YearMonth.now().minusMonths(1), SelecaoAtual.mes.value)
+        selecao.voltarMes()
+        selecao.voltarMes()
+        selecao.avancarMes()
+        assertEquals(YearMonth.now().minusMonths(1), selecao.mes.value)
 
-        SelecaoAtual.selecionarMes(YearMonth.of(2025, 1))
-        assertEquals(YearMonth.of(2025, 1), SelecaoAtual.mes.value)
+        selecao.selecionarMes(YearMonth.of(2025, 1))
+        assertEquals(YearMonth.of(2025, 1), selecao.mes.value)
 
-        SelecaoAtual.limpar()
-        assertEquals(YearMonth.now(), SelecaoAtual.mes.value)
+        selecao.limpar()
+        assertEquals(YearMonth.now(), selecao.mes.value)
     }
 
     @Test
     fun `na virada do mes com o app aberto a selecao vai para o mes novo`() {
-        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+        selecao.limpar(agora = YearMonth.of(2026, 9))
 
-        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
+        selecao.acompanharMesCorrente(YearMonth.of(2026, 10))
 
-        assertEquals(YearMonth.of(2026, 10), SelecaoAtual.mes.value)
+        assertEquals(YearMonth.of(2026, 10), selecao.mes.value)
     }
 
     @Test
     fun `mes escolhido a mao continua escolhido depois da virada`() {
-        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
-        SelecaoAtual.selecionarMes(YearMonth.of(2026, 6))
+        selecao.limpar(agora = YearMonth.of(2026, 9))
+        selecao.selecionarMes(YearMonth.of(2026, 6))
 
-        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 10))
-        assertEquals(YearMonth.of(2026, 6), SelecaoAtual.mes.value)
+        selecao.acompanharMesCorrente(YearMonth.of(2026, 10))
+        assertEquals(YearMonth.of(2026, 6), selecao.mes.value)
 
         // De volta ao mês corrente, a seleção volta a acompanhar o calendário.
-        SelecaoAtual.selecionarMes(YearMonth.of(2026, 10))
-        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 11))
-        assertEquals(YearMonth.of(2026, 11), SelecaoAtual.mes.value)
+        selecao.selecionarMes(YearMonth.of(2026, 10))
+        selecao.acompanharMesCorrente(YearMonth.of(2026, 11))
+        assertEquals(YearMonth.of(2026, 11), selecao.mes.value)
     }
 
     @Test
     fun `sem virada, ou com o relogio voltando, o mes nao muda`() {
-        SelecaoAtual.limpar(agora = YearMonth.of(2026, 9))
+        selecao.limpar(agora = YearMonth.of(2026, 9))
 
-        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 9))
-        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+        selecao.acompanharMesCorrente(YearMonth.of(2026, 9))
+        assertEquals(YearMonth.of(2026, 9), selecao.mes.value)
 
-        SelecaoAtual.acompanharMesCorrente(YearMonth.of(2026, 8))
-        assertEquals(YearMonth.of(2026, 9), SelecaoAtual.mes.value)
+        selecao.acompanharMesCorrente(YearMonth.of(2026, 8))
+        assertEquals(YearMonth.of(2026, 9), selecao.mes.value)
     }
 }

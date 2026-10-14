@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -64,11 +64,13 @@ data class HistoricoUiState(
 class HistoricoViewModel(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
+    /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
+    private val selecao: SelecaoAtual,
     private val hoje: () -> LocalDate = LocalDate::now
 ) : ViewModel() {
 
     // Ano inicial: o do mês selecionado globalmente.
-    private val _ano = MutableStateFlow(SelecaoAtual.mes.value.year)
+    private val _ano = MutableStateFlow(selecao.mes.value.year)
 
     private val _uiState = MutableStateFlow(HistoricoUiState(ano = _ano.value))
     val uiState: StateFlow<HistoricoUiState> = _uiState.asStateFlow()
@@ -78,7 +80,7 @@ class HistoricoViewModel(
             combine(
                 lancamentoRepository.observarTodos(),
                 propriedadeRepository.observarTodas(),
-                SelecaoAtual.propriedadeId,
+                selecao.propriedadeId,
                 _ano
             ) { lancamentos, propriedades, selecionadaId, ano ->
                 montarEstado(lancamentos, propriedades, selecionadaId, ano)
@@ -151,10 +153,10 @@ class HistoricoViewModel(
         if (_ano.value < anoMaximo()) _ano.value = _ano.value + 1
     }
 
-    fun aoSelecionarPropriedade(id: String) = SelecaoAtual.selecionar(id)
+    fun aoSelecionarPropriedade(id: String) = selecao.selecionar(id)
 
     /** Seleciona o mês em [SelecaoAtual] antes de a tela navegar para Lançamentos. */
-    fun aoAbrirMes(mes: YearMonth) = SelecaoAtual.selecionarMes(mes)
+    fun aoAbrirMes(mes: YearMonth) = selecao.selecionarMes(mes)
 
     companion object {
         const val MAXIMO_CATEGORIAS = 5
@@ -162,8 +164,9 @@ class HistoricoViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HistoricoViewModel(
-                    lancamentoRepository = Repositorios.lancamentos,
-                    propriedadeRepository = Repositorios.propriedades
+                    selecao = dependencias.selecao,
+                    lancamentoRepository = dependencias.lancamentos,
+                    propriedadeRepository = dependencias.propriedades
                 )
             }
         }

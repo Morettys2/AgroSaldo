@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.data.Repositorios
+import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +69,7 @@ class LoginViewModel(
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { LoginViewModel(Repositorios.conta) }
+            initializer { LoginViewModel(dependencias.conta) }
         }
     }
 }

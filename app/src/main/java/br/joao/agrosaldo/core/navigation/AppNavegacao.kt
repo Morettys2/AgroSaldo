@@ -80,7 +80,6 @@ import androidx.navigation.navArgument
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.data.Desfazer
-import br.joao.agrosaldo.data.Repositorios
 import br.joao.agrosaldo.feature.clima.AjustesAvisoRoute
 import br.joao.agrosaldo.feature.clima.ClimaRoute
 import br.joao.agrosaldo.feature.conta.AlterarSenhaRoute
@@ -136,6 +135,7 @@ private val ABAS = listOf(
  * novo aceite) são observadas em [SessaoViewModel] e convertidas em navegação aqui.
  *
  * @param pedidoDoClima último toque na notificação de chuva; cada pedido novo abre a aba Clima.
+ * @param desfazer oferta de desfazer exclusão, a mesma instância usada pelos formulários.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,7 +144,7 @@ fun AppNavegacao(
     navController: NavHostController = rememberNavController(),
     sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
     privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory),
-    desfazer: Desfazer = Repositorios.desfazer
+    desfazer: Desfazer
 ) {
     val valoresOcultos by privacidadeViewModel.valoresOcultos.collectAsStateWithLifecycle()
     val logado by sessaoViewModel.logado.collectAsStateWithLifecycle()

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -24,6 +25,9 @@ import java.time.LocalDate
 
 class PropriedadeFormViewModelTest {
 
+    /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
+    private val selecao = SelecaoAtual()
+
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
@@ -36,8 +40,8 @@ class PropriedadeFormViewModelTest {
         propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
     }
 
-    private fun novo() = PropriedadeFormViewModel(propriedades, propriedadeId = null)
-    private fun editando(id: String) = PropriedadeFormViewModel(propriedades, propriedadeId = id)
+    private fun novo() = PropriedadeFormViewModel(propriedades, propriedadeId = null, selecao = selecao)
+    private fun editando(id: String) = PropriedadeFormViewModel(propriedades, propriedadeId = id, selecao = selecao)
 
     private fun preencher(vm: PropriedadeFormViewModel, area: String = "3") {
         vm.aoMudarNome("Sítio Novo")
@@ -163,7 +167,7 @@ class PropriedadeFormViewModelTest {
         val desfazer = Desfazer()
         val antes = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
         val propriedadeAntes = propriedades.buscarPorId(DadosDeExemplo.ID_SITIO)
-        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, desfazer)
+        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, desfazer = desfazer, selecao = selecao)
 
         vm.aoExcluir()
         val oferta = checkNotNull(desfazer.pendente.value)
@@ -202,7 +206,7 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `dois toques em salvar criam uma propriedade so`() = runTest {
         val lentas = PropriedadesLentas(propriedades)
-        val vm = PropriedadeFormViewModel(lentas, propriedadeId = null)
+        val vm = PropriedadeFormViewModel(lentas, propriedadeId = null, selecao = selecao)
         preencher(vm)
 
         vm.aoSalvar()
@@ -232,7 +236,7 @@ class PropriedadeFormViewModelTest {
         val quebrado = object : PropriedadeRepository by propriedades {
             override suspend fun salvar(propriedade: Propriedade) = throw IllegalStateException("disco cheio")
         }
-        val vm = PropriedadeFormViewModel(quebrado, propriedadeId = null)
+        val vm = PropriedadeFormViewModel(quebrado, propriedadeId = null, selecao = selecao)
         preencher(vm)
         vm.aoSalvar()
 
@@ -426,7 +430,7 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `o que foi digitado volta depois que o Android mata o processo`() {
         val guardado = SavedStateHandle()
-        val antes = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+        val antes = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado, selecao = selecao)
         antes.aoMudarNome("Chácara Três Irmãos")
         antes.aoMudarCultura("Café")
         antes.aoMudarArea("1.250,5")
@@ -437,7 +441,7 @@ class PropriedadeFormViewModelTest {
         // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
         assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
         val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
-        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = restaurado)
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = restaurado, selecao = selecao)
 
         val estado = depois.uiState.value
         assertEquals("Chácara Três Irmãos", estado.nome)
@@ -450,10 +454,10 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `coordenadas do GPS tambem sobrevivem a morte do processo`() {
         val guardado = SavedStateHandle()
-        PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+        PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado, selecao = selecao)
             .aoUsarLocalizacao(latitude = -21.7, longitude = -46.9)
 
-        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado)
+        val depois = PropriedadeFormViewModel(propriedades, propriedadeId = null, estadoSalvo = guardado, selecao = selecao)
 
         assertEquals("-21,700000", depois.uiState.value.latitude)
         assertEquals("-46,900000", depois.uiState.value.longitude)
@@ -462,7 +466,7 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `na edicao o valor restaurado vale mais que o do banco`() {
         val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
-        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado)
+        val vm = PropriedadeFormViewModel(propriedades, DadosDeExemplo.ID_SITIO, estadoSalvo = restaurado, selecao = selecao)
 
         assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
         assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)

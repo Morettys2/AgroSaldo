@@ -36,6 +36,9 @@ import java.time.ZoneOffset
 /** ClimaViewModel, AjustesAvisoViewModel e o cartão de chuva do InicioViewModel. */
 class ClimaViewModelsTest {
 
+    /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
+    private val selecao = SelecaoAtual()
+
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
@@ -44,14 +47,14 @@ class ClimaViewModelsTest {
 
     @Before
     fun limparSelecao() {
-        SelecaoAtual.limpar()
+        selecao.limpar()
     }
 
     private fun climaViewModel(
         clima: ClimaRepositoryMemoria,
         ajustes: AjustesAvisoMemoria = AjustesAvisoMemoria(),
         propriedades: PropriedadeRepositoryMemoria = PropriedadeRepositoryMemoria()
-    ) = ClimaViewModel(propriedades, clima, ajustes, relogio = { AGORA.toEpochMilli() }, zona = ZoneOffset.ofHours(-3))
+    ) = ClimaViewModel(propriedades, clima, ajustes, relogio = { AGORA.toEpochMilli() }, zona = ZoneOffset.ofHours(-3), selecao = selecao)
 
     @Test
     fun `RF13 - mostra temperatura, 7 dias e a recomendacao do pivo`() {
@@ -174,7 +177,7 @@ class ClimaViewModelsTest {
         val clima = ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0)))))
         val vm = ClimaViewModel(
             PropriedadeRepositoryMemoria(), clima, AjustesAvisoMemoria(),
-            relogio = { agora.toEpochMilli() }, zona = ZoneOffset.ofHours(-3)
+            relogio = { agora.toEpochMilli() }, zona = ZoneOffset.ofHours(-3), selecao = selecao
         )
         assertEquals("Chuva prevista a partir da 1h de amanhã", vm.uiState.value.resumo)
         assertEquals(7, vm.uiState.value.dias.size)
@@ -319,7 +322,7 @@ class ClimaViewModelsTest {
         clima,
         AjustesAvisoMemoria(),
         relogio = { agora.toEpochMilli() },
-        nomeDoUsuario = flowOf(nome)
+        nomeDoUsuario = flowOf(nome), selecao = selecao
     )
 
     private fun cartaoCom(chuvaPorHora: Map<Int, Pair<Int, Double>>) =
@@ -407,7 +410,7 @@ class ClimaViewModelsTest {
             PropriedadeRepositoryMemoria(),
             ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)),
             AjustesAvisoMemoria(),
-            relogio = { AGORA.toEpochMilli() }
+            relogio = { AGORA.toEpochMilli() }, selecao = selecao
         )
         val antes = vm.uiState.value
         assertTrue(antes.chuva?.vaiChover == true)
@@ -435,7 +438,7 @@ class ClimaViewModelsTest {
             PropriedadeRepositoryMemoria(),
             ClimaRepositoryMemoria(mapOf(fazendaId to previsao(mapOf(25 to (90 to 4.0))))),
             AjustesAvisoMemoria(),
-            relogio = { agora.toEpochMilli() }
+            relogio = { agora.toEpochMilli() }, selecao = selecao
         )
         assertEquals("Chuva amanhã à 1h. Dá para adiar o pivô.", vm.uiState.value.chuva?.frase)
 

@@ -313,7 +313,7 @@ class ClimaTest {
     }
 
     private val fazenda = Propriedade(
-        id = "p1", nome = "Fazenda São João da Serra", cultura = "Café",
+        id = "p1", nome = "Fazenda Santa Clara", cultura = "Café",
         areaHectares = 42.0, latitude = -21.7049, longitude = -46.9312
     )
 
@@ -655,9 +655,9 @@ class ClimaTest {
 
     @Test
     fun `texto da notificacao traz chance, volume, hora e a recomendacao`() {
-        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(comChuva, AGORA))
+        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(comChuva, AGORA))
 
-        assertEquals("Chuva prevista: Fazenda São João", TextosDoAviso.titulo(aviso))
+        assertEquals("Chuva prevista: Fazenda Santa Clara", TextosDoAviso.titulo(aviso))
         assertEquals(
             "85% de chance de chuva nas próximas 12 horas, com 6 mm previstos a partir das 18h. " +
                 "Dá para adiar a irrigação do pivô e economizar energia.",
@@ -669,7 +669,7 @@ class ClimaTest {
     fun `notificacao diz o dia quando a chuva comeca depois da meia-noite e nao fala 0 mm`() {
         val madrugada = previsao(mapOf(25 to (90 to 0.0)))
         val agoraLocal = madrugada.horaLocal(AGORA)
-        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(madrugada, AGORA), agoraLocal)
+        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(madrugada, AGORA), agoraLocal)
 
         assertEquals(
             "90% de chance de chuva nas próximas 12 horas a partir da 1h de amanhã. " +
@@ -708,13 +708,13 @@ class ClimaTest {
 
     @Test
     fun `tela bloqueada nao mostra o nome da propriedade nem os numeros da previsao`() {
-        val aviso = AvisoDeChuva("p1", "Fazenda São João", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
+        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
         val completo = TextosDoAviso.titulo(aviso) + " " + TextosDoAviso.corpo(aviso, 12)
         val publico = TextosDoAviso.TITULO_PUBLICO + " " + TextosDoAviso.CORPO_PUBLICO
 
-        val sensiveis = listOf("Fazenda São João", "85%", "6 mm", "18h")
+        val sensiveis = listOf("Fazenda Santa Clara", "85%", "6 mm", "18h")
         sensiveis.forEach { assertTrue("o texto completo deveria trazer '$it': $completo", completo.contains(it)) }
-        listOf("Fazenda", "São João", "%", "mm", "18h").forEach {
+        listOf("Fazenda", "Santa Clara", "%", "mm", "18h").forEach {
             assertFalse("a versão pública mostra '$it': $publico", publico.contains(it))
         }
         assertFalse("a versão pública tem números: $publico", publico.any { it.isDigit() })

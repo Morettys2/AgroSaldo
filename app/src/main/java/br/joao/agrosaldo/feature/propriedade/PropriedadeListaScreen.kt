@@ -319,7 +319,7 @@ private fun PreviewComDados() {
                 itens = listOf(
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Fazenda São João da Serra", cultura = "Milho",
+                            nome = "Fazenda Santa Clara", cultura = "Milho",
                             areaHectares = 50.0, latitude = -21.7333, longitude = -46.9667
                         ),
                         saldoCentavos = 1_247_000L,
