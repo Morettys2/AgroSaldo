@@ -25,9 +25,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 
 @Composable
 fun AlterarSenhaRoute(
@@ -70,9 +72,9 @@ fun AlterarSenhaScreen(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         CampoSenha(
             valor = uiState.senhaAtual,
@@ -102,24 +104,12 @@ fun AlterarSenhaScreen(
 
         CartaoRequisitosSenha(requisitos = uiState.requisitos)
 
-        Button(
-            onClick = aoSalvar,
-            enabled = !uiState.salvando,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            if (uiState.salvando) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(text = "Salvar nova senha", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BotaoPrincipal(
+            texto = "Salvar nova senha",
+            aoClicar = aoSalvar,
+            carregando = uiState.salvando,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

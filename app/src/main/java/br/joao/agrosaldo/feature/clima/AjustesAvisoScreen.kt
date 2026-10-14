@@ -35,11 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 /** Ajustes do aviso de chuva: ativação, limites (RN04) e propriedades avisadas. */
@@ -109,8 +111,8 @@ fun AjustesAvisoScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme)
     ) {
         Text(
             text = "Você decide quando o app avisa. O aviso chega quando QUALQUER um dos dois limites é atingido.",
@@ -118,13 +120,13 @@ fun AjustesAvisoScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Espacos.padrao))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp)
+                .padding(vertical = Espacos.medio)
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Avisar sobre chuva", style = MaterialTheme.typography.bodyLarge)
@@ -139,13 +141,13 @@ fun AjustesAvisoScreen(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         if (uiState.ativo && !permissao.concedida) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Espacos.medio))
             Card(
                 shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(Espacos.padrao), verticalArrangement = Arrangement.spacedBy(Espacos.minimo)) {
                     Text(
                         text = "As notificações do app estão bloqueadas. Sem elas, o aviso só aparece dentro da tela de clima.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -156,7 +158,7 @@ fun AjustesAvisoScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Espacos.largo))
 
         CartaoLimite(
             titulo = "Chance mínima de chuva",
@@ -170,7 +172,7 @@ fun AjustesAvisoScreen(
             aoMudar = aoMudarProbabilidade
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Espacos.medio))
 
         CartaoLimite(
             titulo = "Chuva mínima somada",
@@ -185,7 +187,7 @@ fun AjustesAvisoScreen(
         )
 
         if (uiState.mostrarSitios) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Espacos.largo))
             Text(
                 text = "Avisar sobre",
                 style = MaterialTheme.typography.labelLarge,
@@ -212,7 +214,7 @@ fun AjustesAvisoScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Espacos.largo))
 
         Text(
             text = "Janela de previsão: próximas ${uiState.janelaHoras} horas",
@@ -222,20 +224,12 @@ fun AjustesAvisoScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        Button(
-            onClick = aoSalvar,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Text("Salvar ajustes", style = MaterialTheme.typography.titleMedium)
-        }
+        BotaoPrincipal(texto = "Salvar ajustes", aoClicar = aoSalvar, modifier = Modifier.fillMaxWidth())
 
         ferramentasDeTeste?.let { ferramentas ->
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(Espacos.enorme))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Espacos.medio))
             Text(
                 text = "Ferramentas de teste (só aparecem na versão de desenvolvimento)",
                 style = MaterialTheme.typography.labelSmall,
@@ -263,7 +257,7 @@ private fun CartaoLimite(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(titulo, style = MaterialTheme.typography.bodyLarge)
                 Text(valor, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)

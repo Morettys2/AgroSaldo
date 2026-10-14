@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
+import br.joao.agrosaldo.ui.theme.Espacos
 
 /** Checklist dos requisitos de senha, atualizado durante a digitação (cadastro e troca de senha). */
 @Composable
@@ -30,7 +31,7 @@ fun CartaoRequisitosSenha(requisitos: RequisitosSenha, modifier: Modifier = Modi
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Espacos.padrao),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             LinhaRequisito("Pelo menos ${RegrasDeConta.SENHA_MINIMO} caracteres", requisitos.temTamanhoMinimo)
@@ -44,7 +45,7 @@ fun CartaoRequisitosSenha(requisitos: RequisitosSenha, modifier: Modifier = Modi
 private fun LinhaRequisito(texto: String, cumprido: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno)
     ) {
         Icon(
             imageVector = if (cumprido) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,

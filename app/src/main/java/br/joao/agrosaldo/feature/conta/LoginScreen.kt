@@ -35,9 +35,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 
 /**
  * Rota de login (RF02). Não há callback de sucesso: a AppNavegacao observa a
@@ -78,9 +80,9 @@ fun LoginScreen(
             // imePadding antes do scroll: o campo em foco fica acessível com o teclado aberto.
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 40.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = 40.dp, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -97,7 +99,7 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Espacos.pequeno))
 
         Text(text = "Bem-vindo de volta", style = MaterialTheme.typography.headlineMedium)
         Text(
@@ -106,7 +108,7 @@ fun LoginScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Espacos.minimo))
 
         CampoTexto(
             valor = uiState.email,
@@ -139,24 +141,12 @@ fun LoginScreen(
             )
         }
 
-        Button(
-            onClick = aoEntrar,
-            enabled = !uiState.entrando,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            if (uiState.entrando) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(text = "Entrar", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BotaoPrincipal(
+            texto = "Entrar",
+            aoClicar = aoEntrar,
+            carregando = uiState.entrando,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         TextButton(onClick = aoCriarConta, modifier = Modifier.fillMaxWidth()) {
             Text(text = "Não tem conta? Criar conta", style = MaterialTheme.typography.bodyLarge)
@@ -185,6 +175,7 @@ fun LoginScreen(
     }
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1600, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 800)
 @Composable
 private fun LoginPreview() {

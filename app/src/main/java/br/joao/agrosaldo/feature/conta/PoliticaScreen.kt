@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 
 private data class Secao(val titulo: String, val texto: String)
 
@@ -82,9 +83,9 @@ fun PoliticaScreen(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.largo)
     ) {
         SECOES.forEach { secao ->
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

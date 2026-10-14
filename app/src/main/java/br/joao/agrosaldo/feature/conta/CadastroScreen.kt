@@ -24,10 +24,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 
 /**
  * Formulário de criação de conta (RF01). O [viewModel] é injetado pela AppNavegacao,
@@ -80,9 +82,9 @@ fun CadastroScreen(
             // imePadding antes do scroll: o campo em foco fica acessível com o teclado aberto.
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         Text(
             text = "Leva menos de um minuto. Os dados ficam no seu aparelho.",
@@ -127,24 +129,12 @@ fun CadastroScreen(
 
         CartaoRequisitosSenha(requisitos = uiState.requisitos)
 
-        Button(
-            onClick = aoContinuar,
-            enabled = !uiState.verificando,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            if (uiState.verificando) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(text = "Continuar", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BotaoPrincipal(
+            texto = "Continuar",
+            aoClicar = aoContinuar,
+            carregando = uiState.verificando,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         TextButton(onClick = aoVoltarParaLogin, modifier = Modifier.fillMaxWidth()) {
             Text(

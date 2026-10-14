@@ -44,12 +44,15 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.BotaoDestaque
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.CartaoNoCabecalho
 import br.joao.agrosaldo.core.ui.CartaoSafra
+import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.core.ui.LinhaLancamento
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
-import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.ui.TituloDeCartao
 import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.apoioComData
@@ -64,6 +67,7 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
@@ -128,10 +132,14 @@ fun InicioScreen(
     when {
         // Cabeçalho exibido já no carregamento para manter os ícones claros da status bar.
         uiState.carregando -> Column(modifier.fillMaxSize()) {
-            CabecalhoSafra { Spacer(Modifier.height(48.dp)) }
-            Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            CabecalhoSafra { Spacer(Modifier.height(Espacos.alvoDeToque)) }
+            Carregando()
+        }
+
+        // Falha na primeira leitura: sem isto, a tela diria "cadastre um sítio" a quem já tem.
+        uiState.erro != null && !uiState.temPropriedade -> Column(modifier.fillMaxSize()) {
+            CabecalhoSafra { Spacer(Modifier.height(Espacos.alvoDeToque)) }
+            EstadoErro(uiState.erro, Modifier.padding(Espacos.margemDaTela))
         }
 
         !uiState.temPropriedade -> InicioVazio(
@@ -141,8 +149,8 @@ fun InicioScreen(
 
         else -> LazyColumn(
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(bottom = Espacos.grande),
+            verticalArrangement = Arrangement.spacedBy(Espacos.largo)
         ) {
             item(key = "cabecalho") {
                 Cabecalho(
@@ -153,6 +161,10 @@ fun InicioScreen(
                     aoAbrirConta = aoAbrirConta,
                     aoAlternarValores = aoAlternarValores
                 )
+            }
+
+            uiState.erro?.let { erro ->
+                item(key = "erro") { EstadoErro(erro, Modifier.padding(horizontal = Espacos.margemDaTela)) }
             }
 
             item(key = "atalhos") {
@@ -167,7 +179,7 @@ fun InicioScreen(
                 CartaoChuva(
                     chuva = uiState.chuva,
                     aoClicar = aoAbrirClima,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                 )
             }
 
@@ -175,7 +187,7 @@ fun InicioScreen(
                 item(key = "gastos") {
                     CartaoGastos(
                         gastos = uiState.gastosPorCategoria,
-                        modifier = Modifier.padding(horizontal = 20.dp)
+                        modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                     )
                 }
             }
@@ -186,7 +198,7 @@ fun InicioScreen(
                     hoje = uiState.hoje,
                     aoEditarLancamento = aoEditarLancamento,
                     aoVerTodos = aoAbrirLancamentos,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                 )
             }
         }
@@ -208,10 +220,10 @@ private fun Cabecalho(
     CabecalhoSafra {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Espacos.medio)
         ) {
             BotaoConta(iniciais = uiState.iniciais, aoClicar = aoAbrirConta)
-            SeletorPropriedadeCabecalho(
+            SeletorPropriedade(
                 nome = uiState.nomePropriedade,
                 propriedades = uiState.propriedades,
                 aoSelecionar = aoSelecionarPropriedade,
@@ -224,7 +236,7 @@ private fun Cabecalho(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Espacos.minimo)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Saldo de " + rotuloDoMes(uiState.mes, uiState.hoje),
@@ -313,8 +325,8 @@ private fun Atalhos(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = Espacos.margemDaTela),
+        horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno)
     ) {
         Atalho(
             rotulo = "Despesa",
@@ -358,7 +370,7 @@ private fun Atalho(
             .semantics { contentDescription = descricao }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = Espacos.medio),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -379,13 +391,13 @@ private fun CartaoChuva(chuva: CartaoChuvaUi?, aoClicar: () -> Unit, modifier: M
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(Espacos.largo),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(Espacos.padrao)
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(Espacos.minimo)
             ) {
                 Text(
                     text = chuva?.rotulo ?: "Previsão do tempo",
@@ -426,7 +438,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
     CartaoSafra(modifier = modifier) {
         TituloDeCartao("Pra onde foi o dinheiro")
         Spacer(Modifier.height(14.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
             gastos.forEach { gasto ->
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -493,14 +505,14 @@ private fun CartaoUltimos(
             titulo = "Últimos lançamentos",
             acao = if (lancamentos.isEmpty()) null else "Ver todos",
             aoClicarAcao = aoVerTodos,
-            modifier = Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 2.dp)
+            modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.medio, top = Espacos.medio, bottom = 2.dp)
         )
         if (lancamentos.isEmpty()) {
             Text(
                 text = "Nenhum lançamento neste mês. Toque no + verde-limão lá embaixo para lançar o primeiro.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp)
+                modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.minimo, bottom = Espacos.largo)
             )
         } else {
             lancamentos.forEach { lancamento ->
@@ -510,7 +522,7 @@ private fun CartaoUltimos(
                     aoClicar = { aoEditarLancamento(lancamento.id) }
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Espacos.pequeno))
         }
     }
 }
@@ -530,7 +542,7 @@ private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier =
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+                .padding(horizontal = Espacos.enorme, vertical = Espacos.grande),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -548,36 +560,21 @@ private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier =
                     modifier = Modifier.size(52.dp)
                 )
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Espacos.largo))
             Text(
                 text = "Comece cadastrando um sítio",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Espacos.pequeno))
             Text(
                 text = "Cada propriedade tem seus próprios lançamentos e sua própria previsão do tempo.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = aoCadastrarPropriedade,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.agro.destaque,
-                    contentColor = MaterialTheme.agro.sobreDestaque
-                ),
-                modifier = Modifier.heightIn(min = 56.dp)
-            ) {
-                Icon(IconesAgro.Mais, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text(
-                    text = "Cadastrar propriedade",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
+            Spacer(Modifier.height(Espacos.grande))
+            BotaoDestaque(texto = "Cadastrar propriedade", aoClicar = aoCadastrarPropriedade, icone = IconesAgro.Mais)
         }
     }
 }
@@ -631,6 +628,7 @@ private fun InicioDeExemplo(uiState: InicioUiState) {
     )
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2200, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 private fun InicioPreview() {

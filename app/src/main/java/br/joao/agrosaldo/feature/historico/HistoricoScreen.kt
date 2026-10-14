@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -45,6 +46,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import br.joao.agrosaldo.core.ui.Carregando
+import br.joao.agrosaldo.core.ui.EstadoErro
+import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.ui.ValorGrande
@@ -57,6 +61,7 @@ import br.joao.agrosaldo.core.util.siglaDoMes
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.YearMonth
 
@@ -91,22 +96,27 @@ fun HistoricoScreen(
     modifier: Modifier = Modifier
 ) {
     if (uiState.carregando) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        Carregando(modifier.fillMaxSize())
         return
     }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.medio)
     ) {
         item {
             SeletorPropriedade(
                 nome = uiState.nomePropriedade,
                 propriedades = uiState.propriedades,
                 aoSelecionar = aoSelecionarPropriedade,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp)
+                noCabecalho = false,
+                modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.minimo)
             )
+        }
+
+        uiState.erro?.let { erro ->
+            item { EstadoErro(erro, Modifier.padding(horizontal = Espacos.margemDaTela)) }
         }
 
         item {
@@ -120,24 +130,21 @@ fun HistoricoScreen(
 
         if (!uiState.temMovimento) {
             item {
-                Text(
-                    text = "Nenhum lançamento em ${uiState.ano}.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(32.dp)
+                EstadoVazio(
+                    texto = "Nenhum lançamento em ${uiState.ano}.",
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                 )
             }
             return@LazyColumn
         }
 
-        item { CartaoDoAno(uiState, Modifier.padding(horizontal = 16.dp)) }
+        item { CartaoDoAno(uiState, Modifier.padding(horizontal = Espacos.margemDaTela)) }
 
         item {
             CartaoGrafico(
                 meses = uiState.meses,
                 maiorValor = uiState.maiorValorMensal,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
             )
         }
 
@@ -146,14 +153,14 @@ fun HistoricoScreen(
                 Destaques(
                     melhor = uiState.melhorMes,
                     pior = uiState.piorMes,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                 )
             }
         }
 
         if (uiState.gastosDoAno.isNotEmpty()) {
             item { Secao("Maiores gastos do ano") }
-            item { CartaoGastos(uiState.gastosDoAno, Modifier.padding(horizontal = 16.dp)) }
+            item { CartaoGastos(uiState.gastosDoAno, Modifier.padding(horizontal = Espacos.margemDaTela)) }
         }
 
         item { Secao("Mês a mês · toque para ver os lançamentos") }
@@ -169,7 +176,7 @@ fun HistoricoScreen(
 @Composable
 private fun SeletorAno(ano: Int, podeAvancar: Boolean, aoVoltar: () -> Unit, aoAvancar: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Espacos.minimo),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -193,7 +200,7 @@ private fun CartaoDoAno(uiState: HistoricoUiState, modifier: Modifier = Modifier
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.cabecalho),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(24.dp)) {
+        Column(Modifier.padding(Espacos.grande)) {
             Text(
                 "Saldo de ${uiState.ano}",
                 style = MaterialTheme.typography.labelLarge,
@@ -205,7 +212,7 @@ private fun CartaoDoAno(uiState: HistoricoUiState, modifier: Modifier = Modifier
                 cor = if (negativo && !oculto) MaterialTheme.agro.despesaNoCabecalho else MaterialTheme.agro.sobreCabecalho,
                 modifier = Modifier.valorEscondido(oculto)
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Espacos.medio))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     "Entrou  " + uiState.receitasCentavos.emRealCurto(oculto),
@@ -248,8 +255,8 @@ private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifie
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.padding(Espacos.padrao), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Espacos.padrao)) {
                 Legenda("Entrou", corReceita)
                 Legenda("Saiu", corDespesa)
             }
@@ -329,7 +336,7 @@ private fun Legenda(texto: String, cor: Color) {
 
 @Composable
 private fun Destaques(melhor: MesDoHistorico, pior: MesDoHistorico?, modifier: Modifier = Modifier) {
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Espacos.medio)) {
         Destaque("Melhor mês", melhor, Modifier.weight(1f))
         if (pior != null) Destaque("Mês mais fraco", pior, Modifier.weight(1f))
     }
@@ -364,7 +371,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             gastos.forEach { gasto ->
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -396,8 +403,8 @@ private fun LinhaMes(mes: MesDoHistorico, aoClicar: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = aoClicar)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .clickable(role = Role.Button, onClickLabel = "Ver os lançamentos do mês", onClick = aoClicar)
+                .padding(horizontal = Espacos.margemDaTela, vertical = Espacos.medio)
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(mes.mes.nomeDoMes(), style = MaterialTheme.typography.bodyLarge)
@@ -432,7 +439,7 @@ private fun LinhaMes(mes: MesDoHistorico, aoClicar: () -> Unit) {
         }
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.padding(horizontal = 20.dp)
+            modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
         )
     }
 }
@@ -443,10 +450,11 @@ private fun Secao(titulo: String) {
         text = titulo,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
+        modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.medio)
     )
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2800, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 1400)
 @Composable
 private fun HistoricoPreview() {

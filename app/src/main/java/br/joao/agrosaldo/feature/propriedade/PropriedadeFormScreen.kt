@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -45,8 +46,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.localizacao.rememberBuscaDeLocalizacao
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
+import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 @Composable
@@ -129,9 +133,9 @@ fun PropriedadeFormScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
 
         CampoTexto(
@@ -180,14 +184,14 @@ fun PropriedadeFormScreen(
             onClick = aoUsarMinhaLocalizacao,
             enabled = !buscandoLocalizacao,
             shape = CircleShape,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().heightIn(min = Espacos.alvoDeToque)
         ) {
             if (buscandoLocalizacao) {
                 CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                Text("Procurando…", modifier = Modifier.padding(start = 8.dp))
+                Text("Procurando…", modifier = Modifier.padding(start = Espacos.pequeno))
             } else {
                 Icon(Icons.Outlined.MyLocation, contentDescription = null)
-                Text("Usar minha localização", modifier = Modifier.padding(start = 8.dp))
+                Text("Usar minha localização", modifier = Modifier.padding(start = Espacos.pequeno))
             }
         }
 
@@ -212,7 +216,7 @@ fun PropriedadeFormScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.agro.climaContainer)
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(Espacos.padrao),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
@@ -230,7 +234,7 @@ fun PropriedadeFormScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Espacos.pequeno))
 
         // Erro geral (não associado a campo) exibido logo acima do botão.
         uiState.erroGeral?.let { mensagem ->
@@ -241,40 +245,25 @@ fun PropriedadeFormScreen(
             )
         }
 
-        Button(
-            onClick = aoSalvar,
-            enabled = !uiState.salvando,
-            shape = CircleShape,
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) {
-            Text(
-                text = when {
-                    uiState.avisoCoordenadas != null -> "Salvar mesmo assim"
-                    uiState.ehEdicao -> "Salvar alterações"
-                    else -> "Salvar propriedade"
-                },
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
+        BotaoPrincipal(
+            texto = when {
+                uiState.avisoCoordenadas != null -> "Salvar mesmo assim"
+                uiState.ehEdicao -> "Salvar alterações"
+                else -> "Salvar propriedade"
+            },
+            aoClicar = aoSalvar,
+            habilitado = !uiState.salvando,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         if (uiState.ehEdicao) {
-            OutlinedButton(
-                onClick = { confirmandoExclusao = true },
-                shape = CircleShape,
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.agro.despesa
-                )
-                Text(
-                    text = "Excluir propriedade",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.agro.despesa,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
+            BotaoSecundario(
+                texto = "Excluir propriedade",
+                aoClicar = { confirmandoExclusao = true },
+                icone = Icons.Outlined.Delete,
+                perigo = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 
@@ -326,6 +315,7 @@ private fun BotaoSinal(campo: String, aoClicar: () -> Unit) {
     }
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1700, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 850)
 @Composable
 private fun PropriedadeFormNovaPreview() {

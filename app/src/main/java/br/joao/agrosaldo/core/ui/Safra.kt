@@ -16,8 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -25,10 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
-import br.joao.agrosaldo.domain.model.Propriedade
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
@@ -55,9 +49,6 @@ import br.joao.agrosaldo.ui.theme.agro
  * Componentes visuais compartilhados das telas principais: cabeçalho escuro e seus
  * controles, cartões do corpo e chips.
  */
-
-/** Margem horizontal do cabeçalho. */
-val MARGEM_DO_CABECALHO = 20.dp
 
 /**
  * Cabeçalho escuro das abas, com cantos inferiores arredondados. O fundo se estende
@@ -74,8 +65,8 @@ fun CabecalhoSafra(
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
             .background(MaterialTheme.agro.cabecalho)
             .statusBarsPadding()
-            .padding(start = MARGEM_DO_CABECALHO, end = MARGEM_DO_CABECALHO, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.medio, bottom = Espacos.grande),
+        verticalArrangement = Arrangement.spacedBy(Espacos.largo),
         content = conteudo
     )
 }
@@ -115,66 +106,6 @@ fun BotaoCabecalho(
     }
 }
 
-/** Variante de [SeletorPropriedade] para o cabeçalho escuro; desabilitada com uma única propriedade. */
-@Composable
-fun SeletorPropriedadeCabecalho(
-    nome: String,
-    propriedades: List<Propriedade>,
-    aoSelecionar: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var aberto by remember { mutableStateOf(false) }
-    val podeTrocar = propriedades.size > 1
-
-    Box(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .clip(MaterialTheme.shapes.small)
-                .clickable(enabled = podeTrocar, role = Role.DropdownList, onClickLabel = "Trocar propriedade") {
-                    aberto = true
-                }
-                .padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Propriedade",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.agro.sobreCabecalhoSecundario
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = nome.ifBlank { "Nenhuma propriedade" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.agro.sobreCabecalho,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (podeTrocar) {
-                    Icon(
-                        imageVector = IconesAgro.SetaBaixo,
-                        contentDescription = null,
-                        tint = MaterialTheme.agro.sobreCabecalho,
-                        modifier = Modifier.padding(start = 4.dp).size(18.dp)
-                    )
-                }
-            }
-        }
-        DropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-            propriedades.forEach { propriedade ->
-                DropdownMenuItem(
-                    text = { Text(propriedade.nome) },
-                    onClick = {
-                        aoSelecionar(propriedade.id)
-                        aberto = false
-                    }
-                )
-            }
-        }
-    }
-}
-
 /** Rótulo e valor no cabeçalho, mesclados em um único nó de acessibilidade. */
 @Composable
 fun CartaoNoCabecalho(
@@ -188,7 +119,7 @@ fun CartaoNoCabecalho(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.agro.cabecalhoElevado)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 14.dp, vertical = Espacos.medio)
             .semantics(mergeDescendants = true) {}
     ) {
         Text(rotulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.agro.sobreCabecalhoSecundario)
@@ -273,7 +204,7 @@ fun TituloDeCartao(
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable(role = Role.Button, onClick = aoClicarAcao)
-                    .padding(horizontal = 8.dp, vertical = 14.dp)
+                    .padding(horizontal = Espacos.pequeno, vertical = 14.dp)
             )
         }
     }

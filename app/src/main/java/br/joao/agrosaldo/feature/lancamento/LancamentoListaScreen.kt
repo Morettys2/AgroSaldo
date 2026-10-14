@@ -68,12 +68,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.CartaoSafra
 import br.joao.agrosaldo.core.ui.ChipSafra
+import br.joao.agrosaldo.core.ui.Espacos.margemDaTela
+import br.joao.agrosaldo.core.ui.EstadoErro
+import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LinhaLancamento
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
-import br.joao.agrosaldo.core.ui.MARGEM_DO_CABECALHO
-import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.icone
 import br.joao.agrosaldo.core.ui.sangrarNasLaterais
@@ -87,6 +90,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
@@ -151,7 +155,7 @@ fun LancamentoListaScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = Espacos.grande)
     ) {
         item(key = "cabecalho") {
             Cabecalho(
@@ -171,37 +175,43 @@ fun LancamentoListaScreen(
         }
 
         when {
-            uiState.carregando -> item(key = "carregando") {
-                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            uiState.carregando -> item(key = "carregando") { Carregando() }
 
             !uiState.temPropriedade -> item(key = "sem_propriedade") {
-                Aviso("Cadastre uma propriedade na aba Sítios antes de lançar receitas e despesas.")
+                EstadoVazio(
+                    texto = "Cadastre uma propriedade na aba Sítios antes de lançar receitas e despesas.",
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
+                )
             }
 
             else -> {
+                uiState.erro?.let { erro ->
+                    item(key = "erro") {
+                        EstadoErro(erro, Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.padrao))
+                    }
+                }
+
                 item(key = "filtros") {
                     Filtros(
                         uiState = uiState,
                         aoMudarFiltro = aoMudarFiltro,
                         aoMudarCategoria = aoMudarCategoria,
                         aoLimparFiltros = aoLimparFiltros,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 16.dp)
+                        modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = 18.dp, bottom = Espacos.padrao)
                     )
                 }
 
                 if (uiState.grupos.isEmpty()) {
                     item(key = "vazio") {
-                        Aviso(
+                        EstadoVazio(
+                            modifier = Modifier.padding(horizontal = Espacos.margemDaTela),
                             texto = when {
                                 uiState.buscando -> "Nada encontrado para “${uiState.busca.trim()}”."
                                 uiState.temFiltro -> "Nenhum lançamento com esse filtro neste mês."
                                 else -> "Nenhum lançamento neste mês.\nToque no + verde-limão lá embaixo para lançar."
                             },
                             acao = if (uiState.temFiltro) "Limpar filtros" else null,
-                            aoAcao = aoLimparFiltros
+                            aoClicarAcao = aoLimparFiltros
                         )
                     }
                 } else {
@@ -261,7 +271,7 @@ private fun Cabecalho(
                 )
             }
             if (uiState.propriedades.size > 1) {
-                SeletorPropriedadeCabecalho(
+                SeletorPropriedade(
                     nome = uiState.nomePropriedade,
                     propriedades = uiState.propriedades,
                     aoSelecionar = aoSelecionarPropriedade
@@ -336,12 +346,12 @@ private fun PilulasDeMes(meses: List<YearMonth>, selecionado: YearMonth, aoSelec
 
     LazyRow(
         state = estado,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno),
         // Ocupa a largura total (anula a margem do cabeçalho) e devolve a margem como contentPadding.
-        contentPadding = PaddingValues(horizontal = MARGEM_DO_CABECALHO),
+        contentPadding = PaddingValues(horizontal = Espacos.margemDaTela),
         modifier = Modifier
             .fillMaxWidth()
-            .sangrarNasLaterais(MARGEM_DO_CABECALHO)
+            .sangrarNasLaterais(Espacos.margemDaTela)
     ) {
         items(items = meses, key = { it.toString() }) { mes ->
             val ativo = mes == selecionado
@@ -358,7 +368,7 @@ private fun PilulasDeMes(meses: List<YearMonth>, selecionado: YearMonth, aoSelec
                         contentDescription = mes.rotulo()
                     }
             ) {
-                Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.padding(horizontal = Espacos.padrao, vertical = 10.dp), contentAlignment = Alignment.Center) {
                     Text(texto, style = MaterialTheme.typography.labelLarge)
                 }
             }
@@ -421,8 +431,8 @@ private fun Filtros(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // FlowRow em vez de rolagem horizontal: com fonte grande, nenhum chip fica fora da tela.
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno),
+            verticalArrangement = Arrangement.spacedBy(Espacos.pequeno)
         ) {
             ChipSafra("Tudo", uiState.filtro == FiltroLancamento.TUDO, { aoMudarFiltro(FiltroLancamento.TUDO) })
             ChipSafra("Despesas", uiState.filtro == FiltroLancamento.DESPESAS, { aoMudarFiltro(FiltroLancamento.DESPESAS) })
@@ -528,7 +538,7 @@ private fun LazyListScope.itensDaLista(
                 if (indiceDoGrupo > 0) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp)
+                        modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                     )
                 }
                 Text(
@@ -574,30 +584,12 @@ private fun ItemDoCartao(posicao: Int, total: Int, conteudo: @Composable () -> U
     }
     Column(
         modifier = Modifier
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = Espacos.margemDaTela)
             .fillMaxWidth()
             .clip(forma)
             .background(MaterialTheme.colorScheme.surface)
     ) {
         conteudo()
-    }
-}
-
-@Composable
-private fun Aviso(texto: String, acao: String? = null, aoAcao: () -> Unit = {}) {
-    CartaoSafra(modifier = Modifier.padding(horizontal = 20.dp)) {
-        Text(
-            text = texto,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        if (acao != null) {
-            TextButton(onClick = aoAcao, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text(acao, style = MaterialTheme.typography.labelLarge)
-            }
-        }
     }
 }
 
@@ -659,6 +651,7 @@ private fun ListaDeExemplo(uiState: LancamentoListaUiState) {
     )
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 900)
 @Composable
 private fun LancamentoListaPreview() {

@@ -55,8 +55,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
+import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
@@ -122,8 +124,8 @@ fun ContaScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 32.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = Espacos.pequeno, bottom = Espacos.enorme)
     ) {
         Cabecalho(
             iniciais = uiState.iniciais,
@@ -161,42 +163,25 @@ fun ContaScreen(
             aoClicar = aoAbrirPropriedades
         )
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(Espacos.enorme))
 
-        OutlinedButton(
-            onClick = aoSair,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
-            Text(
-                text = "Sair da conta",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        BotaoSecundario(
+            texto = "Sair da conta",
+            aoClicar = aoSair,
+            icone = Icons.AutoMirrored.Outlined.Logout,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Espacos.medio))
 
         // Cor de despesa, não de erro: exclusão é ação legítima, não falha.
-        OutlinedButton(
-            onClick = { confirmandoExclusao = true },
-            shape = CircleShape,
-            border = BorderStroke(1.dp, MaterialTheme.agro.despesa),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.agro.despesa),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Icon(Icons.Outlined.DeleteForever, contentDescription = null)
-            Text(
-                text = "Excluir conta e todos os dados",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        BotaoSecundario(
+            texto = "Excluir conta e todos os dados",
+            aoClicar = { confirmandoExclusao = true },
+            icone = Icons.Outlined.DeleteForever,
+            perigo = true,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(Modifier.height(10.dp))
 
@@ -229,7 +214,7 @@ private fun Cabecalho(iniciais: String, nome: String, email: String) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 24.dp)
+            .padding(top = Espacos.pequeno, bottom = Espacos.grande)
     ) {
         Surface(
             shape = CircleShape,
@@ -267,8 +252,9 @@ private fun ItemConta(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = aoClicar)
-                .padding(vertical = 16.dp)
+                // role: o leitor de tela anuncia "botão", e não só o texto.
+                .clickable(role = Role.Button, onClick = aoClicar)
+                .padding(vertical = Espacos.padrao)
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -313,7 +299,7 @@ private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
                 .fillMaxWidth()
                 // toggleable na linha inteira: área de toque maior e TalkBack anuncia como Switch.
                 .toggleable(value = ativo, role = Role.Switch, onValueChange = aoMudar)
-                .padding(vertical = 12.dp)
+                .padding(vertical = Espacos.medio)
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -359,7 +345,7 @@ private fun DialogoExclusao(
         icon = { Icon(Icons.Outlined.DeleteForever, contentDescription = null, tint = MaterialTheme.agro.despesa) },
         title = { Text("Excluir a conta?") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
                 Text(
                     "A conta, as propriedades e todos os lançamentos serão apagados deste " +
                         "celular. Não dá para desfazer."
@@ -391,6 +377,7 @@ private fun DialogoExclusao(
     )
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1600, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 800)
 @Composable
 private fun ContaPreview() {

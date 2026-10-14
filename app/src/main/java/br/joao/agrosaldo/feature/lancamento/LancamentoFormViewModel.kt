@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.DIGITOS_MAXIMOS_DO_VALOR
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.digitosParaCentavos
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
@@ -63,7 +64,7 @@ data class LancamentoFormUiState(
         get() = CategoriaLancamento.porTipo(tipo)
 
     val nomePropriedadeSelecionada: String
-        get() = propriedades.firstOrNull { it.id == propriedadeId }?.nome ?: "Selecione"
+        get() = propriedades.firstOrNull { it.id == propriedadeId }?.nome ?: TextosComuns.ESCOLHA_A_PROPRIEDADE
 
     val valorCentavos: Long
         get() = valorDigitos.digitosParaCentavos() ?: 0L

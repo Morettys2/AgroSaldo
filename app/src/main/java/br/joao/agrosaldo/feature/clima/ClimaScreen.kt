@@ -46,14 +46,20 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.BotaoTonal
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.CartaoSafra
+import br.joao.agrosaldo.core.ui.EstadoErro
+import br.joao.agrosaldo.core.ui.EstadoVazio
+import br.joao.agrosaldo.core.ui.FaixaDeAviso
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
-import br.joao.agrosaldo.core.ui.SeletorPropriedadeCabecalho
+import br.joao.agrosaldo.core.ui.SeletorPropriedade
 import br.joao.agrosaldo.core.ui.TituloDeCartao
 import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
@@ -94,8 +100,8 @@ fun ClimaScreen(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(bottom = Espacos.grande),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         item(key = "cabecalho") {
             Cabecalho(
@@ -107,55 +113,61 @@ fun ClimaScreen(
         }
 
         when {
-            uiState.carregando -> item(key = "carregando") {
-                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            uiState.carregando -> item(key = "carregando") { Carregando() }
 
             !uiState.temPropriedade -> item(key = "sem_propriedade") {
                 EstadoVazio(
                     icone = IconesAgro.Gota,
+                    corDoIcone = MaterialTheme.agro.clima,
+                    fundoDoIcone = MaterialTheme.agro.climaContainer,
                     titulo = "Previsão por propriedade",
-                    texto = "Cadastre um sítio com as coordenadas para ver a chuva prevista e receber o aviso.",
-                    botao = "Cadastrar propriedade",
-                    aoClicar = aoCadastrarPropriedade,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    texto = "Cadastre uma propriedade com as coordenadas para ver a chuva prevista e receber o aviso.",
+                    acao = "Cadastrar propriedade",
+                    destaque = true,
+                    aoClicarAcao = aoCadastrarPropriedade,
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                 )
             }
 
             else -> {
+                uiState.erro?.let { erro ->
+                    item(key = "erro") { EstadoErro(erro, Modifier.padding(horizontal = Espacos.margemDaTela)) }
+                }
+
                 uiState.mensagem?.let { mensagem ->
-                    item(key = "mensagem") { Faixa(texto = mensagem, modifier = Modifier.padding(horizontal = 20.dp)) }
+                    item(key = "mensagem") {
+                        FaixaDeAviso(texto = mensagem, modifier = Modifier.padding(horizontal = Espacos.margemDaTela))
+                    }
                 }
 
                 if (uiState.avisoAtivo && !permissao.concedida) {
                     item(key = "permissao") {
-                        CartaoPermissao(aoPermitir = permissao.pedir, modifier = Modifier.padding(horizontal = 20.dp))
+                        CartaoPermissao(aoPermitir = permissao.pedir, modifier = Modifier.padding(horizontal = Espacos.margemDaTela))
                     }
                 }
 
                 if (!uiState.temPrevisao) {
                     item(key = "sem_previsao") {
                         if (uiState.atualizando) {
-                            Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
+                            Carregando()
                         } else {
                             EstadoVazio(
                                 icone = IconesAgro.Nuvem,
+                                corDoIcone = MaterialTheme.agro.clima,
+                                fundoDoIcone = MaterialTheme.agro.climaContainer,
                                 titulo = "Ainda sem previsão",
                                 texto = "Conecte o celular à internet uma vez para baixar a previsão. " +
                                     "Depois ela fica salva e aparece mesmo sem sinal.",
-                                botao = "Tentar de novo",
-                                aoClicar = aoAtualizar,
-                                modifier = Modifier.padding(horizontal = 20.dp)
+                                acao = "Tentar de novo",
+                                destaque = true,
+                                aoClicarAcao = aoAtualizar,
+                                modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                             )
                         }
                     }
                 } else {
-                    item(key = "recomendacao") { CartaoRecomendacao(uiState, Modifier.padding(horizontal = 20.dp)) }
-                    item(key = "dias") { CartaoDias(uiState.dias, Modifier.padding(horizontal = 20.dp)) }
+                    item(key = "recomendacao") { CartaoRecomendacao(uiState, Modifier.padding(horizontal = Espacos.margemDaTela)) }
+                    item(key = "dias") { CartaoDias(uiState.dias, Modifier.padding(horizontal = Espacos.margemDaTela)) }
                     item(key = "fonte") {
                         // Open-Meteo é CC BY 4.0: atribuição com link é obrigatória.
                         val fonte = buildAnnotatedString {
@@ -174,7 +186,7 @@ fun ClimaScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.agro.tintaApagada,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = Espacos.margemDaTela)
                         )
                     }
                 }
@@ -192,9 +204,9 @@ private fun Cabecalho(
     aoAbrirAjustes: () -> Unit
 ) {
     CabecalhoSafra {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno)) {
             if (uiState.temPropriedade) {
-                SeletorPropriedadeCabecalho(
+                SeletorPropriedade(
                     nome = uiState.nomePropriedade,
                     propriedades = uiState.propriedades,
                     aoSelecionar = aoSelecionarPropriedade,
@@ -261,12 +273,12 @@ private fun Cabecalho(
             )
 
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(Espacos.pequeno),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.agro.cabecalhoElevado)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .padding(horizontal = Espacos.padrao, vertical = 14.dp)
                     .semantics(mergeDescendants = true) {}
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -312,7 +324,7 @@ private fun CartaoRecomendacao(uiState: ClimaUiState, modifier: Modifier = Modif
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(Espacos.largo),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Box(
@@ -349,9 +361,9 @@ private fun CartaoDias(dias: List<DiaUi>, modifier: Modifier = Modifier) {
     CartaoSafra(modifier = modifier, preenchimento = 0.dp) {
         TituloDeCartao(
             titulo = "Próximos 7 dias",
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = 18.dp, bottom = Espacos.minimo)
         )
-        Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
+        Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = Espacos.pequeno)) {
             dias.forEachIndexed { indice, dia ->
                 if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 LinhaDia(dia)
@@ -364,10 +376,10 @@ private fun CartaoDias(dias: List<DiaUi>, modifier: Modifier = Modifier) {
 private fun LinhaDia(dia: DiaUi) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Espacos.medio),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 12.dp)
+            .padding(horizontal = 10.dp, vertical = Espacos.medio)
             // Leitor de tela anuncia a linha como um único item.
             .semantics(mergeDescendants = true) {}
     ) {
@@ -400,24 +412,6 @@ private fun LinhaDia(dia: DiaUi) {
 }
 
 @Composable
-private fun Faixa(texto: String, modifier: Modifier = Modifier) {
-    CartaoSafra(modifier = modifier, preenchimento = 16.dp) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                IconesAgro.Nuvem,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
-            Text(texto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 private fun CartaoPermissao(aoPermitir: () -> Unit, modifier: Modifier = Modifier) {
     CartaoSafra(modifier = modifier) {
         Text(
@@ -431,65 +425,8 @@ private fun CartaoPermissao(aoPermitir: () -> Unit, modifier: Modifier = Modifie
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = aoPermitir,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary
-            ),
-            modifier = Modifier.heightIn(min = 48.dp)
-        ) {
-            Icon(IconesAgro.Sino, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Permitir notificações", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
-        }
-    }
-}
-
-@Composable
-private fun EstadoVazio(
-    icone: ImageVector,
-    titulo: String,
-    texto: String,
-    botao: String,
-    aoClicar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    CartaoSafra(modifier = modifier, preenchimento = 28.dp) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.agro.climaContainer)
-            ) {
-                Icon(icone, contentDescription = null, tint = MaterialTheme.agro.clima, modifier = Modifier.size(36.dp))
-            }
-            Text(titulo, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            Text(
-                texto,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Button(
-                onClick = aoClicar,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.agro.destaque,
-                    contentColor = MaterialTheme.agro.sobreDestaque
-                ),
-                modifier = Modifier.heightIn(min = 52.dp)
-            ) {
-                Text(botao, style = MaterialTheme.typography.labelLarge)
-            }
-        }
+        Spacer(Modifier.height(Espacos.medio))
+        BotaoTonal(texto = "Permitir notificações", aoClicar = aoPermitir, icone = IconesAgro.Sino)
     }
 }
 
@@ -521,6 +458,7 @@ private val ESTADO_EXEMPLO = ClimaUiState(
     atualizadaEm = "Atualizada às 14:05"
 )
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2200, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 private fun ClimaPreview() {

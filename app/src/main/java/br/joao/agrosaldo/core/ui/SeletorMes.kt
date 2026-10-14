@@ -18,6 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import java.time.YearMonth
 
 /** Navegação entre meses (RF10), usada no Início e em Lançamentos. */
@@ -31,7 +32,7 @@ fun SeletorMes(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = Espacos.minimo),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

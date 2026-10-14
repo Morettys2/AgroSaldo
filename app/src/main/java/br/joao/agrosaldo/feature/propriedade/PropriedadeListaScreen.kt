@@ -36,7 +36,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
+import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.CartaoSafra
+import br.joao.agrosaldo.core.ui.EstadoErro
+import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.valorEscondido
@@ -46,6 +49,7 @@ import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.rotulo
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import kotlin.math.abs
@@ -84,8 +88,8 @@ fun PropriedadeListaScreen(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(bottom = Espacos.grande),
+        verticalArrangement = Arrangement.spacedBy(Espacos.medio)
     ) {
         item(key = "cabecalho") {
             Cabecalho(
@@ -97,22 +101,21 @@ fun PropriedadeListaScreen(
         }
 
         item(key = "nova") {
-            BotaoNova(aoClicar = aoAbrirNova, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
+            BotaoNova(aoClicar = aoAbrirNova, modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.pequeno))
         }
 
         when {
-            uiState.carregando -> item(key = "carregando") {
-                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            uiState.carregando -> item(key = "carregando") { Carregando() }
 
             uiState.erro != null -> item(key = "erro") {
-                Aviso(uiState.erro)
+                EstadoErro(uiState.erro, Modifier.padding(horizontal = Espacos.margemDaTela))
             }
 
             uiState.itens.isEmpty() -> item(key = "vazio") {
-                Aviso("Nenhuma propriedade cadastrada ainda. Toque em \"Nova propriedade\" para começar.")
+                EstadoVazio(
+                    texto = "Nenhuma propriedade cadastrada ainda. Toque em \"Nova propriedade\" para começar.",
+                    modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
+                )
             }
 
             else -> {
@@ -121,7 +124,7 @@ fun PropriedadeListaScreen(
                         text = "Comparativo do mês",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier
-                            .padding(start = 24.dp, end = 24.dp, top = 8.dp)
+                            .padding(start = Espacos.grande, end = Espacos.grande, top = Espacos.pequeno)
                             .semantics { heading() }
                     )
                 }
@@ -129,7 +132,7 @@ fun PropriedadeListaScreen(
                     CartaoPropriedade(
                         item = item,
                         aoClicar = { aoAbrirPropriedade(item.propriedade.id) },
-                        modifier = Modifier.padding(horizontal = 20.dp)
+                        modifier = Modifier.padding(horizontal = Espacos.margemDaTela)
                     )
                 }
             }
@@ -161,7 +164,7 @@ private fun Cabecalho(
         }
 
         if (uiState.itens.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Espacos.minimo)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Somando todos em " + uiState.mes.rotulo().lowercase(),
@@ -194,7 +197,7 @@ private fun BotaoNova(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.heightIn(min = 48.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = Espacos.medio),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -226,7 +229,7 @@ private fun CartaoPropriedade(
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(Espacos.largo),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -246,7 +249,7 @@ private fun CartaoPropriedade(
                 }
 
                 Column(
-                    modifier = Modifier.weight(1f).padding(start = 12.dp),
+                    modifier = Modifier.weight(1f).padding(start = Espacos.medio),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
@@ -293,21 +296,9 @@ private fun CartaoPropriedade(
     }
 }
 
-@Composable
-private fun Aviso(texto: String) {
-    CartaoSafra(modifier = Modifier.padding(horizontal = 20.dp)) {
-        Text(
-            text = texto,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
 // ---------- Previews ----------
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1300, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 650)
 @Composable
 private fun PreviewComDados() {

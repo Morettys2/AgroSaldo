@@ -98,6 +98,7 @@ import br.joao.agrosaldo.feature.lancamento.LancamentoFormRoute
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaRoute
 import br.joao.agrosaldo.feature.propriedade.PropriedadeFormRoute
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaRoute
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import kotlinx.coroutines.flow.first
@@ -597,7 +598,7 @@ private fun BarraInferior(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
+            .padding(start = Espacos.medio, end = Espacos.medio, top = 6.dp, bottom = 10.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -642,7 +643,8 @@ private fun RowScope.ItemDaBarra(aba: Aba, selecionada: Boolean, aoClicar: () ->
             text = aba.rotulo,
             style = MaterialTheme.typography.labelSmall.copy(color = corDoNome),
             maxLines = 1,
-            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 12.sp),
+            // 11 sp é o mínimo legível; abaixo disso o nome da aba some para quem usa fonte grande.
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 12.sp),
             modifier = Modifier.padding(horizontal = 2.dp)
         )
     }

@@ -34,7 +34,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 
 /**
  * Tela de bloqueio do app, exibida no lugar do conteúdo. Abre o prompt biométrico ao
@@ -111,14 +113,14 @@ fun TelaBloqueioScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Espacos.grande))
 
             Text(
                 text = "AgroSaldo bloqueado",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Espacos.pequeno))
             Text(
                 text = "Use a digital ou o PIN do celular para ver suas contas.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -127,7 +129,7 @@ fun TelaBloqueioScreen(
             )
 
             mensagem?.let {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Espacos.padrao))
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodyMedium,
@@ -136,19 +138,11 @@ fun TelaBloqueioScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(Espacos.enorme))
 
-            Button(
-                onClick = aoDesbloquear,
-                shape = CircleShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(text = "Desbloquear", style = MaterialTheme.typography.titleMedium)
-            }
+            BotaoPrincipal(texto = "Desbloquear", aoClicar = aoDesbloquear, modifier = Modifier.fillMaxWidth())
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Espacos.pequeno))
 
             TextButton(onClick = aoUsarSenha, modifier = Modifier.fillMaxWidth()) {
                 Text(

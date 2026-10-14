@@ -84,8 +84,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
+import br.joao.agrosaldo.core.ui.BotaoDestaque
+import br.joao.agrosaldo.core.ui.BotaoTonal
 import br.joao.agrosaldo.core.ui.cor
 import br.joao.agrosaldo.core.ui.icone
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.emMillisUtc
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
@@ -94,6 +97,7 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
@@ -230,8 +234,8 @@ fun LancamentoFormScreen(
                     )
                     Folha {
                         Column(
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.largo, bottom = Espacos.pequeno),
+                            verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
                         ) {
                             // No modo compacto o teclado vem antes dos campos, logo abaixo do valor.
                             teclado()
@@ -253,12 +257,12 @@ fun LancamentoFormScreen(
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
-                            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.largo, bottom = Espacos.pequeno),
+                        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
                     ) {
                         campos()
                     }
-                    Box(Modifier.padding(horizontal = 20.dp)) { teclado() }
+                    Box(Modifier.padding(horizontal = Espacos.margemDaTela)) { teclado() }
                 }
             }
 
@@ -304,7 +308,7 @@ private fun Topo(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno)
         ) {
             BotaoCabecalho(icone = IconesAgro.Fechar, descricao = "Fechar sem salvar", aoClicar = aoFechar)
             SeletorDeTipo(ehDespesa = ehDespesa, aoMudarTipo = aoMudarTipo, modifier = Modifier.weight(1f))
@@ -316,7 +320,7 @@ private fun Topo(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(Espacos.minimo)
         ) {
             if (!reduzido) {
                 Text(
@@ -364,7 +368,7 @@ private fun SeletorDeTipo(ehDespesa: Boolean, aoMudarTipo: (TipoLancamento) -> U
         modifier = modifier
             .clip(CircleShape)
             .background(MaterialTheme.agro.cabecalhoElevado)
-            .padding(4.dp)
+            .padding(Espacos.minimo)
             .selectableGroup()
     ) {
         OpcaoDeTipo(
@@ -455,7 +459,7 @@ private fun CamposDoLancamento(
     aoMudarDescricao: (String) -> Unit,
     aoCadastrarPropriedade: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Espacos.padrao)) {
         if (uiState.carregado && uiState.propriedades.isEmpty()) {
             SemPropriedade(aoCadastrarPropriedade)
         }
@@ -502,17 +506,7 @@ private fun SemPropriedade(aoCadastrar: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(
-                onClick = aoCadastrar,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary
-                ),
-                modifier = Modifier.heightIn(min = 48.dp)
-            ) {
-                Text("Cadastrar sítio", style = MaterialTheme.typography.labelLarge)
-            }
+            BotaoTonal(texto = "Cadastrar propriedade", aoClicar = aoCadastrar)
         }
     }
 }
@@ -526,8 +520,8 @@ private fun BarraDeSalvar(uiState: LancamentoFormUiState, aoSalvar: () -> Unit) 
             .background(MaterialTheme.colorScheme.background)
             .navigationBarsPadding()
             .imePadding()
-            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = Espacos.pequeno, bottom = Espacos.padrao),
+        verticalArrangement = Arrangement.spacedBy(Espacos.pequeno)
     ) {
         uiState.erroGeral?.let { mensagem ->
             Text(
@@ -537,27 +531,17 @@ private fun BarraDeSalvar(uiState: LancamentoFormUiState, aoSalvar: () -> Unit) 
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
             )
         }
-        Button(
-            onClick = aoSalvar,
-            enabled = !uiState.salvando,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.agro.destaque,
-                contentColor = MaterialTheme.agro.sobreDestaque
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 60.dp)
-        ) {
-            Text(
-                text = when {
-                    uiState.ehEdicao -> "Salvar alterações"
-                    uiState.tipo == TipoLancamento.DESPESA -> "Salvar despesa"
-                    else -> "Salvar receita"
-                },
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
+        BotaoDestaque(
+            texto = when {
+                uiState.ehEdicao -> "Salvar alterações"
+                uiState.tipo == TipoLancamento.DESPESA -> "Salvar despesa"
+                else -> "Salvar receita"
+            },
+            aoClicar = aoSalvar,
+            habilitado = !uiState.salvando,
+            // Um pouco mais alto que o padrão: é o botão do polegar, fixo no rodapé.
+            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)
+        )
     }
 }
 
@@ -576,8 +560,8 @@ private fun Categorias(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno),
+            verticalArrangement = Arrangement.spacedBy(Espacos.pequeno),
             modifier = Modifier.selectableGroup()
         ) {
             categorias.forEach { categoria ->
@@ -596,13 +580,13 @@ private fun ChipCategoria(categoria: CategoriaLancamento, selecionada: Boolean, 
     val cor = categoria.cor()
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Espacos.pequeno),
         modifier = Modifier
             .heightIn(min = 48.dp)
             .clip(CircleShape)
             .background(if (selecionada) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface)
             .selectable(selected = selecionada, role = Role.RadioButton, onClick = aoClicar)
-            .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+            .padding(start = Espacos.pequeno, end = Espacos.padrao, top = Espacos.pequeno, bottom = Espacos.pequeno)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -671,7 +655,7 @@ private fun CampoData(
     modifier: Modifier = Modifier
 ) {
     var aberto by remember { mutableStateOf(false) }
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Espacos.minimo)) {
         Box {
             CampoDeEscolha(
                 icone = IconesAgro.Calendario,
@@ -710,7 +694,7 @@ private fun CampoSitio(
     modifier: Modifier = Modifier
 ) {
     var aberto by remember { mutableStateOf(false) }
-    val nome = propriedades.firstOrNull { it.id == escolhidaId }?.nome ?: "Escolha"
+    val nome = propriedades.firstOrNull { it.id == escolhidaId }?.nome ?: TextosComuns.ESCOLHA_A_PROPRIEDADE
     Box(modifier = modifier) {
         CampoDeEscolha(
             icone = IconesAgro.Sitio,
@@ -768,7 +752,7 @@ private fun CampoDescricao(texto: String, aoMudar: (String) -> Unit) {
 @Composable
 private fun TecladoNumerico(aoTeclar: (String) -> Unit, aoApagar: () -> Unit, aoLimpar: () -> Unit) {
     val linhas = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"))
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Espacos.minimo)) {
         linhas.forEach { linha ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 linha.forEach { tecla -> TeclaDigito(tecla, aoTeclar) }
@@ -791,7 +775,7 @@ private fun RowScope.TeclaDigito(tecla: String, aoTeclar: (String) -> Unit) {
         contentColor = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier
             .weight(1f)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .semantics { contentDescription = if (tecla == "00") "Zero zero" else tecla }
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -807,7 +791,7 @@ private fun RowScope.TeclaApagar(aoApagar: () -> Unit, aoLimpar: () -> Unit) {
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .weight(1f)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .clip(CircleShape)
             .combinedClickable(
                 role = Role.Button,
@@ -889,6 +873,7 @@ private fun FormDeExemplo(uiState: LancamentoFormUiState) {
     )
 }
 
+@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 900)
 @Composable
 private fun LancamentoFormPreview() {

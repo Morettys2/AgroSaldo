@@ -30,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
@@ -73,9 +75,9 @@ fun ConsentimentoScreen(
             .fillMaxSize()
             // Scroll antes do padding: a área rolável ocupa a largura toda.
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 28.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Espacos.margemDaTela)
+            .padding(top = 28.dp, bottom = Espacos.enorme),
+        verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -92,7 +94,7 @@ fun ConsentimentoScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Espacos.pequeno))
 
         Text(text = titulo, style = MaterialTheme.typography.headlineMedium)
         Text(
@@ -101,7 +103,7 @@ fun ConsentimentoScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Espacos.pequeno))
 
         CartaoPonto(
             titulo = "Fica tudo no seu celular",
@@ -126,26 +128,14 @@ fun ConsentimentoScreen(
             Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Espacos.pequeno))
 
-        Button(
-            onClick = aoAceitar,
-            enabled = !criando,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            if (criando) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(text = "Aceito e quero continuar", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BotaoPrincipal(
+            texto = "Aceito e quero continuar",
+            aoClicar = aoAceitar,
+            carregando = criando,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         TextButton(onClick = aoLerPolitica, modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -173,7 +163,7 @@ private fun CartaoPonto(titulo: String, texto: String, modifier: Modifier = Modi
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Espacos.padrao),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(text = titulo, style = MaterialTheme.typography.labelLarge)

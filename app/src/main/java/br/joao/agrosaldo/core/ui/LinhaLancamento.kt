@@ -22,6 +22,7 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 
@@ -39,7 +40,7 @@ fun LinhaLancamento(
     apoio: String,
     aoClicar: () -> Unit,
     modifier: Modifier = Modifier,
-    margem: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+    margem: PaddingValues = PaddingValues(horizontal = Espacos.margemDaTela, vertical = 10.dp)
 ) {
     val oculto = LocalValoresOcultos.current
     val cor = if (lancamento.ehReceita) MaterialTheme.agro.receita else MaterialTheme.agro.despesa
@@ -52,7 +53,7 @@ fun LinhaLancamento(
             .clickable(role = Role.Button, onClickLabel = "Abrir lançamento", onClick = aoClicar)
             .padding(margem),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Espacos.medio)
     ) {
         IconeCategoria(lancamento.categoria)
 
@@ -94,7 +95,7 @@ fun apoioComData(dia: String, descricao: String): String =
 @Composable
 private fun LinhaLancamentoPreview() {
     AgroSaldoTheme {
-        CartaoSafra(preenchimento = 0.dp, modifier = Modifier.padding(16.dp)) {
+        CartaoSafra(preenchimento = 0.dp, modifier = Modifier.padding(Espacos.padrao)) {
             LinhaLancamento(
                 lancamento = Lancamento(
                     propriedadeId = "p1",
