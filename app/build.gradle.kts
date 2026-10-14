@@ -83,6 +83,10 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
 
     testFixturesImplementation(libs.kotlinx.coroutines.core)
+    // O plugin do Compose também processa src/testFixtures e exige o runtime no classpath,
+    // mesmo sem nenhum @Composable lá.
+    testFixturesImplementation(composeBom)
+    testFixturesImplementation(libs.androidx.compose.runtime)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
