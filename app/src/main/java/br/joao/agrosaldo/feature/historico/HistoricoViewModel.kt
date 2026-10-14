@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -50,7 +53,9 @@ data class HistoricoUiState(
     /** Nulo se houver menos de dois meses não futuros com movimento ou se o menor saldo empatar com o maior. */
     val piorMes: MesDoHistorico? = null,
     val gastosDoAno: List<GastoPorCategoria> = emptyList(),
-    val podeAvancar: Boolean = false
+    val podeAvancar: Boolean = false,
+    /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
+    val erro: String? = null
 ) {
     val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
     val temMovimento: Boolean get() = meses.any { it.temMovimento }
@@ -84,6 +89,8 @@ class HistoricoViewModel(
                 _ano
             ) { lancamentos, propriedades, selecionadaId, ano ->
                 montarEstado(lancamentos, propriedades, selecionadaId, ano)
+            }.repetirAposErro { erro ->
+                _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { _uiState.value = it }
         }
     }
@@ -160,6 +167,8 @@ class HistoricoViewModel(
 
     companion object {
         const val MAXIMO_CATEGORIAS = 5
+
+        const val MENSAGEM_ERRO = "Não foi possível carregar o histórico. Tentando de novo…"
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

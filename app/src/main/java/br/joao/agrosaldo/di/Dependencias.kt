@@ -67,11 +67,14 @@ class Dependencias(contexto: Context) {
     val selecao: SelecaoAtual by lazy {
         val preferencias = contextoAberto.getSharedPreferences(ARQUIVO_SELECAO, Context.MODE_PRIVATE)
         // Só o id da propriedade (UUID, sem dado pessoal).
-        SelecaoAtual(propriedadeInicial = preferencias.getString(CHAVE_PROPRIEDADE, null)) { id ->
-            preferencias.edit {
-                if (id == null) remove(CHAVE_PROPRIEDADE) else putString(CHAVE_PROPRIEDADE, id)
+        SelecaoAtual(
+            propriedadeInicial = preferencias.getString(CHAVE_PROPRIEDADE, null),
+            aoMudarPropriedade = { id ->
+                preferencias.edit {
+                    if (id == null) remove(CHAVE_PROPRIEDADE) else putString(CHAVE_PROPRIEDADE, id)
+                }
             }
-        }
+        )
     }
 
     val sessao: SessaoRepository by lazy { SessaoPreferencias(contextoAberto) }

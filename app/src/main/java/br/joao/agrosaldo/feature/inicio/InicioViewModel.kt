@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.LimitesChuva
@@ -55,7 +57,9 @@ data class InicioUiState(
     /** Iniciais do usuário para o botão da conta (ex.: "FM"); vazio se o nome não estiver disponível. */
     val iniciais: String = "",
     /** Referência para os rótulos relativos de data. */
-    val hoje: LocalDate = LocalDate.now()
+    val hoje: LocalDate = LocalDate.now(),
+    /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
+    val erro: String? = null
 )
 
 /**
@@ -111,6 +115,8 @@ class InicioViewModel(
                 _voltas
             ) { lancamentos, propriedades, selecionadaId, mes, _ ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes)
+            }.repetirAposErro { erro ->
+                _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { estado ->
                 // chuva e iniciais são mantidas por outros coletores; preserva os valores atuais.
                 val atual = _uiState.value
@@ -239,6 +245,8 @@ class InicioViewModel(
     companion object {
         /** Quantas categorias o cartão "Maiores gastos" mostra. */
         const val MAXIMO_CATEGORIAS = 3
+
+        const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

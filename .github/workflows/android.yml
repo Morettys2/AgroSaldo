@@ -42,7 +42,7 @@ jobs:
           grep -E '^e: ' build.log | sed "s#file://$GITHUB_WORKSPACE/##" | head -120 | anotar "Erros do Kotlin" || true
           grep -E -A3 'FAILED$|^[A-Za-z]+Test > .* FAILED' build.log | head -150 | anotar "Testes que falharam" || true
           grep -E -B2 -A25 'What went wrong' build.log | head -120 | anotar "Gradle" || true
-          tail -60 build.log | anotar "Final do log" || true
+          grep -qE '^e: |FAILED$' build.log || tail -60 build.log | anotar "Final do log" || true
           find app/build/reports/lint-results* -name '*.txt' -exec cat {} + 2>/dev/null | head -200 | anotar "Lint" || true
 
       - name: Resumo

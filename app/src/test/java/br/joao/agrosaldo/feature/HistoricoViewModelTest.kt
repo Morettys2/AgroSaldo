@@ -8,7 +8,12 @@ import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.feature.historico.HistoricoViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -248,6 +253,24 @@ class HistoricoViewModelTest {
             )
         )
         assertEquals(100_000L, vm.uiState.value.meses[0].receitasCentavos)
+    }
+
+    @Test
+    fun `erro ao ler os lancamentos vira mensagem e o grafico volta sozinho`() = runTest {
+        var leituras = 0
+        val instavel = object : LancamentoRepository by lancamentos {
+            override fun observarTodos(): Flow<List<Lancamento>> = flow {
+                if (leituras++ == 0) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(lancamentos.observarTodos())
+            }
+        }
+        val vm = HistoricoViewModel(instavel, PropriedadeRepositoryMemoria(), hoje = { hoje }, selecao = selecao)
+
+        assertEquals(HistoricoViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertTrue(vm.uiState.value.temMovimento)
     }
 
     @Test

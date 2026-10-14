@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloRelativo
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
@@ -64,7 +66,9 @@ data class LancamentoListaUiState(
     /** Meses do seletor do cabeçalho, em ordem crescente. */
     val meses: List<YearMonth> = emptyList(),
     /** Texto de busca; quando preenchido, a lista ignora o mês e busca em todos. */
-    val busca: String = ""
+    val busca: String = "",
+    /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
+    val erro: String? = null
 ) {
     val temFiltro: Boolean get() = filtro != FiltroLancamento.TUDO || categoria != null
     val buscando: Boolean get() = busca.isNotBlank()
@@ -121,6 +125,9 @@ class LancamentoListaViewModel(
                 montarEstado(lancamentos, propriedades, selecionadaId, mes, filtros)
             }
                 .flowOn(processamento)
+                .repetirAposErro { erro ->
+                    _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
+                }
                 .collect { estado -> _uiState.value = estado }
         }
 
@@ -256,6 +263,8 @@ class LancamentoListaViewModel(
         const val MESES_PARA_TRAS = 24L
         const val MESES_PARA_FRENTE = 12L
         private const val TAMANHO_MAXIMO_BUSCA = 60
+
+        const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
 
         /**
          * Meses de [MESES_PARA_TRAS] atrás até [MESES_PARA_FRENTE] à frente (limite da RN07).

@@ -11,6 +11,7 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
@@ -222,6 +223,44 @@ class ResumosViewModelTest {
         advanceUntilIdle()
         assertNull(vm.uiState.value.erro)
         assertEquals(2, vm.uiState.value.itens.size)
+    }
+
+    /** Repositório cuja primeira leitura falha, como um banco travado por um instante. */
+    private fun lancamentosInstaveis() = object : LancamentoRepository by lancamentos {
+        var leituras = 0
+        override fun observarTodos(): Flow<List<Lancamento>> = flow {
+            if (leituras++ == 0) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+            emitAll(lancamentos.observarTodos())
+        }
+    }
+
+    @Test
+    fun `erro ao ler os lancamentos no inicio vira mensagem e a tela volta sozinha`() = runTest {
+        val vm = InicioViewModel(
+            lancamentosInstaveis(), propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(),
+            hoje = { hoje }, selecao = selecao
+        )
+
+        assertEquals(InicioViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+        assertFalse("não fica carregando para sempre", vm.uiState.value.carregando)
+
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
+    fun `erro ao ler os lancamentos na lista vira mensagem e a lista volta sozinha`() = runTest {
+        val vm = LancamentoListaViewModel(
+            lancamentosInstaveis(), propriedades, hoje = { hoje },
+            processamento = EmptyCoroutineContext, selecao = selecao
+        )
+
+        assertEquals(LancamentoListaViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertTrue(vm.uiState.value.lancamentos.isNotEmpty())
     }
 
     @Test

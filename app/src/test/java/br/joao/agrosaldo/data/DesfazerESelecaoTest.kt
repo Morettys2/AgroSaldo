@@ -149,7 +149,7 @@ class DesfazerESelecaoTest {
     @Test
     fun `lembra a propriedade escolhida da ultima vez`() {
         val gravadas = mutableListOf<String?>()
-        val selecao = SelecaoAtual(propriedadeInicial = "sitio-1") { gravadas += it }
+        val selecao = SelecaoAtual(propriedadeInicial = "sitio-1", aoMudarPropriedade = { gravadas += it })
 
         assertEquals("sitio-1", selecao.propriedadeId.value)
 

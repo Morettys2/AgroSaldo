@@ -9,6 +9,8 @@ import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.diaEHora
 import br.joao.agrosaldo.core.util.emGraus
 import br.joao.agrosaldo.core.util.emMilimetros
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
@@ -78,7 +80,9 @@ data class ClimaUiState(
     val atualizando: Boolean = false,
     /** Erro da última atualização (sem conexão ou falha do serviço). */
     val mensagem: String? = null,
-    val avisoAtivo: Boolean = true
+    val avisoAtivo: Boolean = true,
+    /** Falha ao ler os dados salvos; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
+    val erro: String? = null
 )
 
 /**
@@ -144,6 +148,8 @@ class ClimaViewModel(
             }
             combine(comPrevisao, ajustes.ajustes, _atualizando, _falha, _voltas) { (lista, propriedade, previsao), aj, atualizando, falha, _ ->
                 montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha)
+            }.repetirAposErro { erro ->
+                _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { _uiState.value = it }
         }
     }
@@ -299,6 +305,7 @@ class ClimaViewModel(
     companion object {
         const val MENSAGEM_SEM_INTERNET = "Sem internet. Mostrando a última previsão salva."
         const val MENSAGEM_SEM_INTERNET_SEM_PREVISAO = "Sem internet. Tente de novo quando o celular tiver sinal."
+        const val MENSAGEM_ERRO = "Não foi possível carregar a previsão salva. Tentando de novo…"
         const val MENSAGEM_FALHA = "Não deu para atualizar a previsão agora. Tente de novo em instantes."
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
