@@ -71,7 +71,6 @@ import br.joao.agrosaldo.core.ui.CabecalhoSafra
 import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.CartaoSafra
 import br.joao.agrosaldo.core.ui.ChipSafra
-import br.joao.agrosaldo.core.ui.Espacos.margemDaTela
 import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LinhaLancamento
