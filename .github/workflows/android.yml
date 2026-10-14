@@ -1,5 +1,6 @@
-# Integração contínua: todo push e todo PR compilam o app, rodam os testes
-# de unidade e o lint. Se algo quebrar, o PR fica vermelho antes do merge.
+# Integração contínua: todo push e todo PR conferem a formatação (ktlint), rodam a análise
+# estática (detekt) e os testes, compilam o app e rodam o Android Lint. Se algo quebrar,
+# o PR fica vermelho antes do merge.
 name: Android
 
 on:
@@ -35,7 +36,7 @@ jobs:
           set -o pipefail
           chmod +x gradlew
           ./gradlew --no-configuration-cache --stacktrace \
-            ${{ vars.GRADLE_TASKS || 'testDebugUnitTest assembleDebug lintDebug' }} 2>&1 | tee build.log
+            ${{ vars.GRADLE_TASKS || 'ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug' }} 2>&1 | tee build.log
 
       - name: Erros como anotações
         if: failure()

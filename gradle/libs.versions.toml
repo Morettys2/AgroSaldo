@@ -28,6 +28,10 @@ splashscreen = "1.0.1"
 robolectric = "4.17"
 roborazzi = "1.76.0"
 androidxTestCore = "1.7.0"
+# Qualidade de código: formatação (ktlint, com as regras de Compose) e análise estática (detekt)
+ktlintGradle = "14.2.0"
+detekt = "1.23.8"
+composeRules = "0.6.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -72,8 +76,12 @@ roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", versi
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 
+detekt-cli = { group = "io.gitlab.arturbosch.detekt", name = "detekt-cli", version.ref = "detekt" }
+compose-rules-ktlint = { group = "io.nlopez.compose.rules", name = "ktlint", version.ref = "composeRules" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 # Processador de anotações do Room
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }

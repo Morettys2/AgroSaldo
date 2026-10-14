@@ -1,0 +1,37 @@
+# Ajustes do detekt sobre a configuração padrão (buildUponDefaultConfig = true).
+# Só o que é diferente do padrão; o resto vale como vem.
+
+naming:
+  FunctionNaming:
+    # Composable é PascalCase (InicioScreen); nomes de teste vêm entre crases.
+    ignoreAnnotated: ['Composable']
+    excludes: ['**/test/**', '**/androidTest/**']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][_A-Z0-9]*'
+  MatchingDeclarationName:
+    # Vários arquivos juntam um tipo pequeno e a tela que o usa (ex.: UiState + ViewModel).
+    active: false
+
+style:
+  MagicNumber:
+    # Telas Compose são cheias de dp e sp; testes, de valores de exemplo.
+    ignoreAnnotated: ['Composable', 'Preview']
+    excludes: ['**/test/**', '**/androidTest/**', '**/testFixtures/**', '**/ui/theme/**']
+  UnusedPrivateMember:
+    # Os @Preview são privados e só o Android Studio os chama.
+    ignoreAnnotated: ['Preview']
+  MaxLineLength:
+    maxLineLength: 140
+  ReturnCount:
+    max: 4
+  WildcardImport:
+    active: true
+
+complexity:
+  LongParameterList:
+    # Telas Compose recebem estado e callbacks; o normal é uma lista longa.
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    excludes: ['**/test/**', '**/androidTest/**']

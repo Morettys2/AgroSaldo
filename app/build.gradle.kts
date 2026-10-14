@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.ktlint)
 }
 
 android {
@@ -39,10 +40,64 @@ android {
     testFixtures {
         enable = true
     }
+    lint {
+        // Erro do Android Lint quebra o build (e o CI); avisos aparecem no relatório.
+        abortOnError = true
+        checkDependencies = false
+    }
     testOptions {
         // Robolectric precisa dos recursos (fontes, temas, strings) para desenhar as telas.
         unitTests.isIncludeAndroidResources = true
     }
+}
+
+// Formatação: `./gradlew ktlintCheck` confere, `./gradlew ktlintFormat` arruma sozinho.
+// As regras (estilo do Android Studio + regras de Compose) ficam no .editorconfig da raiz.
+ktlint {
+    android.set(true)
+    baseline.set(file("ktlint-baseline.xml"))
+}
+
+// Análise estática: `./gradlew detekt`. O baseline guarda os achados antigos, para o CI
+// cobrar só código novo; ele encolhe conforme os arquivos são mexidos (`./gradlew detektBaseline`).
+//
+// Roda pela linha de comando do detekt numa JVM 21 separada, e não pelo plugin: o detekt
+// 1.23 não funciona no JDK 25 em que o Gradle do Android Studio roda.
+val detektCli: Configuration by configurations.creating {
+    // O detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.2 do app.
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") useVersion("2.0.21")
+    }
+}
+dependencies { detektCli(libs.detekt.cli) }
+
+fun JavaExec.configurarDetekt(vararg extras: String) {
+    group = "verification"
+    classpath = detektCli
+    mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    val fontes = listOf("src/main/java", "src/test/java", "src/testFixtures/java", "src/androidTest/java")
+    inputs.files(fontes.map { fileTree(it) })
+    args(
+        "--input", fontes.joinToString(",") { file(it).path },
+        "--config", rootProject.file("config/detekt/detekt.yml").path,
+        "--build-upon-default-config",
+        "--jvm-target", "21",
+        "--report", "html:${layout.buildDirectory.get()}/reports/detekt/detekt.html",
+        *extras
+    )
+}
+
+val baselineDoDetekt = file("detekt-baseline.xml")
+
+tasks.register<JavaExec>("detekt") {
+    description = "Análise estática com o detekt."
+    configurarDetekt(*(if (baselineDoDetekt.exists()) arrayOf("--baseline", baselineDoDetekt.path) else emptyArray()))
+}
+
+tasks.register<JavaExec>("detektBaseline") {
+    description = "Grava os achados atuais do detekt no baseline."
+    configurarDetekt("--baseline", baselineDoDetekt.path, "--create-baseline")
 }
 
 // Os testes de captura (CapturasDeTelaTest) gravam as imagens em app/build/capturas.
@@ -96,6 +151,8 @@ dependencies {
 
     // SplashScreen API compatível com API < 31.
     implementation(libs.androidx.core.splashscreen)
+
+    ktlintRuleset(libs.compose.rules.ktlint)
 
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     // O plugin do Compose também processa src/testFixtures e exige o runtime no classpath,
