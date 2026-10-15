@@ -1,8 +1,8 @@
 # CLAUDE.md — AgroSaldo
 
-Contexto permanente do projeto, e a **única** documentação dentro do repositório. Leia inteiro antes de qualquer alteração.
+Contexto permanente do projeto. Leia inteiro antes de qualquer alteração.
 
-A documentação técnica completa (pasta por pasta, bibliotecas, design) e a lista de todas as data classes ficam fora do repo, em dois documentos no Claude ("AgroSaldo — Documentação técnica" e "AgroSaldo — Data classes"). Quando o código mudar de forma relevante, avise que eles precisam ser atualizados.
+A documentação técnica completa (pasta por pasta, bibliotecas, design, testes) fica em `docs/DOCUMENTACAO_TECNICA.md`, com o diagrama em `docs/arquitetura.png`. Quando o código mudar de forma relevante, atualize a seção correspondente dela no mesmo PR.
 
 ---
 
@@ -181,7 +181,7 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 6. **Antes do PR**, o CI precisa ficar verde (ktlint, detekt, testes, build e lint) e sem warning novo do Kotlin.
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
-9. Não recrie README, CHANGELOG nem `docs/`: este arquivo é a referência do repo, por decisão do João.
+9. Documentação no repo: só este `CLAUDE.md` e `docs/DOCUMENTACAO_TECNICA.md` (+ `docs/arquitetura.png`). Não recrie README, CHANGELOG nem guias de rodada, por decisão do João.
 
 ---
 
