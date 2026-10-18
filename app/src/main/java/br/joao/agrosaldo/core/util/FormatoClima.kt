@@ -9,14 +9,20 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** A partir daqui o volume aparece inteiro. */
+private const val LIMITE_PARA_INTEIRO_MM = 10.0
+
+/** Uma casa decimal = décimos de milímetro. */
+private const val PASSOS_POR_MM = 10.0
+
 private val BRASIL_CLIMA: Locale = Locale.forLanguageTag("pt-BR")
 private val FORMATO_HORA_MINUTO: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** "6 mm", "2,5 mm", "12 mm": uma casa decimal abaixo de 10 mm, inteiro a partir daí. Negativo vira 0. */
 fun Double.emMilimetros(): String {
     val valor = coerceAtLeast(0.0)
-    if (valor >= 10.0) return "${valor.roundToInt()} mm"
-    val umaCasa = (valor * 10).roundToInt() / 10.0
+    if (valor >= LIMITE_PARA_INTEIRO_MM) return "${valor.roundToInt()} mm"
+    val umaCasa = (valor * PASSOS_POR_MM).roundToInt() / PASSOS_POR_MM
     val texto = if (umaCasa % 1.0 == 0.0) umaCasa.toInt().toString() else umaCasa.toString().replace('.', ',')
     return "$texto mm"
 }

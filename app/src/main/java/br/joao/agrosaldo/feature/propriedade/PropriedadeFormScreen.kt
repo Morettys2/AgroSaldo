@@ -43,8 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.localizacao.rememberBuscaDeLocalizacao
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.BotaoSecundario
@@ -55,14 +55,10 @@ import br.joao.agrosaldo.ui.theme.agro
 
 @Composable
 fun PropriedadeFormRoute(
-    propriedadeId: String?,
     aoConcluir: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PropriedadeFormViewModel = viewModel(
-        // key por id: evita reaproveitar o ViewModel de outra propriedade (ou da criação).
-        key = "propriedade-form-${propriedadeId.orEmpty()}",
-        factory = PropriedadeFormViewModel.Factory(propriedadeId)
-    )
+    // Um ViewModel por entrada da navegação: cada propriedade (ou a criação) tem o seu.
+    viewModel: PropriedadeFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

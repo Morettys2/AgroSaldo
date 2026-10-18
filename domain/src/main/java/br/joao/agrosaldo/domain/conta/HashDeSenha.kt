@@ -27,7 +27,7 @@ class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val ale
      * PBKDF2. [confere] contra ele custa o mesmo que contra um hash real e, na prática,
      * nunca dá true (a chance de uma senha derivar o hash sorteado é de 2^-256).
      */
-    fun ficticio(): String = formatar(bytesAleatorios(TAMANHO_SAL), bytesAleatorios(TAMANHO_HASH_BITS / 8))
+    fun ficticio(): String = formatar(bytesAleatorios(TAMANHO_SAL), bytesAleatorios(TAMANHO_HASH_BITS / BITS_POR_BYTE))
 
     /**
      * true se [armazenado] usa menos iterações que o configurado. O rehash só
@@ -35,7 +35,7 @@ class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val ale
      */
     fun precisaAtualizar(armazenado: String): Boolean {
         val partes = armazenado.split(SEPARADOR)
-        if (partes.size != 4 || partes[0] != ALGORITMO) return false
+        if (partes.size != PARTES_DO_REGISTRO || partes[0] != ALGORITMO) return false
         val gravadas = partes[1].toIntOrNull() ?: return false
         return gravadas < iteracoes
     }
@@ -43,11 +43,11 @@ class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val ale
     /** true se [senha] corresponde a [armazenado]. Formato inválido retorna false. */
     fun confere(senha: String, armazenado: String): Boolean {
         val partes = armazenado.split(SEPARADOR)
-        if (partes.size != 4 || partes[0] != ALGORITMO) return false
+        if (partes.size != PARTES_DO_REGISTRO || partes[0] != ALGORITMO) return false
 
         val iteracoesGravadas = partes[1].toIntOrNull() ?: return false
         val sal = decodificar(partes[2]) ?: return false
-        val esperado = decodificar(partes[3]) ?: return false
+        val esperado = decodificar(partes[POSICAO_DO_HASH]) ?: return false
 
         val calculado = derivar(senha, sal, iteracoesGravadas)
 
@@ -76,6 +76,8 @@ class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val ale
 
     private fun bytesAleatorios(tamanho: Int): ByteArray = ByteArray(tamanho).also { aleatorio.nextBytes(it) }
 
+    @Suppress("SwallowedException") // Base64 inválido vira null: registro malformado
+
     private fun decodificar(texto: String): ByteArray? = try {
         DECODIFICADOR.decode(texto)
     } catch (e: IllegalArgumentException) {
@@ -94,6 +96,9 @@ class HashDeSenha(private val iteracoes: Int = ITERACOES_PADRAO, private val ale
         private const val SEPARADOR = "$"
         private const val TAMANHO_SAL = 16
         private const val TAMANHO_HASH_BITS = 256
+        private const val BITS_POR_BYTE = 8
+        private const val PARTES_DO_REGISTRO = 4
+        private const val POSICAO_DO_HASH = 3
 
         // Sem padding: mantém "$" como único caractere não Base64 do registro.
         private val CODIFICADOR: Base64.Encoder = Base64.getEncoder().withoutPadding()

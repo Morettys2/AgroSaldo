@@ -1,19 +1,17 @@
 package br.joao.agrosaldo.feature.propriedade
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlin.math.abs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +40,8 @@ data class PropriedadeListaUiState(
  * Lista de propriedades com comparativo de saldo do mês (RF11). O saldo não é persistido:
  * é derivado dos lançamentos a cada emissão de propriedades, lançamentos ou mês.
  */
-class PropriedadeListaViewModel(
+@HiltViewModel
+class PropriedadeListaViewModel @Inject constructor(
     private val propriedadeRepository: PropriedadeRepository,
     private val lancamentoRepository: LancamentoRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
@@ -92,15 +91,5 @@ class PropriedadeListaViewModel(
 
     companion object {
         private const val MENSAGEM_ERRO = "Não foi possível carregar as propriedades. Tentando de novo…"
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                PropriedadeListaViewModel(
-                    selecao = dependencias.selecao,
-                    propriedadeRepository = dependencias.propriedades,
-                    lancamentoRepository = dependencias.lancamentos
-                )
-            }
-        }
     }
 }

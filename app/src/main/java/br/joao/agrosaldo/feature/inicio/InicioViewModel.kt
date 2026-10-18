@@ -1,15 +1,12 @@
 package br.joao.agrosaldo.feature.inicio
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
@@ -22,11 +19,13 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
-import java.time.Instant
+import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,21 +72,23 @@ data class CartaoChuvaUi(val rotulo: String, val frase: String, val detalhe: Str
  * selecionada, últimos lançamentos e cartão de chuva.
  *
  * Os totais são agregados em memória a partir de todos os lançamentos a cada emissão.
- * TODO: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
+ * Possível melhoria: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class InicioViewModel(
+@HiltViewModel
+class InicioViewModel @Inject constructor(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val relogio: () -> Long = System::currentTimeMillis,
-    /** Nome do usuário logado, usado para as iniciais. */
-    nomeDoUsuario: Flow<String?> = flowOf(null),
-    private val hoje: () -> LocalDate = LocalDate::now
+    /** Quem está conectado; o nome gera as iniciais do cabeçalho. */
+    usuarioLogado: UsuarioLogadoRepository,
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
+
+    private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     private val _uiState = MutableStateFlow(InicioUiState())
     val uiState: StateFlow<InicioUiState> = _uiState.asStateFlow()
@@ -120,7 +121,7 @@ class InicioViewModel(
         }
 
         viewModelScope.launch {
-            nomeDoUsuario
+            usuarioLogado.observarNome()
                 .map { nome -> if (nome.isNullOrBlank()) "" else RegrasDeConta.iniciais(nome) }
                 .collect { iniciais -> _uiState.update { it.copy(iniciais = iniciais) } }
         }
@@ -163,7 +164,7 @@ class InicioViewModel(
     }
 
     private fun cartaoChuva(previsao: Previsao, limites: LimitesChuva): CartaoChuvaUi {
-        val instante = Instant.ofEpochMilli(relogio())
+        val instante = relogio.instant()
         val avaliacao = RegraDeChuva.avaliar(previsao, instante, limites)
         val rotulo = "Previsão · próximas ${limites.janelaHoras} h"
         return when {
@@ -229,7 +230,7 @@ class InicioViewModel(
             despesasCentavos = totais.despesasCentavos,
             proporcaoReceitas = totais.proporcaoReceitas,
             gastosPorCategoria = ResumoFinanceiro.rankingDeGastos(doMes, quantos = MAXIMO_CATEGORIAS),
-            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(4),
+            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(MAXIMO_ULTIMOS_LANCAMENTOS),
             hoje = hoje()
         )
     }
@@ -242,20 +243,8 @@ class InicioViewModel(
     companion object {
         /** Quantas categorias o cartão "Maiores gastos" mostra. */
         const val MAXIMO_CATEGORIAS = 3
+        const val MAXIMO_ULTIMOS_LANCAMENTOS = 4
 
         const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                InicioViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades,
-                    clima = dependencias.clima,
-                    ajustes = dependencias.ajustesAviso,
-                    nomeDoUsuario = dependencias.conta.observarUsuarioLogado().map { it?.nome }
-                )
-            }
-        }
     }
 }

@@ -6,22 +6,29 @@ import androidx.core.content.edit
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import kotlinx.coroutines.CoroutineScope
 
 private const val ARQUIVO = "aviso_chuva"
 
 /**
  * [AjustesAvisoRepository] do app: [AjustesAvisoPorConta] em SharedPreferences (arquivo "aviso_chuva").
  *
+ * @param escopo ver [AjustesAvisoPorConta]; em produção é o escopo do app.
  * @param aoEntrarEmConta ver [AjustesAvisoPorConta].
  */
-class AjustesAvisoPreferencias(context: Context, sessao: SessaoRepository, aoEntrarEmConta: (AjustesAviso) -> Unit = {}) :
-    AjustesAvisoRepository by AjustesAvisoPorConta(
-        armazenamento = ArmazenamentoPreferencias(
-            context.applicationContext.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE)
-        ),
-        sessao = sessao,
-        aoEntrarEmConta = aoEntrarEmConta
-    )
+class AjustesAvisoPreferencias(
+    context: Context,
+    sessao: SessaoRepository,
+    escopo: CoroutineScope,
+    aoEntrarEmConta: (AjustesAviso) -> Unit = {}
+) : AjustesAvisoRepository by AjustesAvisoPorConta(
+    armazenamento = ArmazenamentoPreferencias(
+        context.applicationContext.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE)
+    ),
+    sessao = sessao,
+    aoEntrarEmConta = aoEntrarEmConta,
+    escopo = escopo
+)
 
 private class ArmazenamentoPreferencias(private val preferencias: SharedPreferences) : ArmazenamentoDeAjustes {
 

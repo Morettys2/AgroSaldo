@@ -32,15 +32,15 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | Linguagem / UI | Kotlin 2.2.10, Jetpack Compose (BOM 2026.02.01, Material 3) |
 | Build | AGP 9.3.2 (Kotlin embutido no AGP), Gradle 9.5.0, Version Catalog (`gradle/libs.versions.toml`), KSP |
 | JDK | Gradle roda no JDK 25 (toolchain do daemon); o código compila para Java 11 |
-| Arquitetura | MVVM + Repository, com camada `domain` pura (Kotlin sem Android) |
+| Arquitetura | MVVM + Repository, com o domínio num **módulo Gradle próprio (`:domain`, Kotlin puro)**: o compilador recusa `android.*`, Room, Compose e Hilt ali |
 | Banco | Room 2.8.5, banco versão 3 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`), que é a base da produção: **sem migrações antigas**, a próxima parte da 3. Schema exportado em `app/schemas` |
-| DI | **Manual**: `di/Dependencias.kt`, criado e guardado pelo `AgroSaldoApp` e lido nas `Factory` de cada ViewModel via `CreationExtras.dependencias` (`APPLICATION_KEY`). **Sem** Hilt/Koin, por decisão: é projeto de aprendizado |
+| DI | **Hilt** 2.60.1 (+ AndroidX Hilt 1.4.0): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` e `@HiltWorker`; módulos em `di/` (`TempoModule`, `BancoModule`, `PreferenciasModule`, `RepositoriosModule`, `ServicosModule`); processador via KSP. Antes era DI manual (`Dependencias`), trocado em out/2026 por decisão do João |
 | Rede | `HttpURLConnection` + `org.json` (`data/clima/FontePrevisao.kt`). Só a Open-Meteo, por HTTPS |
 | Preferências | `SharedPreferences` (`data/preferencias`, `data/sessao`) |
 | Segundo plano | WorkManager 2.11 (`aviso/VerificacaoChuvaWorker.kt`) |
 | Outros | Navigation Compose, Biometric, SplashScreen, fonte Plus Jakarta Sans embutida |
 | Testes | JUnit 4, kotlinx-coroutines-test, Robolectric 4.17, Roborazzi 1.76, work-testing; fakes em memória em `src/testFixtures` (sem MockK nem Turbine) |
-| Qualidade | ktlint (plugin 14.2, estilo `android_studio`, regras de Compose 0.6.8), detekt 1.23.8 com baseline, Android Lint com `abortOnError` |
+| Qualidade | ktlint (plugin 14.2, estilo `android_studio`, regras de Compose 0.6.8), detekt 1.23.8 **sem baseline (zero achados)**, Android Lint com `abortOnError` |
 
 `minSdk 26`, `compileSdk` e `targetSdk` 37.
 
@@ -51,17 +51,18 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 Pacote: `br.joao.agrosaldo`.
 
 ```
-AgroSaldoApp.kt  Application: cria o Dependencias e agenda o Worker
+AgroSaldoApp.kt  Application (@HiltAndroidApp): canal de notificação e agendamento do Worker
 MainActivity.kt  única Activity; FLAG_SECURE, capa de bloqueio, intent da notificação
 aviso/           Worker, notificação e agendamento do aviso de chuva (Android)
 core/            navigation/ (AppNavegacao, Navegador, GrafosDeNavegacao, TransicoesDeTela, BarraInferior, Rotas),
                  ui/ (componentes "Safra": botões, estados, seletor, cabeçalho),
                  util/ (Moeda, datas, Erros, TextosDaChuva), localizacao/, seguranca/
-di/              Dependencias (container da DI manual)
+di/              módulos do Hilt (Tempo, Banco, Preferências, Repositórios, Serviços)
 data/            SelecaoAtual, Desfazer, local/ (Room: entidades, DAOs, Transacao),
                  repository/ (implementações Room), clima/ (Open-Meteo), preferencias/, sessao/
-domain/          model/, repository/ (interfaces), financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva),
-                 conta/ (HashDeSenha, regras da conta e do bloqueio)
+domain/          MÓDULO :domain (domain/src/main/java/br/joao/agrosaldo/domain): model/, repository/ (interfaces),
+                 financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva), conta/ (HashDeSenha, regras da conta e do bloqueio),
+                 Relogio e Despachantes
 feature/         inicio, lancamento, propriedade, clima, historico, conta;
                  cada uma com *Screen.kt + *ViewModel.kt (+ UiState e arquivos de partes da tela)
 ui/theme/        Color.kt, Type.kt, Shape.kt, Espacos, Theme.kt, IconesAgro.kt (ícones desenhados)
@@ -70,12 +71,13 @@ ui/theme/        Color.kt, Type.kt, Shape.kt, Espacos, Theme.kt, IconesAgro.kt (
 Fora de `src/main`:
 
 ```
-app/src/testFixtures/  fakes *Memoria, DadosDeExemplo, Semeador (usados pelos dois tipos de teste)
-app/src/test/          testes JVM: domínio, ViewModels, Worker, preferências, telas (Robolectric), capturas (Roborazzi)
+domain/src/test/       testes do domínio (JVM puro, `./gradlew :domain:test`)
+domain/src/testFixtures/ fakes *Memoria das interfaces do domínio, DadosDeExemplo e relógios de teste
+app/src/testFixtures/  AjustesAvisoMemoria e Semeador (dependem do app); reexporta os fakes do :domain
+app/src/test/          testes JVM: ViewModels, dados, Worker, preferências, telas (Robolectric), capturas (Roborazzi), grafo do Hilt
 app/src/androidTest/   testes instrumentados: DAOs do Room (precisam de emulador)
 app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; base dos testes de migração futuros)
 config/detekt/         detekt.yml
-app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 .editorconfig          regras do ktlint
 .github/workflows/android.yml  CI
 ```
@@ -91,12 +93,12 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 1. **Nada de `!!`.** Trate nulo explicitamente.
 2. **Nenhuma cor literal fora de `ui/theme`.** Use `MaterialTheme.colorScheme` ou `MaterialTheme.agro`.
 3. **Nada de `GlobalScope`.** Use `viewModelScope`.
-4. **`domain/` não importa Android**: nada de `android.*`, `androidx.*`, Room nem Compose.
+4. **O módulo `:domain` não importa Android**: nada de `android.*`, `androidx.*`, Room, Compose nem Hilt. Não é só convenção: é um módulo Kotlin JVM, e o build quebra se alguém tentar.
 5. **ViewModel não importa Compose.**
 6. **Dinheiro é `Long` em centavos.** Formatação só na UI (`core/util/Moeda.kt`). No banco, `INTEGER`, nunca `REAL`.
 7. **Datas são `java.time`** (`LocalDate`, `YearMonth`, `Instant`). Nada de `LocalDate.now()` no `init` de modelo: foi o crash corrigido na R5. A regra de data futura (RN07) é checada ao salvar, com `Lancamento.dataDentroDoLimite`.
 8. **Regra de negócio mora no domínio.** Saldo, ranking e afins são funções puras em `domain/` (ex.: `ResumoFinanceiro`), testadas sem Android. O ViewModel só junta dados e chama o domínio.
-9. **Nada de estado global.** Estado compartilhado (ex.: `SelecaoAtual`) é criado no `Dependencias` e passado no construtor.
+9. **Nada de estado global.** Estado compartilhado (ex.: `SelecaoAtual`, `Desfazer`) é `@Singleton` num módulo do Hilt e chega pelo construtor.
 10. **Fakes e dados de exemplo ficam em `src/testFixtures`**, nunca em `src/main`: o APK não leva código de teste e o app começa sempre vazio, também no debug.
 11. **Erros em coroutine:** use `tentar { }` (`core/util/Erros.kt`), que não engole `CancellationException`, e mostre a mensagem com `mensagemParaUsuario(...)`. Todo `Flow` lido do banco tem `.catch` e um campo de erro no UiState.
 12. **Gravações que mexem em mais de uma tabela** vão numa transação (`data/local/Transacao.kt`).
@@ -107,6 +109,7 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 17. **Biblioteca nova** só com justificativa, e sempre pelo `libs.versions.toml`.
 18. **Todo texto digitado tem limite**, valido no domínio (`require`) e cortado no ViewModel ao digitar ou colar: descrição do lançamento 200, nome da propriedade 80, cultura 60, e-mail 254, área até 1.000.000 ha (e sempre finita). O domínio é a última barreira: nunca confie só na tela.
 19. **Ler e apagar vão na mesma transação.** `LancamentoRepository.excluir` devolve o lançamento apagado (ou `null`), para o "Desfazer" guardar exatamente o que saiu do banco.
+20. **Tempo e threads vêm injetados:** hora do calendário por `java.time.Clock` (`LocalDate.now(relogio)`, nunca `now()` solto), duração por `RelogioMonotonico` e `Despachantes` no lugar de `Dispatchers.*`. Nos testes use `relogioEm`, `relogioPorMs`, `RelogioMutavel` e `DespachantesDeTeste` (`testFixtures`).
 
 ---
 
@@ -147,11 +150,11 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 
 ```bash
 ./gradlew ktlintCheck        # formatação (ktlintFormat arruma sozinho)
-./gradlew detekt             # análise estática; só cobra código novo (baseline)
-./gradlew testDebugUnitTest  # testes JVM, incluindo Robolectric e capturas — rode SEMPRE antes de commitar
+./gradlew detekt             # análise estática dos dois módulos; precisa dar zero achados (não há baseline)
+./gradlew testDebugUnitTest  # testes JVM do app, incluindo Robolectric e capturas — rode SEMPRE antes de commitar
+./gradlew :domain:test       # testes do módulo de domínio (rápidos, sem Android)
 ./gradlew assembleDebug      # compila o app inteiro
 ./gradlew lintDebug          # Android Lint (erro quebra o build)
-./gradlew detektBaseline     # regenera o baseline depois de limpar achados antigos
 ```
 
 - Os testes instrumentados (`connectedAndroidTest`: DAOs) precisam de emulador e **não rodam na nuvem**. Se mexer em DAO, entidade ou migração, avise para rodar no Android Studio.
@@ -162,11 +165,14 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 - **detekt** não é o plugin Gradle: o plugin 1.23 não roda no JDK 25. A tarefa `detekt` é um `JavaExec` que chama a CLI do detekt numa **JVM 21** separada (toolchain), com o Kotlin da configuração `detektCli` fixado em 2.0.21. Está no `app/build.gradle.kts`.
 - **Robolectric** roda com `sdk = 36`, gráficos `NATIVE` e `application = android.app.Application` (não sobe o `AgroSaldoApp`). Os testes precisam dos argumentos de JVM `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED` e `--add-opens=java.base/java.io=ALL-UNNAMED`, já configurados.
 - **Roborazzi** (`CapturasDeTelaTest`) grava PNGs em `app/build/capturas`. Não compara pixels; só garante que a tela desenha.
+- **Módulo `:domain`:** o plugin é `org.jetbrains.kotlin.jvm` (no app o Kotlin vem embutido no AGP), com `java-test-fixtures`. O detekt do app analisa também as pastas do domínio. Propriedade pública de outro módulo não permite *smart cast*: copie para uma `val` local antes do `!= null`.
+- **Hilt:** `hiltViewModel()` vem de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto). Os formulários (`LancamentoFormViewModel`, `PropriedadeFormViewModel`) têm um construtor secundário `@Inject` que lê os argumentos da rota do `SavedStateHandle`; por isso as chaves do rascunho levam o prefixo `rascunho_` (o handle também recebe `tipo` e `id` da rota). O iniciador do WorkManager foi removido do manifesto: o `AgroSaldoApp` é o `Configuration.Provider` com a fábrica de Workers do Hilt. `GrafoDeDependenciasTest` sobe o grafo de verdade no Robolectric (`kspTest` + `hilt-android-testing`).
+- Rodar o `lintDebug` em paralelo com `compileDebugAndroidTestKotlin` ou `assembleRelease` pode falhar por corrida nos arquivos gerados do Hilt; o conjunto do CI (`ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug`) roda limpo.
 - O `testFixtures` precisa do Compose runtime no classpath (`testFixturesImplementation` do BOM e do runtime), por causa do compilador do Compose.
 
 ### CI (`.github/workflows/android.yml`)
 
-- Roda `ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug` em push na `main` e em todo PR.
+- Roda `ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug` em push na `main` e em todo PR.
 - Os erros viram anotações no check run (é por elas que dá para ler a falha sem abrir o log).
 - As capturas do Roborazzi são publicadas na branch **`ci/capturas`** (não apague). Por isso o workflow tem `permissions: contents: write`.
 - O `gradlew` precisa do bit de execução no Git (`git update-index --chmod=+x gradlew`); sem ele o CI falha com exit 126.
@@ -198,6 +204,8 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 - **R6:** regras no domínio (`ResumoFinanceiro`, `propriedadeAtual`), `SelecaoAtual` injetada, container `Dependencias`, fakes para `testFixtures` (app começa vazio), `.catch` nas leituras do banco.
 - **R7:** componentes compartilhados de botão e estado, `Espacos`, um seletor de propriedade só (48 dp, com role), acessibilidade (aba ≥ 11 sp, roles, previews 2×), textos unificados.
 - **Transições de tela (branch `prod`):** o crossfade padrão de 700 ms do Navigation Compose deixava a tela antiga "fantasma" por baixo da nova. Agora trocar de aba é instantâneo e as demais telas deslizam, com a antiga sumindo em 90 ms (`core/navigation/TransicoesDeTela.kt`).
+- **Detekt sem baseline:** os 115 achados antigos foram resolvidos (constantes nomeadas, `aoSalvar` e `verificar` quebrados em funções menores, `Desfazer.desfazerExclusao`) ou justificados no `detekt.yml` (testes que capturam exceção de propósito, guardas, telas Compose) ou com `@Suppress` comentado no ponto exato. Achado novo = corrigir, não baselinar.
+- **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 
 ### R9 — Play Store (futuro, sem data)

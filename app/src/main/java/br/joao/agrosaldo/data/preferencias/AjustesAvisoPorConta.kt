@@ -38,7 +38,9 @@ interface ArmazenamentoDeAjustes {
 class AjustesAvisoPorConta(
     private val armazenamento: ArmazenamentoDeAjustes,
     private val sessao: SessaoRepository,
-    private val aoEntrarEmConta: (AjustesAviso) -> Unit = {}
+    private val aoEntrarEmConta: (AjustesAviso) -> Unit = {},
+    /** Escopo da coleta da sessão; o do app em produção (vive enquanto o processo viver). */
+    escopo: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 ) : AjustesAvisoRepository {
 
     private var contaCarregada: String? = sessao.usuarioId.value
@@ -47,9 +49,9 @@ class AjustesAvisoPorConta(
     override val ajustes: StateFlow<AjustesAviso> = _ajustes.asStateFlow()
 
     init {
-        // Unconfined: a troca de conta recarrega os ajustes logo em seguida, na própria thread
-        // que a fez. A coleta vive enquanto o repositório viver.
-        CoroutineScope(SupervisorJob() + Dispatchers.Unconfined).launch {
+        // Com Unconfined, a troca de conta recarrega os ajustes logo em seguida, na própria
+        // thread que a fez. A coleta vive enquanto o [escopo] viver.
+        escopo.launch {
             sessao.usuarioId.collect { recarregar(it) }
         }
     }

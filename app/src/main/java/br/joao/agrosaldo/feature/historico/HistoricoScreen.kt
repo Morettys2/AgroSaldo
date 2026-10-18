@@ -42,8 +42,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.core.ui.EstadoVazio
@@ -64,11 +64,7 @@ import br.joao.agrosaldo.ui.theme.agro
 import java.time.YearMonth
 
 @Composable
-fun HistoricoRoute(
-    aoAbrirMes: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: HistoricoViewModel = viewModel(factory = HistoricoViewModel.Factory)
-) {
+fun HistoricoRoute(aoAbrirMes: () -> Unit, modifier: Modifier = Modifier, viewModel: HistoricoViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     HistoricoScreen(

@@ -24,6 +24,7 @@ object LocalizacaoDoCelular {
      * Callbacks na main thread; falhas chegam como mensagem pronta para o usuário.
      * @return sinal para cancelar a busca, ou null se ela não chegou a iniciar.
      */
+    @Suppress("SwallowedException") // sem permissão vira mensagem para a pessoa, não é falha do app
     fun obter(
         context: Context,
         aoEncontrar: (latitude: Double, longitude: Double) -> Unit,

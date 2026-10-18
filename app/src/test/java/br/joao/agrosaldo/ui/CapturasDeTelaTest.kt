@@ -14,8 +14,12 @@ import androidx.compose.ui.unit.Density
 import br.joao.agrosaldo.clima.ApoioClima
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.UsuarioLogadoMemoria
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.relogioEm
+import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
@@ -39,8 +43,8 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import java.time.LocalDate
 import java.time.YearMonth
-import kotlin.coroutines.EmptyCoroutineContext
-import kotlinx.coroutines.flow.flowOf
+import java.time.ZoneOffset
+import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,9 +95,8 @@ class CapturasDeTelaTest {
         clima = clima,
         ajustes = AjustesAvisoMemoria(),
         selecao = selecao,
-        relogio = { agoraMs },
-        nomeDoUsuario = flowOf("Produtor Exemplo"),
-        hoje = { hoje }
+        usuarioLogado = UsuarioLogadoMemoria("Produtor Exemplo"),
+        relogio = relogioPorMs(ZoneOffset.ofHours(-3)) { agoraMs }
     )
 
     // Só nos testes: a tela recebe o ViewModel pronto, com os dados de exemplo.
@@ -125,8 +128,8 @@ class CapturasDeTelaTest {
             lancamentoRepository = lancamentos,
             propriedadeRepository = propriedades,
             selecao = selecao,
-            hoje = { hoje },
-            processamento = EmptyCoroutineContext
+            relogio = relogioEm(hoje),
+            despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
         )
         capturar("03-lancamentos") { LancamentoListaRoute(aoEditarLancamento = {}, viewModel = viewModel) }
     }
@@ -136,7 +139,7 @@ class CapturasDeTelaTest {
         propriedadeRepository = propriedades,
         selecao = selecao,
         lancamentoId = null,
-        hoje = { hoje }
+        relogio = relogioEm(hoje)
     ).apply {
         aoTeclar("3")
         aoTeclar("2")
@@ -208,7 +211,7 @@ class CapturasDeTelaTest {
             lancamentoRepository = lancamentos,
             propriedadeRepository = propriedades,
             selecao = selecao,
-            hoje = { hoje }
+            relogio = relogioEm(hoje)
         )
         capturar("07-historico") { HistoricoRoute(aoAbrirMes = {}, viewModel = viewModel) }
     }
@@ -246,8 +249,8 @@ class CapturasDeTelaTest {
             clima = ClimaRepositoryMemoria(),
             ajustes = AjustesAvisoMemoria(),
             selecao = SelecaoAtual(),
-            relogio = { agoraMs },
-            hoje = { hoje }
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioPorMs(ZoneOffset.ofHours(-3)) { agoraMs }
         )
         capturar("10-inicio-vazio") { TelaInicio(viewModel) }
     }

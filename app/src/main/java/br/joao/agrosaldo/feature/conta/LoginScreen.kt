@@ -30,8 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CampoTexto
@@ -43,11 +43,7 @@ import br.joao.agrosaldo.ui.theme.Espacos
  * sessão e navega ao início quando ela é aberta.
  */
 @Composable
-fun LoginRoute(
-    aoCriarConta: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory)
-) {
+fun LoginRoute(aoCriarConta: () -> Unit, modifier: Modifier = Modifier, viewModel: LoginViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LoginScreen(

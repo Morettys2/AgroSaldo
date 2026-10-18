@@ -1,6 +1,9 @@
 package br.joao.agrosaldo.domain.conta
 
-import br.joao.agrosaldo.domain.model.InstanteMonotonico
+import br.joao.agrosaldo.domain.Despachantes
+import br.joao.agrosaldo.domain.DespachantesDoSistema
+import br.joao.agrosaldo.domain.RelogioMonotonico
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.domain.model.Usuario
 import br.joao.agrosaldo.domain.repository.EstadoTentativas
@@ -8,10 +11,8 @@ import br.joao.agrosaldo.domain.repository.SessaoRepository
 import br.joao.agrosaldo.domain.repository.TentativasRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
 import java.security.MessageDigest
-import java.time.Instant
+import java.time.Clock
 import java.util.UUID
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,10 +59,10 @@ sealed interface ResultadoAlteracaoSenha {
  * exclusão (RF01, RF02, RNF10, RF16). Encapsula hash, sessão e bloqueio por
  * tentativas; os ViewModels só consomem os resultados selados.
  *
- * @param relogio fonte de tempo em epoch ms (injetável em testes).
+ * @param relogio hora do calendário (injetável em testes).
  * @param relogioMonotonico tempo imune a mudanças de data/hora, usado no bloqueio
- *   por tentativas; null quando indisponível (cai para [relogio]).
- * @param dispatcherCalculo dispatcher do PBKDF2; nunca a main thread.
+ *   por tentativas; sem boot conhecido cai para [relogio].
+ * @param despachantes onde o PBKDF2 roda ([Despachantes.calculo]); nunca a main thread.
  * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
  *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
  * @param aoExcluirConta chamado com o id da conta logo depois de apagá-la do banco e antes
@@ -72,9 +73,9 @@ class ContaService(
     private val sessao: SessaoRepository,
     private val tentativas: TentativasRepository,
     private val hash: HashDeSenha = HashDeSenha(),
-    private val relogio: () -> Long = System::currentTimeMillis,
-    private val relogioMonotonico: () -> InstanteMonotonico? = { null },
-    private val dispatcherCalculo: CoroutineDispatcher = Dispatchers.Default,
+    private val relogio: Clock = Clock.systemDefaultZone(),
+    private val relogioMonotonico: RelogioMonotonico = RelogioMonotonicoIndisponivel,
+    private val despachantes: Despachantes = DespachantesDoSistema,
     private val aoTrocarDeUsuario: () -> Unit = {},
     private val aoExcluirConta: suspend (usuarioId: String) -> Unit = {}
 ) {
@@ -124,7 +125,7 @@ class ContaService(
     /** Registra o aceite da versão atual do termo. Retorna false sem sessão válida. */
     suspend fun registrarNovoAceite(): Boolean {
         val usuario = usuarioConectado() ?: return false
-        usuarios.registrarConsentimento(usuario.id, Instant.ofEpochMilli(relogio()), TermoDePrivacidade.VERSAO_ATUAL)
+        usuarios.registrarConsentimento(usuario.id, relogio.instant(), TermoDePrivacidade.VERSAO_ATUAL)
         return true
     }
 
@@ -152,7 +153,7 @@ class ContaService(
         val emailNormalizado = RegrasDeConta.normalizarEmail(email)
         if (usuarios.buscarPorEmail(emailNormalizado) != null) return ResultadoCadastro.EmailJaCadastrado
 
-        val agora = Instant.ofEpochMilli(relogio())
+        val agora = relogio.instant()
         val usuario = Usuario(
             id = UUID.randomUUID().toString(),
             nome = nome.trim(),
@@ -288,7 +289,7 @@ class ContaService(
         val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
         val duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
         bloquear(chave, falhas, duracao)
-        return duracao / 1000
+        return duracao / MS_POR_SEGUNDO
     }
 
     /**
@@ -301,8 +302,8 @@ class ContaService(
             chave,
             EstadoTentativas(
                 falhasSeguidas = falhas,
-                bloqueadoAte = relogio() + duracao,
-                fimMonotonico = relogioMonotonico()?.mais(duracao)
+                bloqueadoAte = relogio.millis() + duracao,
+                fimMonotonico = relogioMonotonico.instante()?.mais(duracao)
             )
         )
     }
@@ -311,11 +312,11 @@ class ContaService(
     private fun segundosDeBloqueio(chave: String): Long? {
         val estado = tentativas.ler(chave)
         val fimMonotonico = estado.fimMonotonico
-        val agoraMonotonico = relogioMonotonico()
+        val agoraMonotonico = relogioMonotonico.instante()
         val restante = if (fimMonotonico != null && agoraMonotonico?.boot == fimMonotonico.boot) {
             fimMonotonico.desdeOBootMs - agoraMonotonico.desdeOBootMs
         } else {
-            estado.bloqueadoAte - relogio()
+            estado.bloqueadoAte - relogio.millis()
         }
         if (restante <= 0L) return null
 
@@ -323,9 +324,9 @@ class ContaService(
         // gravação: reancora no máximo para a espera não durar meses ou anos.
         if (restante > BLOQUEIO_MAXIMO_MS) {
             bloquear(chave, estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
-            return BLOQUEIO_MAXIMO_MS / 1000
+            return BLOQUEIO_MAXIMO_MS / MS_POR_SEGUNDO
         }
-        return (restante + 999) / 1000
+        return (restante + MS_POR_SEGUNDO - 1) / MS_POR_SEGUNDO
     }
 
     /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */
@@ -349,12 +350,12 @@ class ContaService(
         sessao.iniciar(usuarioId)
     }
 
-    // PBKDF2 é CPU-bound (centenas de ms): sempre em [dispatcherCalculo].
-    private suspend fun calcularHash(senha: String): String = withContext(dispatcherCalculo) { hash.gerar(senha) }
+    // PBKDF2 é CPU-bound (centenas de ms): sempre em [Despachantes.calculo].
+    private suspend fun calcularHash(senha: String): String = withContext(despachantes.calculo) { hash.gerar(senha) }
 
     /** Com [armazenado] nulo, roda contra [hashFicticio] e retorna sempre false. */
     private suspend fun conferir(senha: String, armazenado: String?): Boolean =
-        withContext(dispatcherCalculo) { hash.confere(senha, armazenado ?: hashFicticio) && armazenado != null }
+        withContext(despachantes.calculo) { hash.confere(senha, armazenado ?: hashFicticio) && armazenado != null }
 
     // Montado sem PBKDF2: a primeira tentativa com e-mail inexistente custa o mesmo que as demais.
     private val hashFicticio: String = hash.ficticio()
@@ -364,5 +365,6 @@ class ContaService(
         const val BLOQUEIO_MS = 30_000L
         const val BLOQUEIO_MAXIMO_MS = 15 * 60_000L
         private const val MAXIMO_DOBRAS = 5
+        private const val MS_POR_SEGUNDO = 1_000L
     }
 }

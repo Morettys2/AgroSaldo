@@ -30,8 +30,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
 import br.joao.agrosaldo.core.ui.Carregando
@@ -57,7 +57,7 @@ fun PropriedadeListaRoute(
     aoAbrirPropriedade: (String) -> Unit,
     aoAbrirConta: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PropriedadeListaViewModel = viewModel(factory = PropriedadeListaViewModel.Factory)
+    viewModel: PropriedadeListaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

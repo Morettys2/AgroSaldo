@@ -21,11 +21,12 @@ data class TotaisDoPeriodo(val receitasCentavos: Long = 0L, val despesasCentavos
     val proporcaoReceitas: Float
         get() {
             val movimentado = receitasCentavos + despesasCentavos
-            return if (movimentado == 0L) 0.5f else receitasCentavos.toFloat() / movimentado
+            return if (movimentado == 0L) PROPORCAO_SEM_MOVIMENTO else receitasCentavos.toFloat() / movimentado
         }
 
     companion object {
         val VAZIO = TotaisDoPeriodo()
+        private const val PROPORCAO_SEM_MOVIMENTO = 0.5f
     }
 }
 

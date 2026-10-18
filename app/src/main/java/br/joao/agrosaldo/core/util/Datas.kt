@@ -11,6 +11,9 @@ import java.time.format.ResolverStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
+private const val LETRAS_DA_SIGLA = 3
+private const val SEGUNDOS_POR_MINUTO = 60L
+
 private val BRASIL: Locale = Locale.forLanguageTag("pt-BR")
 
 /**
@@ -56,7 +59,9 @@ fun LocalDate.emMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toE
 fun Long.paraLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
 
 /** "Jan", "Fev"... (eixo do gráfico do histórico). */
-fun YearMonth.siglaDoMes(): String = month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).replaceFirstChar { it.uppercase(BRASIL) }
+fun YearMonth.siglaDoMes(): String = month.getDisplayName(TextStyle.SHORT, BRASIL).take(LETRAS_DA_SIGLA).replaceFirstChar {
+    it.uppercase(BRASIL)
+}
 
 /** "Hoje", "Ontem", "Amanhã", "2 de outubro" ou, em outro ano, "2 de outubro de 2025". */
 fun LocalDate.rotuloRelativo(hoje: LocalDate): String = when (this) {
@@ -83,16 +88,17 @@ fun LocalDate.rotuloDeData(hoje: LocalDate): String = when (this) {
     else -> rotuloRelativoCurto(hoje)
 }
 
-/** "4 out". take(3) remove o ponto que algumas versões do JDK/ICU incluem ("out."). */
-private fun LocalDate.diaEMesCurto(): String = "$dayOfMonth " + month.getDisplayName(TextStyle.SHORT, BRASIL).take(3).lowercase(BRASIL)
+/** "4 out". Limitar a [LETRAS_DA_SIGLA] remove o ponto que algumas versões do JDK/ICU incluem ("out."). */
+private fun LocalDate.diaEMesCurto(): String =
+    "$dayOfMonth " + month.getDisplayName(TextStyle.SHORT, BRASIL).take(LETRAS_DA_SIGLA).lowercase(BRASIL)
 
 fun YearMonth.nomeDoMes(): String = month.getDisplayName(TextStyle.FULL, BRASIL).replaceFirstChar { it.uppercase(BRASIL) }
 
 /** "30 segundos", "1 minuto", "2 minutos e 30 segundos". Mínimo de 1 s, nunca "0 segundos". */
 fun formatarEspera(segundos: Long): String {
     val total = segundos.coerceAtLeast(1)
-    val minutos = total / 60
-    val resto = total % 60
+    val minutos = total / SEGUNDOS_POR_MINUTO
+    val resto = total % SEGUNDOS_POR_MINUTO
     fun plural(n: Long, singular: String, plural: String) = "$n " + if (n == 1L) singular else plural
     return when {
         minutos == 0L -> plural(resto, "segundo", "segundos")

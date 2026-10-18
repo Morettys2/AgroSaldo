@@ -3,6 +3,7 @@ package br.joao.agrosaldo.feature
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -53,7 +54,7 @@ class HistoricoViewModelTest {
         lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
     }
 
-    private fun viewModel() = HistoricoViewModel(lancamentos, PropriedadeRepositoryMemoria(), hoje = { hoje }, selecao = selecao)
+    private fun viewModel() = HistoricoViewModel(lancamentos, PropriedadeRepositoryMemoria(), relogio = relogioEm(hoje), selecao = selecao)
 
     @Test
     fun `RF10 - mostra os 12 meses do ano com entradas e saidas de cada um`() {
@@ -310,7 +311,7 @@ class HistoricoViewModelTest {
                 emitAll(lancamentos.observarTodos())
             }
         }
-        val vm = HistoricoViewModel(instavel, PropriedadeRepositoryMemoria(), hoje = { hoje }, selecao = selecao)
+        val vm = HistoricoViewModel(instavel, PropriedadeRepositoryMemoria(), relogio = relogioEm(hoje), selecao = selecao)
 
         assertEquals(HistoricoViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
 
@@ -322,9 +323,12 @@ class HistoricoViewModelTest {
     @Test
     fun `sem propriedade nao quebra`() {
         val vm =
-            HistoricoViewModel(LancamentoRepositoryMemoria(emptyList()), PropriedadeRepositoryMemoria(emptyList()), hoje = {
-                hoje
-            }, selecao = selecao)
+            HistoricoViewModel(
+                LancamentoRepositoryMemoria(emptyList()),
+                PropriedadeRepositoryMemoria(emptyList()),
+                relogio = relogioEm(hoje),
+                selecao = selecao
+            )
         assertFalse(vm.uiState.value.carregando)
         assertFalse(vm.uiState.value.temPropriedade)
     }

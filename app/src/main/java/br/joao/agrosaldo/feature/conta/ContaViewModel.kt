@@ -1,19 +1,18 @@
 package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarDataHoraBr
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.di.dependencias
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
-import java.time.ZoneId
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,11 +46,12 @@ data class ContaUiState(
  * Tela de conta: dados do usuário logado, consentimento LGPD e bloqueio do app.
  * Expõe as ações exigidas pela LGPD: sair e excluir a conta com todos os dados.
  */
-class ContaViewModel(
+@HiltViewModel
+class ContaViewModel @Inject constructor(
     private val conta: ContaService,
     private val propriedadeRepository: PropriedadeRepository,
     private val bloqueio: BloqueioRepository,
-    private val zona: ZoneId = ZoneId.systemDefault()
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
 
     private val exclusaoEmAndamento = MutableStateFlow(EstadoExclusao())
@@ -76,7 +76,7 @@ class ContaViewModel(
                         nome = usuario.nome,
                         email = usuario.email,
                         iniciais = RegrasDeConta.iniciais(usuario.nome),
-                        consentimentoEm = usuario.consentimentoEm.formatarDataHoraBr(zona),
+                        consentimentoEm = usuario.consentimentoEm.formatarDataHoraBr(relogio.zone),
                         versaoTermo = usuario.versaoTermo,
                         quantidadePropriedades = propriedades.size,
                         bloqueioAtivo = bloqueioAtivo,
@@ -121,10 +121,4 @@ class ContaViewModel(
     fun aoCancelarExclusao() = exclusaoEmAndamento.update { EstadoExclusao() }
 
     private data class EstadoExclusao(val excluindo: Boolean = false, val erro: String? = null)
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { ContaViewModel(dependencias.conta, dependencias.propriedades, dependencias.bloqueio) }
-        }
-    }
 }

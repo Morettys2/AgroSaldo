@@ -28,10 +28,10 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.Carregando
 import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.core.ui.EstadoVazio
@@ -50,7 +50,7 @@ import java.time.YearMonth
 fun LancamentoListaRoute(
     aoEditarLancamento: (String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LancamentoListaViewModel = viewModel(factory = LancamentoListaViewModel.Factory)
+    viewModel: LancamentoListaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

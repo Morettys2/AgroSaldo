@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 
 /**
@@ -17,7 +17,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 fun NovoConsentimentoRoute(
     aoLerPolitica: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: NovoConsentimentoViewModel = viewModel(factory = NovoConsentimentoViewModel.Factory)
+    viewModel: NovoConsentimentoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

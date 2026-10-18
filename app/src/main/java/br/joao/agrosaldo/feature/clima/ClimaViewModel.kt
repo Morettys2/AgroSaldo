@@ -1,10 +1,7 @@
 package br.joao.agrosaldo.feature.clima
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.diaEHora
 import br.joao.agrosaldo.core.util.emGraus
@@ -12,8 +9,8 @@ import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
@@ -25,10 +22,11 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
-import java.time.Instant
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -93,14 +91,14 @@ data class ClimaUiState(
  * Ao voltar para a tela ([aoVoltarParaATela]), recalcula o que depende do relógio.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class ClimaViewModel(
+@HiltViewModel
+class ClimaViewModel @Inject constructor(
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val relogio: () -> Long = System::currentTimeMillis,
-    private val zona: ZoneId = ZoneId.systemDefault()
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
 
     private val atualizandoAgora = MutableStateFlow(false)
@@ -153,7 +151,7 @@ class ClimaViewModel(
                     falha,
                     _
                 ->
-                montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha)
+                montar(DadosDoClima(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha))
             }.repetirAposErro { erro ->
                 _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { _uiState.value = it }
@@ -212,37 +210,43 @@ class ClimaViewModel(
         }
     }
 
-    private fun montar(
-        propriedades: List<Propriedade>,
-        propriedade: Propriedade?,
-        previsao: Previsao?,
-        limites: LimitesChuva,
-        avisoAtivo: Boolean,
-        atualizando: Boolean,
-        falha: FalhaDeAtualizacao?
-    ): ClimaUiState {
+    /** Tudo que o estado da tela depende, reunido para montar o [ClimaUiState] de uma vez. */
+    private data class DadosDoClima(
+        val propriedades: List<Propriedade>,
+        val propriedade: Propriedade?,
+        val previsao: Previsao?,
+        val limites: LimitesChuva,
+        val avisoAtivo: Boolean,
+        val atualizando: Boolean,
+        val falha: FalhaDeAtualizacao?
+    )
+
+    private fun montar(dados: DadosDoClima): ClimaUiState {
+        val propriedade = dados.propriedade
+        val previsao = dados.previsao
+        val limites = dados.limites
         if (propriedade == null) {
-            return ClimaUiState(carregando = false, temPropriedade = false, propriedades = propriedades)
+            return ClimaUiState(carregando = false, temPropriedade = false, propriedades = dados.propriedades)
         }
         val base = ClimaUiState(
             carregando = false,
             temPropriedade = true,
             propriedadeId = propriedade.id,
             nomePropriedade = propriedade.nome,
-            propriedades = propriedades,
+            propriedades = dados.propriedades,
             janelaHoras = limites.janelaHoras,
-            atualizando = atualizando,
-            mensagem = when (falha) {
+            atualizando = dados.atualizando,
+            mensagem = when (dados.falha) {
                 FalhaDeAtualizacao.SEM_INTERNET ->
                     if (previsao != null) MENSAGEM_SEM_INTERNET else MENSAGEM_SEM_INTERNET_SEM_PREVISAO
                 FalhaDeAtualizacao.SERVICO -> MENSAGEM_FALHA
                 null -> null
             },
-            avisoAtivo = avisoAtivo
+            avisoAtivo = dados.avisoAtivo
         )
         if (previsao == null) return base
 
-        val agora = Instant.ofEpochMilli(relogio())
+        val agora = relogio.instant()
         val avaliacao = RegraDeChuva.avaliar(previsao, agora, limites)
         val agoraLocal = previsao.horaLocal(agora)
         val hoje = agoraLocal.toLocalDate()
@@ -261,7 +265,7 @@ class ClimaViewModel(
             vaiChover = avaliacao.vaiChover,
             recomendacaoTitulo = titulo,
             recomendacaoTexto = texto,
-            dias = previsao.dias.filter { !it.data.isBefore(hoje) }.take(7).map { dia ->
+            dias = previsao.dias.filter { !it.data.isBefore(hoje) }.take(DIAS_DA_PREVISAO).map { dia ->
                 DiaUi(
                     rotulo = dia.data.rotuloDoDia(hoje),
                     condicao = dia.condicao,
@@ -272,16 +276,19 @@ class ClimaViewModel(
                 )
             },
             // O cache vale até 2 dias: sem o dia, "às 14:05" de ontem pareceria de hoje.
-            atualizadaEm = "Atualizada ${previsao.obtidaEm.diaEHora(agora, zona)}"
+            atualizadaEm = "Atualizada ${previsao.obtidaEm.diaEHora(agora, relogio.zone)}"
         )
     }
 
-    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva, agora: LocalDateTime): String = when {
-        !avaliacao.temDados -> "Previsão desatualizada"
-        avaliacao.vaiChover && avaliacao.inicioPrevisto != null ->
-            "Chuva prevista ${TextosDaChuva.aPartirDe(avaliacao.inicioPrevisto, agora)}"
-        avaliacao.vaiChover -> "Chuva prevista nas próximas ${limites.janelaHoras} horas"
-        else -> previsao.condicaoAtual.rotulo
+    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva, agora: LocalDateTime): String {
+        // Cópia local: a propriedade vem de outro módulo (:domain), então o compilador não faz smart cast nela.
+        val inicio = avaliacao.inicioPrevisto
+        return when {
+            !avaliacao.temDados -> "Previsão desatualizada"
+            avaliacao.vaiChover && inicio != null -> "Chuva prevista ${TextosDaChuva.aPartirDe(inicio, agora)}"
+            avaliacao.vaiChover -> "Chuva prevista nas próximas ${limites.janelaHoras} horas"
+            else -> previsao.condicaoAtual.rotulo
+        }
     }
 
     /** Título e texto da recomendação de irrigação conforme a avaliação e os limites. */
@@ -309,20 +316,10 @@ class ClimaViewModel(
     private enum class FalhaDeAtualizacao { SEM_INTERNET, SERVICO }
 
     companion object {
+        const val DIAS_DA_PREVISAO = 7
         const val MENSAGEM_SEM_INTERNET = "Sem internet. Mostrando a última previsão salva."
         const val MENSAGEM_SEM_INTERNET_SEM_PREVISAO = "Sem internet. Tente de novo quando o celular tiver sinal."
         const val MENSAGEM_ERRO = "Não foi possível carregar a previsão salva. Tentando de novo…"
         const val MENSAGEM_FALHA = "Não deu para atualizar a previsão agora. Tente de novo em instantes."
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                ClimaViewModel(
-                    selecao = dependencias.selecao,
-                    propriedadeRepository = dependencias.propriedades,
-                    clima = dependencias.clima,
-                    ajustes = dependencias.ajustesAviso
-                )
-            }
-        }
     }
 }

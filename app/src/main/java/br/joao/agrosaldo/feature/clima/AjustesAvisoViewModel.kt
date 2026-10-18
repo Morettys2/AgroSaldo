@@ -1,16 +1,15 @@
 package br.joao.agrosaldo.feature.clima
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.di.dependencias
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,11 +40,16 @@ data class AjustesAvisoUiState(
  * Ajustes do aviso de chuva. Alterações ficam só no estado da UI até [aoSalvar];
  * sair sem salvar descarta tudo.
  */
-class AjustesAvisoViewModel(
+@HiltViewModel
+class AjustesAvisoViewModel @Inject constructor(
     private val ajustes: AjustesAvisoRepository,
     private val agenda: AgendaDeVerificacao,
-    private val propriedades: PropriedadeRepository
+    private val propriedades: PropriedadeRepository,
+    private val selecao: SelecaoAtual
 ) : ViewModel() {
+
+    /** Propriedade escolhida no app, para a notificação de exemplo (ferramenta de teste do debug). */
+    fun propriedadeSelecionadaId(): String? = selecao.propriedadeId.value
 
     private val _uiState = MutableStateFlow(
         ajustes.ajustes.value.let {
@@ -76,7 +80,10 @@ class AjustesAvisoViewModel(
 
     /** Arredonda para múltiplo de 5, limitado a [PROBABILIDADE_MIN]..[PROBABILIDADE_MAX]. */
     fun aoMudarProbabilidade(valor: Float) = _uiState.update {
-        val arredondado = ((valor / 5f).roundToInt() * 5).coerceIn(PROBABILIDADE_MIN, PROBABILIDADE_MAX)
+        val arredondado = ((valor / PASSO_PROBABILIDADE.toFloat()).roundToInt() * PASSO_PROBABILIDADE).coerceIn(
+            PROBABILIDADE_MIN,
+            PROBABILIDADE_MAX
+        )
         it.copy(probabilidadeMinima = arredondado)
     }
 
@@ -115,13 +122,10 @@ class AjustesAvisoViewModel(
     fun aoVerificarAgora() = agenda.verificarAgora()
 
     companion object {
+        const val PASSO_PROBABILIDADE = 5
         const val PROBABILIDADE_MIN = 30
         const val PROBABILIDADE_MAX = 90
         const val CHUVA_MIN = 1.0
         const val CHUVA_MAX = 10.0
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { AjustesAvisoViewModel(dependencias.ajustesAviso, dependencias.agendaAviso, dependencias.propriedades) }
-        }
     }
 }

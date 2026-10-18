@@ -1,6 +1,7 @@
 package br.joao.agrosaldo.aviso
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -12,29 +13,33 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
+import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 
 /**
  * Worker da verificação periódica de chuva. Delega para o VerificadorDeChuva (domínio),
  * que chama de volta para exibir cada notificação.
  */
-class VerificacaoChuvaWorker(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
+@HiltWorker
+class VerificacaoChuvaWorker @AssistedInject constructor(
+    @Assisted contexto: Context,
+    @Assisted parametros: WorkerParameters,
+    private val verificador: VerificadorDeChuva,
+    private val ajustes: AjustesAvisoRepository
+) : CoroutineWorker(contexto, parametros) {
 
-    override suspend fun doWork(): Result {
-        // O AgroSaldoApp sempre existe antes do Worker, mesmo quando o processo sobe só para ele.
-        val dependencias = applicationContext.dependencias
-        return verificarChuva(
-            verificador = dependencias.verificadorDeChuva,
-            janelaHoras = dependencias.ajustesAviso.ajustes.value.limites.janelaHoras,
-            tentativa = runAttemptCount,
-            podeNotificar = { NotificadorDeChuva.podeNotificar(applicationContext) },
-            mostrar = { aviso, janela -> NotificadorDeChuva.mostrar(applicationContext, aviso, janela) }
-        )
-    }
+    override suspend fun doWork(): Result = verificarChuva(
+        verificador = verificador,
+        janelaHoras = ajustes.ajustes.value.limites.janelaHoras,
+        tentativa = runAttemptCount,
+        podeNotificar = { NotificadorDeChuva.podeNotificar(applicationContext) },
+        mostrar = { aviso, janela -> NotificadorDeChuva.mostrar(applicationContext, aviso, janela) }
+    )
 }
 
 /**
@@ -80,7 +85,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, ESPERA_INICIAL_MINUTOS, TimeUnit.MINUTES)
             .build()
 
         // KEEP: se já agendado, preserva o horário; reabrir o app não reinicia o período.
@@ -103,5 +108,8 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
 
         /** Duas verificações por dia (RN04). */
         const val INTERVALO_HORAS = 12L
+
+        /** Primeira espera do backoff exponencial quando a verificação falha. */
+        const val ESPERA_INICIAL_MINUTOS = 15L
     }
 }

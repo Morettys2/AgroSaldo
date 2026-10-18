@@ -72,8 +72,8 @@ class AgroSaldoDatabaseTest {
     /** Cria a conta "u1" com as duas propriedades e os nove lançamentos de exemplo. */
     private suspend fun semearExemplos() {
         usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
-        DadosDeExemplo.propriedades().forEach { propriedadeDao.salvar(it.paraEntidade(usuarioId = "u1")) }
-        DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade()) }
+        DadosDeExemplo.propriedades().forEach { propriedadeDao.salvar(it.paraEntidade(usuarioId = "u1", agora = 0L)) }
+        DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade(agora = 0L)) }
     }
 
     /** Conta as linhas direto no SQLite, sem passar pelos filtros dos DAOs. */
@@ -97,7 +97,7 @@ class AgroSaldoDatabaseTest {
     fun listaDePropriedadesVemEmOrdemAlfabeticaDoPortugues() = runBlocking {
         semearExemplos()
         val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
-        propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1"))
+        propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1", agora = 0L))
         val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"))
 
         val nomes = repositorio.observarTodas().first().map { it.nome }
@@ -142,7 +142,7 @@ class AgroSaldoDatabaseTest {
             data = hoje
         )
         try {
-            lancamentoDao.salvar(orfao.paraEntidade())
+            lancamentoDao.salvar(orfao.paraEntidade(agora = 0L))
             fail("A chave estrangeira deveria ter recusado o lançamento")
         } catch (esperado: SQLiteConstraintException) {
             // RN01 garantida pelo próprio banco.
@@ -216,7 +216,7 @@ class AgroSaldoDatabaseTest {
     fun idDeOutraContaOuSemDonoNaoContaComoDoUsuario() = runBlocking {
         semearExemplos()
         usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
-        val semDono = DadosDeExemplo.propriedades().first().copy(id = "sem-dono").paraEntidade(usuarioId = null)
+        val semDono = DadosDeExemplo.propriedades().first().copy(id = "sem-dono").paraEntidade(usuarioId = null, agora = 0L)
         propriedadeDao.salvar(semDono)
 
         assertFalse(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u1"))

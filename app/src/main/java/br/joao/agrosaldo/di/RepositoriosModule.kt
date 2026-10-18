@@ -1,0 +1,68 @@
+package br.joao.agrosaldo.di
+
+import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.clima.OpenMeteoHttp
+import br.joao.agrosaldo.data.local.Transacao
+import br.joao.agrosaldo.data.local.dao.LancamentoDao
+import br.joao.agrosaldo.data.local.dao.PrevisaoDao
+import br.joao.agrosaldo.data.local.dao.PropriedadeDao
+import br.joao.agrosaldo.data.local.dao.UsuarioDao
+import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
+import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
+import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
+import br.joao.agrosaldo.data.repository.UsuarioLogadoRoom
+import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
+import br.joao.agrosaldo.domain.Despachantes
+import br.joao.agrosaldo.domain.RelogioMonotonico
+import br.joao.agrosaldo.domain.repository.ClimaRepository
+import br.joao.agrosaldo.domain.repository.LancamentoRepository
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import br.joao.agrosaldo.domain.repository.SessaoRepository
+import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
+import br.joao.agrosaldo.domain.repository.UsuarioRepository
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import java.time.Clock
+import javax.inject.Singleton
+
+/** Os repositórios: o domínio só conhece as interfaces, e aqui elas ganham a implementação Room (e a da rede). */
+@Module
+@InstallIn(SingletonComponent::class)
+object RepositoriosModule {
+
+    @Provides
+    @Singleton
+    fun usuarios(dao: UsuarioDao, transacao: Transacao): UsuarioRepository = UsuarioRepositoryRoom(dao, transacao)
+
+    @Provides
+    @Singleton
+    fun usuarioLogado(sessao: SessaoRepository, usuarios: UsuarioRepository): UsuarioLogadoRepository = UsuarioLogadoRoom(sessao, usuarios)
+
+    @Provides
+    @Singleton
+    fun propriedades(
+        dao: PropriedadeDao,
+        lancamentoDao: LancamentoDao,
+        sessao: SessaoRepository,
+        transacao: Transacao,
+        relogio: Clock
+    ): PropriedadeRepository = PropriedadeRepositoryRoom(dao, lancamentoDao, sessao, transacao, relogio)
+
+    @Provides
+    @Singleton
+    fun lancamentos(dao: LancamentoDao, sessao: SessaoRepository, transacao: Transacao, relogio: Clock): LancamentoRepository =
+        LancamentoRepositoryRoom(dao, sessao, transacao, relogio)
+
+    /** Previsão da Open-Meteo guardada no Room (cache primeiro; a rede só renova). */
+    @Provides
+    @Singleton
+    fun clima(dao: PrevisaoDao, despachantes: Despachantes, relogio: Clock): ClimaRepository =
+        ClimaRepositoryRoom(OpenMeteoHttp(), dao, despachantes, relogio)
+
+    /** Desfazer de exclusões, compartilhado entre telas; a validade da oferta usa o relógio monotônico. */
+    @Provides
+    @Singleton
+    fun desfazer(relogio: RelogioMonotonico): Desfazer = Desfazer(relogio)
+}

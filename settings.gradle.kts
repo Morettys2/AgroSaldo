@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AgroSaldo"
 include(":app")
+include(":domain")

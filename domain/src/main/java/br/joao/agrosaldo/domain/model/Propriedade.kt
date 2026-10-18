@@ -25,12 +25,15 @@ data class Propriedade(
         // isFinite: NaN e infinito passariam por "> 0.0" e estragariam as somas e a exibição.
         require(areaHectares.isFinite() && areaHectares > 0.0) { "A área deve ser maior que zero." }
         require(areaHectares <= AREA_MAXIMA_HECTARES) { "A área máxima é 1.000.000 ha." }
-        require(latitude in -90.0..90.0) { "Latitude inválida." }
-        require(longitude in -180.0..180.0) { "Longitude inválida." }
+        require(latitude in LATITUDES) { "Latitude inválida." }
+        require(longitude in LONGITUDES) { "Longitude inválida." }
     }
 
     companion object {
         const val NOME_MAXIMO = 80
+
+        val LATITUDES: ClosedFloatingPointRange<Double> = -90.0..90.0
+        val LONGITUDES: ClosedFloatingPointRange<Double> = -180.0..180.0
         const val CULTURA_MAXIMA = 60
 
         /** Maior que qualquer fazenda real; só barra digitação errada (zeros a mais). */

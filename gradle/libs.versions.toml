@@ -15,6 +15,9 @@ navigationCompose = "2.10.2"
 ksp = "2.3.11"
 room = "2.8.5"
 coroutinesTest = "1.11.0"
+# Injeção de dependências: Hilt (Dagger) e as extensões do AndroidX para ViewModel, Navigation e WorkManager
+hilt = "2.60.1"
+androidxHilt = "1.4.0"
 # Clima e aviso de chuva
 work = "2.11.0"
 orgJson = "20250517"
@@ -58,6 +61,13 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutinesTest" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+# Injeção de dependências
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "androidxHilt" }
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "androidxHilt" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "androidxHilt" }
 # Verificação de chuva em segundo plano
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 # org.json real para testes JVM (o android.jar só expõe stubs)
@@ -82,6 +92,10 @@ compose-rules-ktlint = { group = "io.nlopez.compose.rules", name = "ktlint", ver
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+# Plugin Kotlin para módulos JVM puros (o :domain); no app o Kotlin já vem embutido no AGP
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # Processador de anotações do Room
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+# Plugin do Hilt: liga as classes geradas ao Application
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }

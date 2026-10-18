@@ -16,8 +16,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
@@ -25,11 +25,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 
 @Composable
-fun AlterarSenhaRoute(
-    aoConcluir: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AlterarSenhaViewModel = viewModel(factory = AlterarSenhaViewModel.Factory)
-) {
+fun AlterarSenhaRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, viewModel: AlterarSenhaViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 

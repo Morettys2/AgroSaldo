@@ -1,5 +1,7 @@
 package br.joao.agrosaldo.data
 
+import br.joao.agrosaldo.domain.RelogioMonotonico
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,17 +29,17 @@ class ExclusaoRecente(
  * e exibe o snackbar, pois a tela de origem já pode ter sido fechada.
  * Só a exclusão mais recente é desfazível; uma nova oferta descarta a anterior.
  */
-class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
+class Desfazer(private val relogio: RelogioMonotonico = RelogioMonotonicoIndisponivel) {
 
     private val _pendente = MutableStateFlow<ExclusaoRecente?>(null)
     val pendente: StateFlow<ExclusaoRecente?> = _pendente.asStateFlow()
 
     fun oferecer(mensagem: String, restaurar: suspend () -> Unit) {
-        _pendente.value = ExclusaoRecente(mensagem, restaurar, criadaEm = relogio())
+        _pendente.value = ExclusaoRecente(mensagem, restaurar, criadaEm = relogio.milissegundos())
     }
 
     /** true se a oferta passou de [VALIDADE_MS] (ex.: app foi para segundo plano com o snackbar aberto). */
-    fun expirou(exclusao: ExclusaoRecente): Boolean = relogio() - exclusao.criadaEm > VALIDADE_MS
+    fun expirou(exclusao: ExclusaoRecente): Boolean = relogio.milissegundos() - exclusao.criadaEm > VALIDADE_MS
 
     /**
      * Restaura [exclusao] e só então limpa [pendente].
@@ -49,7 +51,8 @@ class Desfazer(private val relogio: () -> Long = System::currentTimeMillis) {
      * @return false se a oferta não é válida ou a restauração falhou.
      * @throws CancellationException repassada a quem chamou, como em [br.joao.agrosaldo.core.util.tentar].
      */
-    suspend fun desfazer(exclusao: ExclusaoRecente): Boolean {
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // falha ao restaurar vira false; o cancelamento é relançado
+    suspend fun desfazerExclusao(exclusao: ExclusaoRecente): Boolean {
         if (_pendente.value !== exclusao || exclusao.usada) return false
         if (expirou(exclusao)) {
             dispensar(exclusao)

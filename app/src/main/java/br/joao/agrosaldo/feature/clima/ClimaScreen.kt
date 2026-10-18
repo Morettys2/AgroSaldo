@@ -33,10 +33,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
 import br.joao.agrosaldo.core.ui.Carregando
@@ -58,7 +58,7 @@ fun ClimaRoute(
     aoAbrirAjustes: () -> Unit,
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ClimaViewModel = viewModel(factory = ClimaViewModel.Factory)
+    viewModel: ClimaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissao = rememberPermissaoNotificacao()

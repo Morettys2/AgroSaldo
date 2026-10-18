@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -23,7 +24,7 @@ class DesfazerESelecaoTest {
         desfazer.oferecer("Lançamento excluído") { restaurou++ }
         val pendente = desfazer.pendente.value
 
-        assertTrue(desfazer.desfazer(checkNotNull(pendente)))
+        assertTrue(desfazer.desfazerExclusao(checkNotNull(pendente)))
 
         assertEquals(1, restaurou)
         assertNull(desfazer.pendente.value)
@@ -41,8 +42,8 @@ class DesfazerESelecaoTest {
         }
         val pendente = checkNotNull(desfazer.pendente.value)
 
-        val primeiro = launch { desfazer.desfazer(pendente) }
-        val segundo = launch { desfazer.desfazer(pendente) }
+        val primeiro = launch { desfazer.desfazerExclusao(pendente) }
+        val segundo = launch { desfazer.desfazerExclusao(pendente) }
         yield()
         gravacao.complete(Unit)
         primeiro.join()
@@ -60,7 +61,7 @@ class DesfazerESelecaoTest {
         val pendente = checkNotNull(desfazer.pendente.value)
 
         desfazer.dispensar(pendente)
-        desfazer.desfazer(pendente)
+        desfazer.desfazerExclusao(pendente)
 
         assertNull(desfazer.pendente.value)
         assertEquals(0, restaurou)
@@ -74,7 +75,7 @@ class DesfazerESelecaoTest {
         val antiga = checkNotNull(desfazer.pendente.value)
         desfazer.oferecer("segunda") { }
 
-        desfazer.desfazer(antiga)
+        desfazer.desfazerExclusao(antiga)
         desfazer.dispensar(antiga)
 
         assertEquals(0, primeira)
@@ -84,7 +85,7 @@ class DesfazerESelecaoTest {
     @Test
     fun `oferta antiga expira - reabrir o app horas depois nao mostra a barra`() {
         var agora = 1_000L
-        val desfazer = Desfazer(relogio = { agora })
+        val desfazer = Desfazer(relogio = RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
         desfazer.oferecer("x") { }
         val pendente = checkNotNull(desfazer.pendente.value)
 
@@ -98,14 +99,14 @@ class DesfazerESelecaoTest {
     fun `desfazer depois do prazo nao restaura`() = runTest {
         // A barra pode aparecer atrasada (ex.: só depois de desbloquear o app) e ser tocada já vencida.
         var agora = 0L
-        val desfazer = Desfazer { agora }
+        val desfazer = Desfazer(RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
         var restaurou = 0
         desfazer.oferecer("Propriedade excluída") { restaurou++ }
         val pendente = checkNotNull(desfazer.pendente.value)
 
         agora += Desfazer.VALIDADE_MS + 1
 
-        assertFalse(desfazer.desfazer(pendente))
+        assertFalse(desfazer.desfazerExclusao(pendente))
         assertEquals(0, restaurou)
         assertNull(desfazer.pendente.value)
     }
@@ -115,7 +116,7 @@ class DesfazerESelecaoTest {
         val desfazer = Desfazer()
         desfazer.oferecer("x") { throw IllegalStateException("banco indisponível") }
 
-        val restaurou = desfazer.desfazer(checkNotNull(desfazer.pendente.value))
+        val restaurou = desfazer.desfazerExclusao(checkNotNull(desfazer.pendente.value))
 
         assertFalse(restaurou)
         assertNull(desfazer.pendente.value)
@@ -128,7 +129,7 @@ class DesfazerESelecaoTest {
         val pendente = checkNotNull(desfazer.pendente.value)
 
         try {
-            desfazer.desfazer(pendente)
+            desfazer.desfazerExclusao(pendente)
             fail("O cancelamento deveria chegar a quem chamou")
         } catch (esperado: CancellationException) {
             assertNull(desfazer.pendente.value)

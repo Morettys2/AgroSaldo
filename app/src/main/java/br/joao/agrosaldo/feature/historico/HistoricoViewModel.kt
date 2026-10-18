@@ -1,22 +1,22 @@
 package br.joao.agrosaldo.feature.historico
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,13 +69,16 @@ data class HistoricoUiState(
  * fechamento contábil e ao IR rural), não pelos últimos 12 meses. Os totais são
  * derivados dos lançamentos a cada emissão; nada é persistido.
  */
-class HistoricoViewModel(
+@HiltViewModel
+class HistoricoViewModel @Inject constructor(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val hoje: () -> LocalDate = LocalDate::now
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
+
+    private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     // Ano inicial: o do mês selecionado globalmente.
     private val anoEscolhido = MutableStateFlow(selecao.mes.value.year)
@@ -115,7 +118,7 @@ class HistoricoViewModel(
         val mesAtual = YearMonth.from(hoje())
 
         val porMes = doAno.groupBy { YearMonth.from(it.data) }
-        val meses = (1..12).map { numero ->
+        val meses = (1..MESES_DO_ANO).map { numero ->
             val mes = YearMonth.of(ano, numero)
             val totais = ResumoFinanceiro.totais(porMes[mes].orEmpty())
             MesDoHistorico(
@@ -170,17 +173,8 @@ class HistoricoViewModel(
 
     companion object {
         const val MAXIMO_CATEGORIAS = 5
+        const val MESES_DO_ANO = 12
 
         const val MENSAGEM_ERRO = "Não foi possível carregar o histórico. Tentando de novo…"
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                HistoricoViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades
-                )
-            }
-        }
     }
 }

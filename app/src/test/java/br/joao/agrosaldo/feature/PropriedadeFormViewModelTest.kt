@@ -2,6 +2,7 @@ package br.joao.agrosaldo.feature
 
 import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
+import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.SelecaoAtual
@@ -94,6 +95,28 @@ class PropriedadeFormViewModelTest {
         vm.aoSalvar()
 
         assertNull(vm.uiState.value.erroArea)
+    }
+
+    @Test
+    fun `construtor do Hilt le o id da rota e carrega a propriedade para editar`() {
+        val vm = PropriedadeFormViewModel(
+            propriedades,
+            selecao,
+            Desfazer(),
+            SavedStateHandle(mapOf(Rotas.ARG_ID to DadosDeExemplo.ID_SITIO))
+        )
+
+        assertTrue(vm.uiState.value.ehEdicao)
+        assertFalse(vm.uiState.value.naoEncontrado)
+        assertEquals(DadosDeExemplo.propriedades().first { it.id == DadosDeExemplo.ID_SITIO }.nome, vm.uiState.value.nome)
+    }
+
+    @Test
+    fun `construtor do Hilt sem id na rota abre o cadastro de uma propriedade nova`() {
+        val vm = PropriedadeFormViewModel(propriedades, selecao, Desfazer(), SavedStateHandle())
+
+        assertFalse(vm.uiState.value.ehEdicao)
+        assertEquals("", vm.uiState.value.nome)
     }
 
     @Test
@@ -206,7 +229,7 @@ class PropriedadeFormViewModelTest {
         val oferta = checkNotNull(desfazer.pendente.value)
         assertEquals("Propriedade excluída", oferta.mensagem)
 
-        desfazer.desfazer(oferta)
+        desfazer.desfazerExclusao(oferta)
 
         assertEquals(propriedadeAntes, propriedades.buscarPorId(DadosDeExemplo.ID_SITIO))
         val depois = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }

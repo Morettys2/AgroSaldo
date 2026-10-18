@@ -1,15 +1,14 @@
 package br.joao.agrosaldo.feature.lancamento
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloRelativo
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
+import br.joao.agrosaldo.domain.Despachantes
+import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -17,11 +16,12 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.Normalizer
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
-import kotlin.coroutines.CoroutineContext
-import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,16 +90,19 @@ private data class Filtros(
  * por tipo/categoria e busca textual. O estado é recalculado por inteiro a cada emissão
  * de qualquer fonte (lançamentos, propriedades, seleção, mês, filtros).
  *
- * @param processamento contexto em que o estado é montado, fora da main thread.
+ * @param despachantes o estado é montado em [Despachantes.calculo], fora da main thread.
  */
-class LancamentoListaViewModel(
+@HiltViewModel
+class LancamentoListaViewModel @Inject constructor(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val hoje: () -> LocalDate = LocalDate::now,
-    private val processamento: CoroutineContext = Dispatchers.Default
+    private val relogio: Clock = RelogioDoAparelho,
+    private val despachantes: Despachantes = DespachantesDoSistema
 ) : ViewModel() {
+
+    private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     private val filtrosAtivos = MutableStateFlow(Filtros())
 
@@ -120,7 +123,7 @@ class LancamentoListaViewModel(
             ) { lancamentos, propriedades, selecionadaId, mes, filtros ->
                 montarEstado(lancamentos, propriedades, selecionadaId, mes, filtros)
             }
-                .flowOn(processamento)
+                .flowOn(despachantes.calculo)
                 .repetirAposErro { erro ->
                     _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
                 }
@@ -281,15 +284,5 @@ class LancamentoListaViewModel(
 
         private val CATEGORIAS_NORMALIZADAS: Map<CategoriaLancamento, String> =
             CategoriaLancamento.entries.associateWith { normalizar(it.rotulo) }
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                LancamentoListaViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades
-                )
-            }
-        }
     }
 }

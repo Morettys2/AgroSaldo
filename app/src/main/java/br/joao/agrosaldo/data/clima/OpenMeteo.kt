@@ -46,8 +46,8 @@ object OpenMeteo {
      * (passageiros), [RespostaInvalidaException] para os demais.
      */
     fun erroHttp(codigo: Int, corpo: String): Exception {
-        val mensagem = "HTTP $codigo ${corpo.take(200)}"
-        return if (codigo == HTTP_MUITAS_REQUISICOES || codigo in 500..599) {
+        val mensagem = "HTTP $codigo ${corpo.take(TRECHO_DO_ERRO)}"
+        return if (codigo == HTTP_MUITAS_REQUISICOES || codigo in HTTP_ERRO_DE_SERVIDOR) {
             ServicoIndisponivelException(mensagem)
         } else {
             RespostaInvalidaException(mensagem)
@@ -55,6 +55,10 @@ object OpenMeteo {
     }
 
     private const val HTTP_MUITAS_REQUISICOES = 429
+    private val HTTP_ERRO_DE_SERVIDOR = 500..599
+
+    /** Quanto da resposta de erro entra na mensagem. */
+    private const val TRECHO_DO_ERRO = 200
 }
 
 /** Resposta HTTP de erro ou corpo fora do formato esperado. */
@@ -70,12 +74,17 @@ class ServicoIndisponivelException(mensagem: String) : Exception(mensagem)
  */
 object LeitorOpenMeteo {
 
+    /** Resposta que não passa na conferência vira [RespostaInvalidaException], com o motivo. */
+    private fun exigir(condicao: Boolean, motivo: () -> String) {
+        if (!condicao) throw RespostaInvalidaException(motivo())
+    }
+
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // qualquer falha ao ler o JSON vira RespostaInvalidaException
+
     fun ler(json: String, obtidaEm: Instant): Previsao {
         try {
             val raiz = JSONObject(json)
-            if (raiz.optBoolean("error", false)) {
-                throw RespostaInvalidaException(raiz.optString("reason", "erro do serviço"))
-            }
+            exigir(!raiz.optBoolean("error", false)) { raiz.optString("reason", "erro do serviço") }
 
             val atual = raiz.optJSONObject("current")
             val diario = raiz.getJSONObject("daily")
@@ -96,8 +105,8 @@ object LeitorOpenMeteo {
             val horarios = horario.getJSONArray("time")
             val probabilidades = horario.getJSONArray("precipitation_probability")
             val chuvas = horario.getJSONArray("precipitation")
-            if (probabilidades.length() != horarios.length() || chuvas.length() != horarios.length()) {
-                throw RespostaInvalidaException("Listas horárias com tamanhos diferentes.")
+            exigir(probabilidades.length() == horarios.length() && chuvas.length() == horarios.length()) {
+                "Listas horárias com tamanhos diferentes."
             }
             val horas = (0 until horarios.length()).map { i ->
                 PrevisaoHora(
@@ -107,7 +116,7 @@ object LeitorOpenMeteo {
                 )
             }
 
-            if (dias.isEmpty() || horas.isEmpty()) throw RespostaInvalidaException("Previsão vazia.")
+            exigir(dias.isNotEmpty() && horas.isNotEmpty()) { "Previsão vazia." }
 
             return Previsao(
                 latitude = raiz.getDouble("latitude"),

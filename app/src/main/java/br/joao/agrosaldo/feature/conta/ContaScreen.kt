@@ -48,8 +48,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.BotaoSecundario
@@ -69,7 +69,7 @@ fun ContaRoute(
     aoAbrirAvisoChuva: () -> Unit,
     aoAbrirPropriedades: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ContaViewModel = viewModel(factory = ContaViewModel.Factory)
+    viewModel: ContaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current

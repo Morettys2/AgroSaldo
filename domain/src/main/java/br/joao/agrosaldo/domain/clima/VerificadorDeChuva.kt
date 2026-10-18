@@ -1,10 +1,12 @@
 package br.joao.agrosaldo.domain.clima
 
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -38,7 +40,7 @@ class VerificadorDeChuva(
     private val propriedades: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
-    private val relogio: () -> Long = System::currentTimeMillis
+    private val relogio: Clock = Clock.systemDefaultZone()
 ) {
 
     /**
@@ -57,7 +59,7 @@ class VerificadorDeChuva(
         // Logout ou troca de conta durante a verificação: o resto pertence à conta anterior.
         fun mesmaConta() = sessao.usuarioId.value == usuarioId
 
-        val agora = Instant.ofEpochMilli(relogio())
+        val agora = relogio.instant()
         var falhaPassageira = false
         val avisos = mutableListOf<AvisoDeChuva>()
 
@@ -67,34 +69,40 @@ class VerificadorDeChuva(
         ajustes.esquecerAvisosExceto(todas.map { it.id }.toSet())
 
         for (propriedade in todas.filter { ajustesAtuais.avisaSobre(it.id) }) {
-            val previsao = when (val resultado = clima.atualizar(propriedade)) {
-                is ResultadoAtualizacao.Sucesso -> resultado.previsao
-                // Sem rede ou serviço fora do ar: usa o cache se tiver no máximo
-                // VALIDADE_PARA_AVISO e pede nova tentativa.
-                ResultadoAtualizacao.SemConexao, is ResultadoAtualizacao.Indisponivel -> {
-                    falhaPassageira = true
-                    clima.emCache(propriedade)?.takeIf {
-                        Duration.between(it.obtidaEm, agora) <= VALIDADE_PARA_AVISO
-                    }
-                }
-                // Resposta inválida ou propriedade excluída: tentar de novo não resolve.
-                is ResultadoAtualizacao.Falha -> null
-            } ?: continue
+            val (previsao, falhou) = previsaoParaAvisar(propriedade, agora)
+            falhaPassageira = falhaPassageira || falhou
             // O download pode ter demorado: confere a conta antes de expor o nome da propriedade.
-            if (!mesmaConta()) break
+            if (previsao != null && !mesmaConta()) break
 
-            val avaliacao = RegraDeChuva.avaliar(previsao, agora, ajustesAtuais.limites)
-            if (!avaliacao.vaiChover) continue
-            if (!ControleDeAvisos.podeAvisar(ajustes.ultimoAvisoEm(propriedade.id), agora)) continue
-
-            val aviso = AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora))
-            if (!notificar(aviso)) continue
-            ajustes.registrarAviso(propriedade.id, agora)
-            avisos += aviso
+            val aviso = previsao?.let { avisoPara(propriedade, it, agora, ajustesAtuais.limites) }
+            if (aviso != null && notificar(aviso)) {
+                ajustes.registrarAviso(propriedade.id, agora)
+                avisos += aviso
+            }
         }
 
         // Nova tentativa só faz sentido para a conta que começou a verificação.
         return ResultadoVerificacao(avisos, falhaPassageira && mesmaConta())
+    }
+
+    /**
+     * A previsão que serve para avisar: a recém-baixada ou, sem rede ou com o serviço fora do ar,
+     * o cache de no máximo [VALIDADE_PARA_AVISO]. O segundo valor é true numa falha passageira
+     * (vale tentar de novo). Resposta inválida ou propriedade excluída: tentar de novo não resolve.
+     */
+    private suspend fun previsaoParaAvisar(propriedade: Propriedade, agora: Instant): Pair<Previsao?, Boolean> =
+        when (val resultado = clima.atualizar(propriedade)) {
+            is ResultadoAtualizacao.Sucesso -> resultado.previsao to false
+            ResultadoAtualizacao.SemConexao, is ResultadoAtualizacao.Indisponivel ->
+                clima.emCache(propriedade)?.takeIf { Duration.between(it.obtidaEm, agora) <= VALIDADE_PARA_AVISO } to true
+            is ResultadoAtualizacao.Falha -> null to false
+        }
+
+    /** O aviso, se vai chover e o último aviso desta propriedade já passou do intervalo mínimo; senão, null. */
+    private fun avisoPara(propriedade: Propriedade, previsao: Previsao, agora: Instant, limites: LimitesChuva): AvisoDeChuva? {
+        val avaliacao = RegraDeChuva.avaliar(previsao, agora, limites)
+        val podeAvisar = avaliacao.vaiChover && ControleDeAvisos.podeAvisar(ajustes.ultimoAvisoEm(propriedade.id), agora)
+        return if (podeAvisar) AvisoDeChuva(propriedade.id, propriedade.nome, avaliacao, previsao.horaLocal(agora)) else null
     }
 
     private companion object {

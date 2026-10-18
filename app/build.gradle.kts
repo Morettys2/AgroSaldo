@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
 }
 
@@ -76,7 +77,15 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
     classpath = detektCli
     mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
-    val fontes = listOf("src/main/java", "src/test/java", "src/testFixtures/java", "src/androidTest/java")
+    val fontes = listOf(
+        "src/main/java",
+        "src/test/java",
+        "src/testFixtures/java",
+        "src/androidTest/java",
+        "../domain/src/main/java",
+        "../domain/src/test/java",
+        "../domain/src/testFixtures/java"
+    )
     inputs.files(fontes.map { fileTree(it) })
     args(
         "--input", fontes.joinToString(",") { file(it).path },
@@ -111,6 +120,14 @@ tasks.withType<Test>().configureEach {
     )
 }
 
+// O lint lê os arquivos que o KSP e o Hilt geram para os testes. Se roda ao mesmo tempo que a geração,
+// o analisador do Kotlin às vezes cai ("Unexpected failure during lint analysis"): então ele espera.
+tasks.configureEach {
+    if (name.startsWith("lintAnalyze")) {
+        mustRunAfter(tasks.matching { it.name.startsWith("hiltJavaCompile") || it.name.startsWith("ksp") || it.name.startsWith("compile") })
+    }
+}
+
 // Schemas exportados pelo Room (um JSON por versão). Versionar app/schemas:
 // é a referência para escrever e testar migrações.
 ksp {
@@ -118,6 +135,9 @@ ksp {
 }
 
 dependencies {
+    // O domínio é um módulo Kotlin puro: o compilador impede que ele importe Android.
+    implementation(project(":domain"))
+
     // BOM em variável para reutilizar em implementation e androidTestImplementation
     // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
@@ -140,8 +160,15 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
+    // Hilt: injeção de dependências (ViewModels, Worker e Application). O processador roda via KSP.
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+
     // WorkManager: verificação periódica de chuva em segundo plano.
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Bloqueio por biometria/credencial do aparelho. appcompat e fragment são
     // declarados para sobrepor as versões antigas trazidas pelo biometric 1.1.0.
@@ -155,12 +182,17 @@ dependencies {
     ktlintRuleset(libs.compose.rules.ktlint)
 
     testFixturesImplementation(libs.kotlinx.coroutines.core)
+    // Fakes em memória e dados de exemplo moram no :domain; o Semeador (que gera SQL) fica aqui.
+    testFixturesApi(testFixtures(project(":domain")))
     // O plugin do Compose também processa src/testFixtures e exige o runtime no classpath,
     // mesmo sem nenhum @Composable lá.
     testFixturesImplementation(composeBom)
     testFixturesImplementation(libs.androidx.compose.runtime)
 
     testImplementation(libs.junit)
+    // Teste do grafo de dependências: o Hilt monta o app de verdade dentro do Robolectric.
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
     testImplementation(libs.kotlinx.coroutines.test)
     // Implementação real do org.json para testes JVM (o android.jar só tem stubs).
     testImplementation(libs.org.json)

@@ -2,21 +2,19 @@ package br.joao.agrosaldo.feature.propriedade
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,6 +96,16 @@ private fun lerArea(texto: String): Area {
     }
 }
 
+/** Os números já lidos e conferidos, prontos para virar uma [Propriedade]. */
+private data class EntradasValidas(val area: Double, val latitude: Double, val longitude: Double)
+
+/** Resultado de conferir o formulário: as entradas lidas ou o estado com os erros marcados. */
+private sealed interface Validacao {
+    data class Valida(val entradas: EntradasValidas) : Validacao
+
+    data class Invalida(val estado: PropriedadeFormUiState) : Validacao
+}
+
 /**
  * Formulário de criação/edição de propriedade. Toda a validação fica aqui; a tela só
  * exibe os erros do estado.
@@ -106,6 +114,7 @@ private fun lerArea(texto: String): Area {
  * @param estadoSalvo guarda os campos digitados para sobreviverem à morte do processo; na
  *   edição, o que foi restaurado vale mais que o que está no banco.
  */
+@HiltViewModel
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
@@ -114,6 +123,21 @@ class PropriedadeFormViewModel(
     private val desfazer: Desfazer = Desfazer(),
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
+
+    /** Construtor do Hilt: o id da propriedade em edição vem do argumento da rota (nulo na criação). */
+    @Inject
+    constructor(
+        propriedadeRepository: PropriedadeRepository,
+        selecao: SelecaoAtual,
+        desfazer: Desfazer,
+        estadoSalvo: SavedStateHandle
+    ) : this(
+        propriedadeRepository = propriedadeRepository,
+        selecao = selecao,
+        propriedadeId = estadoSalvo.get<String>(Rotas.ARG_ID),
+        desfazer = desfazer,
+        estadoSalvo = estadoSalvo
+    )
 
     private val _uiState = MutableStateFlow(
         PropriedadeFormUiState(
@@ -229,45 +253,53 @@ class PropriedadeFormViewModel(
         // Ignora toques repetidos durante ou após a gravação.
         if (estado.salvando || estado.salvo || estado.naoEncontrado) return
 
+        when (val validacao = validar(estado)) {
+            is Validacao.Invalida -> _uiState.value = validacao.estado
+            is Validacao.Valida -> gravar(estado, validacao.entradas)
+        }
+    }
+
+    /** Confere os campos: devolve as entradas lidas ou o estado com a mensagem de cada campo errado. */
+    private fun validar(estado: PropriedadeFormUiState): Validacao {
         val leituraDaArea = lerArea(estado.area)
         val area = (leituraDaArea as? Area.Valida)?.hectares
         val lat = estado.latitude.paraNumero()
         val lon = estado.longitude.paraNumero()
+        val coordenadas = coordenadasValidas(lat, lon)
+        val nomeValido = estado.nome.isNotBlank()
 
-        var houveErro = false
-        var novo = estado
+        if (nomeValido && area != null && coordenadas != null) {
+            return Validacao.Valida(EntradasValidas(area, coordenadas.first, coordenadas.second))
+        }
+        return Validacao.Invalida(
+            estado.copy(
+                erroNome = if (nomeValido) estado.erroNome else "Informe o nome da propriedade.",
+                erroArea = if (area == null) mensagemDaArea(leituraDaArea) else estado.erroArea,
+                erroCoordenadas = if (coordenadas == null) mensagemDasCoordenadas(lat, lon) else estado.erroCoordenadas
+            )
+        )
+    }
 
-        if (estado.nome.isBlank()) {
-            novo = novo.copy(erroNome = "Informe o nome da propriedade.")
-            houveErro = true
-        }
-        if (area == null) {
-            val mensagem = when (leituraDaArea) {
-                Area.Ambigua ->
-                    "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5."
-                Area.AcimaDoLimite -> "A área máxima é 1.000.000 ha. Confira se não sobrou algum zero."
-                else -> "A área deve ser um número maior que zero."
-            }
-            novo = novo.copy(erroArea = mensagem)
-            houveErro = true
-        }
-        if (lat == null || lon == null) {
-            novo = novo.copy(erroCoordenadas = "Latitude e longitude precisam ser números.")
-            houveErro = true
-        } else if (lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-            novo = novo.copy(erroCoordenadas = "Coordenadas fora do intervalo válido.")
-            houveErro = true
-        }
+    private fun coordenadasValidas(lat: Double?, lon: Double?): Pair<Double, Double>? = when {
+        lat == null || lon == null -> null
+        lat in Propriedade.LATITUDES && lon in Propriedade.LONGITUDES -> lat to lon
+        else -> null
+    }
 
-        // Checagem de nulos redundante com houveErro, mas habilita smart cast abaixo.
-        if (houveErro || area == null || lat == null || lon == null) {
-            _uiState.value = novo
-            return
-        }
+    private fun mensagemDaArea(leitura: Area): String = when (leitura) {
+        Area.Ambigua -> "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5."
+        Area.AcimaDoLimite -> "A área máxima é 1.000.000 ha. Confira se não sobrou algum zero."
+        else -> "A área deve ser um número maior que zero."
+    }
 
+    private fun mensagemDasCoordenadas(lat: Double?, lon: Double?): String =
+        if (lat == null || lon == null) "Latitude e longitude precisam ser números." else "Coordenadas fora do intervalo válido."
+
+    /** Grava a propriedade; fora do Brasil, antes avisa e só grava no segundo toque (confirmação). */
+    private fun gravar(estado: PropriedadeFormUiState, entradas: EntradasValidas) {
         // Aviso, não bloqueio: há sítios do outro lado da fronteira. O segundo toque confirma.
         val coordenadas = estado.latitude.trim() to estado.longitude.trim()
-        if (!ficaNoBrasil(lat, lon) && coordenadas != coordenadasConferidas) {
+        if (!ficaNoBrasil(entradas.latitude, entradas.longitude) && coordenadas != coordenadasConferidas) {
             coordenadasConferidas = coordenadas
             _uiState.update { it.copy(avisoCoordenadas = AVISO_FORA_DO_BRASIL) }
             return
@@ -281,9 +313,9 @@ class PropriedadeFormViewModel(
                     id = propriedadeId ?: UUID.randomUUID().toString(),
                     nome = estado.nome.trim(),
                     cultura = estado.cultura.trim().ifBlank { "Não informada" },
-                    areaHectares = area,
-                    latitude = lat,
-                    longitude = lon
+                    areaHectares = entradas.area,
+                    latitude = entradas.latitude,
+                    longitude = entradas.longitude
                 )
                 propriedadeRepository.salvar(propriedade)
                 selecao.selecionar(propriedade.id)
@@ -336,23 +368,14 @@ class PropriedadeFormViewModel(
             "Essas coordenadas ficam fora do Brasil. Confira o sinal de menos: aqui a latitude e a " +
                 "longitude costumam ser negativas. Se estiverem certas, toque em salvar de novo."
 
+        private val LATITUDES_DO_BRASIL: ClosedFloatingPointRange<Double> = -34.0..5.5
+        private val LONGITUDES_DO_BRASIL: ClosedFloatingPointRange<Double> = -74.5..-28.5
+
         /**
          * Retângulo que cobre o território brasileiro, ilhas oceânicas incluídas. Abrange faixas
          * dos países vizinhos: serve para pegar o sinal de menos esquecido, não para validar fronteira.
          */
-        fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean = latitude in -34.0..5.5 && longitude in -74.5..-28.5
-
-        /** @param propriedadeId id vindo da rota de navegação; nulo para criação. */
-        fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                PropriedadeFormViewModel(
-                    selecao = dependencias.selecao,
-                    propriedadeRepository = dependencias.propriedades,
-                    propriedadeId = propriedadeId,
-                    desfazer = dependencias.desfazer,
-                    estadoSalvo = createSavedStateHandle()
-                )
-            }
-        }
+        fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean =
+            latitude in LATITUDES_DO_BRASIL && longitude in LONGITUDES_DO_BRASIL
     }
 }

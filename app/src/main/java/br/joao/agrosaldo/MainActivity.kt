@@ -15,9 +15,14 @@ import androidx.lifecycle.lifecycleScope
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.navigation.AppNavegacao
 import br.joao.agrosaldo.core.navigation.PedidoDoClima
-import br.joao.agrosaldo.di.dependencias
+import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import dagger.hilt.android.AndroidEntryPoint
+import java.time.Clock
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 /**
@@ -25,7 +30,20 @@ import kotlinx.coroutines.launch
  *
  * Estende FragmentActivity porque o BiometricPrompt exige uma.
  */
+@AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
+    @Inject
+    lateinit var selecao: SelecaoAtual
+
+    @Inject
+    lateinit var bloqueio: BloqueioRepository
+
+    @Inject
+    lateinit var desfazer: Desfazer
+
+    @Inject
+    lateinit var relogio: Clock
 
     /**
      * Último pedido da notificação de chuva para abrir o Clima; a navegação reage a cada
@@ -54,7 +72,7 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             AgroSaldoTheme {
-                AppNavegacao(pedidoDoClima = pedidoDoClima, desfazer = dependencias.desfazer)
+                AppNavegacao(pedidoDoClima = pedidoDoClima, desfazer = desfazer)
             }
         }
     }
@@ -72,11 +90,11 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         // Virada do mês com o app vivo: segue o mês corrente, preservando um mês escolhido à mão.
-        dependencias.selecao.acompanharMesCorrente()
+        selecao.acompanharMesCorrente()
     }
 
     private fun irParaOMesAtual() {
-        dependencias.selecao.selecionarMes(YearMonth.now())
+        selecao.selecionarMes(YearMonth.now(relogio))
     }
 
     /**
@@ -86,7 +104,7 @@ class MainActivity : FragmentActivity() {
      */
     private fun protegerTelaComOBloqueio() {
         lifecycleScope.launch {
-            dependencias.bloqueio.ativo.collect { ativo ->
+            bloqueio.ativo.collect { ativo ->
                 if (ativo) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 } else {

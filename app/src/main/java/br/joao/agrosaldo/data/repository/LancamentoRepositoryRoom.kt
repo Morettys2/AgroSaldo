@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data.repository
 
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.paraDominio
@@ -7,6 +8,7 @@ import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import java.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -20,7 +22,8 @@ import kotlinx.coroutines.flow.map
 class LancamentoRepositoryRoom(
     private val dao: LancamentoDao,
     private val sessao: SessaoRepository,
-    private val transacao: Transacao = Transacao.DIRETA
+    private val transacao: Transacao = Transacao.DIRETA,
+    private val relogio: Clock = RelogioDoAparelho
 ) : LancamentoRepository {
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,7 +56,7 @@ class LancamentoRepositoryRoom(
             require(!dao.existeSemSerDoUsuario(lancamento.id, usuarioId)) {
                 "Este lançamento pertence a outra conta."
             }
-            dao.salvar(lancamento.paraEntidade())
+            dao.salvar(lancamento.paraEntidade(agora = relogio.millis()))
         }
     }
 

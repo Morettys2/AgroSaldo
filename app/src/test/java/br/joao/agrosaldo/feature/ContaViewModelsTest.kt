@@ -3,15 +3,23 @@ package br.joao.agrosaldo.feature
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.core.navigation.SessaoViewModel
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.DespachantesDeTeste
+import br.joao.agrosaldo.data.RelogioMonotonicoFalso
+import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.relogioFixo
+import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryMemoria
 import br.joao.agrosaldo.data.sessao.BloqueioMemoria
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.data.sessao.TentativasMemoria
+import br.joao.agrosaldo.domain.RelogioMonotonico
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.HashDeSenha
 import br.joao.agrosaldo.domain.conta.ResultadoCadastro
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.domain.model.Usuario
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
@@ -60,18 +68,18 @@ class ContaViewModelsTest {
         // Poucas iterações só para o teste ser rápido.
         hash = HashDeSenha(iteracoes = 1_000),
         // 30/09/2026 22:40 UTC.
-        relogio = { 1_790_808_000_000L },
-        dispatcherCalculo = Dispatchers.Unconfined
+        relogio = relogioPorMs { 1_790_808_000_000L },
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
     )
 
     private val propriedades = PropriedadeRepositoryMemoria()
-    private val selecionadas = mutableListOf<String>()
+    private val selecao = SelecaoAtual()
 
     private fun sessaoViewModel(
         conta: ContaService = this.conta,
         bloqueio: BloqueioRepository = BloqueioMemoria(),
-        relogio: () -> Long = System::currentTimeMillis
-    ) = SessaoViewModel(conta, bloqueio, propriedades, relogio, selecionarPropriedade = { selecionadas += it })
+        relogio: RelogioMonotonico = RelogioMonotonicoIndisponivel
+    ) = SessaoViewModel(conta, bloqueio, propriedades, relogio, selecao)
 
     private fun cadastroPreenchido() = CadastroViewModel(conta).apply {
         aoMudarNome("Fábio Moretti")
@@ -221,7 +229,8 @@ class ContaViewModelsTest {
     }
 
     private val bloqueio = BloqueioMemoria()
-    private fun contaViewModel() = ContaViewModel(conta, PropriedadeRepositoryMemoria(), bloqueio, zona = ZoneOffset.UTC)
+    private fun contaViewModel() =
+        ContaViewModel(conta, PropriedadeRepositoryMemoria(), bloqueio, relogio = relogioFixo(Instant.EPOCH, ZoneOffset.UTC))
 
     @Test
     fun `tela de conta mostra nome email iniciais e data do aceite`() = runTest {
@@ -298,7 +307,12 @@ class ContaViewModelsTest {
 
     private var agora = 1_790_808_000_000L
 
-    private fun sessaoComBloqueio(ativo: Boolean = true) = sessaoViewModel(bloqueio = BloqueioMemoria(ativo), relogio = { agora })
+    private fun sessaoComBloqueio(ativo: Boolean = true) = sessaoViewModel(
+        bloqueio = BloqueioMemoria(ativo),
+        relogio = RelogioMonotonicoFalso {
+            InstanteMonotonico(1, agora)
+        }
+    )
 
     @Test
     fun `abrir o app com sessao gravada e bloqueio ligado pede a digital`() = runTest {
@@ -368,7 +382,7 @@ class ContaViewModelsTest {
     fun `ligar o bloqueio na tela de conta nao trava na cara da pessoa`() = runTest {
         conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         val bloqueioDoApp = BloqueioMemoria(false)
-        val vm = sessaoViewModel(bloqueio = bloqueioDoApp, relogio = { agora })
+        val vm = sessaoViewModel(bloqueio = bloqueioDoApp, relogio = RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
 
         bloqueioDoApp.definir(true)
 
@@ -490,8 +504,8 @@ class ContaViewModelsTest {
         sessao = sessao,
         tentativas = TentativasMemoria(),
         hash = HashDeSenha(iteracoes = 1_000),
-        relogio = { 1_790_808_000_000L },
-        dispatcherCalculo = Dispatchers.Unconfined
+        relogio = relogioPorMs { 1_790_808_000_000L },
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
     )
 
     @Test
@@ -551,7 +565,7 @@ class ContaViewModelsTest {
         val vm = sessaoViewModel()
 
         assertTrue(vm.prepararAberturaDoClima(DadosDeExemplo.ID_SITIO))
-        assertEquals(listOf(DadosDeExemplo.ID_SITIO), selecionadas)
+        assertEquals(DadosDeExemplo.ID_SITIO, selecao.propriedadeId.value)
     }
 
     @Test
@@ -561,14 +575,14 @@ class ContaViewModelsTest {
 
         // O repositório real só encontra propriedades do usuário conectado.
         assertFalse(vm.prepararAberturaDoClima("propriedade-de-outra-conta"))
-        assertTrue(selecionadas.isEmpty())
+        assertNull(selecao.propriedadeId.value)
     }
 
     @Test
     fun `aceite pendente nao deixa o pedido trocar a propriedade`() = runTest {
         contaQueAceitouVersao1()
         assertFalse(sessaoViewModel().prepararAberturaDoClima(DadosDeExemplo.ID_SITIO))
-        assertTrue(selecionadas.isEmpty())
+        assertNull(selecao.propriedadeId.value)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import java.time.Clock
 import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,11 +20,13 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * @param propriedadeInicial id gravado da última seleção.
  * @param aoMudarPropriedade chamado a cada mudança de propriedade (para gravar).
+ * @param relogio de onde vem o mês corrente.
  */
 class SelecaoAtual(
     propriedadeInicial: String? = null,
     private val aoMudarPropriedade: (String?) -> Unit = {},
-    mesInicial: YearMonth = YearMonth.now()
+    private val relogio: Clock = RelogioDoAparelho,
+    mesInicial: YearMonth = YearMonth.now(relogio)
 ) {
 
     private val _propriedadeId = MutableStateFlow(propriedadeInicial)
@@ -58,14 +61,14 @@ class SelecaoAtual(
      * seleção estava no mês corrente de então, passa para [agora]. Um mês escolhido pela
      * pessoa é mantido. Chamado ao voltar para as telas (ON_RESUME).
      */
-    fun acompanharMesCorrente(agora: YearMonth = YearMonth.now()) {
+    fun acompanharMesCorrente(agora: YearMonth = YearMonth.now(relogio)) {
         if (agora <= mesCorrente) return
         if (_mes.value == mesCorrente) _mes.value = agora
         mesCorrente = agora
     }
 
     /** Reseta a seleção (troca de conta). */
-    fun limpar(agora: YearMonth = YearMonth.now()) {
+    fun limpar(agora: YearMonth = YearMonth.now(relogio)) {
         mudarPropriedade(null)
         mesCorrente = agora
         _mes.value = agora

@@ -41,8 +41,8 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoDestaque
 import br.joao.agrosaldo.core.ui.BotaoTonal
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
@@ -60,12 +60,7 @@ fun LancamentoFormRoute(
     aoLancarDeNovo: (String) -> Unit,
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier,
-    copiaDe: String? = null,
-    tipoInicial: TipoLancamento? = null,
-    viewModel: LancamentoFormViewModel = viewModel(
-        key = "lancamento-form-${lancamentoId.orEmpty()}-${copiaDe.orEmpty()}-${tipoInicial?.name.orEmpty()}",
-        factory = LancamentoFormViewModel.Factory(lancamentoId, copiaDe, tipoInicial)
-    )
+    viewModel: LancamentoFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val contexto = LocalContext.current
@@ -108,7 +103,7 @@ fun LancamentoFormRoute(
         uiState = uiState,
         titulo = when {
             lancamentoId != null -> "Editar lançamento"
-            copiaDe != null -> "Lançar de novo"
+            uiState.ehCopia -> "Lançar de novo"
             else -> "Novo lançamento"
         },
         acoes = acoes,
