@@ -1,8 +1,8 @@
 # CLAUDE.md — AgroSaldo
 
-Contexto permanente do projeto, e a **única** documentação dentro do repositório. Leia inteiro antes de qualquer alteração.
+Contexto permanente do projeto: regras e decisões. Leia inteiro antes de qualquer alteração.
 
-A documentação técnica completa (pasta por pasta, bibliotecas, design) e a lista de todas as data classes ficam fora do repo, em dois documentos no Claude ("AgroSaldo — Documentação técnica" e "AgroSaldo — Data classes"). Quando o código mudar de forma relevante, avise que eles precisam ser atualizados.
+A documentação técnica detalhada (pasta por pasta, arquivo por arquivo, bibliotecas, design e data classes) fica em `docs/`, em MDX, escrita para os outros devs do grupo. Comece por `docs/index.mdx`. Quando o código mudar de forma relevante, atualize a página correspondente em `docs/`.
 
 ---
 
@@ -172,7 +172,7 @@ config/detekt/         detekt.yml
 
 ### CI (`.github/workflows/android.yml`)
 
-- Roda `ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug` em push na `main` e em todo PR.
+- Roda `ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug` em push na `prod` e em todo PR.
 - Os erros viram anotações no check run (é por elas que dá para ler a falha sem abrir o log).
 - As capturas do Roborazzi são publicadas na branch **`ci/capturas`** (não apague). Por isso o workflow tem `permissions: contents: write`.
 - O `gradlew` precisa do bit de execução no Git (`git update-index --chmod=+x gradlew`); sem ele o CI falha com exit 126.
@@ -182,16 +182,15 @@ config/detekt/         detekt.yml
 ## 9. Como trabalhar neste repo
 
 1. **Plano primeiro.** Antes de editar, apresente o plano: arquivos que vão mudar e por quê. Espere o OK.
-2. **Uma tarefa por branch** (ex.: `rodada/r9-play-store`, `fix/...`). Nada direto na `main` sem o João pedir.
+2. **Uma tarefa por branch** (ex.: `rodada/r9-play-store`, `fix/...`). Nada direto na `prod` (a principal) sem o João pedir.
 3. **Commits pequenos** em Conventional Commits, em português: `refactor(inicio): usa ResumoFinanceiro do domínio`.
 4. **Autor dos commits: sempre o João.** `user.name "Morettys2"` e `user.email "m0rettyy20@gmail.com"`, **sem** `Co-Authored-By` do Claude nem outro trailer de atribuição. Ele não quer que o histórico pareça feito pelo Claude.
 5. **Teste junto:** cada regra nova ganha teste. Cada bug corrigido ganha um teste que falharia antes.
 6. **Antes do PR**, o CI precisa ficar verde (ktlint, detekt, testes, build e lint) e sem warning novo do Kotlin.
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
-9. Não recrie README, CHANGELOG nem `docs/`: este arquivo é a referência do repo, por decisão do João.
-10. **Branches de longa duração:** `main` é o desenvolvimento (testes, CI, tudo). `prod` é a versão de apresentação/entrega: igual à `main`, mas sem as migrações 1→2 e 2→3 (banco v3 como base, pois não há dados reais a preservar). Desenvolva na `main` e leve para a `prod` por merge; conflitos em `AgroSaldoDatabase.kt` e em `app/schemas` se resolvem mantendo a versão mais nova.
-
+9. Não recrie README nem CHANGELOG. A pasta `docs/` (MDX) é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
+10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a próxima migração parte da 3.
 ---
 
 ## 10. Histórico e próximos passos
@@ -204,6 +203,7 @@ config/detekt/         detekt.yml
 - **R6:** regras no domínio (`ResumoFinanceiro`, `propriedadeAtual`), `SelecaoAtual` injetada, container `Dependencias`, fakes para `testFixtures` (app começa vazio), `.catch` nas leituras do banco.
 - **R7:** componentes compartilhados de botão e estado, `Espacos`, um seletor de propriedade só (48 dp, com role), acessibilidade (aba ≥ 11 sp, roles, previews 2×), textos unificados.
 - **Transições de tela (branch `prod`):** o crossfade padrão de 700 ms do Navigation Compose deixava a tela antiga "fantasma" por baixo da nova. Agora trocar de aba é instantâneo e as demais telas deslizam, com a antiga sumindo em 90 ms (`core/navigation/TransicoesDeTela.kt`).
+- **Documentação técnica em MDX (`docs/`)** para os devs do grupo, e branch `prod` como principal (a antiga `main` virou `desenvolvimento`, backup).
 - **Detekt sem baseline:** os 115 achados antigos foram resolvidos (constantes nomeadas, `aoSalvar` e `verificar` quebrados em funções menores, `Desfazer.desfazerExclusao`) ou justificados no `detekt.yml` (testes que capturam exceção de propósito, guardas, telas Compose) ou com `@Suppress` comentado no ponto exato. Achado novo = corrigir, não baselinar.
 - **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.

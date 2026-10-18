@@ -1,0 +1,60 @@
+---
+title: "Padrões de projeto e design"
+description: "Padrões usados no código (Repository, injeção de dependência, UiState, fakes) e o visual Safra."
+sidebar_position: 5
+---
+
+# Design seguido
+
+No código, o app segue o **guia oficial de arquitetura do Android** (MVVM, fluxo de dados unidirecional e repositórios); no visual, segue o **Material 3** com uma identidade própria chamada **Safra**, desenhada no protótipo do Figma.
+
+## Padrões de projeto usados
+
+| Padrão | Onde aparece | Para que serve aqui |
+| --- | --- | --- |
+| MVVM (Model-View-ViewModel) | Toda `feature/`: `XxxScreen` + `XxxViewModel` + `XxxUiState` | Separa o desenho da tela do estado e da lógica; o ViewModel sobrevive à rotação da tela |
+| Repository | Interfaces em `domain/repository/`; implementações em `data/repository/`, `data/preferencias/` e `data/sessao/` | Esconde de onde vem o dado (Room, `SharedPreferences`, API) atrás de uma interface |
+| DAO (Data Access Object) | `data/local/dao/` | Concentra o SQL de cada tabela, conferido pelo Room em tempo de compilação |
+| Mapper | `data/local/Mapeadores.kt` (`paraDominio()` / `paraEntidade()`) | Converte entre a linha do banco e o modelo do domínio |
+| Injeção de dependência (Hilt) | módulos em `di/` + `@HiltViewModel` | Cada classe recebe o que usa pelo construtor; o teste troca por fakes |
+| Service locator (evitado) | — | Antes, as `Factory` buscavam tudo num container global; com o Hilt cada ViewModel declara o que precisa e o Dagger entrega |
+| Observer (fluxos reativos) | `Flow` do Room, `StateFlow` no ViewModel, `collectAsStateWithLifecycle` na tela | Quando o banco muda, todas as telas abertas se atualizam sozinhas |
+| Unidirectional Data Flow + State hoisting | Telas recebem `uiState` e lambdas `aoXxx` | Estado desce, eventos sobem: a tela não guarda regra e vira fácil de testar e de pré-visualizar |
+| Single Activity | `MainActivity` + Navigation Compose | Uma janela só, com todas as telas como destinos do `NavHost` |
+| Command / Memento | `Desfazer` + `PropriedadeExcluida` | Guarda o que foi apagado para o botão "Desfazer" regravar |
+| Unit of Work | `data/local/Transacao.kt` | Gravações em várias tabelas dão certo juntas ou não acontecem |
+| Fake objects | `src/testFixtures` (`*Memoria`) | Implementações em memória das interfaces, no lugar de mocks |
+
+## Princípios que o código segue
+
+- **Inversão de dependência:** o domínio define as interfaces e as outras camadas dependem dele, nunca o contrário.
+- **Regra de negócio pura:** saldo, ranking, regra de chuva e hash de senha são funções sem Android, testadas no JVM.
+- **Invariantes no modelo:** `Lancamento`, `Propriedade` e `Usuario` validam os próprios dados no `init` (`require`), então um objeto inválido não chega a existir.
+- **Dinheiro em centavos (`Long`) e datas em `java.time`:** nada de `Double` para valor nem `Date` legado.
+- **Erros visíveis, nunca engolidos:** `tentar { }` e `repetirAposErro { }` levam a falha até a tela como mensagem.
+- **Privacidade por padrão:** dados só no aparelho, senha com PBKDF2, `FLAG_SECURE` com o bloqueio ligado e backup só criptografado.
+
+## Design visual: Safra
+
+O visual tem nome próprio por causa dos componentes de `core/ui/Safra.kt` (`CabecalhoSafra`, `CartaoSafra`, `ChipSafra`). A tela típica tem:
+
+- **cabeçalho verde-escuro** (VerdeNoite) com cantos de baixo arredondados, onde ficam o título, o seletor de sítio e o saldo;
+- **cartões brancos** sobre um fundo cor de papel;
+- **barra inferior em pílula**, com o item ativo em verde-limão.
+
+| Elemento | Escolha | Por quê |
+| --- | --- | --- |
+| Base | Material 3 (Compose) | Componentes acessíveis prontos, tema claro e escuro |
+| Cores | Verde = receita e marca, Terra = despesa, Água = clima, VerdeNoite = cabeçalho | Cada cor tem um significado fixo no app inteiro |
+| Cor dinâmica (Material You) | Desligada | A cor de receita e despesa não pode mudar com o papel de parede |
+| Contraste | Todo par texto/fundo ≥ 4,5:1 (WCAG AA) | Leitura no sol, no campo |
+| Fonte | Plus Jakarta Sans, embutida no app | Funciona offline; algarismos tabulares (`tnum`) alinham os valores |
+| Espaços | Escala única em `Espacos` | Margens iguais em todas as telas |
+| Toque | Alvos de no mínimo 48 dp e botões de 56 dp que crescem com a fonte | Público com fonte grande no celular |
+| Cor nunca sozinha | Categoria sempre com ícone e nome | Quem não distingue cores entende igual |
+| Modo escuro | Segue o sistema, com tons mais claros e menos saturados | Evita "vibração" das cores sobre o fundo escuro |
+
+Os valores exatos de cada cor, estilo de texto, forma e espaçamento estão na seção **Tema e design system Safra**, mais abaixo.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Tema e design system Safra](./tema-safra.mdx)

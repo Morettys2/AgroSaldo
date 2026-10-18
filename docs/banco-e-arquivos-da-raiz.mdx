@@ -1,0 +1,68 @@
+---
+title: "Banco de dados e arquivos da raiz"
+description: "Schemas do Room, regras de migração e o que cada arquivo da raiz do projeto faz."
+sidebar_position: 11
+---
+
+# Banco e arquivos da raiz
+
+## Banco: esquema e migrações (`app/schemas`)
+
+### Para que servem os JSON
+
+Com `exportSchema = true` no `@Database` e o argumento `room.schemaLocation` do KSP, o Room grava, a cada compilação, um retrato do banco em `app/schemas/br.joao.agrosaldo.data.local.AgroSaldoDatabase/<versão>.json`. Cada arquivo traz tabelas, colunas, chaves primárias, índices, chaves estrangeiras, o SQL de criação e um `identityHash`. Eles ficam versionados no git porque são "a referência para escrever e testar migrações" (comentário do build). Assim dá para saber exatamente como era o banco instalado nos celulares de cada versão, algo parecido com o histórico de migrations de um ORM no NestJS.
+
+| Arquivo | Versão | Tabelas | O que mudou |
+|---|---|---|---|
+| `3.json` | 3 | `usuarios`, `propriedades`, `lancamentos`, `previsoes` | Base da produção: schema completo (contas, propriedades com `usuario_id`, lançamentos e cache de previsão com CASCADE) |
+
+### Migrações (a partir da versão 3)
+
+- As migrações 1→2 e 2→3 (`MigracoesSql`) e o `MigracaoTest` foram removidos: não havia dados reais a preservar, então a versão 3 é o ponto de partida.
+- O banco é aberto **sem** `fallbackToDestructiveMigration`: uma migração que falte faz o app falhar em vez de apagar os dados do usuário.
+- Ao mudar entidade: suba a versão (4), escreva a `Migration(3, 4)`, exporte o `4.json` e acrescente o teste de migração (por exemplo com `MigrationTestHelper`). Prefira `ALTER TABLE` a recriar tabela, porque um `DROP TABLE` em `propriedades` dispararia o `ON DELETE CASCADE` e apagaria os lançamentos.
+- A `main` ainda guarda o histórico completo das migrações 1→3, caso precise consultar.
+
+## Arquivos da raiz
+
+| Arquivo / pasta | Para que serve |
+|---|---|
+| `gradlew` / `gradlew.bat` | **Gradle Wrapper** para Linux/macOS e Windows. Baixa e roda a versão exata do Gradle definida no projeto (`9.5.0`), sem precisar instalá-lo, mais ou menos como um `npx` com versão travada. Use sempre `./gradlew` |
+| `gradle/wrapper/gradle-wrapper.jar` e `gradle-wrapper.properties` | O programa do wrapper e a configuração dele: URL da distribuição, `distributionSha256Sum` (confere se o download não foi adulterado), `validateDistributionUrl=true` e `networkTimeout=10000` |
+| `gradle/libs.versions.toml` | Version catalog: todas as versões de bibliotecas e plugins |
+| `gradle/gradle-daemon-jvm.properties` | JDK do daemon do Gradle (`25`) e links de download por sistema |
+| `settings.gradle.kts` | Primeiro arquivo lido pelo Gradle. Ver detalhes abaixo |
+| `build.gradle.kts` | Script da raiz: só declara os 4 plugins do catálogo com `apply false` |
+| `gradle.properties` | Memória do daemon, configuration cache e estilo Kotlin |
+| `app/` | O módulo Android: código (`src/`), `build.gradle.kts`, e `schemas/` |
+| `domain/` | O módulo `:domain` (Kotlin puro): regras de negócio, `src/test` e `src/testFixtures` |
+| `config/detekt/detekt.yml` | Ajustes do detekt |
+| `.editorconfig` | Regras de formatação (ktlint e Android Studio) |
+| `.github/workflows/android.yml` | Pipeline de CI |
+| `.idea/` | Parte das configurações do projeto no Android Studio (ex.: `gradle.xml`, `misc.xml`, perfil de inspeções); o `.idea/.gitignore` exclui `/shelf/` e `/workspace.xml` |
+| `CLAUDE.md` | Única documentação dentro do repositório: contexto, stack, regras de código, segurança, comandos, CI e histórico; é o arquivo que o assistente de IA consulta antes de mexer no projeto |
+
+**Detalhes do `settings.gradle.kts`:**
+
+- **Repositórios de plugins:** `google()` (filtrado aos grupos `com.android.*`, `com.google.*` e `androidx.*`), `mavenCentral()` e `gradlePluginPortal()`.
+- **Plugin `foojay-resolver-convention`:** permite baixar JDKs automaticamente.
+- **`repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`:** só valem os repositórios `google()` e `mavenCentral()` declarados aqui. Um módulo que tente declarar outro repositório faz o build falhar, o que evita baixar dependências de fontes não autorizadas.
+- **Projeto:** `rootProject.name = "AgroSaldo"` e `include(":app")`.
+
+### `.gitignore` e por que ele importa para a segurança
+
+O `.gitignore` da raiz impede que entrem no repositório:
+
+| Entrada | O que é | Por que ignorar |
+|---|---|---|
+| `*.jks`, `*.keystore` | **Keystore**: o arquivo com a chave privada que assina o APK/AAB de release | **Nunca deve ser commitado.** Quem tiver a keystore e a senha pode publicar atualizações se passando pelo app. Ela fica só com o dono, com backup fora do git |
+| `local.properties`, `/local.properties` | Caminho do Android SDK na máquina (e, às vezes, segredos locais) | É específico de cada computador e pode conter dados sensíveis |
+| `/app/release/`, `*.apk`, `*.aab` | Pacotes gerados (APK e Android App Bundle) | São binários de build: não pertencem ao código-fonte e podem conter o app assinado |
+| `/build`, `.gradle`, `.kotlin/`, `.externalNativeBuild`, `.cxx`, `/captures` | Saídas e caches do Gradle, do Kotlin, do código nativo e capturas do Android Studio | Gerados a cada build; só incham o repositório |
+| `*.iml`, `/.idea/caches`, `/.idea/libraries`, `/.idea/modules.xml`, `/.idea/workspace.xml`, `/.idea/navEditor.xml`, `/.idea/assetWizardSettings.xml`, `.idea/deploymentTargetSelector.xml`, `.idea/deviceManager.xml`, `.idea/androidTestResultsUserPreferences.xml` | Arquivos pessoais e caches da IDE | Mudam a cada máquina e geram conflitos inúteis |
+| `.DS_Store`, `Thumbs.db` | Lixo do macOS e do Windows | Sem valor para o projeto |
+
+O `app/.gitignore` ignora ainda `/build` do módulo. Junto com o fato de o `app/build.gradle.kts` não declarar `signingConfig` nem senhas, isso garante que **nenhuma credencial de assinatura vive no repositório**.
+
+---
+**Veja também:** [Início](./index.mdx) · [Primeiros passos](./primeiros-passos.mdx) · [Como contribuir](./como-contribuir.mdx)

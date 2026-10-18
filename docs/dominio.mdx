@@ -1,0 +1,279 @@
+---
+title: "Módulo :domain"
+description: "Modelos, regras puras, casos de uso de conta e interfaces de repositório, arquivo por arquivo."
+sidebar_position: 9
+---
+
+# Camada de domínio
+
+A camada de domínio concentra as **regras de negócio** do AgroSaldo: modelos, validações, cálculos financeiros, regra de chuva e casos de uso de conta. É Kotlin puro **e vive no módulo Gradle `:domain`** (pasta `domain/` na raiz do projeto, plugin `org.jetbrains.kotlin.jvm`): o Android nem está no classpath, então o compilador recusa qualquer `import android.*`, Room, Compose ou Hilt. Isso permite testar tudo direto na JVM, sem emulador. Ela também declara as **interfaces de repositório** (`domain/repository/`), que dizem *o que* o app precisa persistir; *como* isso é feito (Room, SharedPreferences, HTTP) fica na camada `data/`. Para quem vem do NestJS, é parecido com ter os services e as interfaces de repositório num módulo que não sabe se o banco é TypeORM, Prisma ou um mock.
+
+## domain/model/
+
+Entidades de negócio (data classes imutáveis) e os enums que o resto do app usa. Os invariantes são checados no `init`, com `require`, então um objeto inválido nem chega a existir.
+
+### Lancamento.kt
+
+Define o lançamento financeiro (receita ou despesa) de uma propriedade e as categorias fixas.
+
+- `TipoLancamento`: enum com `RECEITA` e `DESPESA`.
+- `CategoriaLancamento`: enum das categorias fixas (RF06). Cada constante tem um `tipo` e um `rotulo`. As despesas são `ENERGIA`, `DEFENSIVOS`, `SEMENTES`, `ADUBO`, `COMBUSTIVEL`, `MAO_DE_OBRA`, `MANUTENCAO` e `OUTRAS_DESPESAS`; as receitas são `VENDA_SAFRA`, `ARRENDAMENTO` e `OUTROS`. `porTipo(tipo)` devolve as categorias de um tipo, na ordem em que foram declaradas.
+- `Lancamento`: data class com `id`, `propriedadeId`, `tipo`, `categoria`, `valorCentavos`, `data` (`LocalDate`) e `descricao` (até `DESCRICAO_MAXIMA = 200` caracteres, checado no `init`).
+  - `valorComSinal`: devolve o valor positivo para receita e negativo para despesa (usado no saldo, RN03).
+  - `ehReceita`: atalho booleano.
+  - `MESES_NO_FUTURO = 12` e `dataDentroDoLimite(data, hoje)`: implementam a RN07 (a data não pode passar de 12 meses à frente).
+
+Regras e decisões:
+
+- **RN01**: `propriedadeId` não pode ser vazio, então todo lançamento pertence a uma propriedade.
+- **RN06**: `valorCentavos` precisa ser maior que zero. O sinal vem do `tipo`, nunca do número.
+- **Dinheiro em centavos (`Long`)**, nunca em `Double`, para evitar erro de ponto flutuante.
+- A categoria precisa ser do mesmo tipo do lançamento (`categoria.tipo == tipo`).
+- A RN07 depende do relógio, por isso **não** é checada no `init`: se fosse, um registro já gravado poderia falhar ao ser lido do banco. Ela é validada ao salvar.
+- O **nome da constante** do enum é o que vai para o banco. Não dá para renomear sem migração (o rótulo pode mudar à vontade). Os rótulos ficam no domínio, e não em `strings.xml`, para a camada continuar sem dependência de Android.
+- O `id` padrão é `UUID.randomUUID().toString()`.
+
+### Propriedade.kt
+
+Modelo da propriedade rural e utilitários ligados a ela.
+
+- `Propriedade`: `id`, `nome`, `cultura`, `areaHectares`, `latitude`, `longitude`. O `init` exige nome não vazio e com até `NOME_MAXIMO = 80` caracteres, cultura com até `CULTURA_MAXIMA = 60`, área **finita**, maior que zero e de no máximo `AREA_MAXIMA_HECTARES = 1.000.000`, latitude entre −90 e 90 e longitude entre −180 e 180.
+- `PropriedadeExcluida`: "foto" de uma exclusão em cascata (RN02), com a propriedade e os lançamentos dela, guardando os ids originais. Serve para desfazer a exclusão.
+- `List<Propriedade>.emOrdemAlfabetica()`: ordena pelo nome com um `Collator` pt-BR e desempata pelo `id`.
+
+Decisões:
+
+- O **id é um UUID gerado no cliente**. Assim ele não colide com ids de um backend futuro, coisa que um autoincremento local não garantiria.
+- A ordenação usa `Collator` porque o `COLLATE NOCASE` do SQLite mandaria nomes acentuados para o fim da lista. O desempate pelo id deixa estável a primeira da lista, que é a "propriedade padrão" das telas. O código cria um `Collator` novo a cada chamada porque ele não garante uso seguro entre threads.
+
+### Usuario.kt
+
+Conta local do aparelho e versão do termo de privacidade.
+
+- `Usuario`: `id` (UUID), `nome`, `email`, `senhaHash`, `consentimentoEm`, `versaoTermo` e `criadoEm`. O `init` exige nome, e-mail e hash preenchidos.
+- `TermoDePrivacidade.VERSAO_ATUAL = 3`: versão vigente do termo. O comentário guarda o histórico: 1 é o texto inicial, 2 acrescenta o uso opcional da localização e 3 trata do backup do Android e do que a exclusão da conta apaga.
+
+Regras: `senhaHash` segue o formato de `HashDeSenha`, e a senha em texto puro nunca é guardada. `consentimentoEm` e `versaoTermo` registram o aceite LGPD (RNF10). Quando `VERSAO_ATUAL` sobe, quem aceitou uma versão anterior vê o termo de novo.
+
+### InstanteMonotonico.kt
+
+Representa um instante no relógio monotônico do aparelho, usado no bloqueio por tentativas de senha.
+
+- `InstanteMonotonico(boot, desdeOBootMs)`: identificador do boot e milissegundos desde aquele boot.
+- `mais(ms)`: devolve uma cópia avançada em `ms`.
+
+Decisão: o relógio monotônico (no Android, `SystemClock.elapsedRealtime`) **não muda quando o usuário altera a data/hora** do sistema, mas volta a zero a cada reinício. Por isso dois instantes só podem ser comparados quando têm o mesmo `boot`.
+
+## domain/conta/
+
+Casos de uso de conta: cadastro, login, troca de senha, exclusão, hash de senha e validação de dados.
+
+### ContaService.kt
+
+Serviço central de conta local (RF01, RF02, RNF10, RF16). Ele encapsula hash, sessão e bloqueio por tentativas. Os ViewModels só consomem os resultados.
+
+Tipos de resultado (sealed interfaces, parecidos com uniões discriminadas do TypeScript):
+
+- `ResultadoCadastro`: `Sucesso`, `EmailJaCadastrado`, `TermoNaoAceito`, `DadosInvalidos(motivo)`.
+- `ResultadoLogin`: `Sucesso`, `CredenciaisInvalidas`, `Bloqueado(segundosRestantes)`.
+- `ResultadoExclusao`: `Sucesso`, `SenhaIncorreta`, `Bloqueado`, `SemSessao`.
+- `ResultadoAlteracaoSenha`: `Sucesso`, `SenhaAtualIncorreta`, `NovaIgualAAtual`, `NovaNaoCumpreRequisitos`, `Bloqueado`, `SemSessao`.
+
+Membros principais de `ContaService`:
+
+- `usuarioLogadoId`, `estaLogado()` e `observarUsuarioLogado()`: estado da sessão. O Flow volta a emitir em login, logout e alterações do registro.
+- `sessaoDeContaNova` e `esquecerContaNova()`: ficam `true` quando a sessão começou num cadastro, para oferecer uma única vez o que só faz sentido para quem acabou de chegar (o comentário cita ligar o bloqueio por digital).
+- `precisaNovoAceite()`: devolve `true` se o usuário aceitou uma versão anterior do termo, `false` sem sessão e `null` enquanto a conta ainda não foi lida do banco. `registrarNovoAceite()` grava o aceite da versão atual.
+- `emailEmUso(email)`: diz se o e-mail já tem conta no aparelho.
+- `cadastrar(nome, email, senha, aceitouTermo)`: revalida tudo (o serviço é "a última barreira", mesmo que a UI já tenha validado), normaliza o e-mail, gera o UUID e o hash e conecta a sessão.
+- `entrar(email, senha)`: faz o login, com bloqueio por tentativas.
+- `sair()`: encerra a sessão.
+- `alterarSenha(senhaAtual, novaSenha)`: exige a senha atual e aplica as regras de senha à nova.
+- `excluirConta(senha)`: exclusão de dados (LGPD art. 18, VI) com reautenticação por senha.
+- `validarSessao()`: chamado na abertura do app. Encerra a sessão se ela aponta para uma conta que não existe mais.
+
+Regras e decisões visíveis no código:
+
+- **Bloqueio por tentativas**: depois de `MAXIMO_TENTATIVAS = 5` falhas seguidas, bloqueia por `BLOQUEIO_MS = 30 s`. O tempo dobra a cada falha extra, até `BLOQUEIO_MAXIMO_MS = 15 min` (no máximo 5 dobras).
+- O contador é **um por e-mail**, e é o mesmo para login, troca de senha e exclusão, para nenhum desses fluxos virar atalho para força bruta. A chave é o **SHA-256 do e-mail normalizado**, então o e-mail não fica gravado em claro. De propósito, não há contador global: com ele, quem pegasse o celular conseguiria bloquear todas as contas.
+- **Dois relógios no bloqueio**: o fim do bloqueio é gravado no relógio de parede (`bloqueadoAte`) e no monotônico (`fimMonotonico`). Enquanto o aparelho não reinicia, vale o monotônico, então mudar a data/hora não adianta. Depois de um reinício, vale o de parede. Se o tempo restante passar do máximo (relógio de parede alterado), o bloqueio é reancorado no máximo.
+- **Proteção contra enumeração por tempo de resposta**: quando o e-mail não existe, a senha é conferida contra um `hashFicticio`. Assim a resposta demora o mesmo que uma senha errada, e o login responde igual nos dois casos.
+- **Rehash transparente**: no login, se `hash.precisaAtualizar(...)` indicar menos iterações que o padrão atual, o hash é recalculado e salvo.
+- O PBKDF2 consome bastante CPU (centenas de ms), então roda sempre em `despachantes.calculo` (`Dispatchers.Default` em produção), nunca na main thread.
+- Corrida no cadastro: se dois cadastros com o mesmo e-mail passam juntos pela checagem, o índice único do e-mail barra o segundo, e `criar` devolve `false`.
+- Os callbacks `aoTrocarDeUsuario` e `aoExcluirConta` deixam o serviço limpar estado externo (seleção, notificações, preferências) sem conhecer o Android.
+- `emailEmUso` revela de propósito se o e-mail já existe e não passa pelo limite de tentativas. O comentário explica o motivo: as contas são locais, o cadastro precisa dessa informação, e a proteção contra adivinhação de senha fica no login.
+
+### HashDeSenha.kt
+
+Gera e confere hashes de senha usando só a JCA da plataforma, sem biblioteca externa.
+
+- `gerar(senha)`: cria um sal aleatório e deriva o hash.
+- `confere(senha, armazenado)`: recalcula com o sal e as iterações gravados e compara em **tempo constante** (`MessageDigest.isEqual`). Um formato inválido devolve `false`.
+- `precisaAtualizar(armazenado)`: devolve `true` se o hash gravado usa menos iterações que o configurado.
+- `ficticio()`: monta um registro bem formado com bytes aleatórios, sem rodar o PBKDF2 (usado pelo `ContaService`).
+
+Parâmetros e decisões:
+
+- Algoritmo **PBKDF2-HMAC-SHA256** (`PBKDF2WithHmacSHA256`), **600.000 iterações** (`ITERACOES_PADRAO`, o mínimo da OWASP; o comentário estima de 0,5 a 1 s num aparelho intermediário), **sal de 16 bytes** e **hash de 256 bits**.
+- Formato gravado: `pbkdf2_sha256$<iterações>$<sal base64>$<hash base64>`, em Base64 sem padding. Como as iterações ficam dentro do registro, dá para aumentar o custo sem invalidar hashes antigos.
+- A senha é normalizada em **NFKC** (NIST 800-63B) antes de derivar o hash, e `clearPassword()` apaga a cópia guardada pelo `PBEKeySpec`.
+
+### RegrasDeConta.kt
+
+Validação e normalização compartilhadas entre os formulários (feedback por campo) e o `ContaService` (validação final).
+
+- `RequisitosSenha`: checklist com `temTamanhoMinimo`, `temLetraENumero`, `naoEhPrevisivel` e `todosCumpridos`.
+- `RegrasDeConta.normalizarEmail(email)`: aplica `trim` e minúsculas. É a forma usada para busca e unicidade.
+- `emailValido(email)`: validação mínima `x@y.z`, sem espaços, com até `EMAIL_MAXIMO = 254` caracteres. O comentário avisa que não há confirmação por e-mail.
+- `nomeValido(nome)`: não vazio e com até `NOME_MAXIMO = 80` caracteres.
+- `requisitosDaSenha(senha, email, nome)` e `senhaValida(...)`: senha de `SENHA_MINIMO = 8` a `SENHA_MAXIMO = 128` caracteres. O máximo comporta frases-senha e limita o custo do PBKDF2.
+- `iniciais(nome)`: iniciais do primeiro e do último nome, ou `"?"` se o nome estiver vazio.
+
+Uma senha é considerada **previsível** (NIST 800-63B) se:
+
+- está em `SENHAS_COMUNS`, mesmo com um caractere a mais no início ou no fim;
+- tem uma sequência crescente ou decrescente de 6 ou mais caracteres;
+- contém "agrosaldo";
+- usa 2 caracteres distintos ou menos;
+- contém a parte local do e-mail ou partes do nome com 4 ou mais caracteres.
+
+### SenhasComuns.kt
+
+Declara `SENHAS_COMUNS` (`internal`), um `Set<String>` curto e embutido no app com senhas frequentes em vazamentos no Brasil, todas em minúsculas. As senhas da lista são recusadas, seguindo a NIST SP 800-63B.
+
+## domain/financeiro/
+
+Cálculos financeiros puros, que recebem listas e devolvem valores.
+
+### ResumoFinanceiro.kt
+
+Reúne num lugar só os totais, o saldo e o ranking de gastos. O comentário registra que, antes deste arquivo, cada ViewModel tinha sua própria versão da mesma conta. O código é testado em `ResumoFinanceiroTest`.
+
+- `TotaisDoPeriodo(receitasCentavos, despesasCentavos)`:
+  - `saldoCentavos`: receitas − despesas (RN03).
+  - `temMovimento`: indica se houve alguma receita ou despesa.
+  - `proporcaoReceitas`: receitas / (receitas + despesas). Vale `0.5` quando não há movimento, para a barra ficar neutra.
+  - `VAZIO`: totais zerados.
+- `GastoPorCategoria(categoria, totalCentavos, proporcao)`: a `proporcao` é relativa à **maior** categoria (não ao total), então a primeira barra do ranking fica sempre cheia.
+- `ResumoFinanceiro.totais(lancamentos)`: soma receitas e despesas sem filtrar nada.
+- `doMes(lancamentos, propriedadeId, mes)`: filtra por propriedade e por `YearMonth`.
+- `resumoDoMes(...)`: totais do mês (RN03).
+- `rankingDeGastos(lancamentos, quantos)`: as `quantos` categorias de despesa com maior total, ignorando receitas. Num empate, vale a ordem do enum, para o ranking não "pular" entre duas recomposições iguais.
+- `propriedadeAtual(propriedades, idSelecionado)`: devolve a propriedade selecionada ou, se ela não existir mais, a primeira da lista (`null` se a lista estiver vazia).
+
+Decisão: são funções puras, sem banco, sem Android e sem relógio. O mesmo cálculo atende o Início, a lista de lançamentos, o Histórico e a lista de propriedades.
+
+## domain/clima/
+
+Modelo da previsão do tempo e regra do aviso de chuva (RN04).
+
+### Previsao.kt
+
+Modelo da previsão, independente do provedor.
+
+- `CondicaoTempo`: enum com `rotulo` e `molhado` (`CEU_LIMPO`, `POUCAS_NUVENS`, `NUBLADO`, `NEBLINA`, `GAROA`, `CHUVA`, `PANCADAS`, `TEMPESTADE`, `NEVE`, `DESCONHECIDA`). `doCodigoWmo(codigo)` converte o código WMO da Open-Meteo, e códigos não mapeados viram `DESCONHECIDA`.
+- `PrevisaoDia`: `data`, `condicao`, `temperaturaMaxima` e `temperaturaMinima` (anuláveis, porque a API pode não mandar o valor do último dia), `chuvaMm` e `probabilidadeChuva` (0 a 100).
+- `PrevisaoHora`: `horario` (hora local da propriedade), `probabilidadeChuva` e `chuvaMm`.
+- `Previsao`: `latitude`, `longitude`, `obtidaEm`, `fusoSegundos`, `temperaturaAtual`, `condicaoAtual`, `dias` e `horas`. `horaLocal(instante)` converte um `Instant` para a hora local da propriedade.
+
+Decisão: os horários estão no **fuso da propriedade** (`fusoSegundos`), não no fuso do aparelho.
+
+### RegraDeChuva.kt
+
+Decide se a previsão justifica um aviso de chuva (RN04) e define as políticas de repetição de aviso e de cache.
+
+- `LimitesChuva(probabilidadeMinima = 60, chuvaMinimaMm = 2.0, janelaHoras = 12)`: limites configuráveis. O `init` rejeita valores fora das faixas permitidas: probabilidade de 10 a 100, chuva de 0,5 a 50 mm e janela de 3 a 48 h.
+- `MotivoChuva`: `PROBABILIDADE`, `VOLUME` ou `AMBOS`.
+- `AvaliacaoChuva`: `vaiChover`, `probabilidadeMaxima`, `chuvaTotalMm`, `inicioPrevisto`, `motivo` e `temDados` (`false` quando a previsão guardada não cobre a janela).
+- `RegraDeChuva.avaliar(previsao, agora, limites)`: função pura que calcula a avaliação.
+- `ControleDeAvisos.podeAvisar(ultimoAvisoEm, agora)`: evita repetir o aviso. Exige pelo menos `INTERVALO_MINIMO = 11 h` desde o último aviso da propriedade.
+- `PoliticaDeAtualizacao`: `VALIDADE = 1 h` (tempo até buscar de novo), `VALIDADE_MAXIMA_CACHE = 2 dias` (idade máxima para mostrar a previsão em cache como "última conhecida") e `precisaAtualizar(obtidaEm, agora)`.
+
+Regra de chuva:
+
+- **Vai chover** se, nas próximas `janelaHoras` horas, a **maior probabilidade horária for ≥ 60%** **OU** a **chuva somada for ≥ 2 mm** (padrões). As duas comparações incluem o próprio limite.
+- A janela começa no início da hora corrente (14h40 vira 14h).
+- `inicioPrevisto` é a primeira hora da janela que atinge o limite de probabilidade ou tem pelo menos `CHUVA_MINIMA_POR_HORA_MM = 0.1` mm. Abaixo disso, o comentário chama de "traço de garoa".
+- Uma `TOLERANCIA = 1e-9` absorve erro de arredondamento da soma de `Double` (por exemplo, 1,9999999 mm contra 2 mm).
+- O intervalo mínimo de 11 h, e não 12 h, tolera a imprecisão de agendamento do WorkManager (a verificação roda a cada 12 h).
+- A validade de 1 h existe porque a Open-Meteo atualiza os modelos de hora em hora. Buscar com mais frequência só gastaria dados móveis e a cota gratuita.
+
+### VerificadorDeChuva.kt
+
+Caso de uso da verificação periódica de chuva (RN04), executada a cada 12 h pelo Worker. Não tem dependência de Android: o Worker passa uma função `notificar` que mostra a notificação.
+
+- `AvisoDeChuva`: `propriedadeId`, `nomePropriedade`, `avaliacao` e `verificadoEm` (hora local, base para textos como "amanhã às 2h").
+- `ResultadoVerificacao`: `avisos` notificados e `falhaPassageira` (sem rede ou serviço fora do ar).
+- `VerificadorDeChuva.verificar(notificar)`: o fluxo principal.
+  1. Não faz nada se o aviso estiver desligado ou não houver sessão.
+  2. Esquece o registro de aviso das propriedades excluídas (`esquecerAvisosExceto`).
+  3. Para cada propriedade com aviso ativo, chama `clima.atualizar`. Numa falha passageira (`SemConexao`/`Indisponivel`), usa o cache se ele tiver **até 12 h** (`VALIDADE_PARA_AVISO`). Numa `Falha` definitiva, pula a propriedade.
+  4. Aplica `RegraDeChuva` e `ControleDeAvisos`.
+  5. Notifica e **só então** registra o aviso (`registrarAviso`).
+
+Decisões:
+
+- **Checagem de conta (`mesmaConta()`)** antes e durante o laço: se houver logout ou troca de conta no meio da verificação, ela para, para não expor nomes de propriedades de outra conta.
+- Um aviso que não pôde ser exibido (permissão negada) não é registrado. Assim ele não bloqueia o próximo aviso.
+- `falhaPassageira` só é devolvido como `true` se a conta continua a mesma, porque uma nova tentativa só faz sentido para quem começou a verificação.
+
+## domain/repository/
+
+Interfaces que a camada `data/` implementa (a "porta" do padrão ports & adapters) e alguns tipos auxiliares.
+
+### UsuarioRepository.kt
+
+Interface das contas locais: `observar(id)`, `buscarPorId(id)`, `buscarPorEmail(email)` (o e-mail precisa vir normalizado), `criar(usuario)` (devolve `false` se o e-mail já existir e adota as propriedades sem dono), `atualizarSenha(id, senhaHash)`, `registrarConsentimento(id, em, versao)` e `excluir(id)` (remove a conta e, em cascata, as propriedades e os lançamentos dela).
+
+### PropriedadeRepository.kt
+
+Acesso às propriedades do usuário conectado: `observarTodas()`, `buscarPorId`, `salvar`, `excluir`, `excluirComLancamentos(id)` (RN02: uma transação só, devolvendo uma `PropriedadeExcluida` para desfazer, ou `null`) e `restaurar(excluida)` (reinsere tudo numa transação).
+
+### LancamentoRepository.kt
+
+Acesso aos lançamentos do usuário conectado: `observarTodos()`, `buscarPorId`, `salvar` e `excluir(id)`, que lê e apaga na **mesma transação** e devolve o lançamento apagado (ou `null` se não existia ou era de outra conta), para o "Desfazer" guardar exatamente o que saiu do banco. A interface expõe a lista completa, e os filtros por propriedade e período ficam no ViewModel.
+
+### ClimaRepository.kt
+
+Previsão do tempo por propriedade, no modelo **cache-first**: a UI observa o cache, e a rede só substitui o valor guardado.
+
+- `ResultadoAtualizacao`:
+  - `Sucesso(previsao)`;
+  - `SemConexao`: falha de rede ou tempo esgotado;
+  - `Indisponivel(motivo)`: HTTP 429 ou 5xx, uma falha passageira;
+  - `Falha(motivo)`: resposta inválida ou propriedade excluída, em que tentar de novo não resolve.
+- Métodos: `observar(propriedade)`, `emCache(propriedade)`, `atualizar(propriedade)` (ignora a validade) e `atualizarSeNecessario(propriedade)` (só busca se o cache venceu; devolve `null` se não buscou).
+
+### SessaoRepository.kt
+
+Sessão local: `usuarioId: StateFlow<String?>`, `iniciar(usuarioId)` e `encerrar()`. A navegação e os repositórios observam `usuarioId` para reagir a login/logout e filtrar os dados pelo dono.
+
+### TentativasRepository.kt
+
+- `EstadoTentativas(falhasSeguidas, bloqueadoAte, fimMonotonico)`: `bloqueadoAte` é o fim do bloqueio em epoch ms (0 significa sem bloqueio) e vale depois de reiniciar o aparelho. `fimMonotonico` é anulável.
+- `TentativasRepository`: `ler(chave)` e `gravar(chave, estado)`. Gravar o estado inicial `EstadoTentativas()` apaga o registro. O contrato exige que o estado sobreviva ao fechamento do app; senão, reiniciar o processo zeraria o bloqueio.
+
+### BloqueioRepository.kt
+
+`ativo: StateFlow<Boolean>` e `definir(ativo)`: indicam se o app exige autenticação do aparelho (biometria ou credencial) ao abrir. É um ajuste **por aparelho**, não por conta, e fica fora do backup.
+
+### PrivacidadeRepository.kt
+
+`valoresOcultos: StateFlow<Boolean>` e `definir(ocultos)`: ocultação global dos valores em dinheiro na UI, mantida entre sessões.
+
+### AjustesAvisoRepository.kt
+
+- `AjustesAviso(ativo = true, limites = LimitesChuva(), propriedadesSemAviso = emptySet())`. `avisaSobre(propriedadeId)` diz se a propriedade é monitorada. É uma **lista de exclusão**, para que propriedades novas já nasçam monitoradas.
+- `AjustesAvisoRepository`: `ajustes` (da conta conectada; sem sessão, os padrões), `salvar`, `ultimoAvisoEm`, `registrarAviso`, `esquecerAvisosExceto(existentes)` e `excluirDadosDoUsuario(usuarioId)`.
+- `AgendaDeVerificacao`: `ligar()`, `desligar()` e `verificarAgora()`. Abstrai o WorkManager, que exige `Context`.
+
+### Tempo, threads e usuário conectado (interfaces injetadas)
+
+- **`RelogioMonotonico`** (`domain/RelogioMonotonico.kt`): `milissegundos()` e `instante()` (com o boot, comparável entre processos). Serve para bloqueio por senhas erradas, tempo em segundo plano e validade do "Desfazer". `RelogioMonotonicoIndisponivel` é o padrão dos testes.
+- **`Despachantes`** (`domain/Despachantes.kt`): `calculo` e `io`. O `ContaService` roda o PBKDF2 em `despachantes.calculo`. `DespachantesDoSistema` usa `Dispatchers.Default` e `Dispatchers.IO`.
+- **`UsuarioLogadoRepository`** (`domain/repository/`): `observarNome()`, o que as telas precisam saber de quem está conectado.
+- A hora do calendário usa o `java.time.Clock` do JDK: `ContaService` e `VerificadorDeChuva` recebem um `Clock` e leem `relogio.instant()`.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Estrutura de pastas](./estrutura-de-pastas.mdx)

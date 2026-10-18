@@ -1,0 +1,80 @@
+---
+title: "Data classes: tema e navegação"
+description: "Classes de tema e de navegação."
+sidebar_position: 21
+---
+
+# Data classes - Tema e navegação
+
+> Tema e navegação (4)
+
+## Aba
+
+`core/navigation/BarraInferior.kt`
+
+```kotlin
+private data class Aba(val rota: String, val rotulo: String, val icone: ImageVector)
+```
+
+## CorCategoria
+
+`ui/theme/Color.kt`
+
+```kotlin
+@Immutable
+data class CorCategoria(val conteudo: Color, val fundo: Color)
+```
+
+## CoresAgro
+
+`ui/theme/Color.kt`
+
+```kotlin
+@Immutable
+data class CoresAgro(
+    val receita: Color,
+    val receitaContainer: Color,
+    val sobreReceitaContainer: Color,
+    val despesa: Color,
+    val despesaContainer: Color,
+    val sobreDespesaContainer: Color,
+    val clima: Color,
+    val climaContainer: Color,
+    val sobreClimaContainer: Color,
+    val tintaApagada: Color,
+    val cabecalho: Color,
+    val cabecalhoElevado: Color,
+    val sobreCabecalho: Color,
+    val sobreCabecalhoSecundario: Color,
+    val destaque: Color,
+    val sobreDestaque: Color,
+    val receitaNoCabecalho: Color,
+    val despesaNoCabecalho: Color,
+    val cartaoClima: Color,
+    val cartaoClimaElevado: Color,
+    val sobreCartaoClima: Color,
+    val sobreCartaoClimaSecundario: Color
+)
+```
+
+## CoresCategorias
+
+`ui/theme/Color.kt`
+
+```kotlin
+@Immutable
+data class CoresCategorias(
+    val energia: CorCategoria,
+    val defensivos: CorCategoria,
+    val sementes: CorCategoria,
+    val adubo: CorCategoria,
+    val combustivel: CorCategoria,
+    val maoDeObra: CorCategoria,
+    val manutencao: CorCategoria,
+    val arrendamento: CorCategoria,
+    val neutra: CorCategoria
+)
+```
+
+---
+**Veja também:** [Início](./index.mdx) · [Módulo :domain](./dominio.mdx) · [Dados e injeção de dependência](./dados-e-injecao-de-dependencia.mdx)
