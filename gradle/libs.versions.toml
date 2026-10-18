@@ -92,6 +92,8 @@ compose-rules-ktlint = { group = "io.nlopez.compose.rules", name = "ktlint", ver
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+# Plugin Kotlin para módulos JVM puros (o :domain); no app o Kotlin já vem embutido no AGP
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # Processador de anotações do Room
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # Plugin do Hilt: liga as classes geradas ao Application

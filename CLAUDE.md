@@ -32,7 +32,7 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | Linguagem / UI | Kotlin 2.2.10, Jetpack Compose (BOM 2026.02.01, Material 3) |
 | Build | AGP 9.3.2 (Kotlin embutido no AGP), Gradle 9.5.0, Version Catalog (`gradle/libs.versions.toml`), KSP |
 | JDK | Gradle roda no JDK 25 (toolchain do daemon); o código compila para Java 11 |
-| Arquitetura | MVVM + Repository, com camada `domain` pura (Kotlin sem Android) |
+| Arquitetura | MVVM + Repository, com o domínio num **módulo Gradle próprio (`:domain`, Kotlin puro)**: o compilador recusa `android.*`, Room, Compose e Hilt ali |
 | Banco | Room 2.8.5, banco versão 3 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`), que é a base da produção: **sem migrações antigas**, a próxima parte da 3. Schema exportado em `app/schemas` |
 | DI | **Hilt** 2.60.1 (+ AndroidX Hilt 1.4.0): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` e `@HiltWorker`; módulos em `di/` (`TempoModule`, `BancoModule`, `PreferenciasModule`, `RepositoriosModule`, `ServicosModule`); processador via KSP. Antes era DI manual (`Dependencias`), trocado em out/2026 por decisão do João |
 | Rede | `HttpURLConnection` + `org.json` (`data/clima/FontePrevisao.kt`). Só a Open-Meteo, por HTTPS |
@@ -60,8 +60,9 @@ core/            navigation/ (AppNavegacao, Navegador, GrafosDeNavegacao, Transi
 di/              módulos do Hilt (Tempo, Banco, Preferências, Repositórios, Serviços)
 data/            SelecaoAtual, Desfazer, local/ (Room: entidades, DAOs, Transacao),
                  repository/ (implementações Room), clima/ (Open-Meteo), preferencias/, sessao/
-domain/          model/, repository/ (interfaces), financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva),
-                 conta/ (HashDeSenha, regras da conta e do bloqueio)
+domain/          MÓDULO :domain (domain/src/main/java/br/joao/agrosaldo/domain): model/, repository/ (interfaces),
+                 financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva), conta/ (HashDeSenha, regras da conta e do bloqueio),
+                 Relogio e Despachantes
 feature/         inicio, lancamento, propriedade, clima, historico, conta;
                  cada uma com *Screen.kt + *ViewModel.kt (+ UiState e arquivos de partes da tela)
 ui/theme/        Color.kt, Type.kt, Shape.kt, Espacos, Theme.kt, IconesAgro.kt (ícones desenhados)
@@ -70,12 +71,14 @@ ui/theme/        Color.kt, Type.kt, Shape.kt, Espacos, Theme.kt, IconesAgro.kt (
 Fora de `src/main`:
 
 ```
-app/src/testFixtures/  fakes *Memoria, DadosDeExemplo, Semeador (usados pelos dois tipos de teste)
-app/src/test/          testes JVM: domínio, ViewModels, Worker, preferências, telas (Robolectric), capturas (Roborazzi)
+domain/src/test/       testes do domínio (JVM puro, `./gradlew :domain:test`)
+domain/src/testFixtures/ fakes *Memoria das interfaces do domínio, DadosDeExemplo e relógios de teste
+app/src/testFixtures/  AjustesAvisoMemoria e Semeador (dependem do app); reexporta os fakes do :domain
+app/src/test/          testes JVM: ViewModels, dados, Worker, preferências, telas (Robolectric), capturas (Roborazzi), grafo do Hilt
 app/src/androidTest/   testes instrumentados: DAOs do Room (precisam de emulador)
 app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; base dos testes de migração futuros)
 config/detekt/         detekt.yml
-app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
+app/detekt-baseline.xml achados antigos do detekt (115) que o CI não cobra
 .editorconfig          regras do ktlint
 .github/workflows/android.yml  CI
 ```
@@ -91,7 +94,7 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 1. **Nada de `!!`.** Trate nulo explicitamente.
 2. **Nenhuma cor literal fora de `ui/theme`.** Use `MaterialTheme.colorScheme` ou `MaterialTheme.agro`.
 3. **Nada de `GlobalScope`.** Use `viewModelScope`.
-4. **`domain/` não importa Android**: nada de `android.*`, `androidx.*`, Room nem Compose.
+4. **O módulo `:domain` não importa Android**: nada de `android.*`, `androidx.*`, Room, Compose nem Hilt. Não é só convenção: é um módulo Kotlin JVM, e o build quebra se alguém tentar.
 5. **ViewModel não importa Compose.**
 6. **Dinheiro é `Long` em centavos.** Formatação só na UI (`core/util/Moeda.kt`). No banco, `INTEGER`, nunca `REAL`.
 7. **Datas são `java.time`** (`LocalDate`, `YearMonth`, `Instant`). Nada de `LocalDate.now()` no `init` de modelo: foi o crash corrigido na R5. A regra de data futura (RN07) é checada ao salvar, com `Lancamento.dataDentroDoLimite`.
@@ -149,7 +152,8 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 ```bash
 ./gradlew ktlintCheck        # formatação (ktlintFormat arruma sozinho)
 ./gradlew detekt             # análise estática; só cobra código novo (baseline)
-./gradlew testDebugUnitTest  # testes JVM, incluindo Robolectric e capturas — rode SEMPRE antes de commitar
+./gradlew testDebugUnitTest  # testes JVM do app, incluindo Robolectric e capturas — rode SEMPRE antes de commitar
+./gradlew :domain:test       # testes do módulo de domínio (rápidos, sem Android)
 ./gradlew assembleDebug      # compila o app inteiro
 ./gradlew lintDebug          # Android Lint (erro quebra o build)
 ./gradlew detektBaseline     # regenera o baseline depois de limpar achados antigos
@@ -163,13 +167,14 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 - **detekt** não é o plugin Gradle: o plugin 1.23 não roda no JDK 25. A tarefa `detekt` é um `JavaExec` que chama a CLI do detekt numa **JVM 21** separada (toolchain), com o Kotlin da configuração `detektCli` fixado em 2.0.21. Está no `app/build.gradle.kts`.
 - **Robolectric** roda com `sdk = 36`, gráficos `NATIVE` e `application = android.app.Application` (não sobe o `AgroSaldoApp`). Os testes precisam dos argumentos de JVM `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED` e `--add-opens=java.base/java.io=ALL-UNNAMED`, já configurados.
 - **Roborazzi** (`CapturasDeTelaTest`) grava PNGs em `app/build/capturas`. Não compara pixels; só garante que a tela desenha.
+- **Módulo `:domain`:** o plugin é `org.jetbrains.kotlin.jvm` (no app o Kotlin vem embutido no AGP), com `java-test-fixtures`. O detekt do app analisa também as pastas do domínio (um baseline só). Propriedade pública de outro módulo não permite *smart cast*: copie para uma `val` local antes do `!= null`.
 - **Hilt:** `hiltViewModel()` vem de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto). Os formulários (`LancamentoFormViewModel`, `PropriedadeFormViewModel`) têm um construtor secundário `@Inject` que lê os argumentos da rota do `SavedStateHandle`; por isso as chaves do rascunho levam o prefixo `rascunho_` (o handle também recebe `tipo` e `id` da rota). O iniciador do WorkManager foi removido do manifesto: o `AgroSaldoApp` é o `Configuration.Provider` com a fábrica de Workers do Hilt. `GrafoDeDependenciasTest` sobe o grafo de verdade no Robolectric (`kspTest` + `hilt-android-testing`).
 - Rodar o `lintDebug` em paralelo com `compileDebugAndroidTestKotlin` ou `assembleRelease` pode falhar por corrida nos arquivos gerados do Hilt; o conjunto do CI (`ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug`) roda limpo.
 - O `testFixtures` precisa do Compose runtime no classpath (`testFixturesImplementation` do BOM e do runtime), por causa do compilador do Compose.
 
 ### CI (`.github/workflows/android.yml`)
 
-- Roda `ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug` em push na `main` e em todo PR.
+- Roda `ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug` em push na `main` e em todo PR.
 - Os erros viram anotações no check run (é por elas que dá para ler a falha sem abrir o log).
 - As capturas do Roborazzi são publicadas na branch **`ci/capturas`** (não apague). Por isso o workflow tem `permissions: contents: write`.
 - O `gradlew` precisa do bit de execução no Git (`git update-index --chmod=+x gradlew`); sem ele o CI falha com exit 126.

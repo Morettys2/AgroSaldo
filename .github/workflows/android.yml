@@ -36,7 +36,7 @@ jobs:
           set -o pipefail
           chmod +x gradlew
           ./gradlew --no-configuration-cache --stacktrace \
-            ${{ vars.GRADLE_TASKS || 'ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug' }} 2>&1 | tee build.log
+            ${{ vars.GRADLE_TASKS || 'ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug' }} 2>&1 | tee build.log
 
       - name: Erros como anotações
         if: failure()
@@ -49,7 +49,7 @@ jobs:
           python3 - <<'PY' | anotar "Detalhe das falhas" || true
           import glob, xml.etree.ElementTree as ET
           n = 0
-          for x in sorted(glob.glob('app/build/test-results/**/*.xml', recursive=True)):
+          for x in sorted(glob.glob('**/build/test-results/**/*.xml', recursive=True)):
               for caso in ET.parse(x).getroot().iter('testcase'):
                   for f in list(caso.iter('failure')) + list(caso.iter('error')):
                       if n < 2:
@@ -68,7 +68,7 @@ jobs:
           python3 - <<'PY'
           import glob, xml.etree.ElementTree as ET
           t=f=s=0
-          for x in glob.glob('app/build/test-results/**/*.xml', recursive=True):
+          for x in glob.glob('**/build/test-results/**/*.xml', recursive=True):
               r=ET.parse(x).getroot(); t+=int(r.get('tests',0)); f+=int(r.get('failures',0))+int(r.get('errors',0)); s+=int(r.get('skipped',0))
           avisos={}
           for x in glob.glob('app/build/reports/lint-results*.xml'):

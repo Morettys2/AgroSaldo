@@ -274,12 +274,15 @@ class ClimaViewModel @Inject constructor(
         )
     }
 
-    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva, agora: LocalDateTime): String = when {
-        !avaliacao.temDados -> "Previsão desatualizada"
-        avaliacao.vaiChover && avaliacao.inicioPrevisto != null ->
-            "Chuva prevista ${TextosDaChuva.aPartirDe(avaliacao.inicioPrevisto, agora)}"
-        avaliacao.vaiChover -> "Chuva prevista nas próximas ${limites.janelaHoras} horas"
-        else -> previsao.condicaoAtual.rotulo
+    private fun resumo(avaliacao: AvaliacaoChuva, previsao: Previsao, limites: LimitesChuva, agora: LocalDateTime): String {
+        // Cópia local: a propriedade vem de outro módulo (:domain), então o compilador não faz smart cast nela.
+        val inicio = avaliacao.inicioPrevisto
+        return when {
+            !avaliacao.temDados -> "Previsão desatualizada"
+            avaliacao.vaiChover && inicio != null -> "Chuva prevista ${TextosDaChuva.aPartirDe(inicio, agora)}"
+            avaliacao.vaiChover -> "Chuva prevista nas próximas ${limites.janelaHoras} horas"
+            else -> previsao.condicaoAtual.rotulo
+        }
     }
 
     /** Título e texto da recomendação de irrigação conforme a avaliação e os limites. */
