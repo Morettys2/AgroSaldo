@@ -59,6 +59,9 @@ data class HistoricoUiState(
 ) {
     val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
     val temMovimento: Boolean get() = meses.any { it.temMovimento }
+
+    /** Meses da lista "mês a mês": os futuros só aparecem se tiverem lançamento agendado. */
+    val mesesNaLista: List<MesDoHistorico> get() = meses.filter { !it.futuro || it.temMovimento }
 }
 
 /**

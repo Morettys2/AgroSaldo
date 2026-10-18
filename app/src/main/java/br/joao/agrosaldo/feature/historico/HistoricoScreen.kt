@@ -163,9 +163,7 @@ fun HistoricoScreen(
 
         item { Secao("Mês a mês · toque para ver os lançamentos") }
 
-        // Meses futuros sem lançamento são omitidos da lista.
-        val visiveis = uiState.meses.filter { !it.futuro || it.temMovimento }
-        items(items = visiveis, key = { it.mes.toString() }) { mes ->
+        items(items = uiState.mesesNaLista, key = { it.mes.toString() }) { mes ->
             LinhaMes(mes = mes, aoClicar = { aoAbrirMes(mes.mes) })
         }
     }

@@ -217,6 +217,32 @@ class HistoricoViewModelTest {
     }
 
     @Test
+    fun `lista mes a mes omite mes futuro sem lancamento e mantem o futuro agendado`() = runTest {
+        lancamentos.salvar(
+            Lancamento(
+                propriedadeId = DadosDeExemplo.ID_FAZENDA,
+                tipo = TipoLancamento.RECEITA,
+                categoria = CategoriaLancamento.ARRENDAMENTO,
+                valorCentavos = 100_000L,
+                data = LocalDate.of(2026, 11, 10)
+            )
+        )
+
+        val naLista = viewModel().uiState.value.mesesNaLista.map { it.mes.monthValue }
+
+        // Janeiro a setembro (passados, mesmo vazios) e novembro (futuro com lançamento).
+        assertEquals((1..9).toList() + 11, naLista)
+    }
+
+    @Test
+    fun `lista mes a mes sem agendamentos termina no mes atual`() {
+        val naLista = viewModel().uiState.value.mesesNaLista
+
+        assertEquals((1..9).toList(), naLista.map { it.mes.monthValue })
+        assertTrue(naLista.none { it.futuro })
+    }
+
+    @Test
     fun `cada propriedade tem o seu historico`() {
         val vm = viewModel()
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
