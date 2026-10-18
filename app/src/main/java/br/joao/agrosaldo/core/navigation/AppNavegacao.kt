@@ -304,7 +304,11 @@ fun AppNavegacao(
                         NavHost(
                             navController = navController,
                             startDestination = destinoInicial,
-                            modifier = Modifier.padding(espacoInterno)
+                            modifier = Modifier.padding(espacoInterno),
+                            enterTransition = { entrada() },
+                            exitTransition = { saida() },
+                            popEnterTransition = { entradaAoVoltar() },
+                            popExitTransition = { saidaAoVoltar() }
                         ) {
                             grafoDaConta(navegador)
                             grafoDoFinanceiro(navegador, aoAlternarValores = privacidadeViewModel::aoAlternar)

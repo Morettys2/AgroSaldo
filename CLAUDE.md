@@ -54,7 +54,7 @@ Pacote: `br.joao.agrosaldo`.
 AgroSaldoApp.kt  Application: cria o Dependencias e agenda o Worker
 MainActivity.kt  única Activity; FLAG_SECURE, capa de bloqueio, intent da notificação
 aviso/           Worker, notificação e agendamento do aviso de chuva (Android)
-core/            navigation/ (AppNavegacao, Navegador, GrafosDeNavegacao, BarraInferior, Rotas),
+core/            navigation/ (AppNavegacao, Navegador, GrafosDeNavegacao, TransicoesDeTela, BarraInferior, Rotas),
                  ui/ (componentes "Safra": botões, estados, seletor, cabeçalho),
                  util/ (Moeda, datas, Erros, TextosDaChuva), localizacao/, seguranca/
 di/              Dependencias (container da DI manual)
@@ -195,6 +195,7 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 - **Auditoria de código (out/2026), toda corrigida:** A1 bloqueio imune ao relógio; A2 centavos e arredondamento nas listas; A3 crash ao excluir propriedade durante o download da previsão; M1–M12 (contador por e-mail, capa de bloqueio cobrindo diálogos, aceite LGPD sem atalho, `FLAG_SECURE`, backup, aviso registrado só depois de notificar, notificação abrindo a propriedade certa, Clima atualizando ao voltar, permissão de notificação negada duas vezes, teclado com sinal de menos, área "1.000", rascunho sobrevivendo à morte do processo); B1–B27 menores.
 - **R6:** regras no domínio (`ResumoFinanceiro`, `propriedadeAtual`), `SelecaoAtual` injetada, container `Dependencias`, fakes para `testFixtures` (app começa vazio), `.catch` nas leituras do banco.
 - **R7:** componentes compartilhados de botão e estado, `Espacos`, um seletor de propriedade só (48 dp, com role), acessibilidade (aba ≥ 11 sp, roles, previews 2×), textos unificados.
+- **Transições de tela (branch `prod`):** o crossfade padrão de 700 ms do Navigation Compose deixava a tela antiga "fantasma" por baixo da nova. Agora trocar de aba é instantâneo e as demais telas deslizam, com a antiga sumindo em 90 ms (`core/navigation/TransicoesDeTela.kt`).
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 
 ### R9 — Play Store (futuro, sem data)
