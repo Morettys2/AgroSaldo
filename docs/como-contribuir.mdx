@@ -1,0 +1,103 @@
+---
+title: "Como contribuir"
+description: "O passo a passo para entregar uma mudança: branch, commits, testes, Pull Request, e as receitas para adicionar tela, regra, coluna no banco ou biblioteca."
+sidebar_position: 3
+---
+
+# Como contribuir
+
+Esta página mostra como uma mudança sai do seu computador e chega na `prod`, e dá as receitas para as tarefas mais comuns.
+
+## O fluxo em 7 passos
+
+1. **Atualize a `prod`** e crie uma branch para a tarefa: `git checkout prod`, `git pull` e `git checkout -b fix/nome-curto`. Prefixos usados: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/`.
+2. **Entenda antes de mexer.** Leia a página da pasta que você vai alterar (veja o [mapa na página inicial](./index.mdx)) e as [Regras de código](./regras-de-codigo.mdx).
+3. **Escreva o código e o teste juntos.** Toda regra nova ganha teste. Todo bug corrigido ganha um teste que falharia antes da correção.
+4. **Rode o mesmo conjunto do CI** no seu computador:
+
+   ```bash
+   ./gradlew ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug
+   ```
+
+5. **Commite em pedaços pequenos**, no padrão abaixo.
+6. **Abra o Pull Request** para a `prod`, com o resumo do que mudou e por quê.
+7. **Aguarde o CI ficar verde e a revisão.** Só faça merge depois que outra pessoa revisar e que a mudança tiver sido testada em um celular ou emulador.
+
+Se a mudança depende de decisão de produto (um texto, um comportamento que o produtor vê), **pergunte** em vez de assumir.
+
+## Padrão de commit
+
+Conventional Commits, em português: `tipo(escopo): resumo no imperativo`.
+
+| Tipo | Quando usar | Exemplo |
+| --- | --- | --- |
+| `feat` | Funcionalidade nova | `feat(clima): mostra a previsão por hora` |
+| `fix` | Correção de bug | `fix(propriedade): impede área acima de 1.000.000 ha` |
+| `refactor` | Muda a estrutura sem mudar o comportamento | `refactor(inicio): usa ResumoFinanceiro do domínio` |
+| `test` | Só testes | `test(conta): cobre o bloqueio por tentativas` |
+| `docs` | Documentação | `docs: explica o módulo de domínio` |
+| `build`, `chore` | Gradle, dependências, configuração | `chore(detekt): zera o baseline` |
+
+Cada commit deve compilar e passar nos testes. Use o seu próprio nome e e-mail no Git.
+
+## Checklist do Pull Request
+
+- [ ] O CI está verde: ktlint, detekt, testes, build e lint.
+- [ ] Não surgiu **warning novo** do Kotlin.
+- [ ] Há teste para a regra nova ou para o bug corrigido.
+- [ ] Nenhum segredo, chave ou dado pessoal real entrou no código, no teste ou na documentação.
+- [ ] A documentação em `docs/` foi atualizada se o comportamento ou a estrutura mudou.
+- [ ] Se mexeu em DAO, entidade ou migração, os testes de aparelho (`connectedDebugAndroidTest`) foram rodados.
+
+## Receita: adicionar uma funcionalidade
+
+Siga a direção das dependências, de dentro para fora:
+
+1. **Domínio** (`domain/`): o modelo, a regra pura e a interface de repositório. Valide invariantes no `init` com `require`. Escreva o teste em `domain/src/test`.
+2. **Dados** (`app/.../data/`): a entidade e o DAO do Room (se for dado persistido), a implementação do repositório (`*RepositoryRoom`) e o mapeador entre entidade e modelo.
+3. **Injeção** (`app/.../di/`): registre o repositório em `RepositoriosModule` com um `@Provides`.
+4. **ViewModel** (`feature/<area>/`): `@HiltViewModel` com `@Inject constructor`. Guarde o estado em um `MutableStateFlow` privado e exponha `uiState`.
+5. **Tela** (`feature/<area>/`): uma `Route` que liga ao ViewModel com `hiltViewModel()` e uma `Screen` sem estado, que recebe `uiState` e lambdas. Use os componentes de `core/ui` e os espaçamentos de `Espacos`. Escreva os `@Preview` (claro, escuro e fonte 2×).
+6. **Navegação** (`core/navigation/`): crie a rota em `Rotas.kt` e registre o destino em `GrafosDeNavegacao.kt`.
+7. **Testes do ViewModel** (`app/src/test`): use os fakes `*Memoria` e os relógios de teste, sem emulador.
+8. **Documentação**: atualize [Funcionalidades e telas](./telas.mdx) e as páginas das camadas que você tocou.
+
+## Receita: mudar o banco
+
+1. Altere a entidade em `data/local/entidade/`.
+2. **Suba a versão** em `AgroSaldoDatabase` (hoje é a 3, então a próxima é a 4).
+3. Escreva a `Migration(3, 4)` e registre-a com `addMigrations(...)` em `AgroSaldoDatabase.criar`.
+4. Rebuilde: o Room exporta o novo schema em `app/schemas/.../4.json`. Versione esse arquivo.
+5. Escreva o teste de migração em `app/src/androidTest` e rode `connectedDebugAndroidTest`.
+6. **Nunca** use `fallbackToDestructiveMigration`: ele apagaria os dados do produtor.
+
+Dinheiro é sempre `INTEGER` em centavos, nunca `REAL`. Mais em [Banco de dados](./banco-e-arquivos-da-raiz.mdx).
+
+## Receita: adicionar uma biblioteca
+
+1. Justifique no Pull Request: o problema que ela resolve e por que a plataforma ou uma biblioteca já usada não resolve.
+2. Declare a versão e a biblioteca em `gradle/libs.versions.toml`. Nunca escreva a versão direto no `build.gradle.kts`.
+3. Registre a biblioteca em [Bibliotecas e plugins](./bibliotecas.mdx).
+
+## O que nunca fazer
+
+- Usar `!!`. Trate o nulo explicitamente.
+- Escrever cor literal fora de `ui/theme`.
+- Importar `android.*`, Room, Compose ou Hilt dentro do `:domain`.
+- Usar `GlobalScope`, `Dispatchers.*` ou `LocalDate.now()` soltos. Use o que o Hilt injeta: `viewModelScope`, `Despachantes` e `Clock`.
+- Enfraquecer a senha (PBKDF2) ou remover `FLAG_SECURE`.
+- Colocar dado de exemplo ou fake dentro de `src/main`.
+- Colocar `Log` ou `println` com dado pessoal ou financeiro.
+- Commitar `local.properties`, chave de assinatura ou APK.
+
+A lista completa, com o porquê de cada regra, está em [Regras de código](./regras-de-codigo.mdx) e em [Segurança e privacidade](./seguranca-e-privacidade.mdx).
+
+## Quando atualizar a documentação
+
+| Você mudou... | Atualize |
+| --- | --- |
+| Uma regra de negócio ou validação | [Regras de negócio](./regras-de-negocio.mdx) e [Módulo :domain](./dominio.mdx) |
+| Uma tela ou um ViewModel | [Funcionalidades e telas](./telas.mdx) e a página de data classes de UiState |
+| O banco | [Banco de dados](./banco-e-arquivos-da-raiz.mdx) e [Dados e injeção de dependência](./dados-e-injecao-de-dependencia.mdx) |
+| Uma dependência ou o Gradle | [Bibliotecas e plugins](./bibliotecas.mdx) e [Build e versões](./build.mdx) |
+| O fluxo de trabalho ou o CI | Esta página e [Qualidade de código e CI](./qualidade-e-ci.mdx) |

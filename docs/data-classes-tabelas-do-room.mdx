@@ -1,0 +1,135 @@
+---
+title: "Data classes: tabelas do Room"
+description: "As quatro entidades do banco."
+sidebar_position: 19
+---
+
+# Data classes - Tabelas do Room
+
+> Dados — tabelas do banco (Room) (4)
+
+## LancamentoEntity
+
+`data/local/entidade/LancamentoEntity.kt`
+
+```kotlin
+@Entity(
+    tableName = "lancamentos",
+    foreignKeys = [
+        ForeignKey(
+            entity = PropriedadeEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["propriedade_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index("propriedade_id"),
+        Index("data")
+    ]
+)
+data class LancamentoEntity(
+    @PrimaryKey
+    val id: String,
+    @ColumnInfo(name = "propriedade_id")
+    val propriedadeId: String,
+    val tipo: String,
+    val categoria: String,
+    @ColumnInfo(name = "valor_centavos")
+    val valorCentavos: Long,
+    val data: Long,
+    val descricao: String,
+    @ColumnInfo(name = "atualizado_em")
+    val atualizadoEm: Long
+)
+```
+
+## PrevisaoEntity
+
+`data/local/entidade/PrevisaoEntity.kt`
+
+```kotlin
+@Entity(
+    tableName = "previsoes",
+    foreignKeys = [
+        ForeignKey(
+            entity = PropriedadeEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["propriedade_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class PrevisaoEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "propriedade_id")
+    val propriedadeId: String,
+    val latitude: Double,
+    val longitude: Double,
+    @ColumnInfo(name = "resposta_json")
+    val respostaJson: String,
+    @ColumnInfo(name = "obtida_em")
+    val obtidaEm: Long
+)
+```
+
+## PropriedadeEntity
+
+`data/local/entidade/PropriedadeEntity.kt`
+
+```kotlin
+@Entity(
+    tableName = "propriedades",
+    foreignKeys = [
+        ForeignKey(
+            entity = UsuarioEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["usuario_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("usuario_id")]
+)
+data class PropriedadeEntity(
+    @PrimaryKey
+    val id: String,
+    val nome: String,
+    val cultura: String,
+    @ColumnInfo(name = "area_hectares")
+    val areaHectares: Double,
+    val latitude: Double,
+    val longitude: Double,
+    @ColumnInfo(name = "atualizado_em")
+    val atualizadoEm: Long,
+    @ColumnInfo(name = "usuario_id")
+    val usuarioId: String?
+)
+```
+
+## UsuarioEntity
+
+`data/local/entidade/UsuarioEntity.kt`
+
+```kotlin
+@Entity(
+    tableName = "usuarios",
+    indices = [Index(value = ["email"], unique = true)]
+)
+data class UsuarioEntity(
+    @PrimaryKey
+    val id: String,
+    val nome: String,
+    val email: String,
+    @ColumnInfo(name = "senha_hash")
+    val senhaHash: String,
+    @ColumnInfo(name = "consentimento_em")
+    val consentimentoEm: Long,
+    @ColumnInfo(name = "versao_termo")
+    val versaoTermo: Int,
+    @ColumnInfo(name = "criado_em")
+    val criadoEm: Long
+)
+```
+
+---
+**Veja também:** [Início](./index.mdx) · [Módulo :domain](./dominio.mdx) · [Dados e injeção de dependência](./dados-e-injecao-de-dependencia.mdx)

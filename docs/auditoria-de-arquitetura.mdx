@@ -1,0 +1,38 @@
+---
+title: "Auditoria de arquitetura"
+description: "Verificação objetiva do MVVM e da estrutura de pastas."
+sidebar_position: 29
+---
+
+# Auditoria de arquitetura (MVVM e estrutura de pastas)
+
+Feita em 18/10/2026 com buscas objetivas no código de `src/main`. Resultado: **o MVVM está sendo seguido**, e a estrutura é boa, com pontos de melhoria que não são erros.
+
+## MVVM: conferido
+
+Fluxo: `Screen → ViewModel → Repository (interface no domínio) → implementação Room/API`. Em termos de NestJS: a `*Route` é o controller, o `*Screen` é o componente puro, o ViewModel é o service com estado e o Repository é o repository do TypeORM.
+
+| Verificação | Resultado |
+|---|---|
+| `domain/` importa Android, Room ou Compose? | Nenhum arquivo, e desde a etapa 3 **o compilador garante** (módulo `:domain`) |
+| ViewModel importa Compose, `android.view` ou `android.*`? | Nenhum |
+| ViewModel conhece Dao, Entity ou Room? | Nenhum (só as interfaces do domínio) |
+| Tela (Screen) importa Repository, Dao ou Entity? | Nenhuma |
+| ViewModels expõem estado só de leitura (`StateFlow`)? | Sim |
+| Estado global mutável em `object`? | Não. Os `object` são utilitários sem estado; o estado compartilhado (`SelecaoAtual`) é injetado |
+| Tela separada em `*Route` e `*Screen`? | 14 de 15 (a `PoliticaScreen` é texto estático) |
+
+Na estrutura, a interface é organizada **por funcionalidade** (`feature/inicio`, `feature/clima`…) e os dados **por camada** (`data/`, `domain/`). É um híbrido comum e alinhado ao guia oficial de arquitetura do Android. Não há camada de use cases, o que é opcional nesse tamanho de app. Há um só módulo Gradle, o que também é adequado.
+
+## Pontos de melhoria (não são erros)
+
+1. **Dois lugares chamados "ui":** `core/ui/` (componentes) e `ui/theme/` (tema).
+2. **`SelecaoAtual` e `Desfazer` ficam em `data/`**, mas são estado de sessão da interface, não fonte de dados. Combinariam mais com `core/`.
+3. **`core/ui/` mistura genérico com específico:** `LinhaLancamento`, `Categorias` e `PermissaoNotificacao` são de funcionalidades.
+4. **`aviso/` está solto na raiz**, enquanto as outras funcionalidades ficam em `feature/`.
+5. ~~Regra de exibição dentro da tela~~ **Corrigido em 18/10/2026:** o filtro "meses futuros sem movimento ficam ocultos" saiu do `HistoricoScreen` e virou `HistoricoUiState.mesesNaLista`, com 2 testes.
+
+Os itens 1 a 4 mudam pacotes e dezenas de imports e só trazem ganho de organização. Decisão: **não mexer antes da apresentação**; se for feito, na `main`.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Estrutura de pastas](./estrutura-de-pastas.mdx) · [Escopo e decisões](./decisoes.mdx)

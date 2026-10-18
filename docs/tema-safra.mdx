@@ -1,0 +1,183 @@
+---
+title: "Tema e design system Safra"
+description: "Cores, tipografia, formas, espaçamentos e ícones desenhados do app."
+sidebar_position: 15
+---
+
+# Tema e design system Safra
+
+O visual próprio do app se chama **"Safra"**, nome que vem dos componentes principais em `core/ui/Safra.kt` (`CabecalhoSafra`, `CartaoSafra`, `ChipSafra`). A composição típica é:
+
+- um **cabeçalho verde-escuro** com cantos inferiores arredondados;
+- **cartões brancos** sobre fundo "papel";
+- uma **barra inferior em pílula** com destaque em **verde-limão**.
+
+## `Theme.kt` — tema raiz
+
+`AgroSaldoTheme(escuro = isSystemInDarkTheme())` monta o `MaterialTheme` do Material 3 com:
+
+- `colorScheme`: `EsquemaClaro` ou `EsquemaEscuro`;
+- `typography`: `TipografiaAgro`;
+- `shapes`: `FormasAgro`.
+
+Além disso, fornece por `CompositionLocalProvider` as duas extensões de cor, `CoresAgro` e `CoresCategorias`. O tema segue o modo claro/escuro do sistema. **Dynamic color (Material You) é desativado de propósito**: o comentário explica que as cores de receita e despesa têm significado e não podem vir do papel de parede.
+
+O acesso às extensões usa a mesma sintaxe das cores nativas:
+
+```kotlin
+MaterialTheme.agro.despesa
+MaterialTheme.categorias.energia
+```
+
+## `Color.kt` — paleta
+
+O comentário do topo define os papéis: **Verde = receita/marca, Terra = despesa, Água = clima, VerdeNoite = cabeçalho**. Ele também fixa uma invariante de acessibilidade: **todo par texto/fundo tem contraste ≥ 4,5:1 (WCAG AA)**. No tema escuro, os tons são mais claros e menos saturados, para evitar "vibração" sobre o fundo escuro.
+
+**Esquema Material 3 — principais papéis:**
+
+| Papel | Claro | Escuro |
+|---|---|---|
+| `primary` / `onPrimary` | Verde `#2C6A43` / `#FFFFFF` | `#8FD1A3` / `#0B3A1F` |
+| `primaryContainer` / `onPrimaryContainer` | `#DCEADC` / `#12301E` | `#1E4D31` / `#BDEFC9` |
+| `secondary` / `onSecondary` | VerdeNoite `#163A2A` / `#FFFFFF` | `#E4E6DE` / `#111410` |
+| `tertiary` / `onTertiary` | Água `#2A6683` / `#FFFFFF` | `#8CCDEB` / `#00344A` |
+| `tertiaryContainer` / `onTertiaryContainer` | `#E0ECF2` / `#0F3244` | `#12445A` / `#C5E7F6` |
+| `error` / `onError` | `#BA1A1A` / `#FFFFFF` | `#FFB4AB` / `#690005` |
+| `errorContainer` / `onErrorContainer` | `#FFDAD6` / `#410002` | `#93000A` / `#FFDAD6` |
+| `background` / `onBackground` | Papel `#F1F2EC` / Tinta `#18201B` | `#111410` / `#E4E6DE` |
+| `surface` / `onSurface` | `#FFFFFF` / `#18201B` | `#1C1F1A` / `#E4E6DE` |
+| `surfaceVariant` / `onSurfaceVariant` | `#E7E9E1` / `#5A635D` | `#282C25` / `#B5BCAF` |
+| `inverseSurface` / `inversePrimary` | `#163A2A` / Lima `#D4E86A` | `#E4E6DE` / `#2C6A43` |
+| `surfaceContainer` (Low / – / High / Highest) | `#F7F8F3` / `#E7E9E1` / `#DDE0D6` / `#D3D7CC` | `#181B16` / `#282C25` / `#32372F` / `#3C4238` |
+| `outline` / `outlineVariant` | `#D5D8CE` / `#EEF0E8` | `#474D43` / `#2B2F28` |
+
+O KDoc do esquema define o uso:
+
+- fundo de tela = `background`;
+- cartões = `surface`;
+- chips neutros = `surfaceContainer`.
+
+A **despesa não usa `error`**, porque gastar não é um estado de erro.
+
+**Cores semânticas extras (`CoresAgro`)** são papéis sem equivalente no Material 3, acessados via `MaterialTheme.agro`:
+
+| Cor | Papel | Claro | Escuro |
+|---|---|---|---|
+| `receita` | Valores de entrada | `#2C6A43` | `#8FD1A3` |
+| `receitaContainer` / `sobreReceitaContainer` | Fundo/texto de receita | `#DCEADC` / `#12301E` | `#1E4D31` / `#BDEFC9` |
+| `despesa` | Valores de saída; também o botão de "perigo" | Terra `#A9481F` | `#FFB596` |
+| `despesaContainer` / `sobreDespesaContainer` | Fundo/texto de despesa | `#F6E4DA` / `#4E2110` | `#5A2410` / `#FFDBCC` |
+| `clima` | Informação de clima | `#2A6683` | `#8CCDEB` |
+| `climaContainer` / `sobreClimaContainer` | Fundo/texto de clima | `#E0ECF2` / `#0F3244` | `#12445A` / `#C5E7F6` |
+| `tintaApagada` | Texto esmaecido | `#626B64` | `#9AA294` |
+| `cabecalho` | Fundo do cabeçalho das telas principais e da barra inferior | `#163A2A` | `#1E4A35` |
+| `cabecalhoElevado` | Cartões e botões sobre o cabeçalho | `#24503B` | `#2B5C44` |
+| `sobreCabecalho` / `sobreCabecalhoSecundario` | Texto sobre o cabeçalho | `#FFFFFF` / `#B9CCBF` | iguais |
+| `destaque` / `sobreDestaque` | Item ativo da barra inferior, botão "+" e `BotaoDestaque` | Lima `#D4E86A` / `#163A2A` | iguais |
+| `receitaNoCabecalho` / `despesaNoCabecalho` | Receita/despesa sobre o cabeçalho escuro | `#D4E86A` / Salmão `#FFD2BC` | iguais |
+| `cartaoClima` / `cartaoClimaElevado` | Cartão de clima do Início (fundo preenchido) | `#2A6683` / `#3E7C9A` | `#12445A` / `#1B5670` |
+| `sobreCartaoClima` / `sobreCartaoClimaSecundario` | Texto sobre o cartão de clima | `#FFFFFF` / `#CFE2EC` | `#FFFFFF` / `#C5E7F6` |
+
+**Cores de categoria (`CoresCategorias`)** são pares `CorCategoria(conteudo, fundo)`: `conteudo` pinta o ícone e `fundo` o contêiner. O comentário estabelece que **essas cores sempre vêm acompanhadas de ícone e nome, nunca como único sinal**.
+
+| Categoria | Claro (conteúdo / fundo) | Escuro (conteúdo / fundo) | Usada por |
+|---|---|---|---|
+| `energia` | `#8A5A00` / `#F7EBD2` | `#F0C46A` / `#3D2E0A` | `ENERGIA` |
+| `defensivos` | `#2A6683` / `#E0ECF2` | `#8CCDEB` / `#12384A` | `DEFENSIVOS` |
+| `sementes` | `#2C6A43` / `#DCEADC` | `#8FD1A3` / `#1E3D2A` | `SEMENTES` e `VENDA_SAFRA` (a receita principal reaproveita o verde) |
+| `adubo` | `#4E6B1F` / `#E8EFD9` | `#BCD68A` / `#2C3A17` | `ADUBO` |
+| `combustivel` | `#A9481F` / `#F6E4DA` | `#FFB596` / `#4A2112` | `COMBUSTIVEL` |
+| `maoDeObra` | `#5B3F86` / `#ECE6F3` | `#CDB8EE` / `#33274A` | `MAO_DE_OBRA` |
+| `manutencao` | `#3D433A` / `#E7E9E1` | `#C4CABD` / `#32372F` | `MANUTENCAO` |
+| `arrendamento` | `#7A4E2D` / `#F1E6DC` | `#E7C3A3` / `#3F2C1D` | `ARRENDAMENTO` |
+| `neutra` | `#3D433A` / `#E7E9E1` | `#C4CABD` / `#32372F` | `OUTRAS_DESPESAS`, `OUTROS` |
+
+## `Type.kt` — tipografia
+
+A família é **Plus Jakarta Sans**, empacotada em `res/font` (e não baixada pela internet), para funcionar offline. São cinco arquivos estáticos, um por peso (Regular, Medium, SemiBold, Bold, ExtraBold), gerados a partir da fonte variável para compatibilidade com a API 26+.
+
+Os estilos numéricos usam o recurso OpenType **`tnum`** (algarismos tabulares): todos os dígitos têm a mesma largura, então os valores se alinham em colunas e não "pulam" quando mudam. Os estilos *display* são reservados a valores monetários e devem ser o maior texto da tela.
+
+| Estilo | Peso | Tamanho / altura de linha | Uso indicado no código |
+|---|---|---|---|
+| `displayLarge` | ExtraBold, `tnum`, −1,5 sp | 44 / 48 sp | Saldo do mês, valor do lançamento |
+| `displayMedium` | ExtraBold, `tnum`, −1 sp | 34 / 38 sp | Total consolidado, temperatura, saldo do ano |
+| `displaySmall` | ExtraBold, `tnum`, −0,5 sp | 28 / 32 sp | Saldo no cabeçalho de Lançamentos |
+| `headlineLarge` | ExtraBold, −0,5 sp | 26 / 32 sp | Título de tela no cabeçalho |
+| `headlineMedium` | ExtraBold, −0,4 sp | 24 / 30 sp | Títulos das telas de entrada e consentimento |
+| `headlineSmall` | ExtraBold | 20 / 26 sp | Frase de destaque (resumo do clima) |
+| `titleLarge` | Bold | 20 / 26 sp | Título da barra superior |
+| `titleMedium` | ExtraBold | 17 / 23 sp | Título de cartão |
+| `titleSmall` | Bold, `tnum` | 15 / 21 sp | Valor numa linha de lista, nome do lançamento |
+| `bodyLarge` | Medium | 15 / 22 sp | Texto padrão, campos, parágrafos |
+| `bodyMedium` | Medium | 14 / 20 sp | Texto de apoio dentro de cartões |
+| `bodySmall` | Medium | 13 / 18 sp | Linha de apoio de itens de lista |
+| `labelLarge` | Bold | 14 / 20 sp | Botões e chips |
+| `labelMedium` | SemiBold | 13 / 18 sp | Rótulos de seção |
+| `labelSmall` | SemiBold | 12 / 16 sp | Legenda, texto da barra de navegação |
+
+## `Shape.kt` — formas
+
+`FormasAgro` define cantos arredondados (`RoundedCornerShape`):
+
+| Forma | Raio | Uso |
+|---|---|---|
+| `extraSmall` | 8 dp | Marcadores, barras de gráfico |
+| `small` | 14 dp | Ícone de categoria, campo de texto |
+| `medium` | 20 dp | Cartões no cabeçalho |
+| `large` | 28 dp | Cartões do corpo da tela |
+| `extraLarge` | 32 dp | Cabeçalho, *bottom sheet*, diálogo |
+
+Botões, chips e a barra inferior usam `CircleShape`, fora dessa escala.
+
+## `Espacos.kt` — escala de espaçamento
+
+Todos os valores são múltiplos de 4 dp, como recomenda o Material 3. O comentário pede para usar sempre estes nomes em vez de `20.dp` solto: antes, a margem lateral era 20 dp quase sempre, mas 16 ou 18 dp em alguns lugares. Ajustes finos dentro de um componente (2, 6, 10 dp) podem continuar literais.
+
+| Nome | Valor | Uso |
+|---|---|---|
+| `minimo` | 4 dp | Entre ícone e texto colados, entre linhas de um bloco |
+| `pequeno` | 8 dp | Entre itens de uma linha ou de um grupo pequeno |
+| `medio` | 12 dp | Entre cartões de uma lista |
+| `padrao` | 16 dp | Entre blocos dentro de um cartão |
+| `largo` | 20 dp | Margem lateral e padding interno dos cartões |
+| `grande` | 24 dp | Separação entre seções |
+| `enorme` | 32 dp | Respiro grande (antes do rodapé, estados vazios) |
+| `margemDaTela` | = `largo` (20 dp) | Margem lateral de todas as telas |
+| `alvoDeToque` | 48 dp | Menor área de toque aceitável (diretriz de acessibilidade do Android) |
+| `alturaDoBotao` | 56 dp | Altura mínima dos botões principais; cresce com a fonte do sistema |
+
+## `IconesAgro.kt` — ícones próprios
+
+Em vez dos Material Icons, que não cobrem todas as categorias no mesmo estilo, o app desenha seus próprios ícones como **`ImageVector` a partir de *path data* SVG**:
+
+- grade de 24 × 24;
+- traço de espessura 2, sem preenchimento;
+- pontas e junções arredondadas (`StrokeCap.Round`, `StrokeJoin.Round`).
+
+O traço é preto e recebe a cor pelo `tint` do `Icon`. Cada ícone é criado sob demanda (`by lazy`). A função auxiliar `circulo(cx, cy, r)` desenha um círculo como dois arcos de 180°. São 37 ícones:
+
+- **Categorias:** `Energia`, `Defensivos`, `Sementes`, `Adubo`, `Combustivel`, `MaoDeObra`, `Manutencao`, `VendaSafra`, `Arrendamento`, `Outras`.
+- **Navegação:** `Inicio`, `Lista`, `Nuvem`, `Sitio`. `Sitio` e `Sementes` compartilham o mesmo desenho de broto (constante `BROTO`).
+- **Ações e indicadores:** `Mais`, `Historico`, `Olho`, `OlhoFechado`, `Busca`, `Fechar`, `Calendario`, `Apagar`, `Lapis`, `Confirmado`, `Entrou`, `Saiu`, `Chuva`, `Gota`, `SetaBaixo`, `SetaEsquerda`, `SetaDireita`, `MaisOpcoes`, `Copiar`, `Lixeira`, `Atualizar`, `Sino`, `Conta`.
+
+## Acessibilidade declarada no código
+
+Fatos de acessibilidade escritos nos comentários e no código das pastas analisadas:
+
+- **Contraste:** todo par texto/fundo da paleta tem contraste ≥ 4,5:1 (WCAG AA).
+- **Cor nunca é o único sinal:** receita e despesa levam "+"/"−"; as categorias aparecem sempre com ícone e nome; o chip selecionado mostra o ícone `Confirmado`.
+- **Área de toque:** mínimo de 48 dp (`Espacos.alvoDeToque`, `BotaoCabecalho`, `SeletorPropriedade`); botões principais com no mínimo 56 dp; linhas de lançamento com no mínimo 64 dp; itens da barra inferior com no mínimo 56 dp.
+- **Fonte grande:** os botões usam altura **mínima**, então crescem com o texto. Há `@Preview` com `fontScale = 2f` para conferir esse caso. Os rótulos da barra inferior nunca ficam abaixo de 11 sp. `ValorGrande` diminui a fonte em vez de truncar o número.
+- **Leitores de tela (TalkBack):**
+  - `Carregando` é anunciado;
+  - `FaixaDeAviso` é uma `liveRegion`;
+  - `TituloDeCartao` é marcado como `heading`;
+  - `CartaoNoCabecalho` mescla rótulo e valor num só nó;
+  - valores ocultos são lidos como "Valor escondido";
+  - as abas têm `Role.Tab`;
+  - o botão "+" tem a descrição "Novo lançamento";
+  - conteúdo coberto pela navegação fica oculto com `clearAndSetSemantics`.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Estrutura de pastas](./estrutura-de-pastas.mdx)

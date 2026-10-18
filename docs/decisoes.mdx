@@ -1,0 +1,36 @@
+---
+title: "Escopo e decisões"
+description: "O que está fora do escopo e as decisões de arquitetura e de entrega, com o porquê."
+sidebar_position: 28
+---
+
+# Escopo e decisões
+
+## Fora do escopo (decidido em out/2026)
+
+- **API própria (NestJS):** o app continua 100% local. Sem sincronização, sem vários celulares e sem "esqueci minha senha" por e-mail. Os ids já são UUID e as entidades têm `atualizado_em`, então dá para retomar se um dia fizer sentido.
+- **Controle de irrigação (pivô):** não será implementado. A previsão serve só para recomendar adiar a irrigação ("Dá para adiar o pivô").
+
+## Decisões de out/2026 (entrega à professora)
+
+- **Branch `prod`:** versão de apresentação, igual à `main` mas sem as migrações 1→2 e 2→3 (banco v3 como base). Motivo: o app no celular do pai era só teste, sem dados reais a preservar. Testes, fakes e CI continuam no repo, e já ficam fora do APK. A `main` segue como desenvolvimento.
+- **Regra de senha mantida com 3 requisitos** (8 caracteres, letra e número, "difícil de adivinhar"). Foi pedido tirar o terceiro, mas a decisão final foi **não enfraquecer** a senha.
+- **Coil não é usado.** A Open-Meteo devolve só JSON, sem imagens, e os ícones de clima são desenhados no código. Pendente: confirmar com a professora se a exigência de usar o Coil vale mesmo assim. Se valer, a opção honesta é carregar de uma URL um recurso de imagem real.
+- **Transições de tela:** trocar de aba é instantâneo e as demais telas deslizam, para não ficar a tela antiga "fantasma" por baixo da nova (ver [Ponto de entrada e navegação](./navegacao.mdx)).
+- **Limites de entrada** e **exclusão atômica** viraram regras 18 e 19 em [Regras de código](./regras-de-codigo.mdx).
+- **Ficou de fora de propósito:** `CHECK` no banco (exigiria versão 4 + migração) e handler global de falhas ou Crashlytics (biblioteca nova e implicação de privacidade).
+- **Estrutura de pastas:** auditada, sem refactor de pacotes antes da apresentação. Detalhes em [Auditoria de arquitetura](./auditoria-de-arquitetura.mdx).
+
+## Arquitetura profissional (out/2026)
+
+- **Hilt no lugar da DI manual.** A decisão antiga ("sem Hilt/Koin, por ser projeto de aprendizado") foi revista pelo João: Hilt é o padrão do mercado e remove as 16 `Factory` e o container gigante. Compatível com o AGP 9 desde o Hilt 2.59.
+- **`java.time.Clock`** no lugar de lambdas de relógio, e `RelogioMonotonico` e `Despachantes` como interfaces do domínio.
+- **Módulo `:domain`** (Kotlin JVM puro): "o domínio não importa Android" deixou de ser convenção e virou garantia do compilador.
+- Itens ainda previstos nessa linha: navegação tipada (decidido adiar), textos em `strings.xml` e DataStore (não recomendado). O baseline do detekt foi **zerado**.
+
+## Decisões de arquitetura
+
+Veja a tabela "Decisões de arquitetura" em [Arquitetura](./arquitetura.mdx).
+
+---
+**Veja também:** [Início](./index.mdx) · [Roadmap](./roadmap.mdx) · [Arquitetura](./arquitetura.mdx)

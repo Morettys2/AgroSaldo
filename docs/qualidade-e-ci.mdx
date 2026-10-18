@@ -1,0 +1,98 @@
+---
+title: "Qualidade de código e CI"
+description: "ktlint, detekt, Android Lint e o pipeline do GitHub Actions."
+sidebar_position: 24
+---
+
+# Qualidade de código e CI
+
+## Qualidade de código
+
+O projeto tem três verificações automáticas, todas cobradas no CI.
+
+### ktlint: formatação
+
+- **Comandos:** `./gradlew ktlintCheck` confere; `./gradlew ktlintFormat` "arruma sozinho" (comentário do build).
+- **Configuração no Gradle:** `ktlint { android.set(true); baseline.set(file("ktlint-baseline.xml")) }`. O arquivo `app/ktlint-baseline.xml` **não existe** no repositório, ou seja, nenhum achado antigo de formatação fica tolerado.
+- **Regras de Compose:** vêm do `ktlintRuleset(libs.compose.rules.ktlint)`.
+- **As regras ficam no `.editorconfig` da raiz**, lido pelo ktlint e pelo Android Studio:
+
+| Seção | Configuração | Motivo (comentário do arquivo) |
+|---|---|---|
+| `[*]` | `charset = utf-8`, `end_of_line = lf`, `insert_final_newline = true`, `indent_style = space`, `indent_size = 4`, `trim_trailing_whitespace = true` | Padrão para todos os arquivos |
+| `[*.{kt,kts}]` | `ktlint_code_style = android_studio` | O mesmo estilo do "Reformat Code" (Ctrl + Alt + L) |
+| | `max_line_length = 140` | Mesmo limite usado no detekt |
+| | `ktlint_function_naming_ignore_when_annotated_with = Composable` | Composable é PascalCase (`InicioScreen`), como manda o guia do Compose |
+| | `ktlint_ignore_back_ticked_identifier = true` | Nomes de teste em frase, com crase |
+| | `compose_allowed_composition_locals = LocalValoresOcultos,LocalCoresAgro,LocalCoresCategorias` | CompositionLocals que o app usa de propósito |
+| `[*.{yml,yaml}]` | `indent_size = 2` | Indentação usual de YAML |
+| `[*.md]` | `trim_trailing_whitespace = false` | No Markdown, espaços no fim da linha podem ter significado (quebra de linha) |
+
+### detekt: análise estática
+
+O `config/detekt/detekt.yml` só traz o que é **diferente do padrão** (`--build-upon-default-config`):
+
+| Regra | Ajuste | Motivo (comentário do arquivo) |
+|---|---|---|
+| `naming > FunctionNaming` | ignora `@Composable`; exclui `**/test/**` e `**/androidTest/**` | Composable é PascalCase; nomes de teste vêm entre crases |
+| `naming > TopLevelPropertyNaming` | `constantPattern: '[A-Z][_A-Z0-9]*'` | Constantes em MAIÚSCULAS |
+| `naming > MatchingDeclarationName` | `active: false` | Vários arquivos juntam um tipo pequeno e a tela que o usa (ex.: UiState + ViewModel) |
+| `style > MagicNumber` | ignora `@Composable` e `@Preview`; exclui `test`, `androidTest`, `testFixtures` e `ui/theme` | Telas Compose são cheias de dp e sp; testes, de valores de exemplo |
+| `style > UnusedPrivateMember` | ignora `@Preview` | Os `@Preview` são privados e só o Android Studio os chama |
+| `style > MaxLineLength` | `140` | Igual ao `.editorconfig` |
+| `style > ReturnCount` | `max: 5` e `excludeGuardClauses: true` | Funções de validação encadeiam retornos; cláusula de guarda no começo é idiomática |
+| `style > WildcardImport` | `active: true` | Proíbe `import pacote.*` |
+| `complexity > LongParameterList` | ignora `@Composable` | Telas Compose recebem estado e callbacks; o normal é uma lista longa |
+| `complexity > LongMethod` | ignora `@Composable` | (sem comentário) |
+| `complexity > TooManyFunctions` | exclui `test` e `androidTest`; limite 25 em classes, arquivos e objetos | ViewModel tem um método por ação da tela; arquivo de tela junta as partes dela |
+| `style > MagicNumber` (extra) | `ignorePropertyDeclaration: true`; `ignoreNumbers` inclui 100 | Número que já recebe nome numa propriedade não é mágico; 100 é percentual e centavos |
+| `style > UseCheckOrError` | exclui testes | Os testes lançam `IllegalStateException` de propósito |
+| `exceptions > SwallowedException` e `TooGenericExceptionCaught` | excluem testes | Nos testes a exceção esperada é capturada de propósito |
+| `complexity > CyclomaticComplexMethod` | ignora `@Composable` | Uma tela ramifica por natureza |
+| `complexity > LongMethod` (extra) | exclui `testFixtures` | Dados de exemplo são listas longas |
+| `complexity > LongParameterList` (extra) | construtor até 9 parâmetros; módulos do Hilt (`di/`) excluídos | Injeção de dependências soma parâmetros |
+
+**Sem baseline:** o detekt dá **zero achados** nos dois módulos (`:app` e `:domain`), então o CI cobra tudo, e não só o código novo. Até 18/10/2026 havia um baseline com 115 achados antigos. Eles foram tratados assim:
+
+- **Corrigidos no código:** números mágicos viraram constantes com nome (`DIAS_DA_PREVISAO`, `MS_POR_SEGUNDO`, `Propriedade.LATITUDES`, códigos HTTP...); `PropriedadeFormViewModel.aoSalvar` foi quebrado em `validar`, `gravar` e mensagens; `VerificadorDeChuva.verificar` ganhou `previsaoParaAvisar` e `avisoPara`; o `OpenMeteo` ganhou `exigir`; o `ClimaViewModel` recebe `DadosDoClima`; `Desfazer.desfazer` virou `desfazerExclusao`.
+- **Justificados na configuração** (`config/detekt/detekt.yml`): testes capturam exceção de propósito, cláusulas de guarda, telas Compose que ramificam por natureza, ViewModels com um método por ação.
+- **Justificados no código** com `@Suppress("regra") // motivo` no ponto exato: exceções que viram resultado (cache, rede, permissão) e a tabela de códigos de tempo da OMM.
+
+Achado novo deve ser **corrigido**, não baselinado.
+
+## Integração contínua (GitHub Actions)
+
+Arquivo: `.github/workflows/android.yml` (workflow `Android`). O comentário do topo resume: "todo push e todo PR conferem a formatação (ktlint), rodam a análise estática (detekt) e os testes, compilam o app e rodam o Android Lint. Se algo quebrar, o PR fica vermelho antes do merge."
+
+**Gatilhos (`on`):**
+
+- `push` na branch `prod` (a principal);
+- qualquer `pull_request`;
+- `workflow_dispatch` (botão para rodar à mão).
+
+**Concorrência:** `group: ${{ github.workflow }}-${{ github.ref }}` com `cancel-in-progress: true`, ou seja, um push novo na mesma branch cancela a execução anterior.
+
+**Job `build`:**
+
+- Roda em `ubuntu-latest`, com `timeout-minutes: 45`.
+- `permissions: contents: write`: escrita "só para publicar as capturas de tela na branch ci/capturas".
+
+**Passo a passo:**
+
+1. **`actions/checkout@v5`**: baixa o código.
+2. **`actions/setup-java@v5`**: instala o JDK Temurin `21`.
+3. **`gradle/actions/setup-gradle@v5`**: prepara o Gradle (com cache).
+4. **Compilar, testar e lint:** dá permissão de execução ao `gradlew` e roda `./gradlew --no-configuration-cache --stacktrace` com as tarefas da variável `vars.GRADLE_TASKS` ou, se ela não existir, o padrão `ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug`. A saída vai para `build.log` (`tee`), e `set -o pipefail` garante que o passo falhe se o Gradle falhar.
+5. **Erros como anotações** (só `if: failure()`): transforma o log em anotações `::error` que aparecem na página do PR. Cada bloco vira uma anotação, porque o GitHub limita a 10 por passo:
+   - "Erros do Kotlin" (linhas `e: `);
+   - "Testes que falharam";
+   - "Detalhe das falhas": pilha das 2 primeiras falhas, lida dos XML em `app/build/test-results`;
+   - "Gradle" (trecho `What went wrong`);
+   - "Final do log", quando não há erro de Kotlin nem teste falho;
+   - "Lint" (relatórios `.txt`).
+6. **Resumo** (`if: always()`): um `::notice` com o total de testes (falhas e ignorados), o número de avisos do Kotlin (linhas `w: `) e a contagem de problemas do Lint por severidade e id; depois um `::warning` listando os avisos do Kotlin.
+7. **Publicar capturas de tela** (`if: always()` e só se existir `app/build/capturas/*.png`): copia as imagens para uma pasta temporária, cria um repositório git novo nela com a branch `ci/capturas`, faz o commit como `github-actions` com a mensagem `Capturas de <branch> (<sha>)` e dá `push -f`. Assim dá para "revisar o visual de um PR sem emulador: é só abrir a branch no GitHub". O push força a substituição, então a branch sempre contém só as capturas da última execução.
+8. **Relatórios** (`if: always()`, `actions/upload-artifact@v5`): publica o artefato `relatorios` com `build.log`, `app/build/reports/` e `app/build/test-results/`, guardado por 7 dias (`retention-days: 7`).
+
+---
+**Veja também:** [Início](./index.mdx) · [Primeiros passos](./primeiros-passos.mdx) · [Como contribuir](./como-contribuir.mdx)

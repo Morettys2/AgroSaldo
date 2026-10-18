@@ -1,0 +1,206 @@
+---
+title: "Ponto de entrada e navegação"
+description: "Application, Activity, sessão, grafo de navegação, barra inferior e transições."
+sidebar_position: 12
+---
+
+# Ponto de entrada e navegação
+
+## Ponto de entrada
+
+O app tem dois pontos de entrada no código Kotlin: a classe `Application` (`AgroSaldoApp`), que nasce junto com o processo, e a única `Activity` (`MainActivity`), que nasce quando há uma tela para mostrar. Entender a diferença entre os dois é importante, porque o Android pode iniciar o processo **sem** abrir nenhuma tela (por exemplo, quando o WorkManager precisa rodar o aviso de chuva em segundo plano).
+
+### `AgroSaldoApp.kt`
+
+`AgroSaldoApp` estende `Application` e está registrada no manifesto (`android:name=".AgroSaldoApp"`). Ela faz três coisas:
+
+1. **Sobe o Hilt.** A classe é `@HiltAndroidApp`: o Hilt monta o grafo de dependências (módulos em `di/`), e o banco e os repositórios só nascem no primeiro uso. Ela é também o `Configuration.Provider` do WorkManager, com a `HiltWorkerFactory`.
+2. **Cria o canal de notificação** chamando `NotificadorDeChuva.criarCanal(this)`. O comentário observa que a operação é idempotente: recriar um canal que já existe não muda nada.
+3. **Sincroniza o agendamento do aviso de chuva** com o ajuste salvo: se `ajustesAviso.ajustes.value.ativo` (injetado) for verdadeiro, chama `agendaAviso.ligar()`; senão, `agendaAviso.desligar()`. Como o agendamento usa a política `KEEP` (veja a seção do aviso), chamar `ligar()` de novo a cada abertura não muda o horário já marcado.
+
+O KDoc explica por que isso fica no `Application` e não na `MainActivity`: o WorkManager pode subir o processo sem abrir nenhuma Activity, e o canal e o agendamento precisam existir mesmo assim.
+
+### `MainActivity.kt`
+
+É a **Activity única** do app: aplica o tema (`AgroSaldoTheme`) e entrega toda a interface para o composable `AppNavegacao`. Pontos de projeto que aparecem no código:
+
+- **Estende `FragmentActivity`** (e não `ComponentActivity`), porque o `BiometricPrompt` exige uma `FragmentActivity`.
+- **Splash screen:** `installSplashScreen()` é chamado **antes** de `super.onCreate`, porque é o `super.onCreate` que troca o tema da splash (`Theme.AgroSaldo.Abertura`) pelo tema do app (`postSplashScreenTheme`). A biblioteca usada é a `core-splashscreen` do AndroidX.
+- **Edge-to-edge:** `enableEdgeToEdge()` faz o app desenhar por baixo das barras do sistema; os *insets* (espaços ocupados pela status bar e pela barra de navegação) são tratados depois pelo `Scaffold` em `AppNavegacao`.
+- **`FLAG_SECURE` ligado ao bloqueio:** a função privada `protegerTelaComOBloqueio()` observa `bloqueio.ativo` (o `BloqueioRepository` injetado) dentro de `lifecycleScope`. Com o bloqueio por digital ligado, adiciona `WindowManager.LayoutParams.FLAG_SECURE` à janela (a tela fica fora de capturas, gravações e da miniatura de Recentes, que mostraria o saldo sem pedir a digital). No Android 13+ (`TIRAMISU`) também chama `setRecentsScreenshotEnabled(!ativo)`. Como é um `collect`, a proteção acompanha o ajuste ao vivo.
+- **Virada do mês:**
+  - Em `onCreate`, quando `savedInstanceState == null` (criação nova, não recriação por rotação), chama `irParaOMesAtual()`, que seleciona `YearMonth.now(relogio)`. O comentário lembra que o processo pode ter sobrevivido desde o mês anterior.
+  - Em `onStart`, chama `selecao.acompanharMesCorrente()` (o `SelecaoAtual` injetado), que segue a virada do mês com o app vivo, preservando um mês que a pessoa tenha escolhido à mão.
+- **Toque na notificação de chuva:** a Activity guarda o último pedido em `pedidoDoClima` (um `mutableStateOf<PedidoDoClima?>`). A função `receberPedidoDoClima(intent)` só aceita o intent se o extra `NotificadorDeChuva.EXTRA_DESTINO` for igual a `DESTINO_CLIMA`, e cria um `PedidoDoClima` com o id da propriedade (`EXTRA_PROPRIEDADE`). Na criação, um intent vindo de Recentes (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`) é ignorado, para o mesmo toque não ser reprocessado.
+- **`singleTop` + `onNewIntent`:** no manifesto a Activity tem `android:launchMode="singleTop"`. Com o app já aberto, um toque na notificação **não recria** a Activity (o que faria perder um formulário em edição): o Android chama `onNewIntent`, que atualiza o intent com `setIntent(intent)` e repassa para `receberPedidoDoClima`.
+
+## Navegação (`core/navigation/`)
+
+A navegação usa o Navigation Compose (`NavHost` + `NavHostController`) com rotas em texto. A pasta tem oito arquivos, cada um com uma responsabilidade.
+
+### `Rotas.kt`
+
+Objeto `Rotas` com todas as rotas do app. O KDoc pede que as telas usem as funções daqui em vez de montar strings à mão. Argumentos em query (`?id=`) são opcionais, então a mesma rota serve para **criar** e para **editar**.
+
+| Constante | Rota | Argumentos | Tela (composable chamado) |
+|---|---|---|---|
+| `LOGIN` | `login` | — | `LoginRoute` |
+| `CRIAR_CONTA` | `criar_conta` | — | `CadastroRoute` |
+| `CONSENTIMENTO` | `consentimento` | — | `ConsentimentoRoute` |
+| `POLITICA` | `politica` | — | `PoliticaScreen` |
+| `NOVO_CONSENTIMENTO` | `novo_consentimento` | — | `NovoConsentimentoRoute` |
+| `CONTA` | `conta` | — | `ContaRoute` |
+| `ALTERAR_SENHA` | `conta/senha` | — | `AlterarSenhaRoute` |
+| `AJUSTES_AVISO` | `clima/aviso` | — | `AjustesAvisoRoute` |
+| `INICIO` | `inicio` | — | `InicioRoute` |
+| `LANCAMENTOS` | `lancamentos` | — | `LancamentoListaRoute` |
+| `CLIMA` | `clima` | — | `ClimaRoute` |
+| `PROPRIEDADES` | `propriedades` | — | `PropriedadeListaRoute` |
+| `HISTORICO` | `historico` | — | `HistoricoRoute` (histórico anual, RF10) |
+| `FORM_LANCAMENTO` | `lancamento/form?id={id}&copia={copia}&tipo={tipo}` | `id`, `copia`, `tipo` (todos opcionais, texto, `null` por padrão) | `LancamentoFormRoute` |
+| `FORM_PROPRIEDADE` | `propriedade/form?id={id}` | `id` (opcional) | `PropriedadeFormRoute` |
+
+Os nomes dos argumentos ficam em `ARG_ID = "id"`, `ARG_COPIA = "copia"` e `ARG_TIPO = "tipo"`. O objeto também define conjuntos usados pelas regras:
+
+- `DE_ENTRADA = setOf(LOGIN, CRIAR_CONTA, CONSENTIMENTO)`: telas do fluxo não autenticado.
+- `ABAS = setOf(INICIO, LANCAMENTOS, CLIMA, PROPRIEDADES)`: as quatro abas principais.
+- `COM_CABECALHO_ESCURO = ABAS + FORM_LANCAMENTO`: telas cujo cabeçalho escuro se estende por baixo da status bar.
+
+E três funções auxiliares:
+
+- `formLancamento(id, copiaDe, tipo)`: monta a rota do formulário. Os parâmetros são mutuamente exclusivos e seguem esta prioridade: `id` (editar um lançamento), `copiaDe` (novo lançamento pré-preenchido a partir de outro), `tipo` (novo lançamento com o tipo já escolhido). Sem nenhum, devolve `lancamento/form`.
+- `tipoDaRota(texto)`: converte o argumento `tipo` em `TipoLancamento`; um valor inválido vira `null`.
+- `formPropriedade(id)`: `propriedade/form` ou `propriedade/form?id=…`.
+
+### `Navegador.kt`
+
+A classe `Navegador` (anotada com `@Stable`) envolve o `NavHostController` e reúne num lugar só as formas de navegar. Cada função resolve um problema que antes se repetia em vários destinos:
+
+| Função | O que faz | Problema que evita |
+|---|---|---|
+| `abrir(rota)` | `navigate` com `launchSingleTop = true` | Toque duplo empilhando duas telas iguais |
+| `abrirFormularioDeLancamento(rota)` | Só navega se o formulário ainda não estiver no topo | Toques rápidos no "+" |
+| `irParaAba(rota)` | `popUpTo(Rotas.INICIO) { saveState = true }`, `launchSingleTop`, `restoreState` | Empilhar abas e perder o estado de cada aba |
+| `voltar()` | `popBackStack()` | — |
+| `fecharSeNoTopo(rota)` | Só faz `popBackStack` se `rota` ainda for a atual | "Voltar" duplo quando a tela termina (salvou, excluiu) depois de a pessoa já ter voltado |
+| `substituir(substituida, rota)` | Navega tirando `substituida` da pilha (`popUpTo … inclusive`) | "Voltar" retornar a uma tela que não faz mais sentido |
+
+Um detalhe didático em `irParaAba`: o `popUpTo` usa `Rotas.INICIO`, e não o `startDestination` do grafo, porque o destino inicial pode ser o login, que já foi removido da pilha depois da autenticação.
+
+### `GrafosDeNavegacao.kt`
+
+Registra os destinos dentro do `NavHost`, divididos em três funções de extensão de `NavGraphBuilder`. As telas **não conhecem o `NavController`**: recebem lambdas (callbacks), o que as mantém testáveis e compatíveis com `@Preview`.
+
+- **`grafoDaConta(navegador)`** — login, cadastro, consentimento LGPD, política e área "Conta".
+  - `CRIAR_CONTA` cria um `CadastroViewModel` no escopo da sua entrada da back stack.
+  - `CONSENTIMENTO` **reutiliza** esse mesmo `CadastroViewModel`, buscando a entrada `CRIAR_CONTA` com `getBackStackEntry` e um `ViewModelProvider`. O acesso fica dentro de `remember(entrada)`, porque depois de criar a conta a pilha é limpa e `getBackStackEntry` lançaria exceção durante a animação de saída.
+  - Recusar o consentimento faz `popBackStack(Rotas.LOGIN, inclusive = false)`; o comentário diz que a recusa não grava nada.
+  - Em `NOVO_CONSENTIMENTO`, a navegação depois de aceitar ou recusar vem do efeito de sessão em `AppNavegacao`, e não da própria tela.
+  - `CONTA` liga os atalhos para política, alterar senha, ajustes do aviso e a aba de propriedades.
+- **`grafoDoFinanceiro(navegador, aoAlternarValores)`** — Início, lançamentos, histórico, propriedades e os dois formulários.
+  - `aoAlternarValores` é o "olho" do Início, que esconde os valores em todas as telas.
+  - No formulário de lançamento: `aoConcluir` usa `fecharSeNoTopo`; sem propriedade cadastrada, `aoCadastrarPropriedade` **substitui** o formulário pelo cadastro de propriedade; `aoLancarDeNovo` abre uma cópia removendo a edição da pilha, para o "voltar" não retornar a ela.
+  - `HISTORICO` abre a aba de lançamentos ao escolher um mês (o mês já foi gravado pelo ViewModel).
+- **`grafoDoClima(navegador)`** — previsão do tempo (`CLIMA`) e ajustes do aviso de chuva (`AJUSTES_AVISO`).
+
+A função privada `argumentoOpcional(nome)` cria um `navArgument` de texto, anulável e com `defaultValue = null`.
+
+### `AppNavegacao.kt`
+
+É a **raiz da interface**. Contém o `Scaffold` (barras superior e inferior), o `NavHost`, a snackbar de "Desfazer" e, no lugar de tudo isso quando necessário, a tela de bloqueio. É o **único ponto do app que conhece o `NavController`**. O arquivo também define a classe `PedidoDoClima(propriedadeId)`, que usa igualdade por identidade: cada toque na notificação é um pedido novo, mesmo que repita a propriedade.
+
+Principais decisões:
+
+- **Destino inicial calculado uma única vez:** `remember { if (logado) Rotas.INICIO else Rotas.LOGIN }`. O comentário explica que mudar o `startDestination` de um `NavHost` já montado não tem efeito; as mudanças posteriores de sessão ficam a cargo de um `LaunchedEffect`.
+- **Redirecionamento por sessão:** um `LaunchedEffect(logado, precisaNovoAceite, rotaAtual)` pergunta a `RegrasDeNavegacao.destino(...)` se a tela atual é permitida. Se não for, navega para o destino com `popUpTo(navController.graph.id) { inclusive = true }`, que limpa a pilha para o "voltar" não atravessar a fronteira entre login e área autenticada. A rota atual é chave do efeito, para nenhuma navegação (nem um pedido externo) escapar das regras.
+- **Tela coberta enquanto a decisão não sai:** se `RegrasDeNavegacao.telaPodeAparecer(...)` for `false`, uma `Surface` opaca cobre o conteúdo (e consome os toques), e o `Scaffold` recebe `clearAndSetSemantics { }`, ficando oculto também para leitores de tela.
+- **Medição do tempo em segundo plano:** um `LifecycleEventObserver` chama `sessaoViewModel.aoIrParaSegundoPlano()` em `ON_STOP` e `aoVoltarParaPrimeiroPlano()` em `ON_START`. O comentário explica por que não usar `ON_PAUSE`: diálogos do sistema (inclusive o `BiometricPrompt`) disparam `ON_PAUSE`.
+- **Pedido da notificação:** um `LaunchedEffect(pedidoDoClima)` espera o `NavHost` ter a primeira entrada (`currentBackStackEntryFlow.first()`) e, se `sessaoViewModel.prepararAberturaDoClima(...)` devolver `true`, chama `navegador.irParaAba(Rotas.CLIMA)`.
+- **Snackbar de desfazer exclusão:** fica na raiz porque a tela que excluiu já foi fechada. Observa `desfazer.pendente`; uma oferta expirada é descartada sem aparecer. A snackbar tem ação "Desfazer", botão de dispensar e duração longa. Se desfazer falhar, mostra "Não foi possível desfazer." usando um escopo de corrotina de fora do efeito, para a mensagem sobreviver ao reinício dele. No formulário de lançamento (que não tem barra inferior), a snackbar ganha 84 dp de margem inferior para não cobrir o botão de salvar.
+- **Cor dos ícones da status bar:** um `SideEffect` define `isAppearanceLightStatusBars`. Os ícones ficam escuros só no modo claro e quando a tela tem fundo claro (tela de bloqueio, capa, ou rota fora de `COM_CABECALHO_ESCURO`); nos demais casos ficam claros.
+- **Barra superior:** só aparece em algumas rotas, com título fixo por rota: "Criar conta", "Conta", "Alterar senha", "Aviso de chuva", "Privacidade e dados", "Histórico" e "Nova propriedade"/"Editar propriedade" (conforme exista o argumento `id`). As abas e o formulário de lançamento têm cabeçalho próprio; login e consentimento exibem a marca. Fora das abas, há um botão "Voltar" (`Icons.AutoMirrored.Filled.ArrowBack`).
+- **Insets:** nas telas com cabeçalho escuro, o `Scaffold` aplica só os insets horizontais (`WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)`), e o inset superior fica a cargo do próprio cabeçalho.
+- **Barra inferior:** só nas abas principais (`rotaAtual in Rotas.ABAS`).
+- **Transições:** o `NavHost` passa `enterTransition`, `exitTransition`, `popEnterTransition` e `popExitTransition` vindos de `TransicoesDeTela.kt`, em vez do crossfade padrão de 700 ms (ver abaixo).
+- **Bloqueio sem vazamento:** com `precisaDesbloquear` verdadeiro, o conteúdo **sai da composição** e no lugar aparece `TelaBloqueioRoute`. O comentário explica o motivo: diálogos e menus abrem em janelas próprias, acima de qualquer "capa", e o teclado alcançaria os campos por baixo. O estado salvável das telas é preservado por um `rememberSaveableStateHolder` com a chave `"conteudo"` e volta ao desbloquear (os ViewModels continuam nas entradas da pilha). Com o app bloqueado, o "voltar" manda a task para segundo plano (`moveTaskToBack(true)`). A opção "usar senha" apaga o estado guardado e encerra a sessão.
+- **Valores ocultos:** `LocalValoresOcultos` é fornecido aqui, a partir do `PrivacidadeViewModel`.
+- **Oferta de bloqueio:** numa conta recém-criada, quando uma aba aparece, mostra `OfertaDeBloqueioRoute`.
+
+### `BarraInferior.kt`
+
+Composable `internal` `BarraInferior`: uma **barra flutuante em formato de pílula** (`CircleShape`, sombra de 8 dp) na cor `MaterialTheme.agro.cabecalho`, com quatro abas e um botão "+" no centro.
+
+| Aba | Rota | Ícone |
+|---|---|---|
+| Início | `inicio` | `IconesAgro.Inicio` |
+| Lançamentos | `lancamentos` | `IconesAgro.Lista` |
+| *(botão "+")* | abre o formulário de lançamento | `IconesAgro.Mais` |
+| Clima | `clima` | `IconesAgro.Nuvem` |
+| Sítios | `propriedades` | `IconesAgro.Sitio` |
+
+- Cada item tem altura mínima de 56 dp, usa `selectable(role = Role.Tab)` dentro de um `selectableGroup()`, e a aba selecionada ganha fundo `cabecalhoElevado` e cor `destaque`.
+- A aba fica selecionada se qualquer nível da hierarquia do destino atual tiver a rota da aba.
+- Os rótulos usam `TextAutoSize.StepBased` entre 11 sp e 12 sp; o comentário diz que 11 sp é o mínimo legível.
+- O botão "+" (`BotaoNovoLancamento`) mede 60 × 52 dp, usa a cor `destaque` e tem a descrição de acessibilidade "Novo lançamento".
+
+### `RegrasDeNavegacao.kt`
+
+Objeto **sem dependência de Compose**, para poder ser testado na JVM. Tem duas funções.
+
+**`destino(rota, anterior, logado, precisaNovoAceite)`** devolve a rota para onde ir, ou `null` se a tela atual é permitida. As regras, na ordem em que são avaliadas:
+
+1. **Sem login:** só são permitidas as telas de `DE_ENTRADA` e a política, desde que aberta a partir de uma delas. Qualquer outra rota leva a `login`.
+2. **Logado, mas a conta ainda não foi lida** (`precisaNovoAceite == null`): não redireciona; a tela fica coberta enquanto isso.
+3. **Logado com novo aceite pendente:** só são permitidas `novo_consentimento` e a política aberta a partir dela. O resto leva a `novo_consentimento`.
+4. **Logado e em dia:** se a pessoa estiver numa tela de entrada ou em `novo_consentimento`, vai para `inicio`.
+5. Em qualquer outro caso, `null`.
+
+A política depende da origem (parâmetro `anterior`) porque, aberta pela Conta, o "voltar" levaria para uma área autenticada.
+
+### `TransicoesDeTela.kt`
+
+Define a animação ao trocar de tela. **Problema que resolve:** o padrão do Navigation Compose é um crossfade de 700 ms em que a tela antiga e a nova ficam visíveis juntas, e a antiga parecia um "fantasma" por baixo.
+
+- **Entre abas da barra inferior:** sem animação (`EnterTransition.None` / `ExitTransition.None`). A troca é instantânea, como em apps de banco.
+- **Demais telas (formulário, conta, login):** a nova desliza da direita em 250 ms e a antiga some em 90 ms (`fadeOut`) enquanto recua 1/4 da largura, para nunca haver texto das duas telas legível ao mesmo tempo. Ao voltar (`pop`), é o inverso: a de cima sai para a direita e a de baixo só aparece depois dos 90 ms.
+- A decisão "é troca entre abas?" é a função pura `trocaEntreAbas(origem, destino)`, que usa `Rotas.ABAS` e é testada na JVM (`TransicoesDeTelaTest`). O resto é Compose e só se confere no aparelho.
+- `slideIntoContainer` e `slideOutOfContainer` são membros do `AnimatedContentTransitionScope`, por isso não são importados como funções soltas.
+
+**`telaPodeAparecer(...)`** devolve `true` só quando há rota, o estado da sessão é conhecido e nenhum desvio está pendente. Assim nenhuma tela aparece por alguns quadros antes de um redirecionamento.
+
+### `SessaoViewModel.kt`
+
+É a fonte única do estado de sessão que a navegação observa. As ações só **alteram estado**; quem redireciona é a navegação. Expõe quatro `StateFlow`:
+
+| Estado | Significado | Valor inicial |
+|---|---|---|
+| `logado` | Há usuário autenticado | `conta.estaLogado()`, lido da sessão gravada, para não mostrar o login por um quadro |
+| `precisaNovoAceite` | A política mudou desde o último aceite | `null` (desconhecido) até a conta ser lida |
+| `precisaDesbloquear` | `logado && bloqueio.ativo && !desbloqueadoNestaSessao` | `conta.estaLogado() && bloqueio.ativo.value` |
+| `oferecerBloqueio` | Conta recém-criada com o bloqueio ainda desligado | `false` |
+
+**Bloqueio por biometria:**
+
+- O app **começa bloqueado** (`desbloqueadoNestaSessao = false`): uma sessão restaurada exige biometria.
+- O `init` chama `conta.validarSessao()` e observa duas mudanças, ignorando o primeiro valor com `drop(1)`:
+  - mudança de usuário: login com senha desbloqueia, logout bloqueia;
+  - ligar o bloqueio marca a sessão como desbloqueada, porque ativar já exigiu biometria.
+- `aoDesbloquear()` marca a sessão como desbloqueada e descarta o registro de ida para segundo plano, porque o prompt de PIN do sistema põe o app em segundo plano.
+- **Rebloqueio após 2 minutos:** `aoIrParaSegundoPlano()` anota o instante; `aoVoltarParaPrimeiroPlano()` volta a bloquear se passou `TEMPO_PARA_TRAVAR_MS = 2 * 60_000L` (2 minutos) ou mais.
+- O relógio é o `RelogioMonotonico` injetado. Ele é monotônico (inclui *deep sleep*) e, por isso, imune a mudanças na hora do sistema.
+- `aoUsarSenha()` encerra a sessão (`conta.sair()`). `aoLigarBloqueioPelaOferta()` e `aoDispensarOfertaDeBloqueio()` tratam a oferta pós-cadastro.
+
+**`prepararAberturaDoClima(propriedadeId)`** (função `suspend`) valida o pedido vindo da notificação. Como a Activity é exportada, o pedido pode vir de outro app. A função:
+
+1. espera a conta ser lida;
+2. recusa o pedido sem sessão ou com novo aceite pendente;
+3. se houver id, só o aceita se `propriedades.buscarPorId` encontrar a propriedade entre as do usuário conectado, e então a seleciona.
+
+Ela devolve `true` quando a navegação deve abrir o Clima.
+
+### `PrivacidadeViewModel.kt`
+
+ViewModel pequeno que guarda o estado **global** de ocultação de valores monetários (`valoresOcultos: StateFlow<Boolean>`, vindo do `PrivacidadeRepository`). `aoAlternar()` inverte o valor. O KDoc explica que o escopo é a navegação, e não o Início, porque o efeito vale para todas as telas que exibem valores.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Estrutura de pastas](./estrutura-de-pastas.mdx)

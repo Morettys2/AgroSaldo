@@ -1,0 +1,20 @@
+---
+title: "Segurança e privacidade"
+description: "Senha, bloqueio, LGPD, FLAG_SECURE, backup e o que nunca entra no repositório."
+sidebar_position: 22
+---
+
+# Segurança e privacidade
+
+- **Nenhum segredo no repositório.** `local.properties` fica no `.gitignore`.
+- **A chave de assinatura (`C:\chaves\agrosaldo.jks`) NUNCA entra no Git, e nunca se gera uma chave nova**: com outra chave o APK não instala por cima do antigo e o produtor perde os dados.
+- `.gitignore` precisa ter `*.jks`, `*.keystore`, `/app/release/`, `*.apk`, `*.aab`, `local.properties`.
+- **Dados pessoais reais do produtor não entram em código, testes nem docs**: nada de CNPJ, endereço, telefone, e-mail, nome ou coordenadas da fazenda. Use dados fictícios.
+- Senha: PBKDF2 (`domain/conta/HashDeSenha.kt`). Não enfraqueça.
+- Bloqueio por senhas erradas usa relógio monotônico (`InstanteMonotonico`, imune a mudar a hora do celular) e contador por e-mail que sobrevive a reiniciar o app.
+- `FLAG_SECURE` na Activity (sem miniatura em Recentes com valores) e backup criptografado/limitado. Não remova.
+- Nada de `Log`/`println` com dado pessoal ou financeiro.
+- Open-Meteo: o plano grátis é só para uso **não comercial**, e os dados são CC BY 4.0 (crédito com link na tela de Clima). Se o app ganhar anúncio ou cobrança, precisa do plano pago.
+
+---
+**Veja também:** [Início](./index.mdx) · [Regras de código](./regras-de-codigo.mdx)

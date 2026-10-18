@@ -1,0 +1,156 @@
+---
+title: "Estrutura de pastas"
+description: "Árvore comentada do repositório: os dois módulos, pasta por pasta, as convenções de nome e onde colocar um arquivo novo."
+sidebar_position: 6
+---
+
+# Estrutura de pastas
+
+O projeto tem **dois módulos Gradle**:
+
+- **`:domain`**: as regras de negócio em Kotlin puro. Não conhece Android, Room, Compose nem Hilt.
+- **`:app`**: tudo que depende do Android (telas, banco, rede, injeção de dependência, aviso de chuva). Ele usa o `:domain`.
+
+Os dois usam o pacote `br.joao.agrosaldo`. No `:app`, o código é dividido por **camada** e, dentro da interface, por **funcionalidade**.
+
+## Raiz do repositório
+
+```text
+AgroSaldo/
+├── .github/workflows/android.yml   CI: formatação, análise, testes, build e lint em todo push na prod e em todo PR
+├── .editorconfig                   regras do ktlint (estilo Android Studio)
+├── .gitignore                      deixa de fora build, chaves (*.jks), APK/AAB e local.properties
+├── .idea/                          parte versionada das configurações do Android Studio
+├── CLAUDE.md                       regras permanentes e decisões do projeto
+├── docs/                           esta documentação (MDX)
+├── build.gradle.kts                build da raiz: só declara os plugins
+├── settings.gradle.kts             nome do projeto, repositórios e os módulos :app e :domain
+├── gradle.properties               opções do Gradle (memória, configuration cache, estilo Kotlin)
+├── gradle/
+│   ├── libs.versions.toml          catálogo com todas as versões de bibliotecas e plugins
+│   ├── gradle-daemon-jvm.properties  JDK 25 do daemon do Gradle (toolchain)
+│   └── wrapper/                    Gradle Wrapper (versão fixa do Gradle)
+├── gradlew / gradlew.bat           rodam o Gradle sem instalar nada
+├── config/detekt/detekt.yml        regras do detekt
+├── domain/                         módulo :domain (regras de negócio)
+└── app/                            módulo :app (o aplicativo)
+```
+
+## Módulo `:domain`
+
+```text
+domain/
+├── build.gradle.kts                plugin Kotlin JVM, java-test-fixtures e ktlint
+└── src/
+    ├── main/java/br/joao/agrosaldo/domain/
+    │   ├── Despachantes.kt         em que thread cada tipo de trabalho roda (cálculo e io)
+    │   ├── RelogioMonotonico.kt    relógio que não muda quando a hora do aparelho muda
+    │   ├── model/                  Lancamento, Propriedade, Usuario, InstanteMonotonico
+    │   ├── financeiro/             ResumoFinanceiro (saldo do mês, ranking de gastos)
+    │   ├── clima/                  Previsao, RegraDeChuva, VerificadorDeChuva
+    │   ├── conta/                  ContaService, HashDeSenha, RegrasDeConta, SenhasComuns
+    │   └── repository/             10 interfaces de repositório
+    ├── test/                       80 testes do domínio (JVM puro)
+    └── testFixtures/               fakes em memória (*Memoria), DadosDeExemplo e relógios de teste
+```
+
+Os fakes das interfaces do domínio moram aqui porque implementam interfaces daqui. O `:app` os reaproveita nos testes dele.
+
+## Módulo `:app`
+
+```text
+app/
+├── build.gradle.kts                SDKs, versão do app, dependências, tarefas do detekt e dos testes
+├── schemas/                        JSON de cada versão do banco, da 3 em diante (exportados pelo Room)
+├── release/                        APKs assinados gerados pelo Android Studio (fora do Git)
+└── src/
+    ├── main/                       o app que vai para o celular
+    │   ├── AndroidManifest.xml
+    │   ├── java/br/joao/agrosaldo/ código Kotlin (abaixo)
+    │   ├── res/                    cores do sistema, textos, ícone, fontes, regras de backup
+    │   └── assets/licencas/        licença da fonte Plus Jakarta Sans
+    ├── testFixtures/               AjustesAvisoMemoria e Semeador (dependem do app)
+    ├── test/                       testes no JVM: ViewModels, dados, Worker, telas, capturas e o grafo do Hilt
+    └── androidTest/                testes no aparelho: banco do Room
+```
+
+### Pacote `br.joao.agrosaldo` (módulo `:app`)
+
+```text
+agrosaldo/
+├── AgroSaldoApp.kt         Application (@HiltAndroidApp): monta o grafo do Hilt, cria o canal e agenda o aviso
+├── MainActivity.kt         Activity única: tema, splash, FLAG_SECURE, toque na notificação
+├── di/                     módulos do Hilt (6 arquivos): Tempo, Banco, Preferências, Repositórios, Serviços e o qualificador EscopoDoApp
+├── data/                   implementações das interfaces do domínio
+│   ├── SelecaoAtual.kt     propriedade e mês escolhidos, compartilhados entre as abas
+│   ├── Desfazer.kt         guarda a última exclusão para o botão "Desfazer"
+│   ├── LimpezaDaConta.kt   o que o app limpa ao trocar ou excluir a conta
+│   ├── RelogioDoAparelho.kt e RelogioMonotonicoDoAndroid.kt   os relógios reais
+│   ├── local/              Room: AgroSaldoDatabase, Mapeadores, Transacao, TransacaoRoom
+│   │   ├── dao/            UsuarioDao, PropriedadeDao, LancamentoDao, PrevisaoDao
+│   │   └── entidade/       as 4 tabelas (@Entity)
+│   ├── repository/         5 implementações: 4 *RepositoryRoom e UsuarioLogadoRoom
+│   ├── clima/              OpenMeteo (endereço e leitura do JSON) e FontePrevisao (HTTP)
+│   ├── preferencias/       ajustes do aviso e do "olho" (SharedPreferences)
+│   └── sessao/             sessão, bloqueio por digital e contador de senhas erradas
+├── feature/                uma pasta por área do app (Screen + ViewModel + partes)
+│   ├── inicio/             resumo do mês (3 arquivos)
+│   ├── lancamento/         lista e formulário de lançamentos (10)
+│   ├── propriedade/        lista e formulário de sítios (4)
+│   ├── clima/              previsão e ajustes do aviso (6)
+│   ├── historico/          resumo do ano (2)
+│   └── conta/              login, cadastro, LGPD, conta, senha, bloqueio (14)
+├── core/                   peças compartilhadas pelas features
+│   ├── navigation/         rotas, NavHost, barra inferior, transições, regras de navegação (9)
+│   ├── ui/                 componentes Safra, botões, estados, campos, seletores (12)
+│   ├── util/               dinheiro, datas, números, erros, textos (8)
+│   ├── localizacao/        GPS para preencher as coordenadas do sítio (2)
+│   └── seguranca/          Biometria (1)
+├── aviso/                  Worker, notificação e textos do aviso de chuva (3)
+└── ui/theme/               Color, Type, Shape, Espacos, IconesAgro, Theme (6)
+```
+
+## Pastas de teste
+
+| Pasta | O que tem | Como rodar |
+| --- | --- | --- |
+| `domain/src/test` | Testes das regras de negócio, das contas e das validações | `./gradlew :domain:test` |
+| `domain/src/testFixtures` | Fakes `*Memoria` das interfaces do domínio, `DadosDeExemplo` e relógios de teste | (compilada junto com os testes) |
+| `app/src/test` | ViewModels, dados com DAOs falsos, Worker, preferências, telas (Robolectric), capturas (Roborazzi) e o grafo do Hilt | `./gradlew testDebugUnitTest` |
+| `app/src/testFixtures` | `AjustesAvisoMemoria` e `Semeador` | (compilada junto com os testes) |
+| `app/src/androidTest` | DAOs do Room no aparelho | `./gradlew connectedDebugAndroidTest` |
+
+Detalhes em [Testes](./testes.mdx).
+
+## Convenção de nomes
+
+- **Negócio em português:** `Lancamento`, `Propriedade`, `aoSalvar`, `valorCentavos`, `repetirAposErro`.
+- **Sufixos técnicos do Android em inglês:** `Repository`, `Entity`, `Dao`, `Screen`, `ViewModel`, `UiState`, `Route`.
+- **Callbacks começam com `ao`:** `aoSalvar`, `aoClicar`, `aoAvancarMes` (como `onSave` em inglês).
+- **A implementação leva a tecnologia no nome:** `LancamentoRepositoryRoom` implementa `LancamentoRepository`; `SessaoPreferencias` implementa `SessaoRepository`; os fakes de teste terminam em `Memoria`.
+- **Comentários de código em português**, explicando a intenção.
+
+## Onde colocar um arquivo novo
+
+| O arquivo é... | Vai para |
+| --- | --- |
+| Uma regra de negócio ou um modelo | `domain/.../model`, `financeiro`, `clima` ou `conta` |
+| A interface de um repositório | `domain/.../repository` |
+| A implementação de um repositório | `app/.../data/repository` |
+| Uma tabela ou um DAO do Room | `app/.../data/local/entidade` ou `dao` |
+| A ligação de dependências | um módulo em `app/.../di` |
+| Uma tela nova | `app/.../feature/<area>`, como `XxxScreen.kt` e `XxxViewModel.kt` |
+| Um componente de UI usado por mais de uma tela | `app/.../core/ui` |
+| Uma função de formatação (dinheiro, data, texto) | `app/.../core/util` |
+| Cor, fonte, forma ou espaçamento | `app/.../ui/theme` |
+| Um fake para teste de uma interface do domínio | `domain/src/testFixtures` |
+| Uma rota de navegação | `app/.../core/navigation/Rotas.kt` e `GrafosDeNavegacao.kt` |
+
+## Regras que decidem a arquitetura
+
+- **O `:domain` não importa Android.** Se tentar, o build quebra.
+- **O ViewModel não importa Compose.**
+- **A tela não fala com repositório nem com DAO.** Ela só recebe `UiState` e lambdas.
+- **Fakes e dados de exemplo ficam em `testFixtures`**, nunca em `src/main`.
+
+A lista completa está em [Regras de código](./regras-de-codigo.mdx). O desenho das camadas está em [Arquitetura](./arquitetura.mdx).

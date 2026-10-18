@@ -1,0 +1,81 @@
+---
+title: "Manifesto e recursos"
+description: "AndroidManifest, permissões, backup, ícones, fontes e recursos XML."
+sidebar_position: 16
+---
+
+# Manifesto e recursos
+
+## `AndroidManifest.xml`
+
+**Permissões declaradas** (com o motivo dado nos comentários):
+
+| Permissão | Por quê |
+|---|---|
+| `INTERNET` | Previsão do tempo (Open-Meteo, via HTTPS) |
+| `POST_NOTIFICATIONS` | Aviso de chuva; é uma permissão em tempo de execução a partir da API 33 |
+| `ACCESS_COARSE_LOCATION` e `ACCESS_FINE_LOCATION` | Botão "Usar minha localização" no cadastro da propriedade; pedidas só por ação do usuário |
+
+O comentário destaca que **não há `ACCESS_BACKGROUND_LOCATION`**: a localização é usada apenas em primeiro plano. Também há `<uses-feature android:name="android.hardware.location.gps" android:required="false"/>`: o GPS é opcional e, sem ele, a localização vem da rede ou é digitada à mão.
+
+**Atributos de `<application>`:**
+
+- `android:name=".AgroSaldoApp"`: a classe `Application` própria.
+- `android:allowBackup="true"`, combinado com regras que **restringem** o que entra no backup:
+  - `android:fullBackupContent="@xml/backup_rules"` (até a API 30);
+  - `android:dataExtractionRules="@xml/data_extraction_rules"` (API 31+).
+- `android:usesCleartextTraffic="false"`: tráfego HTTP sem criptografia é proibido; só HTTPS.
+- `android:icon="@mipmap/ic_launcher"`, `android:roundIcon="@mipmap/ic_launcher_round"`, `android:label="@string/app_name"`, `android:supportsRtl="true"`, `android:theme="@style/Theme.AgroSaldo"`.
+
+**`<activity>` `MainActivity`:**
+
+- `android:exported="true"`, obrigatório porque tem o `intent-filter` `MAIN`/`LAUNCHER` (é ela que aparece no menu de apps). Por estar exportada, o `SessaoViewModel` trata o pedido de abrir o Clima como vindo "de fora".
+- `android:launchMode="singleTop"` (veja `onNewIntent`).
+- `android:theme="@style/Theme.AgroSaldo.Abertura"`, o tema da splash.
+
+## `res/values/`
+
+- **`strings.xml`** — apenas `app_name = "AgroSaldo"`. Os textos das telas estão no Kotlin; `TextosComuns` comenta que viram `strings.xml` quando o app for traduzido.
+- **`themes.xml`** — dois estilos de janela (cores e tipografia reais vêm do Compose):
+  - `Theme.AgroSaldo`, que herda de `Theme.AppCompat.DayNight.NoActionBar`. O comentário explica os dois motivos: na API 26–27 o `androidx.biometric` usa componentes AppCompat e falha com outro tema; e `DayNight` evita um flash branco ao abrir no modo escuro.
+  - `Theme.AgroSaldo.Abertura`, que herda de `Theme.SplashScreen` (`core-splashscreen`, compatível com API &lt; 31). Define fundo `@color/abertura_fundo`, ícone animado `@drawable/ic_agrosaldo_broto` e `postSplashScreenTheme = @style/Theme.AgroSaldo`.
+- **`cores_abertura.xml`** — `abertura_fundo = #163A2A`, igual a `VerdeNoite` do `Color.kt`. O comentário explica que a cor está duplicada porque a splash é desenhada antes do Compose, e pede para manter os dois valores em sincronia.
+- **`colors.xml`** — `purple_200`, `purple_500`, `purple_700`, `teal_200`, `teal_700`, `black`, `white`. Uma busca (`grep`) não encontrou referência a essas cores no código nem nos XML de `src/main`.
+
+## Ícone do app (`res/drawable/` e `res/mipmap-*/`)
+
+- **`mipmap-anydpi-v26/ic_launcher.xml`** e **`ic_launcher_round.xml`** (com cópias idênticas em `mipmap-anydpi/`) definem um **ícone adaptativo**, que o Android recorta no formato do aparelho (círculo, gota, quadrado). Ele tem três camadas:
+  - `background` → `@drawable/ic_agrosaldo_fundo`;
+  - `foreground` → `@drawable/ic_agrosaldo_broto`;
+  - `monochrome` → `@drawable/ic_agrosaldo_broto`, usado nos ícones temáticos do Android 13+.
+
+  O comentário explica a duplicação: o mesmo arquivo nas duas pastas garante que ele vença o ícone padrão do Android Studio, esteja este em qualquer uma delas.
+- **`ic_agrosaldo_fundo.xml`** — vetor 108 × 108: fundo "verde de lavoura" `#3B6B47` e um "morro da terra" `#2F5839` na parte de baixo.
+- **`ic_agrosaldo_broto.xml`** — frente do ícone: um broto branco (caule e duas folhas) sobre uma linha de solo, com uma gota de chuva `#D8E6ED` ("saldo e clima"). O desenho fica dentro da zona segura central de 66 dp, que nenhum formato de ícone corta. O mesmo vetor serve de ícone da splash.
+- **`ic_notificacao_chuva.xml`** — ícone pequeno da notificação: uma gota branca de 24 dp. O comentário lembra que esse ícone precisa ter uma cor só, porque o Android o pinta conforme o tema do sistema.
+- **`ic_launcher_background.xml`** e **`ic_launcher_foreground.xml`** — vetores com fundo verde `#3DDC84` em grade e uma figura branca com gradiente de sombra. A busca não encontrou referências a eles no manifesto, nos XML nem no Kotlin; os ícones adaptativos apontam para os arquivos `ic_agrosaldo_*`.
+- **Bitmaps `.webp`** (`ic_launcher.webp` e `ic_launcher_round.webp`) nas pastas `mipmap-mdpi`, `mipmap-hdpi`, `mipmap-xhdpi`, `mipmap-xxhdpi` e `mipmap-xxxhdpi`: versões rasterizadas por densidade (arquivos binários, não analisados).
+
+## Regras de backup (`res/xml/` e `res/xml-v28/`)
+
+O app tem três arquivos de regras, um para cada faixa de versão do Android. A ideia comum: **nada sensível sai do aparelho sem criptografia de ponta a ponta**, e o estado da sessão e do aparelho nunca é restaurado.
+
+| Arquivo | Vale para | O que faz |
+|---|---|---|
+| `xml/backup_rules.xml` | API 26–27 (Android 8.x) | **Exclui tudo**: domínios `database`, `sharedpref` e `file`. Motivo do comentário: essas versões não criptografam o backup de ponta a ponta, e o `adb backup` levaria o banco (e-mail, hash da senha, lançamentos e coordenadas) em texto claro |
+| `xml-v28/backup_rules.xml` | API 28–30 | Usa `<include>`: só entram `database` e `sharedpref`, e **somente** com `requireFlags="clientSideEncryption"` (backup criptografado, que exige bloqueio de tela) ou `deviceToDeviceTransfer`; o `adb backup` não leva nada. Há uma linha por flag porque `requireFlags` exige todas as flags listadas. Exclui `sessao.xml`, `seguranca.xml` e `permissoes.xml` |
+| `xml/data_extraction_rules.xml` | API 31+ | `<cloud-backup disableIfNoEncryptionCapabilities="true">`: sem criptografia de ponta a ponta, o backup do app fica desligado. Tanto na nuvem quanto em `<device-transfer>`, exclui `sessao.xml`, `seguranca.xml` e `permissoes.xml`. O comentário lembra que o `adb backup` não leva dados de apps com `targetSdk` 31+ |
+
+O que cada arquivo excluído guarda, segundo os comentários:
+
+- **`sessao.xml`**: a sessão. Fica de fora para exigir novo login depois de restaurar.
+- **`seguranca.xml`**: as tentativas de senha e o bloqueio por digital.
+- **`permissoes.xml`**: os pedidos de permissão já feitos (é o arquivo `permissoes` usado por `rememberPermissaoNotificacao`).
+
+## Fontes e licença
+
+- **`res/font/`** (binários, apenas listados): `jakarta_regular.ttf`, `jakarta_medium.ttf`, `jakarta_semibold.ttf`, `jakarta_bold.ttf`, `jakarta_extrabold.ttf`, com cerca de 96 KB cada. São referenciados em `Type.kt` como `R.font.jakarta_*`.
+- **`assets/licencas/plus-jakarta-sans-OFL.txt`** — licença da fonte: "Copyright 2020 The Plus Jakarta Sans Project Authors", distribuída sob a **SIL Open Font License, Version 1.1**. O arquivo traz o texto completo da OFL, que permite usar e redistribuir a fonte junto com o software, desde que a licença acompanhe os arquivos.
+
+---
+**Veja também:** [Início](./index.mdx) · [Arquitetura](./arquitetura.mdx) · [Estrutura de pastas](./estrutura-de-pastas.mdx)
