@@ -67,6 +67,9 @@ data class Lancamento(
         require(categoria.tipo == tipo) {
             "A categoria ${categoria.rotulo} não pertence ao tipo $tipo."
         }
+        require(descricao.length <= DESCRICAO_MAXIMA) {
+            "A descrição pode ter no máximo $DESCRICAO_MAXIMA caracteres."
+        }
     }
 
     /** Valor com sinal, usado no cálculo de saldo do período (RN03). */
@@ -76,6 +79,9 @@ data class Lancamento(
     val ehReceita: Boolean get() = tipo == TipoLancamento.RECEITA
 
     companion object {
+        /** Tamanho máximo da descrição: texto sem limite travaria a lista e o banco. */
+        const val DESCRICAO_MAXIMA = 200
+
         /** RN07: limite de meses no futuro para a data de um lançamento. */
         const val MESES_NO_FUTURO = 12L
 

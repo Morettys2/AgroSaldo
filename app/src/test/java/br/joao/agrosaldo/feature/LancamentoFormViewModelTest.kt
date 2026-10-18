@@ -216,6 +216,25 @@ class LancamentoFormViewModelTest {
     }
 
     @Test
+    fun `descricao digitada ou colada nunca passa do limite`() {
+        val vm = novo()
+
+        vm.aoMudarDescricao("x".repeat(Lancamento.DESCRICAO_MAXIMA + 500))
+
+        assertEquals(Lancamento.DESCRICAO_MAXIMA, vm.uiState.value.descricao.length)
+    }
+
+    @Test
+    fun `excluir lancamento que ja nao existe nao oferece desfazer`() = runTest {
+        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
+        lancamentos.excluir("exemplo-3")
+
+        vm.aoExcluir()
+
+        assertNull(desfazer.pendente.value)
+    }
+
+    @Test
     fun `atalhos hoje e ontem preenchem a data`() {
         val vm = novo()
         vm.aoUsarOntem()

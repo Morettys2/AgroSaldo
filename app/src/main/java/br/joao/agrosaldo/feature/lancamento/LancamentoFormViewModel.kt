@@ -229,7 +229,7 @@ class LancamentoFormViewModel(
 
     fun aoUsarHoje() = aoEscolherData(hoje())
     fun aoUsarOntem() = aoEscolherData(hoje().minusDays(1))
-    fun aoMudarDescricao(v: String) = editar { it.copy(descricao = v) }
+    fun aoMudarDescricao(v: String) = editar { it.copy(descricao = v.take(Lancamento.DESCRICAO_MAXIMA)) }
     fun aoMudarPropriedade(id: String) = editar { it.copy(propriedadeId = id) }
 
     fun aoSalvar() {
@@ -302,9 +302,8 @@ class LancamentoFormViewModel(
         val id = lancamentoId ?: return
         viewModelScope.launch {
             tentar {
-                val apagado = lancamentoRepository.buscarPorId(id)
+                // Lê e apaga numa transação só: o Desfazer recebe exatamente o que saiu do banco.
                 lancamentoRepository.excluir(id)
-                apagado
             }.onSuccess { apagado ->
                 if (apagado != null) {
                     desfazer.oferecer("Lançamento excluído") { lancamentoRepository.salvar(apagado) }
