@@ -1,15 +1,13 @@
 package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
 import br.joao.agrosaldo.domain.conta.ResultadoCadastro
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,7 +42,8 @@ data class CadastroUiState(
  * A rota de consentimento na AppNavegacao obtém esta instância a partir da
  * back stack entry do cadastro.
  */
-class CadastroViewModel(private val conta: ContaService) : ViewModel() {
+@HiltViewModel
+class CadastroViewModel @Inject constructor(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CadastroUiState())
     val uiState: StateFlow<CadastroUiState> = _uiState.asStateFlow()
@@ -139,11 +138,5 @@ class CadastroViewModel(private val conta: ContaService) : ViewModel() {
         }
 
         return if (houveErro) novo else null
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { CadastroViewModel(dependencias.conta) }
-        }
     }
 }

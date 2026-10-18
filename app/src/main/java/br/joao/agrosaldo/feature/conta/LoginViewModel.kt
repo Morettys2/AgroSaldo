@@ -1,14 +1,12 @@
 package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +19,8 @@ data class LoginUiState(val email: String = "", val senha: String = "", val erro
  * Login (RF02). Não navega: o sucesso abre a sessão no [ContaService], que é a
  * fonte única de "logado ou não" observada pela navegação.
  */
-class LoginViewModel(private val conta: ContaService) : ViewModel() {
+@HiltViewModel
+class LoginViewModel @Inject constructor(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -57,12 +56,6 @@ class LoginViewModel(private val conta: ContaService) : ViewModel() {
                     )
                 }
             }
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { LoginViewModel(dependencias.conta) }
         }
     }
 }

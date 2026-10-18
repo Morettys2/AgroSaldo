@@ -2,21 +2,19 @@ package br.joao.agrosaldo.feature.propriedade
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,6 +104,7 @@ private fun lerArea(texto: String): Area {
  * @param estadoSalvo guarda os campos digitados para sobreviverem à morte do processo; na
  *   edição, o que foi restaurado vale mais que o que está no banco.
  */
+@HiltViewModel
 class PropriedadeFormViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
@@ -114,6 +113,21 @@ class PropriedadeFormViewModel(
     private val desfazer: Desfazer = Desfazer(),
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
+
+    /** Construtor do Hilt: o id da propriedade em edição vem do argumento da rota (nulo na criação). */
+    @Inject
+    constructor(
+        propriedadeRepository: PropriedadeRepository,
+        selecao: SelecaoAtual,
+        desfazer: Desfazer,
+        estadoSalvo: SavedStateHandle
+    ) : this(
+        propriedadeRepository = propriedadeRepository,
+        selecao = selecao,
+        propriedadeId = estadoSalvo.get<String>(Rotas.ARG_ID),
+        desfazer = desfazer,
+        estadoSalvo = estadoSalvo
+    )
 
     private val _uiState = MutableStateFlow(
         PropriedadeFormUiState(
@@ -341,18 +355,5 @@ class PropriedadeFormViewModel(
          * dos países vizinhos: serve para pegar o sinal de menos esquecido, não para validar fronteira.
          */
         fun ficaNoBrasil(latitude: Double, longitude: Double): Boolean = latitude in -34.0..5.5 && longitude in -74.5..-28.5
-
-        /** @param propriedadeId id vindo da rota de navegação; nulo para criação. */
-        fun Factory(propriedadeId: String?): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                PropriedadeFormViewModel(
-                    selecao = dependencias.selecao,
-                    propriedadeRepository = dependencias.propriedades,
-                    propriedadeId = propriedadeId,
-                    desfazer = dependencias.desfazer,
-                    estadoSalvo = createSavedStateHandle()
-                )
-            }
-        }
     }
 }

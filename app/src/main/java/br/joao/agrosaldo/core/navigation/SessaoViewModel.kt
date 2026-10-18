@@ -1,16 +1,14 @@
 package br.joao.agrosaldo.core.navigation
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.RelogioMonotonico
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +30,8 @@ import kotlinx.coroutines.launch
  *
  * As ações só alteram estado; o redirecionamento é feito pela navegação.
  */
-class SessaoViewModel(
+@HiltViewModel
+class SessaoViewModel @Inject constructor(
     private val conta: ContaService,
     private val bloqueio: BloqueioRepository,
     /** Só encontra propriedades do usuário conectado. */
@@ -136,18 +135,5 @@ class SessaoViewModel(
 
     companion object {
         const val TEMPO_PARA_TRAVAR_MS = 2 * 60_000L
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                // Relógio monotônico (inclui deep sleep): imune a mudança da hora do sistema.
-                SessaoViewModel(
-                    conta = dependencias.conta,
-                    bloqueio = dependencias.bloqueio,
-                    propriedades = dependencias.propriedades,
-                    relogio = dependencias.relogioMonotonico,
-                    selecao = dependencias.selecao
-                )
-            }
-        }
     }
 }

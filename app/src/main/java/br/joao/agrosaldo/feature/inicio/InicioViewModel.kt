@@ -1,16 +1,12 @@
 package br.joao.agrosaldo.feature.inicio
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.clima.RegraDeChuva
@@ -24,9 +20,11 @@ import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +75,8 @@ data class CartaoChuvaUi(val rotulo: String, val frase: String, val detalhe: Str
  * TODO: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class InicioViewModel(
+@HiltViewModel
+class InicioViewModel @Inject constructor(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
@@ -246,18 +245,5 @@ class InicioViewModel(
         const val MAXIMO_CATEGORIAS = 3
 
         const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                InicioViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades,
-                    clima = dependencias.clima,
-                    ajustes = dependencias.ajustesAviso,
-                    usuarioLogado = dependencias.usuarioLogado
-                )
-            }
-        }
     }
 }

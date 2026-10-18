@@ -2,11 +2,8 @@ package br.joao.agrosaldo.feature.lancamento
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.DIGITOS_MAXIMOS_DO_VALOR
 import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.digitosParaCentavos
@@ -19,17 +16,18 @@ import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +49,8 @@ data class LancamentoFormUiState(
     val erroData: String? = null,
     val erroGeral: String? = null,
     val ehEdicao: Boolean = false,
+    /** Novo lançamento pré-preenchido a partir de outro ("Lançar de novo"). */
+    val ehCopia: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false,
     /** Gravação em andamento; desabilita o botão para evitar lançamento duplicado. */
@@ -94,6 +94,7 @@ data class LancamentoFormUiState(
  * @param estadoSalvo guarda os campos editáveis para sobreviverem à morte do processo; na
  *   edição, o que foi restaurado vale mais que o que está no banco.
  */
+@HiltViewModel
 class LancamentoFormViewModel(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
@@ -107,10 +108,39 @@ class LancamentoFormViewModel(
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
+    /**
+     * Construtor do Hilt: o id, a cópia e o tipo vêm dos argumentos da rota, que o Navigation
+     * coloca no [SavedStateHandle] (o mesmo onde o rascunho é guardado).
+     */
+    @Inject
+    constructor(
+        lancamentoRepository: LancamentoRepository,
+        propriedadeRepository: PropriedadeRepository,
+        selecao: SelecaoAtual,
+        desfazer: Desfazer,
+        relogio: Clock,
+        estadoSalvo: SavedStateHandle
+    ) : this(
+        lancamentoRepository = lancamentoRepository,
+        propriedadeRepository = propriedadeRepository,
+        selecao = selecao,
+        lancamentoId = estadoSalvo.get<String>(Rotas.ARG_ID),
+        copiaDe = estadoSalvo.get<String>(Rotas.ARG_COPIA),
+        desfazer = desfazer,
+        relogio = relogio,
+        tipoInicial = Rotas.tipoDaRota(estadoSalvo.get<String>(Rotas.ARG_TIPO)),
+        estadoSalvo = estadoSalvo
+    )
+
     private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     private val _uiState = MutableStateFlow(
-        LancamentoFormUiState(ehEdicao = lancamentoId != null, data = hoje().formatarBr(), hoje = hoje()).let { estado ->
+        LancamentoFormUiState(
+            ehEdicao = lancamentoId != null,
+            ehCopia = copiaDe != null,
+            data = hoje().formatarBr(),
+            hoje = hoje()
+        ).let { estado ->
             if (tipoInicial == null) {
                 estado
             } else {
@@ -149,6 +179,7 @@ class LancamentoFormViewModel(
                     descricao = origem.descricao,
                     propriedades = propriedades,
                     ehEdicao = !ehCopia,
+                    ehCopia = ehCopia,
                     hoje = hoje(),
                     carregado = true
                 ).comCamposRestaurados()
@@ -329,28 +360,13 @@ class LancamentoFormViewModel(
         /** Teto de entrada: R$ 9.999.999,99. */
         const val MAXIMO_DE_DIGITOS = DIGITOS_MAXIMOS_DO_VALOR
 
-        // Chaves do SavedStateHandle; os valores são String para caberem no Bundle.
-        internal const val CHAVE_TIPO = "tipo"
-        internal const val CHAVE_CATEGORIA = "categoria"
-        internal const val CHAVE_VALOR = "valor"
-        internal const val CHAVE_DATA = "data"
-        internal const val CHAVE_PROPRIEDADE = "propriedade"
-        internal const val CHAVE_DESCRICAO = "descricao"
-
-        fun Factory(lancamentoId: String?, copiaDe: String? = null, tipoInicial: TipoLancamento? = null): ViewModelProvider.Factory =
-            viewModelFactory {
-                initializer {
-                    LancamentoFormViewModel(
-                        selecao = dependencias.selecao,
-                        lancamentoRepository = dependencias.lancamentos,
-                        propriedadeRepository = dependencias.propriedades,
-                        lancamentoId = lancamentoId,
-                        copiaDe = copiaDe,
-                        desfazer = dependencias.desfazer,
-                        tipoInicial = tipoInicial,
-                        estadoSalvo = createSavedStateHandle()
-                    )
-                }
-            }
+        // Chaves do rascunho no SavedStateHandle (com prefixo: o handle também recebe os argumentos da
+        // rota, como "tipo"); os valores são String para caberem no Bundle.
+        internal const val CHAVE_TIPO = "rascunho_tipo"
+        internal const val CHAVE_CATEGORIA = "rascunho_categoria"
+        internal const val CHAVE_VALOR = "rascunho_valor"
+        internal const val CHAVE_DATA = "rascunho_data"
+        internal const val CHAVE_PROPRIEDADE = "rascunho_propriedade"
+        internal const val CHAVE_DESCRICAO = "rascunho_descricao"
     }
 }

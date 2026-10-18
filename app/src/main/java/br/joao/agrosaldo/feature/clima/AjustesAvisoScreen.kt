@@ -31,25 +31,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.aviso.NotificadorDeChuva
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.core.util.emMilimetros
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 /** Ajustes do aviso de chuva: ativação, limites (RN04) e propriedades avisadas. */
 @Composable
-fun AjustesAvisoRoute(
-    aoConcluir: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AjustesAvisoViewModel = viewModel(factory = AjustesAvisoViewModel.Factory)
-) {
+fun AjustesAvisoRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, viewModel: AjustesAvisoViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissao = rememberPermissaoNotificacao()
     val context = LocalContext.current
@@ -77,7 +72,7 @@ fun AjustesAvisoRoute(
         ferramentasDeTeste = if (ehDebug) {
             FerramentasDeTeste(
                 aoMostrarExemplo = {
-                    NotificadorDeChuva.mostrarExemplo(context, context.dependencias.selecao.propriedadeId.value)
+                    NotificadorDeChuva.mostrarExemplo(context, viewModel.propriedadeSelecionadaId())
                 },
                 aoVerificarAgora = {
                     viewModel.aoVerificarAgora()

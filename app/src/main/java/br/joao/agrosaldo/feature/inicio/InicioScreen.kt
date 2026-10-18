@@ -30,10 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import br.joao.agrosaldo.core.ui.BotaoCabecalho
 import br.joao.agrosaldo.core.ui.BotaoDestaque
 import br.joao.agrosaldo.core.ui.CabecalhoSafra
@@ -70,7 +70,7 @@ fun InicioRoute(
     aoAlternarValores: () -> Unit,
     aoCadastrarPropriedade: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: InicioViewModel = viewModel(factory = InicioViewModel.Factory)
+    viewModel: InicioViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

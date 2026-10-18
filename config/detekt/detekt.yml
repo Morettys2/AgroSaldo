@@ -33,6 +33,8 @@ complexity:
     ignoreAnnotated: ['Composable']
     # Construtor com injeção de dependências (ViewModels, serviços) recebe o que usa, e isso soma parâmetros.
     constructorThreshold: 10
+    # Os módulos do Hilt só ligam peças: cada parâmetro é um colaborador do que está sendo criado.
+    excludes: ['**/di/**']
   LongMethod:
     ignoreAnnotated: ['Composable']
   TooManyFunctions:

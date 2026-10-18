@@ -1,16 +1,12 @@
 package br.joao.agrosaldo.feature.lancamento
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloRelativo
 import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.Despachantes
 import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
@@ -20,10 +16,12 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.Normalizer
 import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,7 +92,8 @@ private data class Filtros(
  *
  * @param despachantes o estado é montado em [Despachantes.calculo], fora da main thread.
  */
-class LancamentoListaViewModel(
+@HiltViewModel
+class LancamentoListaViewModel @Inject constructor(
     private val lancamentoRepository: LancamentoRepository,
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
@@ -285,15 +284,5 @@ class LancamentoListaViewModel(
 
         private val CATEGORIAS_NORMALIZADAS: Map<CategoriaLancamento, String> =
             CategoriaLancamento.entries.associateWith { normalizar(it.rotulo) }
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                LancamentoListaViewModel(
-                    selecao = dependencias.selecao,
-                    lancamentoRepository = dependencias.lancamentos,
-                    propriedadeRepository = dependencias.propriedades
-                )
-            }
-        }
     }
 }

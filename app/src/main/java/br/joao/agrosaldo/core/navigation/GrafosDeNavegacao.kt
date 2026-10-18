@@ -1,8 +1,7 @@
 package br.joao.agrosaldo.core.navigation
 
 import androidx.compose.runtime.remember
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
@@ -41,7 +40,7 @@ internal fun NavGraphBuilder.grafoDaConta(navegador: Navegador) {
 
     composable(Rotas.CRIAR_CONTA) {
         // Escopo da entrada CRIAR_CONTA; compartilhado com CONSENTIMENTO.
-        val cadastroViewModel: CadastroViewModel = viewModel(factory = CadastroViewModel.Factory)
+        val cadastroViewModel: CadastroViewModel = hiltViewModel()
         CadastroRoute(
             viewModel = cadastroViewModel,
             aoIrParaConsentimento = { navegador.abrir(Rotas.CONSENTIMENTO) },
@@ -53,11 +52,8 @@ internal fun NavGraphBuilder.grafoDaConta(navegador: Navegador) {
         // Reutiliza o CadastroViewModel da entrada CRIAR_CONTA. Precisa de remember:
         // após criar a conta a back stack é limpa e getBackStackEntry lançaria
         // exceção durante a animação de saída desta tela.
-        val cadastroViewModel = remember(entrada) {
-            val donoDoCadastro = navegador.controle.getBackStackEntry(Rotas.CRIAR_CONTA)
-            val provedor = ViewModelProvider(donoDoCadastro, CadastroViewModel.Factory)
-            provedor[CadastroViewModel::class.java]
-        }
+        val donoDoCadastro = remember(entrada) { navegador.controle.getBackStackEntry(Rotas.CRIAR_CONTA) }
+        val cadastroViewModel: CadastroViewModel = hiltViewModel(donoDoCadastro)
         ConsentimentoRoute(
             viewModel = cadastroViewModel,
             aoLerPolitica = { navegador.abrir(Rotas.POLITICA) },
@@ -139,8 +135,6 @@ internal fun NavGraphBuilder.grafoDoFinanceiro(navegador: Navegador, aoAlternarV
     ) { entrada ->
         LancamentoFormRoute(
             lancamentoId = entrada.arguments?.getString(Rotas.ARG_ID),
-            copiaDe = entrada.arguments?.getString(Rotas.ARG_COPIA),
-            tipoInicial = Rotas.tipoDaRota(entrada.arguments?.getString(Rotas.ARG_TIPO)),
             // Guarda contra pop duplo durante a animação de saída.
             aoConcluir = { navegador.fecharSeNoTopo(Rotas.FORM_LANCAMENTO) },
             // Sem propriedade cadastrada: substitui o formulário pelo cadastro.
@@ -159,7 +153,6 @@ internal fun NavGraphBuilder.grafoDoFinanceiro(navegador: Navegador, aoAlternarV
         arguments = listOf(argumentoOpcional(Rotas.ARG_ID))
     ) { entrada ->
         PropriedadeFormRoute(
-            propriedadeId = entrada.arguments?.getString(Rotas.ARG_ID),
             aoConcluir = { navegador.fecharSeNoTopo(Rotas.FORM_PROPRIEDADE) }
         )
     }

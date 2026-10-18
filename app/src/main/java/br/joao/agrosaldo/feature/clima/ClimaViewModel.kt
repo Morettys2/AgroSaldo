@@ -1,10 +1,7 @@
 package br.joao.agrosaldo.feature.clima
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.diaEHora
 import br.joao.agrosaldo.core.util.emGraus
@@ -14,7 +11,6 @@ import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
 import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
@@ -26,9 +22,11 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -93,7 +91,8 @@ data class ClimaUiState(
  * Ao voltar para a tela ([aoVoltarParaATela]), recalcula o que depende do relógio.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class ClimaViewModel(
+@HiltViewModel
+class ClimaViewModel @Inject constructor(
     private val propriedadeRepository: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
@@ -312,16 +311,5 @@ class ClimaViewModel(
         const val MENSAGEM_SEM_INTERNET_SEM_PREVISAO = "Sem internet. Tente de novo quando o celular tiver sinal."
         const val MENSAGEM_ERRO = "Não foi possível carregar a previsão salva. Tentando de novo…"
         const val MENSAGEM_FALHA = "Não deu para atualizar a previsão agora. Tente de novo em instantes."
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                ClimaViewModel(
-                    selecao = dependencias.selecao,
-                    propriedadeRepository = dependencias.propriedades,
-                    clima = dependencias.clima,
-                    ajustes = dependencias.ajustesAviso
-                )
-            }
-        }
     }
 }

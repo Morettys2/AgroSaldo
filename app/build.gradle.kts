@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
 }
 
@@ -140,8 +141,15 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
+    // Hilt: injeção de dependências (ViewModels, Worker e Application). O processador roda via KSP.
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+
     // WorkManager: verificação periódica de chuva em segundo plano.
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Bloqueio por biometria/credencial do aparelho. appcompat e fragment são
     // declarados para sobrepor as versões antigas trazidas pelo biometric 1.1.0.
@@ -161,6 +169,9 @@ dependencies {
     testFixturesImplementation(libs.androidx.compose.runtime)
 
     testImplementation(libs.junit)
+    // Teste do grafo de dependências: o Hilt monta o app de verdade dentro do Robolectric.
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
     testImplementation(libs.kotlinx.coroutines.test)
     // Implementação real do org.json para testes JVM (o android.jar só tem stubs).
     testImplementation(libs.org.json)

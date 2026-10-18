@@ -2,6 +2,7 @@ package br.joao.agrosaldo.feature
 
 import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.MainDispatcherRule
+import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
@@ -248,6 +249,40 @@ class LancamentoFormViewModelTest {
         vm.aoExcluir()
 
         assertNull(desfazer.pendente.value)
+    }
+
+    private fun doHilt(vararg argumentos: Pair<String, String>) = LancamentoFormViewModel(
+        lancamentos,
+        propriedades,
+        selecao,
+        desfazer,
+        relogioEm(hoje),
+        SavedStateHandle(mapOf(*argumentos))
+    )
+
+    @Test
+    fun `construtor do Hilt le o id da rota e abre em modo de edicao`() = runTest {
+        val vm = doHilt(Rotas.ARG_ID to "exemplo-3")
+
+        assertTrue(vm.uiState.value.ehEdicao)
+        assertFalse(vm.uiState.value.ehCopia)
+        assertEquals(checkNotNull(lancamentos.buscarPorId("exemplo-3")).valorCentavos, vm.uiState.value.valorDigitos.toLong())
+    }
+
+    @Test
+    fun `construtor do Hilt le a copia da rota e abre um lancamento novo preenchido`() = runTest {
+        val vm = doHilt(Rotas.ARG_COPIA to "exemplo-3")
+
+        assertFalse(vm.uiState.value.ehEdicao)
+        assertTrue(vm.uiState.value.ehCopia)
+        assertEquals(checkNotNull(lancamentos.buscarPorId("exemplo-3")).valorCentavos, vm.uiState.value.valorDigitos.toLong())
+    }
+
+    @Test
+    fun `construtor do Hilt le o tipo da rota e ignora um tipo invalido`() {
+        assertEquals(TipoLancamento.RECEITA, doHilt(Rotas.ARG_TIPO to "RECEITA").uiState.value.tipo)
+        assertEquals(TipoLancamento.DESPESA, doHilt(Rotas.ARG_TIPO to "NAO_EXISTE").uiState.value.tipo)
+        assertEquals(TipoLancamento.DESPESA, doHilt().uiState.value.tipo)
     }
 
     @Test

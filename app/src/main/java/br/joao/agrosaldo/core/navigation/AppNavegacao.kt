@@ -43,11 +43,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -88,8 +88,8 @@ fun AppNavegacao(
     modifier: Modifier = Modifier,
     pedidoDoClima: PedidoDoClima? = null,
     navController: NavHostController = rememberNavController(),
-    sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory),
-    privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory)
+    sessaoViewModel: SessaoViewModel = hiltViewModel(),
+    privacidadeViewModel: PrivacidadeViewModel = hiltViewModel()
 ) {
     val valoresOcultos by privacidadeViewModel.valoresOcultos.collectAsStateWithLifecycle()
     val logado by sessaoViewModel.logado.collectAsStateWithLifecycle()

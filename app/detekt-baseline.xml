@@ -3,18 +3,14 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>ComplexCondition:PropriedadeFormViewModel.kt$PropriedadeFormViewModel$houveErro || area == null || lat == null || lon == null</ID>
-    <ID>CyclomaticComplexMethod:AppNavegacao.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AppNavegacao( desfazer: Desfazer, modifier: Modifier = Modifier, pedidoDoClima: PedidoDoClima? = null, navController: NavHostController = rememberNavController(), sessaoViewModel: SessaoViewModel = viewModel(factory = SessaoViewModel.Factory), privacidadeViewModel: PrivacidadeViewModel = viewModel(factory = PrivacidadeViewModel.Factory) )</ID>
+    <ID>CyclomaticComplexMethod:AppNavegacao.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AppNavegacao( desfazer: Desfazer, modifier: Modifier = Modifier, pedidoDoClima: PedidoDoClima? = null, navController: NavHostController = rememberNavController(), sessaoViewModel: SessaoViewModel = hiltViewModel(), privacidadeViewModel: PrivacidadeViewModel = hiltViewModel() )</ID>
     <ID>CyclomaticComplexMethod:PropriedadeFormViewModel.kt$PropriedadeFormViewModel$fun aoSalvar()</ID>
     <ID>CyclomaticComplexMethod:VerificadorDeChuva.kt$VerificadorDeChuva$suspend fun verificar(notificar: (AvisoDeChuva) -&gt; Boolean): ResultadoVerificacao</ID>
     <ID>ForbiddenComment:InicioViewModel.kt$InicioViewModel$* Tela inicial: saldo, receitas/despesas e maiores gastos do mês da propriedade * selecionada, últimos lançamentos e cartão de chuva. * * Os totais são agregados em memória a partir de todos os lançamentos a cada emissão. * TODO: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.</ID>
     <ID>LongMethod:DadosDeExemplo.kt$DadosDeExemplo$fun lancamentos(hoje: LocalDate = LocalDate.now()): List&lt;Lancamento&gt;</ID>
     <ID>LongMethod:PropriedadeFormViewModel.kt$PropriedadeFormViewModel$fun aoSalvar()</ID>
     <ID>LongParameterList:ClimaViewModel.kt$ClimaViewModel$( propriedades: List&lt;Propriedade&gt;, propriedade: Propriedade?, previsao: Previsao?, limites: LimitesChuva, avisoAtivo: Boolean, atualizando: Boolean, falha: FalhaDeAtualizacao? )</ID>
-    <ID>LongParameterList:ContaService.kt$ContaService$( private val usuarios: UsuarioRepository, private val sessao: SessaoRepository, private val tentativas: TentativasRepository, private val hash: HashDeSenha = HashDeSenha(), private val relogio: () -&gt; Long = System::currentTimeMillis, private val relogioMonotonico: () -&gt; InstanteMonotonico? = { null }, private val dispatcherCalculo: CoroutineDispatcher = Dispatchers.Default, private val aoTrocarDeUsuario: () -&gt; Unit = {}, private val aoExcluirConta: suspend (usuarioId: String) -&gt; Unit = {} )</ID>
-    <ID>LongParameterList:InicioViewModel.kt$InicioViewModel$( private val lancamentoRepository: LancamentoRepository, private val propriedadeRepository: PropriedadeRepository, private val clima: ClimaRepository, private val ajustes: AjustesAvisoRepository, /** Propriedade e mês escolhidos, compartilhados com as outras telas. */ private val selecao: SelecaoAtual, private val relogio: () -&gt; Long = System::currentTimeMillis, /** Nome do usuário logado, usado para as iniciais. */ nomeDoUsuario: Flow&lt;String?&gt; = flowOf(null), private val hoje: () -&gt; LocalDate = LocalDate::now )</ID>
-    <ID>LongParameterList:LancamentoFormViewModel.kt$LancamentoFormViewModel$( private val lancamentoRepository: LancamentoRepository, private val propriedadeRepository: PropriedadeRepository, /** Propriedade e mês escolhidos, compartilhados com as outras telas. */ private val selecao: SelecaoAtual, private val lancamentoId: String?, private val copiaDe: String? = null, private val desfazer: Desfazer = Desfazer(), private val hoje: () -&gt; LocalDate = LocalDate::now, tipoInicial: TipoLancamento? = null, private val estadoSalvo: SavedStateHandle = SavedStateHandle() )</ID>
     <ID>LoopWithTooManyJumpStatements:VerificadorDeChuva.kt$VerificadorDeChuva$for</ID>
-    <ID>MagicNumber:AgroSaldoDatabase.kt$AgroSaldoDatabase.Companion.&lt;no name provided&gt;$3</ID>
     <ID>MagicNumber:AjustesAvisoViewModel.kt$AjustesAvisoViewModel$5</ID>
     <ID>MagicNumber:AjustesAvisoViewModel.kt$AjustesAvisoViewModel$5f</ID>
     <ID>MagicNumber:ClimaScreen.kt$10</ID>
@@ -89,7 +85,6 @@
     <ID>ReturnCount:ContaService.kt$ContaService$suspend fun cadastrar(nome: String, email: String, senha: String, aceitouTermo: Boolean): ResultadoCadastro</ID>
     <ID>ReturnCount:HashDeSenha.kt$HashDeSenha$fun confere(senha: String, armazenado: String): Boolean</ID>
     <ID>ReturnCount:RegrasDeConta.kt$RegrasDeConta$private fun ehPrevisivel(senha: String, email: String, nome: String): Boolean</ID>
-    <ID>SpreadOperator:AgroSaldoDatabase.kt$AgroSaldoDatabase.Companion$(*MIGRACOES)</ID>
     <ID>SwallowedException:AgroSaldoDatabaseTest.kt$AgroSaldoDatabaseTest$esperado: SQLiteConstraintException</ID>
     <ID>SwallowedException:CamadaDeDadosTest.kt$CamadaDeDadosTest$esperado: IllegalArgumentException</ID>
     <ID>SwallowedException:CamadaDeDadosTest.kt$CamadaDeDadosTest$esperado: IllegalStateException</ID>
@@ -97,7 +92,6 @@
     <ID>SwallowedException:ClimaRepositoryRoom.kt$ClimaRepositoryRoom$e: RespostaInvalidaException</ID>
     <ID>SwallowedException:ClimaTest.kt$ClimaTest$esperado: IllegalArgumentException</ID>
     <ID>SwallowedException:ClimaTest.kt$ClimaTest$esperado: RespostaInvalidaException</ID>
-    <ID>SwallowedException:Dependencias.kt$Dependencias$e: SQLiteException</ID>
     <ID>SwallowedException:Desfazer.kt$Desfazer$e: Exception</ID>
     <ID>SwallowedException:DesfazerESelecaoTest.kt$DesfazerESelecaoTest$esperado: CancellationException</ID>
     <ID>SwallowedException:HashDeSenha.kt$HashDeSenha$e: IllegalArgumentException</ID>

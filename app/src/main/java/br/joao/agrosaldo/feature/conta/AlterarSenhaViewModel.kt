@@ -1,16 +1,14 @@
 package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
 import br.joao.agrosaldo.domain.conta.ResultadoAlteracaoSenha
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,7 +37,8 @@ data class AlterarSenhaUiState(
  * Troca de senha do usuário logado. Exige a senha atual para que alguém com o
  * aparelho desbloqueado não consiga tomar a conta.
  */
-class AlterarSenhaViewModel(private val conta: ContaService) : ViewModel() {
+@HiltViewModel
+class AlterarSenhaViewModel @Inject constructor(private val conta: ContaService) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AlterarSenhaUiState())
     val uiState: StateFlow<AlterarSenhaUiState> = _uiState.asStateFlow()
@@ -103,12 +102,6 @@ class AlterarSenhaViewModel(private val conta: ContaService) : ViewModel() {
                     ResultadoAlteracaoSenha.SemSessao -> it.copy(salvando = false)
                 }
             }
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { AlterarSenhaViewModel(dependencias.conta) }
         }
     }
 }
