@@ -33,7 +33,7 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | Build | AGP 9.3.2 (Kotlin embutido no AGP), Gradle 9.5.0, Version Catalog (`gradle/libs.versions.toml`), KSP |
 | JDK | Gradle roda no JDK 25 (toolchain do daemon); o código compila para Java 11 |
 | Arquitetura | MVVM + Repository, com camada `domain` pura (Kotlin sem Android) |
-| Banco | Room 2.8.5, banco versão 3 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`), migrações em `data/local` e schemas em `app/schemas` |
+| Banco | Room 2.8.5, banco versão 3 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`), que é a base da produção: **sem migrações antigas**, a próxima parte da 3. Schema exportado em `app/schemas` |
 | DI | **Manual**: `di/Dependencias.kt`, criado e guardado pelo `AgroSaldoApp` e lido nas `Factory` de cada ViewModel via `CreationExtras.dependencias` (`APPLICATION_KEY`). **Sem** Hilt/Koin, por decisão: é projeto de aprendizado |
 | Rede | `HttpURLConnection` + `org.json` (`data/clima/FontePrevisao.kt`). Só a Open-Meteo, por HTTPS |
 | Preferências | `SharedPreferences` (`data/preferencias`, `data/sessao`) |
@@ -58,7 +58,7 @@ core/            navigation/ (AppNavegacao, Navegador, GrafosDeNavegacao, BarraI
                  ui/ (componentes "Safra": botões, estados, seletor, cabeçalho),
                  util/ (Moeda, datas, Erros, TextosDaChuva), localizacao/, seguranca/
 di/              Dependencias (container da DI manual)
-data/            SelecaoAtual, Desfazer, local/ (Room: entidades, DAOs, migrações, Transacao),
+data/            SelecaoAtual, Desfazer, local/ (Room: entidades, DAOs, Transacao),
                  repository/ (implementações Room), clima/ (Open-Meteo), preferencias/, sessao/
 domain/          model/, repository/ (interfaces), financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva),
                  conta/ (HashDeSenha, regras da conta e do bloqueio)
@@ -72,8 +72,8 @@ Fora de `src/main`:
 ```
 app/src/testFixtures/  fakes *Memoria, DadosDeExemplo, Semeador (usados pelos dois tipos de teste)
 app/src/test/          testes JVM: domínio, ViewModels, Worker, preferências, telas (Robolectric), capturas (Roborazzi)
-app/src/androidTest/   testes instrumentados: DAOs e migrações do Room (precisam de emulador)
-app/schemas/           JSON dos schemas do Room (um por versão; usado nos testes de migração)
+app/src/androidTest/   testes instrumentados: DAOs do Room (precisam de emulador)
+app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; base dos testes de migração futuros)
 config/detekt/         detekt.yml
 app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 .editorconfig          regras do ktlint
@@ -152,8 +152,8 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 ./gradlew detektBaseline     # regenera o baseline depois de limpar achados antigos
 ```
 
-- Os testes instrumentados (`connectedAndroidTest`: DAOs e migrações) precisam de emulador e **não rodam na nuvem**. Se mexer em DAO, entidade ou migração, avise para rodar no Android Studio.
-- Mudou entidade do Room? Suba a versão do banco, escreva a migração, exporte o schema e acrescente o teste de migração.
+- Os testes instrumentados (`connectedAndroidTest`: DAOs) precisam de emulador e **não rodam na nuvem**. Se mexer em DAO, entidade ou migração, avise para rodar no Android Studio.
+- Mudou entidade do Room? Suba a versão do banco (a partir da 3), escreva a migração dela, exporte o schema e acrescente o teste de migração. Nunca use `fallbackToDestructiveMigration`.
 
 ### Detalhes de ferramenta (não "conserte" sem entender)
 
@@ -182,6 +182,7 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
 9. Não recrie README, CHANGELOG nem `docs/`: este arquivo é a referência do repo, por decisão do João.
+10. **Branches de longa duração:** `main` é o desenvolvimento (testes, CI, tudo). `prod` é a versão de apresentação/entrega: igual à `main`, mas sem as migrações 1→2 e 2→3 (banco v3 como base, pois não há dados reais a preservar). Desenvolva na `main` e leve para a `prod` por merge; conflitos em `AgroSaldoDatabase.kt` e em `app/schemas` se resolvem mantendo a versão mais nova.
 
 ---
 
