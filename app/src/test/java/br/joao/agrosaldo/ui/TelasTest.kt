@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.feature.inicio.InicioScreen
@@ -58,7 +59,7 @@ class TelasTest {
             propriedadeRepository = PropriedadeRepositoryMemoria(),
             selecao = SelecaoAtual(propriedadeInicial = DadosDeExemplo.ID_FAZENDA),
             lancamentoId = null,
-            hoje = { hoje }
+            relogio = relogioEm(hoje)
         )
         compose.setContent {
             AgroSaldoTheme(escuro = false) {

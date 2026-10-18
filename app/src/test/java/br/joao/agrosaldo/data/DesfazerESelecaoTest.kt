@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data
 
+import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -84,7 +85,7 @@ class DesfazerESelecaoTest {
     @Test
     fun `oferta antiga expira - reabrir o app horas depois nao mostra a barra`() {
         var agora = 1_000L
-        val desfazer = Desfazer(relogio = { agora })
+        val desfazer = Desfazer(relogio = RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
         desfazer.oferecer("x") { }
         val pendente = checkNotNull(desfazer.pendente.value)
 
@@ -98,7 +99,7 @@ class DesfazerESelecaoTest {
     fun `desfazer depois do prazo nao restaura`() = runTest {
         // A barra pode aparecer atrasada (ex.: só depois de desbloquear o app) e ser tocada já vencida.
         var agora = 0L
-        val desfazer = Desfazer { agora }
+        val desfazer = Desfazer(RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
         var restaurou = 0
         desfazer.oferecer("Propriedade excluída") { restaurou++ }
         val pendente = checkNotNull(desfazer.pendente.value)

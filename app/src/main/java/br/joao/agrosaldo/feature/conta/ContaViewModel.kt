@@ -7,13 +7,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.formatarDataHoraBr
 import br.joao.agrosaldo.core.util.formatarEspera
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
-import java.time.ZoneId
+import java.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,7 +52,7 @@ class ContaViewModel(
     private val conta: ContaService,
     private val propriedadeRepository: PropriedadeRepository,
     private val bloqueio: BloqueioRepository,
-    private val zona: ZoneId = ZoneId.systemDefault()
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
 
     private val exclusaoEmAndamento = MutableStateFlow(EstadoExclusao())
@@ -76,7 +77,7 @@ class ContaViewModel(
                         nome = usuario.nome,
                         email = usuario.email,
                         iniciais = RegrasDeConta.iniciais(usuario.nome),
-                        consentimentoEm = usuario.consentimentoEm.formatarDataHoraBr(zona),
+                        consentimentoEm = usuario.consentimentoEm.formatarDataHoraBr(relogio.zone),
                         versaoTermo = usuario.versaoTermo,
                         quantidadePropriedades = propriedades.size,
                         bloqueioAtivo = bloqueioAtivo,

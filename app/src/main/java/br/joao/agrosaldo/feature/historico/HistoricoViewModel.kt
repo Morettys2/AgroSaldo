@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
@@ -15,6 +16,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,8 +76,10 @@ class HistoricoViewModel(
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val hoje: () -> LocalDate = LocalDate::now
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
+
+    private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     // Ano inicial: o do mês selecionado globalmente.
     private val anoEscolhido = MutableStateFlow(selecao.mes.value.year)

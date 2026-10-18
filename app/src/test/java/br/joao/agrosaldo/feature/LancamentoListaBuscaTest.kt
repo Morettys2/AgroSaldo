@@ -3,8 +3,11 @@ package br.joao.agrosaldo.feature
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.core.navigation.PrivacidadeViewModel
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.DespachantesDeTeste
+import br.joao.agrosaldo.data.RelogioMutavel
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.preferencias.PrivacidadeMemoria
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -15,6 +18,7 @@ import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -56,9 +60,13 @@ class LancamentoListaBuscaTest {
     }
 
     /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
-    private fun lista() = LancamentoListaViewModel(exemplos, propriedades, hoje = {
-        hoje
-    }, processamento = EmptyCoroutineContext, selecao = selecao)
+    private fun lista() = LancamentoListaViewModel(
+        exemplos,
+        propriedades,
+        relogio = relogioEm(hoje),
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+        selecao = selecao
+    )
 
     /** Dia fixo, para "Hoje" e "Ontem" não dependerem do dia em que o teste roda. */
     private val quinzeDeSetembro = LocalDate.of(2026, 9, 15)
@@ -82,9 +90,13 @@ class LancamentoListaBuscaTest {
             )
         )
         selecao.selecionarMes(YearMonth.of(2026, 9))
-        return LancamentoListaViewModel(repo, propriedades, hoje = {
-            quinzeDeSetembro
-        }, processamento = EmptyCoroutineContext, selecao = selecao)
+        return LancamentoListaViewModel(
+            repo,
+            propriedades,
+            relogio = relogioEm(quinzeDeSetembro),
+            despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+            selecao = selecao
+        )
     }
 
     @Test
@@ -269,13 +281,20 @@ class LancamentoListaBuscaTest {
 
     @Test
     fun `voltar para a tela depois da meia-noite troca hoje por ontem`() {
-        var hoje = quinzeDeSetembro
+        val relogio = RelogioMutavel(quinzeDeSetembro)
         val repo = LancamentoRepositoryMemoria(listOf(lancamento("b", quinzeDeSetembro)))
         selecao.selecionarMes(YearMonth.of(2026, 9))
-        val vm = LancamentoListaViewModel(repo, propriedades, hoje = { hoje }, processamento = EmptyCoroutineContext, selecao = selecao)
+        val vm =
+            LancamentoListaViewModel(
+                repo,
+                propriedades,
+                relogio = relogio,
+                despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+                selecao = selecao
+            )
         assertEquals("Hoje", vm.uiState.value.grupos.single().rotulo)
 
-        hoje = quinzeDeSetembro.plusDays(1)
+        relogio.irParaODia(quinzeDeSetembro.plusDays(1))
         vm.aoVoltarParaATela()
         assertEquals("Ontem", vm.uiState.value.grupos.single().rotulo)
     }
@@ -283,7 +302,14 @@ class LancamentoListaBuscaTest {
     @Test
     fun `lista e busca sao montadas no contexto de processamento, fora da main`() = runTest {
         val processamento = StandardTestDispatcher(testScheduler)
-        val vm = LancamentoListaViewModel(exemplos, propriedades, hoje = { hoje }, processamento = processamento, selecao = selecao)
+        val vm =
+            LancamentoListaViewModel(
+                exemplos,
+                propriedades,
+                relogio = relogioEm(hoje),
+                despachantes = DespachantesDeTeste(processamento),
+                selecao = selecao
+            )
         assertTrue("nada é calculado antes de o processamento rodar", vm.uiState.value.carregando)
 
         runCurrent()
@@ -297,12 +323,19 @@ class LancamentoListaBuscaTest {
 
     @Test
     fun `voltar para a tela depois da virada do mes mostra o mes novo`() {
-        var dia = LocalDate.of(2026, 9, 30)
+        val relogio = RelogioMutavel(LocalDate.of(2026, 9, 30))
         selecao.limpar(agora = YearMonth.of(2026, 9))
         selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
-        val vm = LancamentoListaViewModel(exemplos, propriedades, hoje = { dia }, processamento = EmptyCoroutineContext, selecao = selecao)
+        val vm =
+            LancamentoListaViewModel(
+                exemplos,
+                propriedades,
+                relogio = relogio,
+                despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+                selecao = selecao
+            )
 
-        dia = LocalDate.of(2026, 10, 1)
+        relogio.irParaODia(LocalDate.of(2026, 10, 1))
         vm.aoVoltarParaATela()
 
         assertEquals(YearMonth.of(2026, 10), vm.uiState.value.mes)

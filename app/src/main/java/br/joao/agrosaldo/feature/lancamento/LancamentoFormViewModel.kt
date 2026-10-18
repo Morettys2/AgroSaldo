@@ -17,6 +17,7 @@ import br.joao.agrosaldo.core.util.rotuloDeData
 import br.joao.agrosaldo.core.util.rotuloRelativoCurto
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -25,6 +26,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
@@ -100,10 +102,12 @@ class LancamentoFormViewModel(
     private val lancamentoId: String?,
     private val copiaDe: String? = null,
     private val desfazer: Desfazer = Desfazer(),
-    private val hoje: () -> LocalDate = LocalDate::now,
+    private val relogio: Clock = RelogioDoAparelho,
     tipoInicial: TipoLancamento? = null,
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
+
+    private fun hoje(): LocalDate = LocalDate.now(relogio)
 
     private val _uiState = MutableStateFlow(
         LancamentoFormUiState(ehEdicao = lancamentoId != null, data = hoje().formatarBr(), hoje = hoje()).let { estado ->

@@ -4,6 +4,7 @@ import androidx.work.ListenableWorker
 import br.joao.agrosaldo.clima.ApoioClima.AGORA
 import br.joao.agrosaldo.clima.ApoioClima.previsao
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
@@ -35,8 +36,9 @@ class VerificacaoChuvaWorkerTest {
         SessaoMemoria("u1"),
         PropriedadeRepositoryMemoria(listOf(fazenda)),
         clima,
-        AjustesAvisoMemoria()
-    ) { AGORA.toEpochMilli() }
+        AjustesAvisoMemoria(),
+        relogioPorMs { AGORA.toEpochMilli() }
+    )
 
     private val mostrados = mutableListOf<Pair<AvisoDeChuva, Int>>()
 

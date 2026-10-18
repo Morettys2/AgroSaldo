@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
+import br.joao.agrosaldo.domain.RelogioMonotonico
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
@@ -35,10 +37,10 @@ class SessaoViewModel(
     private val bloqueio: BloqueioRepository,
     /** Só encontra propriedades do usuário conectado. */
     private val propriedades: PropriedadeRepository,
-    /** Em milissegundos; deve ser monotônico (ver Factory). */
-    private val relogio: () -> Long = System::currentTimeMillis,
-    /** Escolhe a propriedade do aviso de chuva ([br.joao.agrosaldo.data.SelecaoAtual.selecionar]). */
-    private val selecionarPropriedade: (String) -> Unit
+    /** Monotônico: mudar a hora do aparelho não destrava nem trava o app. */
+    private val relogio: RelogioMonotonico,
+    /** Escolhe a propriedade do aviso de chuva. */
+    private val selecao: SelecaoAtual
 ) : ViewModel() {
 
     /** Valor inicial lido da sessão gravada, para evitar um frame com a tela de login. */
@@ -105,7 +107,7 @@ class SessaoViewModel(
         if (!logado.value || aceitePendente == true) return false
         if (propriedadeId != null) {
             propriedades.buscarPorId(propriedadeId) ?: return false
-            selecionarPropriedade(propriedadeId)
+            selecao.selecionar(propriedadeId)
         }
         return true
     }
@@ -122,14 +124,14 @@ class SessaoViewModel(
     fun aoUsarSenha() = conta.sair()
 
     fun aoIrParaSegundoPlano() {
-        foiParaSegundoPlanoEm = relogio()
+        foiParaSegundoPlanoEm = relogio.milissegundos()
     }
 
     /** Rebloqueia se o app ficou em segundo plano por [TEMPO_PARA_TRAVAR_MS] ou mais. */
     fun aoVoltarParaPrimeiroPlano() {
         val saiu = foiParaSegundoPlanoEm ?: return
         foiParaSegundoPlanoEm = null
-        if (relogio() - saiu >= TEMPO_PARA_TRAVAR_MS) desbloqueadoNestaSessao.value = false
+        if (relogio.milissegundos() - saiu >= TEMPO_PARA_TRAVAR_MS) desbloqueadoNestaSessao.value = false
     }
 
     companion object {
@@ -143,7 +145,7 @@ class SessaoViewModel(
                     bloqueio = dependencias.bloqueio,
                     propriedades = dependencias.propriedades,
                     relogio = dependencias.relogioMonotonico,
-                    selecionarPropriedade = dependencias.selecao::selecionar
+                    selecao = dependencias.selecao
                 )
             }
         }

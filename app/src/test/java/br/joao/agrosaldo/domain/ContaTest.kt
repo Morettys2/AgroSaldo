@@ -1,5 +1,8 @@
 package br.joao.agrosaldo.domain
 
+import br.joao.agrosaldo.data.DespachantesDeTeste
+import br.joao.agrosaldo.data.RelogioMonotonicoFalso
+import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryMemoria
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.data.sessao.TentativasMemoria
@@ -47,8 +50,8 @@ class ContaTest {
         sessao = sessao,
         tentativas = tentativas,
         hash = hashRapido,
-        relogio = { agora },
-        dispatcherCalculo = Dispatchers.Unconfined,
+        relogio = relogioPorMs { agora },
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
         aoTrocarDeUsuario = { trocasDeUsuario++ }
     )
 
@@ -61,9 +64,9 @@ class ContaTest {
         sessao = sessao,
         tentativas = tentativas,
         hash = hashRapido,
-        relogio = { agora },
-        relogioMonotonico = { InstanteMonotonico(boot, desdeOBoot) },
-        dispatcherCalculo = Dispatchers.Unconfined
+        relogio = relogioPorMs { agora },
+        relogioMonotonico = RelogioMonotonicoFalso { InstanteMonotonico(boot, desdeOBoot) },
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
     )
 
     private suspend fun cadastrarFabio(): ResultadoCadastro =
@@ -447,8 +450,8 @@ class ContaTest {
             sessao,
             tentativas,
             hash = HashDeSenha(iteracoes = 500),
-            relogio = { agora },
-            dispatcherCalculo = Dispatchers.Unconfined
+            relogio = relogioPorMs { agora },
+            despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
         )
         antigo.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
         antigo.sair()
@@ -588,8 +591,8 @@ class ContaTest {
         sessao = sessao,
         tentativas = tentativas,
         hash = hashRapido,
-        relogio = { agora },
-        dispatcherCalculo = Dispatchers.Unconfined,
+        relogio = relogioPorMs { agora },
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
         aoExcluirConta = aoExcluirConta
     )
 

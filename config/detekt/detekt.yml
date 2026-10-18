@@ -31,6 +31,8 @@ complexity:
   LongParameterList:
     # Telas Compose recebem estado e callbacks; o normal é uma lista longa.
     ignoreAnnotated: ['Composable']
+    # Construtor com injeção de dependências (ViewModels, serviços) recebe o que usa, e isso soma parâmetros.
+    constructorThreshold: 10
   LongMethod:
     ignoreAnnotated: ['Composable']
   TooManyFunctions:

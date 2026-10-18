@@ -7,6 +7,7 @@ import br.joao.agrosaldo.clima.ApoioClima.previsao
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.rotuloDoDia
+import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
@@ -15,6 +16,7 @@ import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
@@ -332,7 +334,7 @@ class ClimaTest {
         chamadas++
         resposta()
     }
-    private val repositorio = ClimaRepositoryRoom(fonte, dao) { agoraMs }
+    private val repositorio = ClimaRepositoryRoom(fonte, dao, relogio = relogioPorMs { agoraMs })
 
     @Test
     fun `RF12 - atualizar baixa, guarda e entrega a previsao`() = runTest {
@@ -415,7 +417,7 @@ class ClimaTest {
     fun `JSON guardado e convertido fora da thread de quem observa`() = runTest {
         val processamento = Executors.newSingleThreadExecutor { Thread(it, "processamento") }.asCoroutineDispatcher()
         try {
-            val repo = ClimaRepositoryRoom(fonte, dao, processamento) { agoraMs }
+            val repo = ClimaRepositoryRoom(fonte, dao, DespachantesDeTeste(processamento), relogioPorMs { agoraMs })
             repo.atualizar(fazenda)
 
             // Com asserções ligadas, o kotlinx.coroutines acrescenta " @coroutine#N" ao nome da thread.
@@ -459,7 +461,13 @@ class ClimaTest {
         ajustes: AjustesAvisoMemoria = AjustesAvisoMemoria(),
         usuario: String? = "u1",
         relogio: () -> Long = { AGORA.toEpochMilli() }
-    ) = VerificadorDeChuva(SessaoMemoria(usuario), PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, ajustes, relogio)
+    ) = VerificadorDeChuva(
+        SessaoMemoria(usuario),
+        PropriedadeRepositoryMemoria(listOf(fazenda, sitio)),
+        clima,
+        ajustes,
+        relogioPorMs(fonte = relogio)
+    )
 
     private val comChuva = previsao(mapOf(18 to (85 to 6.0)))
 
@@ -525,9 +533,15 @@ class ClimaTest {
         val notificados = mutableListOf<String>()
 
         val interrompida = runCatching {
-            VerificadorDeChuva(SessaoMemoria("u1"), PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, ajustes) {
-                AGORA.toEpochMilli()
-            }.verificar {
+            VerificadorDeChuva(
+                SessaoMemoria("u1"),
+                PropriedadeRepositoryMemoria(listOf(fazenda, sitio)),
+                clima,
+                ajustes,
+                relogioPorMs {
+                    AGORA.toEpochMilli()
+                }
+            ).verificar {
                 notificados += it.propriedadeId
                 true
             }
@@ -566,9 +580,15 @@ class ClimaTest {
             }
             val notificados = mutableListOf<String>()
 
-            val r = VerificadorDeChuva(sessao, PropriedadeRepositoryMemoria(listOf(fazenda, sitio)), clima, AjustesAvisoMemoria()) {
-                AGORA.toEpochMilli()
-            }.verificar {
+            val r = VerificadorDeChuva(
+                sessao,
+                PropriedadeRepositoryMemoria(listOf(fazenda, sitio)),
+                clima,
+                AjustesAvisoMemoria(),
+                relogioPorMs {
+                    AGORA.toEpochMilli()
+                }
+            ).verificar {
                 notificados += it.nomePropriedade
                 true
             }

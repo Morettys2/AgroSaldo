@@ -79,7 +79,7 @@ class CamadaDeDadosTest {
                 valorCentavos = 1L,
                 data = LocalDate.of(2026, 1, 1)
             )
-            assertEquals(categoria, l.paraEntidade().paraDominio().categoria)
+            assertEquals(categoria, l.paraEntidade(agora = 0L).paraDominio().categoria)
         }
     }
 
@@ -228,7 +228,7 @@ class CamadaDeDadosTest {
         val dao = PropriedadeDaoFalso()
         val modelo = DadosDeExemplo.propriedades().first()
         listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara").forEachIndexed { i, nome ->
-            dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1"))
+            dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1", agora = 0L))
         }
         val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
 
@@ -311,7 +311,7 @@ class CamadaDeDadosTest {
     fun `propriedade sem dono nao e adotada por quem salva com o mesmo id`() = runTest {
         val dao = PropriedadeDaoFalso()
         val exemplo = DadosDeExemplo.propriedades().first()
-        dao.salvar(exemplo.paraEntidade(usuarioId = null))
+        dao.salvar(exemplo.paraEntidade(usuarioId = null, agora = 0L))
         val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"))
 
         try {
@@ -346,7 +346,7 @@ class CamadaDeDadosTest {
         val (propriedades, dao, _) = cenarioDeLancamentos()
         propriedades.salvar(
             DadosDeExemplo.propriedades().first().copy(id = "sitio-u2", nome = "Sítio da outra conta")
-                .paraEntidade(usuarioId = "u2")
+                .paraEntidade(usuarioId = "u2", agora = 0L)
         )
         val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u2"))
         val original = checkNotNull(dao.tabela.value.firstOrNull { it.id == "exemplo-1" })
@@ -419,7 +419,7 @@ class CamadaDeDadosTest {
     @Test
     fun `sem ninguem conectado a lista vem vazia e gravar e recusado`() = runTest {
         val dao = PropriedadeDaoFalso()
-        dao.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1"))
+        dao.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 0L))
         val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria(null))
 
         assertEquals(emptyList<Any>(), repositorio.observarTodas().first())
@@ -433,9 +433,9 @@ class CamadaDeDadosTest {
 
     private suspend fun cenarioDeLancamentos(): Triple<PropriedadeDaoFalso, LancamentoDaoFalso, SessaoMemoria> {
         val propriedades = PropriedadeDaoFalso()
-        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = "u1")) }
+        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = "u1", agora = 0L)) }
         val lancamentos = LancamentoDaoFalso(propriedades)
-        DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)).forEach { lancamentos.salvar(it.paraEntidade()) }
+        DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30)).forEach { lancamentos.salvar(it.paraEntidade(agora = 0L)) }
         return Triple(propriedades, lancamentos, SessaoMemoria("u1"))
     }
 
@@ -503,7 +503,7 @@ class CamadaDeDadosTest {
     @Test
     fun `conta nova fica com as propriedades sem dono`() = runTest {
         val propriedades = PropriedadeDaoFalso()
-        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = null)) }
+        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = null, agora = 0L)) }
         val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades))
 
         assertTrue(repositorio.criar(usuario("u1", "fabio@exemplo.com")))
@@ -531,7 +531,7 @@ class CamadaDeDadosTest {
     @Test
     fun `criar conta e adotar as propriedades sem dono e tudo ou nada`() = runTest {
         val propriedades = PropriedadeDaoFalso()
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null))
+        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
         val usuarios = UsuarioDaoFalso(propriedades)
         val adocaoQuebrada = object : UsuarioDao by usuarios {
             override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int = throw IllegalStateException("disco cheio")
@@ -554,7 +554,7 @@ class CamadaDeDadosTest {
         val propriedades = PropriedadeDaoFalso()
         val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades))
         repositorio.criar(usuario("u1", "fabio@exemplo.com"))
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null))
+        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
 
         assertFalse(repositorio.criar(usuario("u2", "fabio@exemplo.com")))
 

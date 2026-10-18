@@ -2,8 +2,12 @@ package br.joao.agrosaldo.feature
 
 import br.joao.agrosaldo.MainDispatcherRule
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.DespachantesDeTeste
+import br.joao.agrosaldo.data.RelogioMutavel
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.UsuarioLogadoMemoria
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
@@ -19,7 +23,7 @@ import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
 import br.joao.agrosaldo.feature.propriedade.PropriedadeListaViewModel
 import java.time.LocalDate
 import java.time.YearMonth
-import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -68,14 +72,24 @@ class ResumosViewModelTest {
         selecao.selecionarMes(mesDeHoje)
     }
 
-    private fun inicio() = InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = {
-        hoje
-    }, selecao = selecao)
+    private fun inicio() = InicioViewModel(
+        lancamentos,
+        propriedades,
+        ClimaRepositoryMemoria(),
+        AjustesAvisoMemoria(),
+        selecao = selecao,
+        usuarioLogado = UsuarioLogadoMemoria(),
+        relogio = relogioEm(hoje)
+    )
 
-    /** [EmptyCoroutineContext]: monta o estado na hora, sem trocar de despachante. */
-    private fun lista() = LancamentoListaViewModel(lancamentos, propriedades, hoje = {
-        hoje
-    }, processamento = EmptyCoroutineContext, selecao = selecao)
+    /** Despachante de teste: monta o estado na hora, sem trocar de despachante. */
+    private fun lista() = LancamentoListaViewModel(
+        lancamentos,
+        propriedades,
+        relogio = relogioEm(hoje),
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+        selecao = selecao
+    )
 
     @Test
     fun `RF08 - inicio mostra entradas, saidas e saldo do mes`() {
@@ -148,14 +162,22 @@ class ResumosViewModelTest {
 
     @Test
     fun `voltar ao inicio depois da virada do mes mostra o mes novo`() {
-        var dia = hoje
+        val relogio = RelogioMutavel(hoje)
         selecao.limpar(agora = mesDeHoje)
         selecao.selecionar(DadosDeExemplo.ID_FAZENDA)
         val vm =
-            InicioViewModel(lancamentos, propriedades, ClimaRepositoryMemoria(), AjustesAvisoMemoria(), hoje = { dia }, selecao = selecao)
+            InicioViewModel(
+                lancamentos,
+                propriedades,
+                ClimaRepositoryMemoria(),
+                AjustesAvisoMemoria(),
+                selecao = selecao,
+                usuarioLogado = UsuarioLogadoMemoria(),
+                relogio = relogio
+            )
         vm.aoVoltarParaATela() // Abertura da tela.
 
-        dia = hoje.plusDays(1)
+        relogio.irParaODia(hoje.plusDays(1))
         vm.aoVoltarParaATela()
 
         assertEquals(mesDeHoje.plusMonths(1), vm.uiState.value.mes)
@@ -169,8 +191,9 @@ class ResumosViewModelTest {
             PropriedadeRepositoryMemoria(emptyList()),
             ClimaRepositoryMemoria(),
             AjustesAvisoMemoria(),
-            hoje = { hoje },
-            selecao = selecao
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
         )
         assertFalse(vm.uiState.value.temPropriedade)
         assertFalse(vm.uiState.value.carregando)
@@ -256,8 +279,9 @@ class ResumosViewModelTest {
             propriedades,
             ClimaRepositoryMemoria(),
             AjustesAvisoMemoria(),
-            hoje = { hoje },
-            selecao = selecao
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
         )
 
         assertEquals(InicioViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
@@ -273,8 +297,8 @@ class ResumosViewModelTest {
         val vm = LancamentoListaViewModel(
             lancamentosInstaveis(),
             propriedades,
-            hoje = { hoje },
-            processamento = EmptyCoroutineContext,
+            relogio = relogioEm(hoje),
+            despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
             selecao = selecao
         )
 

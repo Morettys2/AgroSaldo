@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.data.repository
 
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
@@ -10,6 +11,7 @@ import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import java.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -24,7 +26,8 @@ class PropriedadeRepositoryRoom(
     private val dao: PropriedadeDao,
     private val lancamentoDao: LancamentoDao,
     private val sessao: SessaoRepository,
-    private val transacao: Transacao = Transacao.DIRETA
+    private val transacao: Transacao = Transacao.DIRETA,
+    private val relogio: Clock = RelogioDoAparelho
 ) : PropriedadeRepository {
 
     /**
@@ -56,7 +59,7 @@ class PropriedadeRepositoryRoom(
     private suspend fun gravar(propriedade: Propriedade, usuarioId: String) {
         // O upsert casa só pelo id; impede sobrescrever a propriedade de outra conta ou adotar uma sem dono.
         require(!dao.existeSemSerDoUsuario(propriedade.id, usuarioId)) { "Esta propriedade pertence a outra conta." }
-        dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId))
+        dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId, agora = relogio.millis()))
     }
 
     override suspend fun excluir(id: String) = dao.excluir(id, usuarioConectado())
@@ -77,7 +80,7 @@ class PropriedadeRepositoryRoom(
         transacao.executar {
             // Propriedade antes dos lançamentos por causa da foreign key.
             gravar(excluida.propriedade, usuarioId)
-            lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade() })
+            lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade(agora = relogio.millis()) })
         }
     }
 

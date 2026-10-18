@@ -12,6 +12,7 @@ import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
+import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.di.dependencias
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
@@ -25,9 +26,8 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
-import java.time.Instant
+import java.time.Clock
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -99,8 +99,7 @@ class ClimaViewModel(
     private val ajustes: AjustesAvisoRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val relogio: () -> Long = System::currentTimeMillis,
-    private val zona: ZoneId = ZoneId.systemDefault()
+    private val relogio: Clock = RelogioDoAparelho
 ) : ViewModel() {
 
     private val atualizandoAgora = MutableStateFlow(false)
@@ -242,7 +241,7 @@ class ClimaViewModel(
         )
         if (previsao == null) return base
 
-        val agora = Instant.ofEpochMilli(relogio())
+        val agora = relogio.instant()
         val avaliacao = RegraDeChuva.avaliar(previsao, agora, limites)
         val agoraLocal = previsao.horaLocal(agora)
         val hoje = agoraLocal.toLocalDate()
@@ -272,7 +271,7 @@ class ClimaViewModel(
                 )
             },
             // O cache vale até 2 dias: sem o dia, "às 14:05" de ontem pareceria de hoje.
-            atualizadaEm = "Atualizada ${previsao.obtidaEm.diaEHora(agora, zona)}"
+            atualizadaEm = "Atualizada ${previsao.obtidaEm.diaEHora(agora, relogio.zone)}"
         )
     }
 

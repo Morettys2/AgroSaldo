@@ -5,8 +5,8 @@ import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 import java.time.LocalDateTime
 import kotlinx.coroutines.flow.first
 
@@ -38,7 +38,7 @@ class VerificadorDeChuva(
     private val propriedades: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
-    private val relogio: () -> Long = System::currentTimeMillis
+    private val relogio: Clock = Clock.systemDefaultZone()
 ) {
 
     /**
@@ -57,7 +57,7 @@ class VerificadorDeChuva(
         // Logout ou troca de conta durante a verificação: o resto pertence à conta anterior.
         fun mesmaConta() = sessao.usuarioId.value == usuarioId
 
-        val agora = Instant.ofEpochMilli(relogio())
+        val agora = relogio.instant()
         var falhaPassageira = false
         val avisos = mutableListOf<AvisoDeChuva>()
 

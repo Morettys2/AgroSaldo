@@ -3,8 +3,6 @@ package br.joao.agrosaldo.di
 import android.app.backup.BackupManager
 import android.content.Context
 import android.database.sqlite.SQLiteException
-import android.os.SystemClock
-import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModelProvider
@@ -13,6 +11,8 @@ import androidx.room.withTransaction
 import br.joao.agrosaldo.AgroSaldoApp
 import br.joao.agrosaldo.aviso.AgendaWorkManager
 import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.RelogioDoAparelho
+import br.joao.agrosaldo.data.RelogioMonotonicoDoAndroid
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
@@ -22,13 +22,14 @@ import br.joao.agrosaldo.data.preferencias.PrivacidadePreferencias
 import br.joao.agrosaldo.data.repository.ClimaRepositoryRoom
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
+import br.joao.agrosaldo.data.repository.UsuarioLogadoRoom
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
 import br.joao.agrosaldo.data.sessao.BloqueioPreferencias
 import br.joao.agrosaldo.data.sessao.SessaoPreferencias
 import br.joao.agrosaldo.data.sessao.TentativasPreferencias
+import br.joao.agrosaldo.domain.RelogioMonotonico
 import br.joao.agrosaldo.domain.clima.VerificadorDeChuva
 import br.joao.agrosaldo.domain.conta.ContaService
-import br.joao.agrosaldo.domain.model.InstanteMonotonico
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.BloqueioRepository
@@ -37,6 +38,7 @@ import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PrivacidadeRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
 import br.joao.agrosaldo.domain.repository.UsuarioRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,18 +83,8 @@ class Dependencias(contexto: Context) {
 
     val bloqueio: BloqueioRepository by lazy { BloqueioPreferencias(contextoAberto) }
 
-    /** elapsedRealtime em ms: imune a mudanças no relógio do sistema. */
-    val relogioMonotonico: () -> Long = { SystemClock.elapsedRealtime() }
-
-    /** Contagem de boots do aparelho; constante durante a vida do processo. null se o sistema não informa. */
-    private val bootAtual: Int? by lazy {
-        Settings.Global.getInt(contextoAberto.contentResolver, Settings.Global.BOOT_COUNT, -1).takeIf { it >= 0 }
-    }
-
-    /** [relogioMonotonico] com o boot atual, para comparar instantes gravados em disco. */
-    private val instanteMonotonico: () -> InstanteMonotonico? = {
-        bootAtual?.let { InstanteMonotonico(it, SystemClock.elapsedRealtime()) }
-    }
+    /** elapsedRealtime: imune a mudanças no relógio do sistema. */
+    val relogioMonotonico: RelogioMonotonico by lazy { RelogioMonotonicoDoAndroid(contextoAberto) }
 
     /** Transação do Room para repositórios que combinam várias escritas e checagens. */
     private val transacaoDoBanco: Transacao = object : Transacao {
@@ -111,7 +103,8 @@ class Dependencias(contexto: Context) {
             usuarios = usuarios,
             sessao = sessao,
             tentativas = TentativasPreferencias(contextoAberto),
-            relogioMonotonico = instanteMonotonico,
+            relogio = RelogioDoAparelho,
+            relogioMonotonico = relogioMonotonico,
             // Limpa estado da conta anterior: seleção, desfazer pendente e
             // notificações (contêm nomes de propriedades).
             aoTrocarDeUsuario = {
@@ -153,6 +146,8 @@ class Dependencias(contexto: Context) {
             }
         }
     }
+
+    val usuarioLogado: UsuarioLogadoRepository by lazy { UsuarioLogadoRoom(sessao, usuarios) }
 
     val propriedades: PropriedadeRepository by lazy {
         PropriedadeRepositoryRoom(

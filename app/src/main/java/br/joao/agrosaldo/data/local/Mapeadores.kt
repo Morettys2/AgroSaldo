@@ -30,7 +30,7 @@ fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
  *   parte do modelo de domínio).
  * @param agora valor de `atualizado_em`, em epoch ms.
  */
-fun Propriedade.paraEntidade(usuarioId: String?, agora: Long = System.currentTimeMillis()): PropriedadeEntity = PropriedadeEntity(
+fun Propriedade.paraEntidade(usuarioId: String?, agora: Long): PropriedadeEntity = PropriedadeEntity(
     id = id,
     nome = nome,
     cultura = cultura,
@@ -56,7 +56,7 @@ fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     descricao = descricao
 )
 
-fun Lancamento.paraEntidade(agora: Long = System.currentTimeMillis()): LancamentoEntity = LancamentoEntity(
+fun Lancamento.paraEntidade(agora: Long): LancamentoEntity = LancamentoEntity(
     id = id,
     propriedadeId = propriedadeId,
     tipo = tipo.name,
