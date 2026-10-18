@@ -27,8 +27,10 @@ class LancamentoRepositoryMemoria(iniciais: List<Lancamento> = DadosDeExemplo.la
         }
     }
 
-    override suspend fun excluir(id: String) {
+    override suspend fun excluir(id: String): Lancamento? {
+        val apagado = lancamentosGuardados.value.firstOrNull { it.id == id }
         lancamentosGuardados.update { lista -> lista.filterNot { it.id == id } }
+        return apagado
     }
 
     /** Remove e retorna os lançamentos da propriedade; simula o CASCADE para [PropriedadeRepositoryMemoria]. */

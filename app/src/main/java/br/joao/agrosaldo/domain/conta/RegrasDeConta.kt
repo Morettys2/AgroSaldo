@@ -23,13 +23,16 @@ object RegrasDeConta {
 
     const val NOME_MAXIMO = 80
 
+    /** Tamanho máximo de um endereço de e-mail (RFC 5321). */
+    const val EMAIL_MAXIMO = 254
+
     // Validação mínima (x@y.z, sem espaços). Não há confirmação por e-mail.
     private val FORMATO_EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
 
     /** Forma canônica usada para busca e unicidade: trim + minúsculas. */
     fun normalizarEmail(email: String): String = email.trim().lowercase()
 
-    fun emailValido(email: String): Boolean = FORMATO_EMAIL.matches(normalizarEmail(email))
+    fun emailValido(email: String): Boolean = normalizarEmail(email).let { it.length <= EMAIL_MAXIMO && FORMATO_EMAIL.matches(it) }
 
     fun nomeValido(nome: String): Boolean = nome.isNotBlank() && nome.trim().length <= NOME_MAXIMO
 

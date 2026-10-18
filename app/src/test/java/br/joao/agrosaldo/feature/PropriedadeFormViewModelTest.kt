@@ -64,6 +64,39 @@ class PropriedadeFormViewModelTest {
     }
 
     @Test
+    fun `nome e cultura digitados ou colados nunca passam do limite`() {
+        val vm = novo()
+
+        vm.aoMudarNome("n".repeat(Propriedade.NOME_MAXIMO + 50))
+        vm.aoMudarCultura("c".repeat(Propriedade.CULTURA_MAXIMA + 50))
+
+        assertEquals(Propriedade.NOME_MAXIMO, vm.uiState.value.nome.length)
+        assertEquals(Propriedade.CULTURA_MAXIMA, vm.uiState.value.cultura.length)
+    }
+
+    @Test
+    fun `area acima do limite mostra aviso especifico e nao grava`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "1.000.001")
+
+        vm.aoSalvar()
+
+        assertEquals("A área máxima é 1.000.000 ha. Confira se não sobrou algum zero.", vm.uiState.value.erroArea)
+        assertFalse(vm.uiState.value.salvo)
+        assertEquals(2, propriedades.observarTodas().first().size)
+    }
+
+    @Test
+    fun `area exatamente no limite e aceita`() = runTest {
+        val vm = novo()
+        preencher(vm, area = "1.000.000")
+
+        vm.aoSalvar()
+
+        assertNull(vm.uiState.value.erroArea)
+    }
+
+    @Test
     fun `propriedade existente e cadastro novo nao sao marcados como nao encontrados`() {
         assertFalse(editando(DadosDeExemplo.ID_SITIO).uiState.value.naoEncontrado)
         assertFalse(novo().uiState.value.naoEncontrado)
@@ -253,14 +286,14 @@ class PropriedadeFormViewModelTest {
                 id = "grande",
                 nome = "Latifúndio",
                 cultura = "Soja",
-                areaHectares = 12_000_000.0,
+                areaHectares = 1_000_000.0,
                 latitude = -0.0001,
                 longitude = -46.5
             )
         )
         val vm = editando("grande")
 
-        assertEquals("12000000", vm.uiState.value.area)
+        assertEquals("1000000", vm.uiState.value.area)
         assertEquals("-0,0001", vm.uiState.value.latitude)
         assertEquals("-46,5", vm.uiState.value.longitude)
     }
@@ -279,7 +312,7 @@ class PropriedadeFormViewModelTest {
 
     @Test
     fun `area no formato brasileiro com milhar e decimais`() = runTest {
-        for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "12.345.678,25" to 12_345_678.25, "1250,5" to 1_250.5)) {
+        for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "123.456,25" to 123_456.25, "1250,5" to 1_250.5)) {
             val vm = novo()
             preencher(vm, area = texto)
             vm.aoSalvar()

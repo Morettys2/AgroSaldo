@@ -105,6 +105,8 @@ app/detekt-baseline.xml achados antigos do detekt (121) que o CI não cobra
 15. **Callback dentro de `LaunchedEffect`** passa por `rememberUpdatedState`.
 16. **Propriedade privada com `_`** só existe se houver a pública correspondente (`_uiState` / `uiState`).
 17. **Biblioteca nova** só com justificativa, e sempre pelo `libs.versions.toml`.
+18. **Todo texto digitado tem limite**, valido no domínio (`require`) e cortado no ViewModel ao digitar ou colar: descrição do lançamento 200, nome da propriedade 80, cultura 60, e-mail 254, área até 1.000.000 ha (e sempre finita). O domínio é a última barreira: nunca confie só na tela.
+19. **Ler e apagar vão na mesma transação.** `LancamentoRepository.excluir` devolve o lançamento apagado (ou `null`), para o "Desfazer" guardar exatamente o que saiu do banco.
 
 ---
 

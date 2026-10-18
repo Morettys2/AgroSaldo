@@ -57,7 +57,14 @@ class LancamentoRepositoryRoom(
         }
     }
 
-    override suspend fun excluir(id: String) = dao.excluir(id, usuarioConectado())
+    override suspend fun excluir(id: String): Lancamento? {
+        val usuarioId = usuarioConectado()
+        return transacao.executar {
+            val apagado = dao.buscarPorId(id, usuarioId)?.paraDominio()
+            dao.excluir(id, usuarioId)
+            apagado
+        }
+    }
 
     private fun usuarioConectado(): String = checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

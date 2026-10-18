@@ -20,9 +20,21 @@ data class Propriedade(
 ) {
     init {
         require(nome.isNotBlank()) { "O nome da propriedade não pode ser vazio." }
-        require(areaHectares > 0.0) { "A área deve ser maior que zero." }
+        require(nome.length <= NOME_MAXIMO) { "O nome pode ter no máximo $NOME_MAXIMO caracteres." }
+        require(cultura.length <= CULTURA_MAXIMA) { "A cultura pode ter no máximo $CULTURA_MAXIMA caracteres." }
+        // isFinite: NaN e infinito passariam por "> 0.0" e estragariam as somas e a exibição.
+        require(areaHectares.isFinite() && areaHectares > 0.0) { "A área deve ser maior que zero." }
+        require(areaHectares <= AREA_MAXIMA_HECTARES) { "A área máxima é 1.000.000 ha." }
         require(latitude in -90.0..90.0) { "Latitude inválida." }
         require(longitude in -180.0..180.0) { "Longitude inválida." }
+    }
+
+    companion object {
+        const val NOME_MAXIMO = 80
+        const val CULTURA_MAXIMA = 60
+
+        /** Maior que qualquer fazenda real; só barra digitação errada (zeros a mais). */
+        const val AREA_MAXIMA_HECTARES = 1_000_000.0
     }
 }
 

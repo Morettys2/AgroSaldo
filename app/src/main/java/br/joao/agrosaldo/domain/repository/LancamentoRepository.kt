@@ -16,5 +16,9 @@ interface LancamentoRepository {
 
     suspend fun salvar(lancamento: Lancamento)
 
-    suspend fun excluir(id: String)
+    /**
+     * Exclui o lançamento e devolve o que foi apagado (ou null se não existia), lendo e
+     * apagando na mesma transação: o "Desfazer" nunca guarda um registro diferente do removido.
+     */
+    suspend fun excluir(id: String): Lancamento?
 }

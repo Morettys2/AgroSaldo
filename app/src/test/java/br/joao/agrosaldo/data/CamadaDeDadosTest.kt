@@ -379,6 +379,44 @@ class CamadaDeDadosTest {
     }
 
     @Test
+    fun `excluir lancamento le e apaga na mesma transacao e devolve o apagado`() = runTest {
+        val (_, falso, sessao) = cenarioDeLancamentos()
+        val transacao = TransacaoContada()
+        val passos = mutableListOf<Boolean>()
+        val dao = object : LancamentoDao by falso {
+            override suspend fun buscarPorId(id: String, usuarioId: String): LancamentoEntity? {
+                passos += transacao.aberta
+                return falso.buscarPorId(id, usuarioId)
+            }
+
+            override suspend fun excluir(id: String, usuarioId: String) {
+                passos += transacao.aberta
+                falso.excluir(id, usuarioId)
+            }
+        }
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao)
+        val antes = checkNotNull(repositorio.buscarPorId("exemplo-2"))
+        passos.clear()
+
+        val apagado = repositorio.excluir("exemplo-2")
+
+        assertEquals(antes, apagado)
+        assertNull(repositorio.buscarPorId("exemplo-2"))
+        assertEquals("ler e apagar dentro da transação", listOf(true, true), passos.take(2))
+        assertEquals(1, transacao.execucoes)
+    }
+
+    @Test
+    fun `excluir lancamento inexistente ou de outra conta devolve null e nao apaga nada`() = runTest {
+        val (_, dao, _) = cenarioDeLancamentos()
+        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u2"))
+
+        assertNull(repositorio.excluir("exemplo-1"))
+        assertNull(repositorio.excluir("nao-existe"))
+        assertEquals(9, dao.tabela.value.size)
+    }
+
+    @Test
     fun `sem ninguem conectado a lista vem vazia e gravar e recusado`() = runTest {
         val dao = PropriedadeDaoFalso()
         dao.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1"))

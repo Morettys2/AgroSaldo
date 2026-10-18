@@ -61,6 +61,9 @@ private sealed interface Area {
     data object Ambigua : Area
 
     data object Invalida : Area
+
+    /** Número válido, mas acima de [Propriedade.AREA_MAXIMA_HECTARES]: provável zero a mais. */
+    data object AcimaDoLimite : Area
 }
 
 /** "1.000" e "1.250,5": ponto no milhar, vírgula nos decimais. O primeiro grupo não começa com 0. */
@@ -84,11 +87,15 @@ private fun lerArea(texto: String): Area {
         AREA_COM_MILHAR.matches(limpo) -> limpo.replace(".", "").replace(',', '.')
         AREA_COM_VIRGULA.matches(limpo) -> limpo.replace(',', '.')
         AREA_COM_PONTO_DECIMAL.matches(limpo) -> limpo
-        SO_DIGITOS_E_SEPARADORES.matches(limpo) -> return Area.Ambigua
-        else -> return Area.Invalida
+        else -> null
     }
-    val hectares = numero.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: return Area.Invalida
-    return Area.Valida(hectares)
+    val hectares = numero?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
+    return when {
+        numero == null -> if (SO_DIGITOS_E_SEPARADORES.matches(limpo)) Area.Ambigua else Area.Invalida
+        hectares == null -> Area.Invalida
+        hectares > Propriedade.AREA_MAXIMA_HECTARES -> Area.AcimaDoLimite
+        else -> Area.Valida(hectares)
+    }
 }
 
 /**
@@ -158,13 +165,15 @@ class PropriedadeFormViewModel(
 
     // Editar um campo guarda o texto em [estadoSalvo] e limpa o erro correspondente.
     fun aoMudarNome(v: String) {
-        estadoSalvo[CHAVE_NOME] = v
-        _uiState.update { it.copy(nome = v, erroNome = null) }
+        val texto = v.take(Propriedade.NOME_MAXIMO)
+        estadoSalvo[CHAVE_NOME] = texto
+        _uiState.update { it.copy(nome = texto, erroNome = null) }
     }
 
     fun aoMudarCultura(v: String) {
-        estadoSalvo[CHAVE_CULTURA] = v
-        _uiState.update { it.copy(cultura = v) }
+        val texto = v.take(Propriedade.CULTURA_MAXIMA)
+        estadoSalvo[CHAVE_CULTURA] = texto
+        _uiState.update { it.copy(cultura = texto) }
     }
 
     fun aoMudarArea(v: String) {
@@ -233,10 +242,11 @@ class PropriedadeFormViewModel(
             houveErro = true
         }
         if (area == null) {
-            val mensagem = if (leituraDaArea == Area.Ambigua) {
-                "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5."
-            } else {
-                "A área deve ser um número maior que zero."
+            val mensagem = when (leituraDaArea) {
+                Area.Ambigua ->
+                    "Não deu para entender a área. Use ponto só no milhar e vírgula nos decimais, como 1.250,5."
+                Area.AcimaDoLimite -> "A área máxima é 1.000.000 ha. Confira se não sobrou algum zero."
+                else -> "A área deve ser um número maior que zero."
             }
             novo = novo.copy(erroArea = mensagem)
             houveErro = true
