@@ -167,7 +167,7 @@ fun AppNavegacao(
             duration = SnackbarDuration.Long
         )
         if (resultado == SnackbarResult.ActionPerformed) {
-            if (!desfazer.desfazer(exclusao)) {
+            if (!desfazer.desfazerExclusao(exclusao)) {
                 escopoDaBarra.launch { estadoDaBarra.showSnackbar("Não foi possível desfazer.") }
             }
         } else {

@@ -151,7 +151,7 @@ class ClimaViewModel @Inject constructor(
                     falha,
                     _
                 ->
-                montar(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha)
+                montar(DadosDoClima(lista, propriedade, previsao, aj.limites, aj.ativo, atualizando, falha))
             }.repetirAposErro { erro ->
                 _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { _uiState.value = it }
@@ -210,33 +210,39 @@ class ClimaViewModel @Inject constructor(
         }
     }
 
-    private fun montar(
-        propriedades: List<Propriedade>,
-        propriedade: Propriedade?,
-        previsao: Previsao?,
-        limites: LimitesChuva,
-        avisoAtivo: Boolean,
-        atualizando: Boolean,
-        falha: FalhaDeAtualizacao?
-    ): ClimaUiState {
+    /** Tudo que o estado da tela depende, reunido para montar o [ClimaUiState] de uma vez. */
+    private data class DadosDoClima(
+        val propriedades: List<Propriedade>,
+        val propriedade: Propriedade?,
+        val previsao: Previsao?,
+        val limites: LimitesChuva,
+        val avisoAtivo: Boolean,
+        val atualizando: Boolean,
+        val falha: FalhaDeAtualizacao?
+    )
+
+    private fun montar(dados: DadosDoClima): ClimaUiState {
+        val propriedade = dados.propriedade
+        val previsao = dados.previsao
+        val limites = dados.limites
         if (propriedade == null) {
-            return ClimaUiState(carregando = false, temPropriedade = false, propriedades = propriedades)
+            return ClimaUiState(carregando = false, temPropriedade = false, propriedades = dados.propriedades)
         }
         val base = ClimaUiState(
             carregando = false,
             temPropriedade = true,
             propriedadeId = propriedade.id,
             nomePropriedade = propriedade.nome,
-            propriedades = propriedades,
+            propriedades = dados.propriedades,
             janelaHoras = limites.janelaHoras,
-            atualizando = atualizando,
-            mensagem = when (falha) {
+            atualizando = dados.atualizando,
+            mensagem = when (dados.falha) {
                 FalhaDeAtualizacao.SEM_INTERNET ->
                     if (previsao != null) MENSAGEM_SEM_INTERNET else MENSAGEM_SEM_INTERNET_SEM_PREVISAO
                 FalhaDeAtualizacao.SERVICO -> MENSAGEM_FALHA
                 null -> null
             },
-            avisoAtivo = avisoAtivo
+            avisoAtivo = dados.avisoAtivo
         )
         if (previsao == null) return base
 
@@ -259,7 +265,7 @@ class ClimaViewModel @Inject constructor(
             vaiChover = avaliacao.vaiChover,
             recomendacaoTitulo = titulo,
             recomendacaoTexto = texto,
-            dias = previsao.dias.filter { !it.data.isBefore(hoje) }.take(7).map { dia ->
+            dias = previsao.dias.filter { !it.data.isBefore(hoje) }.take(DIAS_DA_PREVISAO).map { dia ->
                 DiaUi(
                     rotulo = dia.data.rotuloDoDia(hoje),
                     condicao = dia.condicao,
@@ -310,6 +316,7 @@ class ClimaViewModel @Inject constructor(
     private enum class FalhaDeAtualizacao { SEM_INTERNET, SERVICO }
 
     companion object {
+        const val DIAS_DA_PREVISAO = 7
         const val MENSAGEM_SEM_INTERNET = "Sem internet. Mostrando a última previsão salva."
         const val MENSAGEM_SEM_INTERNET_SEM_PREVISAO = "Sem internet. Tente de novo quando o celular tiver sinal."
         const val MENSAGEM_ERRO = "Não foi possível carregar a previsão salva. Tentando de novo…"

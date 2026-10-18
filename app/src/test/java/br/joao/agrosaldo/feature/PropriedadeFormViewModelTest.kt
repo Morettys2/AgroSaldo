@@ -229,7 +229,7 @@ class PropriedadeFormViewModelTest {
         val oferta = checkNotNull(desfazer.pendente.value)
         assertEquals("Propriedade excluída", oferta.mensagem)
 
-        desfazer.desfazer(oferta)
+        desfazer.desfazerExclusao(oferta)
 
         assertEquals(propriedadeAntes, propriedades.buscarPorId(DadosDeExemplo.ID_SITIO))
         val depois = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }

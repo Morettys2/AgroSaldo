@@ -35,6 +35,7 @@ object NotificadorDeChuva {
     /** Id comum a todos os avisos; cada propriedade é a tag da sua notificação. */
     private const val ID_AVISO = 1
     private const val ESQUEMA = "agrosaldo"
+    private const val HORAS_ATE_A_CHUVA_DE_EXEMPLO = 3L
 
     fun criarCanal(context: Context) {
         val canal = NotificationChannelCompat.Builder(CANAL, NotificationManagerCompat.IMPORTANCE_DEFAULT)
@@ -120,7 +121,7 @@ object NotificadorDeChuva {
                 vaiChover = true,
                 probabilidadeMaxima = 85,
                 chuvaTotalMm = 6.0,
-                inicioPrevisto = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).plusHours(3),
+                inicioPrevisto = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).plusHours(HORAS_ATE_A_CHUVA_DE_EXEMPLO),
                 motivo = MotivoChuva.AMBOS,
                 temDados = true
             )

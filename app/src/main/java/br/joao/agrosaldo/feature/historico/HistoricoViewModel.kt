@@ -118,7 +118,7 @@ class HistoricoViewModel @Inject constructor(
         val mesAtual = YearMonth.from(hoje())
 
         val porMes = doAno.groupBy { YearMonth.from(it.data) }
-        val meses = (1..12).map { numero ->
+        val meses = (1..MESES_DO_ANO).map { numero ->
             val mes = YearMonth.of(ano, numero)
             val totais = ResumoFinanceiro.totais(porMes[mes].orEmpty())
             MesDoHistorico(
@@ -173,6 +173,7 @@ class HistoricoViewModel @Inject constructor(
 
     companion object {
         const val MAXIMO_CATEGORIAS = 5
+        const val MESES_DO_ANO = 12
 
         const val MENSAGEM_ERRO = "Não foi possível carregar o histórico. Tentando de novo…"
     }

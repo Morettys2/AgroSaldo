@@ -24,7 +24,7 @@ class DesfazerESelecaoTest {
         desfazer.oferecer("Lançamento excluído") { restaurou++ }
         val pendente = desfazer.pendente.value
 
-        assertTrue(desfazer.desfazer(checkNotNull(pendente)))
+        assertTrue(desfazer.desfazerExclusao(checkNotNull(pendente)))
 
         assertEquals(1, restaurou)
         assertNull(desfazer.pendente.value)
@@ -42,8 +42,8 @@ class DesfazerESelecaoTest {
         }
         val pendente = checkNotNull(desfazer.pendente.value)
 
-        val primeiro = launch { desfazer.desfazer(pendente) }
-        val segundo = launch { desfazer.desfazer(pendente) }
+        val primeiro = launch { desfazer.desfazerExclusao(pendente) }
+        val segundo = launch { desfazer.desfazerExclusao(pendente) }
         yield()
         gravacao.complete(Unit)
         primeiro.join()
@@ -61,7 +61,7 @@ class DesfazerESelecaoTest {
         val pendente = checkNotNull(desfazer.pendente.value)
 
         desfazer.dispensar(pendente)
-        desfazer.desfazer(pendente)
+        desfazer.desfazerExclusao(pendente)
 
         assertNull(desfazer.pendente.value)
         assertEquals(0, restaurou)
@@ -75,7 +75,7 @@ class DesfazerESelecaoTest {
         val antiga = checkNotNull(desfazer.pendente.value)
         desfazer.oferecer("segunda") { }
 
-        desfazer.desfazer(antiga)
+        desfazer.desfazerExclusao(antiga)
         desfazer.dispensar(antiga)
 
         assertEquals(0, primeira)
@@ -106,7 +106,7 @@ class DesfazerESelecaoTest {
 
         agora += Desfazer.VALIDADE_MS + 1
 
-        assertFalse(desfazer.desfazer(pendente))
+        assertFalse(desfazer.desfazerExclusao(pendente))
         assertEquals(0, restaurou)
         assertNull(desfazer.pendente.value)
     }
@@ -116,7 +116,7 @@ class DesfazerESelecaoTest {
         val desfazer = Desfazer()
         desfazer.oferecer("x") { throw IllegalStateException("banco indisponível") }
 
-        val restaurou = desfazer.desfazer(checkNotNull(desfazer.pendente.value))
+        val restaurou = desfazer.desfazerExclusao(checkNotNull(desfazer.pendente.value))
 
         assertFalse(restaurou)
         assertNull(desfazer.pendente.value)
@@ -129,7 +129,7 @@ class DesfazerESelecaoTest {
         val pendente = checkNotNull(desfazer.pendente.value)
 
         try {
-            desfazer.desfazer(pendente)
+            desfazer.desfazerExclusao(pendente)
             fail("O cancelamento deveria chegar a quem chamou")
         } catch (esperado: CancellationException) {
             assertNull(desfazer.pendente.value)

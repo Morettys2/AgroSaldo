@@ -26,6 +26,12 @@ object RegrasDeConta {
     /** Tamanho máximo de um endereço de e-mail (RFC 5321). */
     const val EMAIL_MAXIMO = 254
 
+    /** Pedaço do nome ou do e-mail que, dentro da senha, a torna previsível. */
+    private const val TAMANHO_MINIMO_DO_PEDACO = 4
+
+    /** Sequência ("12345", "abcdef") a partir deste tamanho torna a senha previsível. */
+    private const val TAMANHO_DE_SEQUENCIA_PREVISIVEL = 6
+
     // Validação mínima (x@y.z, sem espaços). Não há confirmação por e-mail.
     private val FORMATO_EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
 
@@ -56,7 +62,7 @@ object RegrasDeConta {
             return true
         }
         // Sequência numérica ou alfabética de 6+ caracteres ("12345678a", "abcdef12").
-        if (maiorSequencia(minuscula) >= 6) return true
+        if (maiorSequencia(minuscula) >= TAMANHO_DE_SEQUENCIA_PREVISIVEL) return true
         if ("agrosaldo" in minuscula) return true
         // Baixa variedade de caracteres ("aaaaaaa1").
         if (minuscula.toSet().size <= 2) return true
@@ -65,7 +71,7 @@ object RegrasDeConta {
         val pedacos = buildList {
             add(normalizarEmail(email).substringBefore("@"))
             addAll(nome.lowercase().split(Regex("\\s+")))
-        }.filter { it.length >= 4 }
+        }.filter { it.length >= TAMANHO_MINIMO_DO_PEDACO }
         return pedacos.any { it in minuscula }
     }
 

@@ -40,7 +40,7 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | Segundo plano | WorkManager 2.11 (`aviso/VerificacaoChuvaWorker.kt`) |
 | Outros | Navigation Compose, Biometric, SplashScreen, fonte Plus Jakarta Sans embutida |
 | Testes | JUnit 4, kotlinx-coroutines-test, Robolectric 4.17, Roborazzi 1.76, work-testing; fakes em memória em `src/testFixtures` (sem MockK nem Turbine) |
-| Qualidade | ktlint (plugin 14.2, estilo `android_studio`, regras de Compose 0.6.8), detekt 1.23.8 com baseline, Android Lint com `abortOnError` |
+| Qualidade | ktlint (plugin 14.2, estilo `android_studio`, regras de Compose 0.6.8), detekt 1.23.8 **sem baseline (zero achados)**, Android Lint com `abortOnError` |
 
 `minSdk 26`, `compileSdk` e `targetSdk` 37.
 
@@ -78,7 +78,6 @@ app/src/test/          testes JVM: ViewModels, dados, Worker, preferências, tel
 app/src/androidTest/   testes instrumentados: DAOs do Room (precisam de emulador)
 app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; base dos testes de migração futuros)
 config/detekt/         detekt.yml
-app/detekt-baseline.xml achados antigos do detekt (115) que o CI não cobra
 .editorconfig          regras do ktlint
 .github/workflows/android.yml  CI
 ```
@@ -151,12 +150,11 @@ app/detekt-baseline.xml achados antigos do detekt (115) que o CI não cobra
 
 ```bash
 ./gradlew ktlintCheck        # formatação (ktlintFormat arruma sozinho)
-./gradlew detekt             # análise estática; só cobra código novo (baseline)
+./gradlew detekt             # análise estática dos dois módulos; precisa dar zero achados (não há baseline)
 ./gradlew testDebugUnitTest  # testes JVM do app, incluindo Robolectric e capturas — rode SEMPRE antes de commitar
 ./gradlew :domain:test       # testes do módulo de domínio (rápidos, sem Android)
 ./gradlew assembleDebug      # compila o app inteiro
 ./gradlew lintDebug          # Android Lint (erro quebra o build)
-./gradlew detektBaseline     # regenera o baseline depois de limpar achados antigos
 ```
 
 - Os testes instrumentados (`connectedAndroidTest`: DAOs) precisam de emulador e **não rodam na nuvem**. Se mexer em DAO, entidade ou migração, avise para rodar no Android Studio.
@@ -167,7 +165,7 @@ app/detekt-baseline.xml achados antigos do detekt (115) que o CI não cobra
 - **detekt** não é o plugin Gradle: o plugin 1.23 não roda no JDK 25. A tarefa `detekt` é um `JavaExec` que chama a CLI do detekt numa **JVM 21** separada (toolchain), com o Kotlin da configuração `detektCli` fixado em 2.0.21. Está no `app/build.gradle.kts`.
 - **Robolectric** roda com `sdk = 36`, gráficos `NATIVE` e `application = android.app.Application` (não sobe o `AgroSaldoApp`). Os testes precisam dos argumentos de JVM `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED` e `--add-opens=java.base/java.io=ALL-UNNAMED`, já configurados.
 - **Roborazzi** (`CapturasDeTelaTest`) grava PNGs em `app/build/capturas`. Não compara pixels; só garante que a tela desenha.
-- **Módulo `:domain`:** o plugin é `org.jetbrains.kotlin.jvm` (no app o Kotlin vem embutido no AGP), com `java-test-fixtures`. O detekt do app analisa também as pastas do domínio (um baseline só). Propriedade pública de outro módulo não permite *smart cast*: copie para uma `val` local antes do `!= null`.
+- **Módulo `:domain`:** o plugin é `org.jetbrains.kotlin.jvm` (no app o Kotlin vem embutido no AGP), com `java-test-fixtures`. O detekt do app analisa também as pastas do domínio. Propriedade pública de outro módulo não permite *smart cast*: copie para uma `val` local antes do `!= null`.
 - **Hilt:** `hiltViewModel()` vem de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto). Os formulários (`LancamentoFormViewModel`, `PropriedadeFormViewModel`) têm um construtor secundário `@Inject` que lê os argumentos da rota do `SavedStateHandle`; por isso as chaves do rascunho levam o prefixo `rascunho_` (o handle também recebe `tipo` e `id` da rota). O iniciador do WorkManager foi removido do manifesto: o `AgroSaldoApp` é o `Configuration.Provider` com a fábrica de Workers do Hilt. `GrafoDeDependenciasTest` sobe o grafo de verdade no Robolectric (`kspTest` + `hilt-android-testing`).
 - Rodar o `lintDebug` em paralelo com `compileDebugAndroidTestKotlin` ou `assembleRelease` pode falhar por corrida nos arquivos gerados do Hilt; o conjunto do CI (`ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug`) roda limpo.
 - O `testFixtures` precisa do Compose runtime no classpath (`testFixturesImplementation` do BOM e do runtime), por causa do compilador do Compose.
@@ -206,6 +204,7 @@ app/detekt-baseline.xml achados antigos do detekt (115) que o CI não cobra
 - **R6:** regras no domínio (`ResumoFinanceiro`, `propriedadeAtual`), `SelecaoAtual` injetada, container `Dependencias`, fakes para `testFixtures` (app começa vazio), `.catch` nas leituras do banco.
 - **R7:** componentes compartilhados de botão e estado, `Espacos`, um seletor de propriedade só (48 dp, com role), acessibilidade (aba ≥ 11 sp, roles, previews 2×), textos unificados.
 - **Transições de tela (branch `prod`):** o crossfade padrão de 700 ms do Navigation Compose deixava a tela antiga "fantasma" por baixo da nova. Agora trocar de aba é instantâneo e as demais telas deslizam, com a antiga sumindo em 90 ms (`core/navigation/TransicoesDeTela.kt`).
+- **Detekt sem baseline:** os 115 achados antigos foram resolvidos (constantes nomeadas, `aoSalvar` e `verificar` quebrados em funções menores, `Desfazer.desfazerExclusao`) ou justificados no `detekt.yml` (testes que capturam exceção de propósito, guardas, telas Compose) ou com `@Suppress` comentado no ponto exato. Achado novo = corrigir, não baselinar.
 - **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 

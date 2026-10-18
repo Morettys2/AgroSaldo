@@ -22,6 +22,7 @@ enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
     DESCONHECIDA("Sem informação", false);
 
     companion object {
+        @Suppress("MagicNumber") // tabela de códigos de tempo da OMM (WMO), como a Open-Meteo os devolve
         fun doCodigoWmo(codigo: Int?): CondicaoTempo = when (codigo) {
             0 -> CEU_LIMPO
             1, 2 -> POUCAS_NUVENS

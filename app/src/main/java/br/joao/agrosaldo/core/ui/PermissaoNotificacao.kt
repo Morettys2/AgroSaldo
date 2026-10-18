@@ -110,6 +110,7 @@ private tailrec fun Context.activity(): Activity? = when (this) {
 }
 
 /** Ajustes de notificação do app ou do canal do aviso de chuva (telas existentes desde a API 26). */
+@Suppress("SwallowedException") // aparelho sem a tela de ajustes: cai para a tela geral
 private fun abrirAjustes(context: Context, destino: DestinoDaPermissao) {
     val intent = when (destino) {
         DestinoDaPermissao.AJUSTES_DO_CANAL -> Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)

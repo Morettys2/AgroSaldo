@@ -72,7 +72,7 @@ data class CartaoChuvaUi(val rotulo: String, val frase: String, val detalhe: Str
  * selecionada, últimos lançamentos e cartão de chuva.
  *
  * Os totais são agregados em memória a partir de todos os lançamentos a cada emissão.
- * TODO: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
+ * Possível melhoria: mover a agregação para SQL (SUM/GROUP BY) se o volume de lançamentos crescer.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -230,7 +230,7 @@ class InicioViewModel @Inject constructor(
             despesasCentavos = totais.despesasCentavos,
             proporcaoReceitas = totais.proporcaoReceitas,
             gastosPorCategoria = ResumoFinanceiro.rankingDeGastos(doMes, quantos = MAXIMO_CATEGORIAS),
-            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(4),
+            ultimosLancamentos = doMes.sortedByDescending { it.data }.take(MAXIMO_ULTIMOS_LANCAMENTOS),
             hoje = hoje()
         )
     }
@@ -243,6 +243,7 @@ class InicioViewModel @Inject constructor(
     companion object {
         /** Quantas categorias o cartão "Maiores gastos" mostra. */
         const val MAXIMO_CATEGORIAS = 3
+        const val MAXIMO_ULTIMOS_LANCAMENTOS = 4
 
         const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
     }

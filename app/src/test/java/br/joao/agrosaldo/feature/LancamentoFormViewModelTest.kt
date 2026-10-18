@@ -227,7 +227,7 @@ class LancamentoFormViewModelTest {
         val oferta = desfazer.pendente.value
         assertEquals("Lançamento excluído", oferta?.mensagem)
 
-        desfazer.desfazer(checkNotNull(oferta))
+        desfazer.desfazerExclusao(checkNotNull(oferta))
 
         assertEquals(original, lancamentos.buscarPorId("exemplo-3"))
     }

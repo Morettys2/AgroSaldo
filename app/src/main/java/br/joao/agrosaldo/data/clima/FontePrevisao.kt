@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
+private const val MS_POR_SEGUNDO = 1_000L
+
 /** Fonte do JSON bruto da previsão; substituível por fake nos testes. */
 fun interface FontePrevisao {
     /**
@@ -66,6 +68,7 @@ class OpenMeteoHttp : FontePrevisao {
  * @throws IOException se o tempo total acabar. O cancelamento de quem chamou continua
  *   chegando como CancellationException.
  */
+@Suppress("TooGenericExceptionCaught") // confere o cancelamento e relança a mesma exceção
 internal suspend fun <T : Any> chamadaBloqueante(tempoTotalMs: Long, interromper: () -> Unit, bloqueante: () -> T): T =
     withTimeoutOrNull(tempoTotalMs) {
         withContext(Dispatchers.IO) {
@@ -87,4 +90,4 @@ internal suspend fun <T : Any> chamadaBloqueante(tempoTotalMs: Long, interromper
                 vigia.cancel()
             }
         }
-    } ?: throw IOException("Tempo total de ${tempoTotalMs / 1_000} s esgotado.")
+    } ?: throw IOException("Tempo total de ${tempoTotalMs / MS_POR_SEGUNDO} s esgotado.")

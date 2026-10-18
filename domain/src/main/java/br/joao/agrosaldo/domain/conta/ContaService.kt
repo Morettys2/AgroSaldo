@@ -289,7 +289,7 @@ class ContaService(
         val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
         val duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
         bloquear(chave, falhas, duracao)
-        return duracao / 1000
+        return duracao / MS_POR_SEGUNDO
     }
 
     /**
@@ -324,9 +324,9 @@ class ContaService(
         // gravação: reancora no máximo para a espera não durar meses ou anos.
         if (restante > BLOQUEIO_MAXIMO_MS) {
             bloquear(chave, estado.falhasSeguidas, BLOQUEIO_MAXIMO_MS)
-            return BLOQUEIO_MAXIMO_MS / 1000
+            return BLOQUEIO_MAXIMO_MS / MS_POR_SEGUNDO
         }
-        return (restante + 999) / 1000
+        return (restante + MS_POR_SEGUNDO - 1) / MS_POR_SEGUNDO
     }
 
     /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */
@@ -365,5 +365,6 @@ class ContaService(
         const val BLOQUEIO_MS = 30_000L
         const val BLOQUEIO_MAXIMO_MS = 15 * 60_000L
         private const val MAXIMO_DOBRAS = 5
+        private const val MS_POR_SEGUNDO = 1_000L
     }
 }

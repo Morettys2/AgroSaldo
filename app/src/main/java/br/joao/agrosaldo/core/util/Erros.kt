@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.retryWhen
 
 /** Equivalente a `runCatching` que relança CancellationException, preservando o cancelamento cooperativo. */
+@Suppress("TooGenericExceptionCaught") // ponto único que vira qualquer falha em Result; o cancelamento é relançado
 inline fun <T> tentar(bloco: () -> T): Result<T> = try {
     Result.success(bloco())
 } catch (e: CancellationException) {
@@ -24,6 +25,7 @@ fun Throwable.mensagemParaUsuario(padrao: String): String =
 
 private const val ESPERA_INICIAL_MS = 1_000L
 private const val ESPERA_MAXIMA_MS = 30_000L
+private const val DOBRAS_MAXIMAS = 5L
 
 /**
  * Leitura contínua que se recupera de erro (ex.: falha ao ler o banco).
@@ -36,6 +38,6 @@ private const val ESPERA_MAXIMA_MS = 30_000L
 fun <T> Flow<T>.repetirAposErro(aoFalhar: (Throwable) -> Unit): Flow<T> = retryWhen { erro, tentativa ->
     if (erro is CancellationException) return@retryWhen false
     aoFalhar(erro)
-    delay(minOf(ESPERA_INICIAL_MS shl tentativa.coerceAtMost(5L).toInt(), ESPERA_MAXIMA_MS))
+    delay(minOf(ESPERA_INICIAL_MS shl tentativa.coerceAtMost(DOBRAS_MAXIMAS).toInt(), ESPERA_MAXIMA_MS))
     true
 }

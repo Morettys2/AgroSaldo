@@ -85,7 +85,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, ESPERA_INICIAL_MINUTOS, TimeUnit.MINUTES)
             .build()
 
         // KEEP: se já agendado, preserva o horário; reabrir o app não reinicia o período.
@@ -108,5 +108,8 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
 
         /** Duas verificações por dia (RN04). */
         const val INTERVALO_HORAS = 12L
+
+        /** Primeira espera do backoff exponencial quando a verificação falha. */
+        const val ESPERA_INICIAL_MINUTOS = 15L
     }
 }

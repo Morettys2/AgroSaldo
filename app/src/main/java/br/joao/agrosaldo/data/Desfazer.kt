@@ -51,7 +51,8 @@ class Desfazer(private val relogio: RelogioMonotonico = RelogioMonotonicoIndispo
      * @return false se a oferta não é válida ou a restauração falhou.
      * @throws CancellationException repassada a quem chamou, como em [br.joao.agrosaldo.core.util.tentar].
      */
-    suspend fun desfazer(exclusao: ExclusaoRecente): Boolean {
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // falha ao restaurar vira false; o cancelamento é relançado
+    suspend fun desfazerExclusao(exclusao: ExclusaoRecente): Boolean {
         if (_pendente.value !== exclusao || exclusao.usada) return false
         if (expirou(exclusao)) {
             dispensar(exclusao)

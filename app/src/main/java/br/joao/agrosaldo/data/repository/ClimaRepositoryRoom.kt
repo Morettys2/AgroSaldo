@@ -56,6 +56,8 @@ class ClimaRepositoryRoom(
         if (PoliticaDeAtualizacao.precisaAtualizar(guardada?.obtidaEm, agora())) buscarEGuardar(propriedade) else null
     }
 
+    @Suppress("SwallowedException") // cada falha vira um ResultadoAtualizacao; a causa não é usada pela tela
+
     private suspend fun buscarEGuardar(propriedade: Propriedade): ResultadoAtualizacao {
         val latitude = OpenMeteo.arredondar(propriedade.latitude)
         val longitude = OpenMeteo.arredondar(propriedade.longitude)
@@ -89,6 +91,7 @@ class ClimaRepositoryRoom(
      * propriedade e não passou de [PoliticaDeAtualizacao.VALIDADE_MAXIMA_CACHE].
      * Coordenadas alteradas invalidam a previsão anterior.
      */
+    @Suppress("SwallowedException") // JSON guardado inválido vira "sem previsão"
     private fun PrevisaoEntity.paraPrevisaoValida(propriedade: Propriedade): Previsao? {
         if (latitude != OpenMeteo.arredondar(propriedade.latitude)) return null
         if (longitude != OpenMeteo.arredondar(propriedade.longitude)) return null
@@ -107,6 +110,7 @@ class ClimaRepositoryRoom(
      *
      * @return false se a propriedade não existe mais; outros erros do banco são relançados.
      */
+    @Suppress("TooGenericExceptionCaught") // só trata a propriedade que sumiu (chave estrangeira); outros erros são relançados
     private suspend fun guardar(previsao: PrevisaoEntity): Boolean = try {
         dao.salvar(previsao)
         true

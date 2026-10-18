@@ -80,7 +80,10 @@ class AjustesAvisoViewModel @Inject constructor(
 
     /** Arredonda para múltiplo de 5, limitado a [PROBABILIDADE_MIN]..[PROBABILIDADE_MAX]. */
     fun aoMudarProbabilidade(valor: Float) = _uiState.update {
-        val arredondado = ((valor / 5f).roundToInt() * 5).coerceIn(PROBABILIDADE_MIN, PROBABILIDADE_MAX)
+        val arredondado = ((valor / PASSO_PROBABILIDADE.toFloat()).roundToInt() * PASSO_PROBABILIDADE).coerceIn(
+            PROBABILIDADE_MIN,
+            PROBABILIDADE_MAX
+        )
         it.copy(probabilidadeMinima = arredondado)
     }
 
@@ -119,6 +122,7 @@ class AjustesAvisoViewModel @Inject constructor(
     fun aoVerificarAgora() = agenda.verificarAgora()
 
     companion object {
+        const val PASSO_PROBABILIDADE = 5
         const val PROBABILIDADE_MIN = 30
         const val PROBABILIDADE_MAX = 90
         const val CHUVA_MIN = 1.0
