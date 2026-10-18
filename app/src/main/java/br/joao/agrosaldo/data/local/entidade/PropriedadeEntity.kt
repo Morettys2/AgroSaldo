@@ -35,11 +35,10 @@ data class PropriedadeEntity(
     @ColumnInfo(name = "atualizado_em")
     val atualizadoEm: Long,
     /**
-     * Dono. Nulo apenas para registros anteriores à versão 2 ou dados de
-     * exemplo, até serem adotados pela primeira conta criada.
+     * Dono. Nulo apenas para dados de exemplo, até serem adotados pela
+     * primeira conta criada.
      *
-     * Deve ser a última coluna: a migração 1 -> 2 a adiciona no fim, e a ordem
-     * precisa coincidir entre banco novo e migrado.
+     * Deve ser a última coluna: a ordem precisa coincidir com o schema exportado.
      */
     @ColumnInfo(name = "usuario_id")
     val usuarioId: String?

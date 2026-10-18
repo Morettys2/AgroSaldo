@@ -1,6 +1,5 @@
 package br.joao.agrosaldo.data
 
-import br.joao.agrosaldo.data.local.MigracoesSql
 import br.joao.agrosaldo.data.local.Semeador
 import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
@@ -36,7 +35,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Camada de dados na JVM: mapeadores, semeador, SQL de migração e repositórios Room sobre
+ * Camada de dados na JVM: mapeadores, semeador e repositórios Room sobre
  * DAOs falsos. O SQL real é testado em `app/src/androidTest`.
  */
 class CamadaDeDadosTest {
@@ -135,22 +134,6 @@ class CamadaDeDadosTest {
         DadosDeExemplo.lancamentos(hoje).forEach { l ->
             assertFalse("${l.id} em ${l.data}", l.data.isAfter(hoje))
         }
-    }
-
-    @Test
-    fun `migracao 1 para 2 nunca apaga nem recria tabela`() {
-        // Apagar "propriedades" dispararia o CASCADE e levaria os lançamentos.
-        MigracoesSql.DE_1_PARA_2.forEach { sql ->
-            assertFalse(sql, sql.contains("DROP", ignoreCase = true))
-            assertFalse(sql, sql.contains("DELETE", ignoreCase = true) && !sql.contains("ON DELETE"))
-        }
-    }
-
-    @Test
-    fun `migracao cria a tabela de usuarios antes de apontar para ela`() {
-        val criaUsuarios = MigracoesSql.DE_1_PARA_2.indexOfFirst { it.contains("CREATE TABLE IF NOT EXISTS `usuarios`") }
-        val alteraPropriedades = MigracoesSql.DE_1_PARA_2.indexOfFirst { it.startsWith("ALTER TABLE `propriedades`") }
-        assertTrue(criaUsuarios in 0 until alteraPropriedades)
     }
 
     /** DAO em memória que filtra por dono como as queries reais (sem ordenar, como o SQL). */
