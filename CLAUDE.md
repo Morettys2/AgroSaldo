@@ -2,7 +2,7 @@
 
 Contexto permanente do projeto: regras e decisões. Leia inteiro antes de qualquer alteração.
 
-A documentação técnica detalhada (pasta por pasta, arquivo por arquivo, bibliotecas, design e data classes) fica em `docs/`, em MDX, escrita para os outros devs do grupo. Comece por `docs/index.mdx`. Quando o código mudar de forma relevante, atualize a página correspondente em `docs/`.
+A documentação técnica detalhada (pasta por pasta, arquivo por arquivo, bibliotecas, design e data classes) fica em `docs/DOCUMENTACAO_TECNICA.mdx` (um único arquivo MDX, com sumário), escrita para os outros devs do grupo. Quando o código mudar de forma relevante, atualize a seção correspondente nele.
 
 ---
 
@@ -189,7 +189,7 @@ config/detekt/         detekt.yml
 6. **Antes do PR**, o CI precisa ficar verde (ktlint, detekt, testes, build e lint) e sem warning novo do Kotlin.
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
-9. Não recrie README nem CHANGELOG. A pasta `docs/` (MDX) é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
+9. Não recrie README nem CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
 10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a próxima migração parte da 3.
 ---
 
