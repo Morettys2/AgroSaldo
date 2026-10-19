@@ -43,8 +43,8 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
 
         /**
          * Abre o banco, sempre vazio na primeira vez: nenhum dado de exemplo é gravado.
-         * Deve existir uma única instância por processo (garantida por
-         * [br.joao.agrosaldo.di.Dependencias]).
+         * Deve existir uma única instância por processo (garantida pelo
+         * `BancoModule` do Hilt, que a fornece como `@Singleton`).
          */
         fun criar(context: Context): AgroSaldoDatabase = Room.databaseBuilder(
             context.applicationContext,
