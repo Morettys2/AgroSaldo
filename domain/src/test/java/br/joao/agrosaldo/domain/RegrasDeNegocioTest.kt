@@ -65,7 +65,7 @@ class RegrasDeNegocioTest {
 
     @Test
     fun `lancamento ja gravado no futuro continua legivel se o relogio voltar`() {
-        // RN07 não é validada no init: um lançamento gravado com data distante (relógio do
+        // A data limite não é validada no init: um lançamento gravado com data distante (relógio do
         // aparelho atrasado na época) precisa ser lido do banco sem lançar exceção.
         val longe = lancamento(data = LocalDate.now().plusYears(2))
         assertEquals(LocalDate.now().plusYears(2), longe.data)

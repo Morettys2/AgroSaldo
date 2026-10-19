@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 data class LoginUiState(val email: String = "", val senha: String = "", val erro: String? = null, val entrando: Boolean = false)
 
 /**
- * Login (RF02). Não navega: o sucesso abre a sessão no [ContaService], que é a
+ * Login. Não navega: o sucesso abre a sessão no [ContaService], que é a
  * fonte única de "logado ou não" observada pela navegação.
  */
 @HiltViewModel

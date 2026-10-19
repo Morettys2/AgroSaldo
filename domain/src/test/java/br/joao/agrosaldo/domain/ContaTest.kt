@@ -27,8 +27,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Regras de conta: senha, e-mail, hash, cadastro, login, bloqueio e exclusão
- * (RF01, RF02, RNF10).
+ * Regras de conta: senha, e-mail, hash, cadastro, login, bloqueio e exclusão.
  */
 class ContaTest {
 

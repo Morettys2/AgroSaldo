@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 /**
- * Limites configuráveis do aviso de chuva (RN04).
+ * Limites configuráveis do aviso de chuva.
  *
  * Padrão: probabilidade >= 60% OU chuva acumulada >= 2 mm nas próximas 12 h.
  * O construtor rejeita valores fora das faixas do companion.
@@ -44,7 +44,7 @@ data class AvaliacaoChuva(
 )
 
 /**
- * RN04: decide se a previsão justifica um aviso de chuva.
+ * Decide se a previsão justifica um aviso de chuva.
  *
  * Chove se, nas próximas [LimitesChuva.janelaHoras] horas, a maior
  * probabilidade horária for >= o limite OU a chuva somada for >= o limite em mm.
@@ -98,7 +98,7 @@ object RegraDeChuva {
 /**
  * Antirrepetição de avisos por propriedade.
  *
- * A verificação periódica roda a cada 12 h (RN04); o intervalo mínimo é 11 h
+ * A verificação periódica roda a cada 12 h; o intervalo mínimo é 11 h
  * para tolerar a imprecisão de agendamento do WorkManager.
  */
 object ControleDeAvisos {

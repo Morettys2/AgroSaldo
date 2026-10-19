@@ -16,7 +16,7 @@ interface PropriedadeRepository {
     suspend fun excluir(id: String)
 
     /**
-     * RN02: exclui a propriedade e seus lançamentos numa única transação.
+     * Exclui a propriedade e seus lançamentos numa única transação.
      * Retorna o que foi removido (para desfazer) ou null se o id não existe.
      */
     suspend fun excluirComLancamentos(id: String): PropriedadeExcluida?

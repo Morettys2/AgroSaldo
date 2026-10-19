@@ -27,7 +27,7 @@ object Rotas {
     const val CLIMA = "clima"
     const val PROPRIEDADES = "propriedades"
 
-    // Histórico anual (RF10).
+    // Histórico anual.
     const val HISTORICO = "historico"
 
     const val ARG_ID = "id"

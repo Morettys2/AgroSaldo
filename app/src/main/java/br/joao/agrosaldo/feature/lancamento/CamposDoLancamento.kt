@@ -270,7 +270,7 @@ internal fun CampoDescricao(texto: String, aoMudar: (String) -> Unit) {
     )
 }
 
-/** DatePicker com datas após [ultimaPermitida] desabilitadas (RN07). Datas em millis UTC. */
+/** DatePicker com datas após [ultimaPermitida] desabilitadas. Datas em millis UTC. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CalendarioDialogo(dataAtual: LocalDate?, ultimaPermitida: LocalDate, aoEscolher: (LocalDate) -> Unit, aoFechar: () -> Unit) {

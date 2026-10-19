@@ -106,7 +106,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
         const val NOME = "verificacao-de-chuva"
         const val NOME_AGORA = "verificacao-de-chuva-agora"
 
-        /** Duas verificações por dia (RN04). */
+        /** Duas verificações por dia. */
         const val INTERVALO_HORAS = 12L
 
         /** Primeira espera do backoff exponencial quando a verificação falha. */

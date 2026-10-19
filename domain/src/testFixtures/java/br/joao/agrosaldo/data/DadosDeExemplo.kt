@@ -36,7 +36,7 @@ object DadosDeExemplo {
         )
     )
 
-    /** Lançamentos no mês de [hoje] e no anterior (exercita a navegação entre meses, RF10). */
+    /** Lançamentos no mês de [hoje] e no anterior (exercita a navegação entre meses). */
     fun lancamentos(hoje: LocalDate = LocalDate.now()): List<Lancamento> {
         val mesAtual = YearMonth.from(hoje)
         val mesPassado = mesAtual.minusMonths(1)

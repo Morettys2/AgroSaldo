@@ -15,7 +15,7 @@ import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 
 /**
  * Banco Room local ([NOME_ARQUIVO], armazenamento privado do app); fonte da
- * verdade offline (RNF01).
+ * verdade offline.
  *
  * Versão 3 é o ponto de partida da produção: usuários, propriedades, lançamentos
  * e cache de previsão. Toda mudança de schema exige incrementar a versão e

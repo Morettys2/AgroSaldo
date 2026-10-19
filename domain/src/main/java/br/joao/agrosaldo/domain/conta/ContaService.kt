@@ -56,7 +56,7 @@ sealed interface ResultadoAlteracaoSenha {
 
 /**
  * Casos de uso de conta local: cadastro, login, logout, troca de senha e
- * exclusão (RF01, RF02, RNF10, RF16). Encapsula hash, sessão e bloqueio por
+ * exclusão. Encapsula hash, sessão e bloqueio por
  * tentativas; os ViewModels só consomem os resultados selados.
  *
  * @param relogio hora do calendário (injetável em testes).

@@ -8,7 +8,7 @@ import java.util.UUID
  *
  * [senhaHash] está no formato de [br.joao.agrosaldo.domain.conta.HashDeSenha];
  * a senha em texto puro nunca é armazenada.
- * [consentimentoEm] e [versaoTermo] registram o aceite LGPD (RNF10).
+ * [consentimentoEm] e [versaoTermo] registram o aceite LGPD.
  */
 data class Usuario(
     val id: String = UUID.randomUUID().toString(),

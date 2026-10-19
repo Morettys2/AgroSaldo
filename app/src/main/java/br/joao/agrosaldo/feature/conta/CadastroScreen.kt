@@ -27,7 +27,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 
 /**
- * Formulário de criação de conta (RF01). O [viewModel] é injetado pela AppNavegacao,
+ * Formulário de criação de conta. O [viewModel] é injetado pela AppNavegacao,
  * sem valor padrão, porque é compartilhado com a tela de consentimento.
  */
 @Composable

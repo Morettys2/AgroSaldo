@@ -42,7 +42,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
-/** Ajustes do aviso de chuva: ativação, limites (RN04) e propriedades avisadas. */
+/** Ajustes do aviso de chuva: ativação, limites e propriedades avisadas. */
 @Composable
 fun AjustesAvisoRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, viewModel: AjustesAvisoViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

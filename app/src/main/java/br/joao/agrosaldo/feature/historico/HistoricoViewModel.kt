@@ -65,7 +65,7 @@ data class HistoricoUiState(
 }
 
 /**
- * Histórico anual (RF10) da propriedade selecionada, por ano-calendário (alinhado ao
+ * Histórico anual da propriedade selecionada, por ano-calendário (alinhado ao
  * fechamento contábil e ao IR rural), não pelos últimos 12 meses. Os totais são
  * derivados dos lançamentos a cada emissão; nada é persistido.
  */
@@ -155,7 +155,7 @@ class HistoricoViewModel @Inject constructor(
         )
     }
 
-    /** Ano atual + 1, pois lançamentos podem ter até 12 meses à frente (RN07). */
+    /** Ano atual + 1, pois lançamentos podem ter até 12 meses à frente. */
     private fun anoMaximo(): Int = hoje().year + 1
 
     fun aoVoltarAno() {

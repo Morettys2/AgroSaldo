@@ -20,7 +20,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import java.time.YearMonth
 
-/** Navegação entre meses (RF10), usada no Início e em Lançamentos. */
+/** Navegação entre meses, usada no Início e em Lançamentos. */
 @Composable
 fun SeletorMes(mes: YearMonth, aoVoltar: () -> Unit, aoAvancar: () -> Unit, modifier: Modifier = Modifier) {
     Row(
