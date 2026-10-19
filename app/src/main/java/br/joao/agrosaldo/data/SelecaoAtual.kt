@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Propriedade e mês selecionados, compartilhados entre as telas: escolher a propriedade
  * no Início vale também em Lançamentos, Clima e Histórico.
  *
- * Existe UMA instância por app, criada em [br.joao.agrosaldo.di.Dependencias] e passada
- * no construtor de cada ViewModel que precisa dela. Antes era um `object` global, que os
+ * Existe UMA instância por app, fornecida como `@Singleton` pelo
+ * `PreferenciasModule` (Hilt) e injetada no construtor de cada ViewModel que precisa dela. Antes era um `object` global, que os
  * ViewModels acessavam direto e os testes precisavam zerar à mão; como classe, cada teste
  * cria a sua e nenhum estado vaza de um teste para outro.
  *
