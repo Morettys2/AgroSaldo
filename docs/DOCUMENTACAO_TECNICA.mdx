@@ -505,7 +505,7 @@ app/
     │   ├── java/br/joao/agrosaldo/ código Kotlin (abaixo)
     │   ├── res/                    cores do sistema, textos, ícone, fontes, regras de backup
     │   └── assets/licencas/        licença da fonte Plus Jakarta Sans
-    ├── testFixtures/               AjustesAvisoMemoria e Semeador (dependem do app)
+    ├── testFixtures/               AjustesAvisoMemoria, Semeador e TransacaoDireta (dependem do app)
     ├── test/                       testes no JVM: ViewModels, dados, Worker, telas, capturas e o grafo do Hilt
     └── androidTest/                testes no aparelho: banco do Room
 ```
@@ -535,9 +535,10 @@ agrosaldo/
 │   ├── propriedade/        lista e formulário de sítios (4)
 │   ├── clima/              previsão e ajustes do aviso (6)
 │   ├── historico/          resumo do ano (2)
+│   ├── sessao/             ViewModels globais da navegação: sessão/bloqueio e valores ocultos (2)
 │   └── conta/              login, cadastro, LGPD, conta, senha, bloqueio (14)
 ├── core/                   peças compartilhadas pelas features
-│   ├── navigation/         rotas, NavHost, barra inferior, transições, regras de navegação (9)
+│   ├── navigation/         rotas, NavHost, barra inferior, transições, regras de navegação (7)
 │   ├── ui/                 componentes Safra, botões, estados, campos, seletores (12)
 │   ├── util/               dinheiro, datas, números, erros, textos (8)
 │   ├── localizacao/        GPS para preencher as coordenadas do sítio (2)
@@ -553,7 +554,7 @@ agrosaldo/
 | `domain/src/test` | Testes das regras de negócio, das contas e das validações | `./gradlew :domain:test` |
 | `domain/src/testFixtures` | Fakes `*Memoria` das interfaces do domínio, `DadosDeExemplo` e relógios de teste | (compilada junto com os testes) |
 | `app/src/test` | ViewModels, dados com DAOs falsos, Worker, preferências, telas (Robolectric), capturas (Roborazzi) e o grafo do Hilt | `./gradlew testDebugUnitTest` |
-| `app/src/testFixtures` | `AjustesAvisoMemoria` e `Semeador` | (compilada junto com os testes) |
+| `app/src/testFixtures` | `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` | (compilada junto com os testes) |
 | `app/src/androidTest` | DAOs do Room no aparelho | `./gradlew connectedDebugAndroidTest` |
 
 Detalhes em [Testes](#23-testes).
@@ -861,7 +862,7 @@ Interface das contas locais: `observar(id)`, `buscarPorId(id)`, `buscarPorEmail(
 
 #### PropriedadeRepository.kt
 
-Acesso às propriedades do usuário conectado: `observarTodas()`, `buscarPorId`, `salvar`, `excluir`, `excluirComLancamentos(id)` (RN02: uma transação só, devolvendo uma `PropriedadeExcluida` para desfazer, ou `null`) e `restaurar(excluida)` (reinsere tudo numa transação).
+Acesso às propriedades do usuário conectado: `observarTodas()`, `buscarPorId`, `salvar`, `excluirComLancamentos(id)` (RN02: uma transação só, devolvendo uma `PropriedadeExcluida` para desfazer, ou `null`) e `restaurar(excluida)` (reinsere tudo numa transação).
 
 #### LancamentoRepository.kt
 
@@ -903,7 +904,7 @@ Sessão local: `usuarioId: StateFlow<String?>`, `iniciar(usuarioId)` e `encerrar
 
 #### Tempo, threads e usuário conectado (interfaces injetadas)
 
-- **`RelogioMonotonico`** (`domain/RelogioMonotonico.kt`): `milissegundos()` e `instante()` (com o boot, comparável entre processos). Serve para bloqueio por senhas erradas, tempo em segundo plano e validade do "Desfazer". `RelogioMonotonicoIndisponivel` é o padrão dos testes.
+- **`RelogioMonotonico`** (`domain/RelogioMonotonico.kt`): `milissegundos()` e `instante()` (com o boot, comparável entre processos). Serve para bloqueio por senhas erradas, tempo em segundo plano e validade do "Desfazer". Nos testes, `RelogioMonotonicoIndisponivel` (em `domain/src/testFixtures`) faz o papel do relógio sem boot conhecido.
 - **`Despachantes`** (`domain/Despachantes.kt`): `calculo` e `io`. O `ContaService` roda o PBKDF2 em `despachantes.calculo`. `DespachantesDoSistema` usa `Dispatchers.Default` e `Dispatchers.IO`.
 - **`UsuarioLogadoRepository`** (`domain/repository/`): `observarNome()`, o que as telas precisam saber de quem está conectado.
 - A hora do calendário usa o `java.time.Clock` do JDK: `ContaService` e `VerificadorDeChuva` recebem um `Clock` e leem `relogio.instant()`.
@@ -1071,7 +1072,7 @@ Formatos gravados: datas em **epochDay**, instantes em **epoch ms** e enums pelo
 
 ##### Transacao.kt
 
-A interface `Transacao` tem um único método, `executar(bloco)`, que roda o bloco de forma atômica (tudo ou nada). Ela abstrai o `withTransaction` do Room para que os repositórios possam ser testados na JVM com `Transacao.DIRETA`, que só executa o bloco sem transação (uso exclusivo em testes). A implementação real, que chama `withTransaction`, é criada em `Dependencias`.
+A interface `Transacao` tem um único método, `executar(bloco)`, que roda o bloco de forma atômica (tudo ou nada). Ela abstrai o `withTransaction` do Room para que os repositórios possam ser testados na JVM com a `TransacaoDireta`, que só executa o bloco sem transação e por isso fica em `app/src/testFixtures` (não vai no APK). A implementação real, `TransacaoRoom`, é fornecida pelo `BancoModule`. Os repositórios recebem a transação **sem valor padrão**: não há como construir um repositório Room sem dizer qual transação ele usa.
 
 #### data/repository/
 
@@ -1139,11 +1140,11 @@ Cliente da API Open-Meteo, que não exige chave. O código observa que o plano g
 ##### FontePrevisao.kt
 
 - `FontePrevisao`: `fun interface` com `baixar(latitude, longitude): String`, que devolve o JSON bruto. Nos testes, é trocada por uma implementação falsa.
-- `OpenMeteoHttp`: implementação com `HttpURLConnection`. O comentário justifica que uma única chamada não justifica uma biblioteca de rede.
+- `OpenMeteoHttp(despachantes)`: implementação com `HttpURLConnection`. O comentário justifica que uma única chamada não justifica uma biblioteca de rede. É fornecida pelo `RepositoriosModule` como `FontePrevisao` e roda a leitura bloqueante em `despachantes.io`.
   - Envia os headers `Accept: application/json` e `User-Agent: AgroSaldo-Android`.
   - Timeouts: **conexão de 10 s**, **leitura de 15 s** e **download inteiro de 30 s** (`TEMPO_TOTAL_MS`).
   - Se a resposta não for 200, lê o `errorStream` e lança `OpenMeteo.erroHttp(...)`. O servidor respondeu, então não é falta de conexão.
-- `chamadaBloqueante(tempoTotalMs, interromper, bloqueante)` (`internal`): roda a E/S bloqueante em `Dispatchers.IO` com um limite total de tempo.
+- `chamadaBloqueante(tempoTotalMs, despachante, interromper, bloqueante)` (`internal`): roda a E/S bloqueante no `despachante` recebido (o de E/S, em produção) com um limite total de tempo. Os testes passam `Dispatchers.IO`, porque precisam de uma thread de verdade travada no "socket".
   - Como E/S de rede bloqueante não responde à interrupção da thread, uma corrotina "vigia" chama `interromper` (`conexao::disconnect`) quando há cancelamento ou o tempo acaba.
   - Quando o tempo esgota, lança `IOException` (que o repositório trata como `SemConexao`). Um cancelamento de quem chamou continua chegando como `CancellationException`.
 
@@ -1240,7 +1241,7 @@ Todos são `object` com `@Module` e `@InstallIn(SingletonComponent::class)`. Os 
 | `TempoModule` | `Clock` (o `RelogioDoAparelho`), `RelogioMonotonico` (`RelogioMonotonicoDoAndroid`), `Despachantes` (`DespachantesDoSistema`) e o `CoroutineScope` do app (`@EscopoDoApp`, `SupervisorJob` + `Unconfined`) |
 | `BancoModule` | `AgroSaldoDatabase` (`AgroSaldoDatabase.criar`), os quatro DAOs e a `Transacao` real (`TransacaoRoom`) |
 | `PreferenciasModule` | `SessaoRepository`, `BloqueioRepository`, `TentativasRepository`, `PrivacidadeRepository`, `AjustesAvisoRepository` (liga ou desliga o agendamento ao trocar de conta) e o `SelecaoAtual` (lê e grava `propriedade_id` no arquivo `"selecao"`) |
-| `RepositoriosModule` | `UsuarioRepository`, `UsuarioLogadoRepository`, `PropriedadeRepository`, `LancamentoRepository` e `ClimaRepository` (Room e Open-Meteo), mais o `Desfazer` com o relógio monotônico |
+| `RepositoriosModule` | `UsuarioRepository`, `UsuarioLogadoRepository`, `PropriedadeRepository`, `LancamentoRepository`, a `FontePrevisao` (`OpenMeteoHttp`) e o `ClimaRepository` (Room e Open-Meteo), mais o `Desfazer` com o relógio monotônico |
 | `ServicosModule` | `AgendaDeVerificacao` (`AgendaWorkManager`), `LimpezaDaConta`, `ContaService` e `VerificadorDeChuva` |
 
 As classes do domínio e da camada de dados **não têm anotação do Hilt**: quem as constrói é um `@Provides` nos módulos. Isso mantém o `domain/` livre de Android e de bibliotecas de DI. Só os ViewModels, o Worker, a Activity e o Application são anotados.
@@ -1368,7 +1369,7 @@ O KDoc explica por que isso fica no `Application` e não na `MainActivity`: o Wo
 
 ### Navegação (`core/navigation/`)
 
-A navegação usa o Navigation Compose (`NavHost` + `NavHostController`) com rotas em texto. A pasta tem oito arquivos, cada um com uma responsabilidade.
+A navegação usa o Navigation Compose (`NavHost` + `NavHostController`) com rotas em texto. A pasta tem sete arquivos, cada um com uma responsabilidade. O estado de sessão e o de valores ocultos, que a navegação observa, vêm de dois ViewModels em `feature/sessao/` (descritos logo abaixo).
 
 #### `Rotas.kt`
 
@@ -1499,6 +1500,10 @@ Define a animação ao trocar de tela. **Problema que resolve:** o padrão do Na
 - `slideIntoContainer` e `slideOutOfContainer` são membros do `AnimatedContentTransitionScope`, por isso não são importados como funções soltas.
 
 **`telaPodeAparecer(...)`** devolve `true` só quando há rota, o estado da sessão é conhecido e nenhum desvio está pendente. Assim nenhuma tela aparece por alguns quadros antes de um redirecionamento.
+
+### Sessão e privacidade (`feature/sessao/`)
+
+Dois ViewModels **globais**: quem os observa é a `AppNavegacao`, e não uma tela só. Antes ficavam em `core/navigation/`; foram para `feature/` para todo ViewModel morar no mesmo lugar.
 
 #### `SessaoViewModel.kt`
 
@@ -3723,7 +3728,7 @@ Um *source set* é uma pasta de código com o seu próprio classpath. O projeto 
 |---|---|---|---|
 | `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 80 testes | `./gradlew :domain:test` |
 | `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric) e o grafo do Hilt: 417 testes | `./gradlew testDebugUnitTest` |
-| `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria` e `Semeador` (no app). Fora do APK | (compilado junto com os testes) |
+| `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` (no app). Fora do APK | (compilado junto com os testes) |
 | `app/src/androidTest` | Aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras e CASCADE | `./gradlew connectedAndroidTest` |
 
 Em números: **497 testes** de JVM (80 em `domain/src/test` e 417 em `app/src/test`) e **15** em `app/src/androidTest`. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
