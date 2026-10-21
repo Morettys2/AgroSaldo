@@ -123,6 +123,8 @@ class InicioViewModel @Inject constructor(
         viewModelScope.launch {
             usuarioLogado.observarNome()
                 .map { nome -> if (nome.isNullOrBlank()) "" else RegrasDeConta.iniciais(nome) }
+                // Sem isto, um erro do banco escaparia do launch e fecharia o app.
+                .repetirAposErro { _uiState.update { it.copy(iniciais = "") } }
                 .collect { iniciais -> _uiState.update { it.copy(iniciais = iniciais) } }
         }
 

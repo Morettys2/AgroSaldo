@@ -17,6 +17,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
@@ -290,6 +291,33 @@ class ResumosViewModelTest {
         advanceUntilIdle()
         assertNull(vm.uiState.value.erro)
         assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
+    fun `erro ao ler o nome do usuario nao derruba o inicio e as iniciais voltam sozinhas`() = runTest {
+        // Primeira leitura falha, como um banco travado por um instante.
+        val usuarioInstavel = object : UsuarioLogadoRepository {
+            var leituras = 0
+            override fun observarNome(): Flow<String?> = flow {
+                if (leituras++ == 0) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emit("Maria Souza")
+            }
+        }
+        val vm = InicioViewModel(
+            lancamentos,
+            propriedades,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = usuarioInstavel,
+            relogio = relogioEm(hoje)
+        )
+
+        assertEquals("", vm.uiState.value.iniciais)
+
+        advanceUntilIdle()
+        assertEquals("MS", vm.uiState.value.iniciais)
+        assertEquals("o resto da tela não é afetado", 1_565_000L, vm.uiState.value.saldoCentavos)
     }
 
     @Test
