@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -267,7 +268,7 @@ class CamadaDeDadosTest {
         assertEquals(listOf(fazenda), repositorio.observarTodas().first())
         assertEquals(fazenda, repositorio.buscarPorId(fazenda.id))
 
-        repositorio.excluir(fazenda.id)
+        assertNotNull(repositorio.excluirComLancamentos(fazenda.id))
         assertNull(repositorio.buscarPorId(fazenda.id))
     }
 
@@ -285,7 +286,7 @@ class CamadaDeDadosTest {
         assertNull(repositorio.buscarPorId(fazenda.id))
 
         // Excluir pela conta errada não apaga nada.
-        repositorio.excluir(fazenda.id)
+        assertNull(repositorio.excluirComLancamentos(fazenda.id))
         assertEquals(1, dao.tabela.value.size)
 
         sessao.iniciar("u1")

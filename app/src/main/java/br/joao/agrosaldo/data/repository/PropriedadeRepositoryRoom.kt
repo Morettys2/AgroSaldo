@@ -61,8 +61,6 @@ class PropriedadeRepositoryRoom(
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId, agora = relogio.millis()))
     }
 
-    override suspend fun excluir(id: String) = dao.excluir(id, usuarioConectado())
-
     override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {
         val usuarioId = usuarioConectado()
         return transacao.executar {
