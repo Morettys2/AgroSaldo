@@ -9,7 +9,7 @@ import java.time.YearMonth
 /**
  * Receitas e despesas de um período, em centavos.
  *
- * O saldo segue a RN03 (receitas − despesas). [proporcaoReceitas] alimenta a barra
+ * O saldo é receitas − despesas. [proporcaoReceitas] alimenta a barra
  * receitas × despesas do Início: 0.5 quando não há movimento, para a barra ficar neutra.
  */
 data class TotaisDoPeriodo(val receitasCentavos: Long = 0L, val despesasCentavos: Long = 0L) {
@@ -63,7 +63,7 @@ object ResumoFinanceiro {
     fun doMes(lancamentos: Iterable<Lancamento>, propriedadeId: String, mes: YearMonth): List<Lancamento> =
         lancamentos.filter { it.propriedadeId == propriedadeId && YearMonth.from(it.data) == mes }
 
-    /** Totais do mês [mes] da propriedade [propriedadeId] (RN03). */
+    /** Totais do mês [mes] da propriedade [propriedadeId]. */
     fun resumoDoMes(lancamentos: Iterable<Lancamento>, propriedadeId: String, mes: YearMonth): TotaisDoPeriodo =
         totais(doMes(lancamentos, propriedadeId, mes))
 

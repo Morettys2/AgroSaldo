@@ -145,7 +145,7 @@ class AgroSaldoDatabaseTest {
             lancamentoDao.salvar(orfao.paraEntidade(agora = 0L))
             fail("A chave estrangeira deveria ter recusado o lançamento")
         } catch (esperado: SQLiteConstraintException) {
-            // RN01 garantida pelo próprio banco.
+            // Garantida pelo próprio banco.
         }
     }
 

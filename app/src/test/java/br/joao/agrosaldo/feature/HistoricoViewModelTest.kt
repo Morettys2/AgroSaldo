@@ -28,7 +28,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Histórico do ano (RF10).
+ * Histórico do ano.
  *
  * Com os dados de exemplo e "hoje" em 30/09/2026, a Fazenda Santa Clara tem:
  *   agosto:   entrou R$ 9.400  · saiu R$ 2.100  · saldo R$  7.300

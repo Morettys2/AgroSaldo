@@ -7,7 +7,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Tabela `lancamentos`. FK com CASCADE para `propriedades` (RN02).
+ * Tabela `lancamentos`. FK com CASCADE para `propriedades`.
  * Índices em `propriedade_id` (filtro) e `data` (ordenação).
  */
 @Entity(

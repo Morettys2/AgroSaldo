@@ -354,7 +354,7 @@ class LancamentoFormViewModel(
         /** Aviso exibido quando [LancamentoFormUiState.naoEncontrado]. */
         const val AVISO_NAO_ENCONTRADO = "Este lançamento não existe mais."
 
-        /** RN07: limite de data futura, definido em [Lancamento]; usado para limitar o calendário. */
+        /** Limite de data futura, definido em [Lancamento]; usado para limitar o calendário. */
         const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO
 
         /** Teto de entrada: R$ 9.999.999,99. */

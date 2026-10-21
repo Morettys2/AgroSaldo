@@ -84,7 +84,7 @@ data class ClimaUiState(
 )
 
 /**
- * Previsão do tempo da propriedade selecionada (RF12, RF13).
+ * Previsão do tempo da propriedade selecionada.
  *
  * A UI observa sempre o cache local ([ClimaRepository.observar]); a rede só atualiza
  * o cache, e automaticamente apenas quando ele tem mais de 1 hora. Funciona offline.

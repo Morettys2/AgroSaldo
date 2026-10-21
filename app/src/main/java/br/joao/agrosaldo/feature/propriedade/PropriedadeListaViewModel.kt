@@ -37,7 +37,7 @@ data class PropriedadeListaUiState(
 )
 
 /**
- * Lista de propriedades com comparativo de saldo do mês (RF11). O saldo não é persistido:
+ * Lista de propriedades com comparativo de saldo do mês. O saldo não é persistido:
  * é derivado dos lançamentos a cada emissão de propriedades, lançamentos ou mês.
  */
 @HiltViewModel

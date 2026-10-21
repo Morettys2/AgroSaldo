@@ -330,7 +330,7 @@ class PropriedadeFormViewModel(
     }
 
     /**
-     * RN02: exclui a propriedade e seus lançamentos (a tela pede confirmação antes).
+     * Exclui a propriedade e seus lançamentos (a tela pede confirmação antes).
      * Oferece "Desfazer", que restaura tudo com os mesmos ids.
      */
     fun aoExcluir() {

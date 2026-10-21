@@ -6,7 +6,7 @@ import java.util.UUID
 enum class TipoLancamento { RECEITA, DESPESA }
 
 /**
- * Categorias fixas (RF06), mais uma categoria "Outras" para cada tipo.
+ * Categorias fixas, mais uma categoria "Outras" para cada tipo.
  *
  * Cada categoria pertence a um único [tipo]; [Lancamento] rejeita combinações
  * inconsistentes. O rótulo fica no domínio (e não em strings.xml) para manter
@@ -41,11 +41,11 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
 /**
  * Lançamento financeiro de uma propriedade. Valores em centavos.
  *
- * - RN01: pertence a exatamente uma propriedade.
- * - RN06: [valorCentavos] é sempre positivo; o sinal vem do [tipo].
+ * - Pertence a exatamente uma propriedade.
+ * - [valorCentavos] é sempre positivo; o sinal vem do [tipo].
  *
  * O init só valida invariantes independentes do tempo. O limite de data futura
- * (RN07) depende do relógio e é checado ao salvar via [dataDentroDoLimite];
+ * depende do relógio e é checado ao salvar via [dataDentroDoLimite];
  * no init, registros já gravados poderiam falhar ao serem lidos.
  */
 data class Lancamento(
@@ -59,10 +59,10 @@ data class Lancamento(
 ) {
     init {
         require(propriedadeId.isNotBlank()) {
-            "Todo lançamento precisa de uma propriedade (RN01)."
+            "Todo lançamento precisa de uma propriedade."
         }
         require(valorCentavos > 0L) {
-            "O valor do lançamento deve ser positivo (RN06)."
+            "O valor do lançamento deve ser positivo."
         }
         require(categoria.tipo == tipo) {
             "A categoria ${categoria.rotulo} não pertence ao tipo $tipo."
@@ -72,7 +72,7 @@ data class Lancamento(
         }
     }
 
-    /** Valor com sinal, usado no cálculo de saldo do período (RN03). */
+    /** Valor com sinal, usado no cálculo de saldo do período. */
     val valorComSinal: Long
         get() = if (tipo == TipoLancamento.RECEITA) valorCentavos else -valorCentavos
 
@@ -82,10 +82,10 @@ data class Lancamento(
         /** Tamanho máximo da descrição: texto sem limite travaria a lista e o banco. */
         const val DESCRICAO_MAXIMA = 200
 
-        /** RN07: limite de meses no futuro para a data de um lançamento. */
+        /** Limite de meses no futuro para a data de um lançamento. */
         const val MESES_NO_FUTURO = 12L
 
-        /** RN07: true se [data] não passa de [MESES_NO_FUTURO] meses após [hoje]. */
+        /** É true se [data] não passa de [MESES_NO_FUTURO] meses após [hoje]. */
         fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean = !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
     }
 }

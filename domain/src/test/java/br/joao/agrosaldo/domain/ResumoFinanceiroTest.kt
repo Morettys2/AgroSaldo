@@ -46,7 +46,7 @@ class ResumoFinanceiroTest {
     private fun propriedade(id: String, nome: String = id) =
         Propriedade(id = id, nome = nome, cultura = "Milho", areaHectares = 10.0, latitude = -21.0, longitude = -47.0)
 
-    // Totais e saldo (RN03)
+    // Totais e saldo
 
     @Test
     fun `RN03 - saldo e receitas menos despesas`() {

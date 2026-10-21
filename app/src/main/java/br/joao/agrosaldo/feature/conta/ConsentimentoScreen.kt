@@ -33,7 +33,7 @@ import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
- * Consentimento LGPD do cadastro (RNF10). A conta só é criada ao aceitar o termo;
+ * Consentimento LGPD do cadastro. A conta só é criada ao aceitar o termo;
  * recusar não grava nada. Compartilha o [CadastroViewModel] com o formulário.
  */
 @Composable

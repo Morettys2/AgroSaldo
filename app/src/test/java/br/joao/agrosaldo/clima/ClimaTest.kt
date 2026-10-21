@@ -59,7 +59,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Clima e aviso de chuva (RF12, RF13, RF14, RN04).
+ * Clima e aviso de chuva.
  *
  * Foco nas bordas da regra de chuva: valor exatamente no limite, hora logo fora da janela,
  * hora atual parcial e fuso horário.

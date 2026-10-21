@@ -39,7 +39,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 
 /**
- * Rota de login (RF02). Não há callback de sucesso: a AppNavegacao observa a
+ * Rota de login. Não há callback de sucesso: a AppNavegacao observa a
  * sessão e navega ao início quando ela é aberta.
  */
 @Composable

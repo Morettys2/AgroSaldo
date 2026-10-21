@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Filtro por tipo (RF09). */
+/** Filtro por tipo. */
 enum class FiltroLancamento { TUDO, DESPESAS, RECEITAS }
 
 /** Lançamentos de um dia, com rótulo relativo ("Hoje", "Ontem", "2 de outubro"). */
@@ -265,7 +265,7 @@ class LancamentoListaViewModel @Inject constructor(
         const val MENSAGEM_ERRO = "Não foi possível carregar os lançamentos. Tentando de novo…"
 
         /**
-         * Meses de [MESES_PARA_TRAS] atrás até [MESES_PARA_FRENTE] à frente (limite da RN07).
+         * Meses de [MESES_PARA_TRAS] atrás até [MESES_PARA_FRENTE] à frente (limite de data futura).
          * A faixa é estendida para incluir [selecionado] se ele estiver fora dela.
          */
         fun mesesDoCabecalho(selecionado: YearMonth, hoje: LocalDate): List<YearMonth> {

@@ -29,7 +29,7 @@ data class ResultadoVerificacao(
 )
 
 /**
- * Verificação periódica de chuva (RN04), executada a cada 12 h pelo Worker.
+ * Verificação periódica de chuva, executada a cada 12 h pelo Worker.
  *
  * Sem dependência de Android: o Worker chama [verificar] informando como exibir a
  * notificação. Atualiza a previsão, aplica [RegraDeChuva] e [ControleDeAvisos],

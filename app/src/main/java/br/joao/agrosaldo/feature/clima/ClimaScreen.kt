@@ -52,7 +52,7 @@ import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
 
-/** Previsão do tempo e recomendação de irrigação da propriedade selecionada (RF12, RF13). */
+/** Previsão do tempo e recomendação de irrigação da propriedade selecionada. */
 @Composable
 fun ClimaRoute(
     aoAbrirAjustes: () -> Unit,
