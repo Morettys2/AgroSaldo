@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import br.joao.agrosaldo.data.local.AgroSaldoDatabase
 import br.joao.agrosaldo.data.local.Semeador
+import br.joao.agrosaldo.data.local.TransacaoRoom
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.dao.UsuarioDao
@@ -98,7 +99,7 @@ class AgroSaldoDatabaseTest {
         semearExemplos()
         val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
         propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1", agora = 0L))
-        val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"))
+        val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"), TransacaoRoom(banco))
 
         val nomes = repositorio.observarTodas().first().map { it.nome }
         assertEquals(listOf("Água Limpa", "Fazenda Santa Clara", "Sítio Boa Vista"), nomes)

@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.map
 class LancamentoRepositoryRoom(
     private val dao: LancamentoDao,
     private val sessao: SessaoRepository,
-    private val transacao: Transacao = Transacao.DIRETA,
+    private val transacao: Transacao,
     private val relogio: Clock = RelogioDoAparelho
 ) : LancamentoRepository {
 

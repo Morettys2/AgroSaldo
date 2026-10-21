@@ -26,7 +26,7 @@ class PropriedadeRepositoryRoom(
     private val dao: PropriedadeDao,
     private val lancamentoDao: LancamentoDao,
     private val sessao: SessaoRepository,
-    private val transacao: Transacao = Transacao.DIRETA,
+    private val transacao: Transacao,
     private val relogio: Clock = RelogioDoAparelho
 ) : PropriedadeRepository {
 
