@@ -3727,11 +3727,11 @@ Um *source set* é uma pasta de código com o seu próprio classpath. O projeto 
 | Source set | Onde roda | O que vai lá | Comando |
 |---|---|---|---|
 | `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 80 testes | `./gradlew :domain:test` |
-| `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric) e o grafo do Hilt: 417 testes | `./gradlew testDebugUnitTest` |
+| `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric) e o grafo do Hilt: 419 testes | `./gradlew testDebugUnitTest` |
 | `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` (no app). Fora do APK | (compilado junto com os testes) |
 | `app/src/androidTest` | Aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras e CASCADE | `./gradlew connectedAndroidTest` |
 
-Em números: **497 testes** de JVM (80 em `domain/src/test` e 417 em `app/src/test`) e **15** em `app/src/androidTest`. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
+Em números: **499 testes** de JVM (80 em `domain/src/test` e 419 em `app/src/test`) e **15** em `app/src/androidTest`. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
 
 Outros comandos úteis:
 
@@ -3762,7 +3762,7 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 | Arquivo | O que testa | Ferramentas | Testes |
 |---|---|---|---|
 | `data/RelogiosEUsuarioLogadoTest.kt` | `RelogioDoAparelho` (acompanha o fuso a cada leitura), relógios de teste, relógio monotônico e `UsuarioLogadoRoom` | JUnit, coroutines-test | 7 |
-| `di/GrafoDeDependenciasTest.kt` | O grafo do Hilt montado de verdade no Robolectric: o app começa vazio e os singletons são compartilhados | JUnit, Robolectric, Hilt testing | 4 |
+| `di/GrafoDeDependenciasTest.kt` | O grafo do Hilt montado de verdade no Robolectric: o app começa vazio, os singletons são compartilhados e a previsão vem da Open-Meteo | JUnit, Robolectric, Hilt testing | 5 |
 | `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 26 |
 | `data/DesfazerESelecaoTest.kt` | `Desfazer` (oferta de desfazer exclusão, prazo e falhas) e `SelecaoAtual` (propriedade e mês compartilhados entre abas, virada do mês) | JUnit, coroutines-test | 14 |
 | `data/PreferenciasTest.kt` | Preferências em `SharedPreferences` sobrevivem a "reiniciar o app" (instância nova sobre o mesmo arquivo): contador de senhas erradas, sessão, bloqueio por digital, valores escondidos | JUnit, Robolectric (`ApplicationProvider`) | 6 |
@@ -3791,9 +3791,9 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 |---|---|---|---|
 | `feature/ContaViewModelsTest.kt` | ViewModels de cadastro, login, conta, sessão/bloqueio por digital, novo aceite da política, notificação que abre o clima e alteração de senha (usa o `ContaService` real) | JUnit, coroutines-test | 49 |
 | `feature/LancamentoFormViewModelTest.kt` | Formulário de lançamento: teclado numérico estilo maquininha, validações, edição, "lançar de novo", proteção contra toque duplo, restauração depois que o Android mata o processo, limite da descrição, argumentos da rota no construtor do Hilt | JUnit, coroutines-test | 42 |
-| `feature/ClimaViewModelsTest.kt` | `ClimaViewModel`, `AjustesAvisoViewModel` e o cartão de chuva do `InicioViewModel` (RF13) | JUnit, coroutines-test | 34 |
+| `feature/ClimaViewModelsTest.kt` | `ClimaViewModel`, `AjustesAvisoViewModel` e o cartão de chuva do `InicioViewModel` (RF13) | JUnit, coroutines-test | 35 |
 | `feature/PropriedadeFormViewModelTest.kt` | Formulário de propriedade: números no formato brasileiro, coordenadas dentro do Brasil, GPS, exclusão com CASCADE e desfazer (RN02), restauração do processo, limites de nome, cultura e área, argumento da rota no construtor do Hilt | JUnit, coroutines-test | 35 |
-| `feature/ResumosViewModelTest.kt` | Cálculos das telas Início, Lançamentos e Sítios: saldo do mês (RF08), filtros (RF09), mês anterior (RF10), comparativo entre propriedades (RF11) | JUnit, coroutines-test | 24 |
+| `feature/ResumosViewModelTest.kt` | Cálculos das telas Início, Lançamentos e Sítios: saldo do mês (RF08), filtros (RF09), mês anterior (RF10), comparativo entre propriedades (RF11) | JUnit, coroutines-test | 25 |
 | `feature/LancamentoListaBuscaTest.kt` | Lista de lançamentos: agrupamento por dia, busca em todos os meses (sem acento/maiúscula), pílulas de mês, ocultação de valores | JUnit, coroutines-test (`StandardTestDispatcher`, `runCurrent`) | 22 |
 | `feature/HistoricoViewModelTest.kt` | Histórico do ano (RF10): 12 meses, melhor e pior mês, escala do gráfico, maiores gastos, regra da lista mês a mês | JUnit, coroutines-test (`advanceUntilIdle`) | 20 |
 
@@ -4127,8 +4127,9 @@ Novos: `excluir lancamento le e apaga na mesma transacao e devolve o apagado` e 
 - selecao que nao existe mais cai na primeira
 - sem propriedades nao ha propriedade atual
 
-#### `src/test/…/feature/ClimaViewModelsTest.kt` (34)
+#### `src/test/…/feature/ClimaViewModelsTest.kt` (35)
 
+- ferramenta de teste do aviso usa a propriedade escolhida no app
 - RF13 - mostra temperatura, 7 dias e a recomendacao do pivo
 - sem chuva a recomendacao e manter a irrigacao
 - limites do produtor mudam a recomendacao na hora
@@ -4239,7 +4240,7 @@ Novos: `lista mes a mes omite mes futuro sem lancamento e mantem o futuro agenda
 - erro ao ler os lancamentos vira mensagem e o grafico volta sozinho
 - sem propriedade nao quebra
 
-#### `src/test/…/feature/LancamentoFormViewModelTest.kt` (39)
+#### `src/test/…/feature/LancamentoFormViewModelTest.kt` (42)
 
 Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancamento que ja nao existe nao oferece desfazer`.
 
@@ -4254,6 +4255,11 @@ Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancament
 - editar lancamento que nao existe mais avisa e salvar nao o recria
 - lancamento existente nao e marcado como nao encontrado
 - excluir remove na hora e oferece desfazer, que traz de volta igual
+- descricao digitada ou colada nunca passa do limite
+- excluir lancamento que ja nao existe nao oferece desfazer
+- construtor do Hilt le o id da rota e abre em modo de edicao
+- construtor do Hilt le a copia da rota e abre um lancamento novo preenchido
+- construtor do Hilt le o tipo da rota e ignora um tipo invalido
 - atalhos hoje e ontem preenchem a data
 - data escolhida no calendario limpa o erro da data
 - RN07 - data alem de 12 meses mostra o erro no campo da data
@@ -4306,11 +4312,16 @@ Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancament
 - lista e busca sao montadas no contexto de processamento, fora da main
 - voltar para a tela depois da virada do mes mostra o mes novo
 
-#### `src/test/…/feature/PropriedadeFormViewModelTest.kt` (33)
+#### `src/test/…/feature/PropriedadeFormViewModelTest.kt` (35)
 
 Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, nada gravado) e área exatamente no limite aceita.
 
 - editar propriedade que nao existe mais avisa e salvar nao recria o registro
+- nome e cultura digitados ou colados nunca passam do limite
+- area acima do limite mostra aviso especifico e nao grava
+- area exatamente no limite e aceita
+- construtor do Hilt le o id da rota e carrega a propriedade para editar
+- construtor do Hilt sem id na rota abre o cadastro de uma propriedade nova
 - propriedade existente e cadastro novo nao sao marcados como nao encontrados
 - salvar com tudo vazio marca os tres erros e nao grava nada
 - digitar no campo limpa so o erro daquele campo
@@ -4341,7 +4352,7 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - coordenadas do GPS tambem sobrevivem a morte do processo
 - na edicao o valor restaurado vale mais que o do banco
 
-#### `src/test/…/feature/ResumosViewModelTest.kt` (24)
+#### `src/test/…/feature/ResumosViewModelTest.kt` (25)
 
 - RF08 - inicio mostra entradas, saidas e saldo do mes
 - pra onde foi o dinheiro ordena do maior gasto para o menor
@@ -4357,6 +4368,7 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - propriedade no prejuizo tem barra proporcional ao tamanho do prejuizo
 - erro ao ler as propriedades vira mensagem amigavel e a lista volta sozinha
 - erro ao ler os lancamentos no inicio vira mensagem e a tela volta sozinha
+- erro ao ler o nome do usuario nao derruba o inicio e as iniciais voltam sozinhas
 - erro ao ler os lancamentos na lista vira mensagem e a lista volta sozinha
 - RF09 - filtrar por categoria mostra so ela e soma o que aparece
 - chips mostram so as categorias que tem lancamento no mes, na ordem do cadastro
