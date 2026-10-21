@@ -1,7 +1,6 @@
 package br.joao.agrosaldo.feature
 
 import br.joao.agrosaldo.MainDispatcherRule
-import br.joao.agrosaldo.core.navigation.PrivacidadeViewModel
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.RelogioMutavel
@@ -15,6 +14,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
+import br.joao.agrosaldo.feature.sessao.PrivacidadeViewModel
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.coroutines.EmptyCoroutineContext

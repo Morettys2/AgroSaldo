@@ -57,6 +57,8 @@ import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.feature.conta.OfertaDeBloqueioRoute
 import br.joao.agrosaldo.feature.conta.TelaBloqueioRoute
+import br.joao.agrosaldo.feature.sessao.PrivacidadeViewModel
+import br.joao.agrosaldo.feature.sessao.SessaoViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 

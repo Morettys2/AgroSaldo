@@ -1,7 +1,6 @@
 package br.joao.agrosaldo.feature
 
 import br.joao.agrosaldo.MainDispatcherRule
-import br.joao.agrosaldo.core.navigation.SessaoViewModel
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.RelogioMonotonicoFalso
@@ -30,6 +29,7 @@ import br.joao.agrosaldo.feature.conta.CadastroViewModel
 import br.joao.agrosaldo.feature.conta.ContaViewModel
 import br.joao.agrosaldo.feature.conta.LoginViewModel
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoViewModel
+import br.joao.agrosaldo.feature.sessao.SessaoViewModel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
