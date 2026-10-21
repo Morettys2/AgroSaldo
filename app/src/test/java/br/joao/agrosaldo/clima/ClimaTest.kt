@@ -41,6 +41,7 @@ import java.time.LocalDateTime
 import java.util.Locale
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -334,7 +335,8 @@ class ClimaTest {
         chamadas++
         resposta()
     }
-    private val repositorio = ClimaRepositoryRoom(fonte, dao, relogio = relogioPorMs { agoraMs })
+    private val repositorio =
+        ClimaRepositoryRoom(fonte, dao, DespachantesDeTeste(Dispatchers.Unconfined), relogio = relogioPorMs { agoraMs })
 
     @Test
     fun `RF12 - atualizar baixa, guarda e entrega a previsao`() = runTest {

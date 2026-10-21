@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.Density
 import br.joao.agrosaldo.clima.ApoioClima
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.UsuarioLogadoMemoria
@@ -23,6 +24,7 @@ import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.feature.clima.ClimaScreen
 import br.joao.agrosaldo.feature.clima.ClimaUiState
@@ -70,7 +72,12 @@ class CapturasDeTelaTest {
     private val hoje = LocalDate.of(2026, 10, 1)
     private val agoraMs = ApoioClima.AGORA.toEpochMilli()
 
-    private val selecao = SelecaoAtual(propriedadeInicial = DadosDeExemplo.ID_FAZENDA, mesInicial = YearMonth.from(hoje))
+    private val selecao =
+        SelecaoAtual(
+            propriedadeInicial = DadosDeExemplo.ID_FAZENDA,
+            mesInicial = YearMonth.from(hoje),
+            relogio = relogioEm(LocalDate.of(2026, 10, 1))
+        )
     private val propriedades = PropriedadeRepositoryMemoria()
     private val lancamentos = LancamentoRepositoryMemoria(DadosDeExemplo.lancamentos(hoje))
     private val clima = ClimaRepositoryMemoria(
@@ -139,7 +146,8 @@ class CapturasDeTelaTest {
         propriedadeRepository = propriedades,
         selecao = selecao,
         lancamentoId = null,
-        relogio = relogioEm(hoje)
+        relogio = relogioEm(hoje),
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel)
     ).apply {
         aoTeclar("3")
         aoTeclar("2")
@@ -248,7 +256,7 @@ class CapturasDeTelaTest {
             propriedadeRepository = PropriedadeRepositoryMemoria(emptyList()),
             clima = ClimaRepositoryMemoria(),
             ajustes = AjustesAvisoMemoria(),
-            selecao = SelecaoAtual(),
+            selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 10, 1))),
             usuarioLogado = UsuarioLogadoMemoria(),
             relogio = relogioPorMs(ZoneOffset.ofHours(-3)) { agoraMs }
         )

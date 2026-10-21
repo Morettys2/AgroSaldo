@@ -9,7 +9,6 @@ import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
@@ -98,7 +97,7 @@ class ClimaViewModel @Inject constructor(
     private val ajustes: AjustesAvisoRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val relogio: Clock = RelogioDoAparelho
+    private val relogio: Clock
 ) : ViewModel() {
 
     private val atualizandoAgora = MutableStateFlow(false)

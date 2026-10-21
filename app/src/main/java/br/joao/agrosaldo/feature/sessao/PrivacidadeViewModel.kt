@@ -1,4 +1,4 @@
-package br.joao.agrosaldo.core.navigation
+package br.joao.agrosaldo.feature.sessao
 
 import androidx.lifecycle.ViewModel
 import br.joao.agrosaldo.domain.repository.PrivacidadeRepository

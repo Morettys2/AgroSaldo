@@ -20,12 +20,3 @@ interface RelogioMonotonico {
      */
     fun instante(): InstanteMonotonico?
 }
-
-/** Para quem não precisa da comparação entre processos: sem boot conhecido. */
-object RelogioMonotonicoIndisponivel : RelogioMonotonico {
-    private const val NANOS_POR_MS = 1_000_000L
-
-    override fun milissegundos(): Long = System.nanoTime() / NANOS_POR_MS
-
-    override fun instante(): InstanteMonotonico? = null
-}

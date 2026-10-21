@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
  * [UsuarioRepository] em Room. [transacao] torna o cadastro atômico: a conta e a adoção das
  * propriedades sem dono entram juntas ou nenhuma entra.
  */
-class UsuarioRepositoryRoom(private val dao: UsuarioDao, private val transacao: Transacao = Transacao.DIRETA) : UsuarioRepository {
+class UsuarioRepositoryRoom(private val dao: UsuarioDao, private val transacao: Transacao) : UsuarioRepository {
 
     override fun observar(id: String): Flow<Usuario?> = dao.observar(id).map { it?.paraDominio() }
 

@@ -11,6 +11,7 @@ import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -19,6 +20,7 @@ import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.feature.lancamento.LancamentoFormViewModel
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaViewModel
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.CompletableDeferred
@@ -39,7 +41,7 @@ import org.junit.Test
 class LancamentoFormViewModelTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
-    private val selecao = SelecaoAtual()
+    private val selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 10, 4)))
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -56,10 +58,36 @@ class LancamentoFormViewModelTest {
     }
 
     private val hoje = LocalDate.of(2026, 10, 4)
-    private val desfazer = Desfazer()
+    private val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
 
-    private fun novo() =
-        LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
+    /**
+     * O construtor principal com os padrões de teste: relógio em [hoje] e um Desfazer novo.
+     * Mesmos parâmetros do ViewModel, para cada teste passar só o que importa.
+     */
+    @Suppress("LongParameterList") // espelha o construtor do ViewModel
+    private fun formulario(
+        lancamentoRepository: LancamentoRepository,
+        propriedadeRepository: PropriedadeRepository,
+        selecao: SelecaoAtual,
+        lancamentoId: String?,
+        copiaDe: String? = null,
+        desfazer: Desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        relogio: Clock = relogioEm(hoje),
+        tipoInicial: TipoLancamento? = null,
+        estadoSalvo: SavedStateHandle = SavedStateHandle()
+    ) = LancamentoFormViewModel(
+        lancamentoRepository,
+        propriedadeRepository,
+        selecao,
+        lancamentoId,
+        copiaDe,
+        desfazer,
+        relogio,
+        tipoInicial,
+        estadoSalvo
+    )
+
+    private fun novo() = formulario(lancamentos, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
 
     @Test
     fun `formulario novo ja vem com a propriedade selecionada e a data de hoje`() {
@@ -97,7 +125,7 @@ class LancamentoFormViewModelTest {
         val antes = lancamentos.observarTodos().first().size
         val restaurado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_DATA to "31/02/2026"))
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = null,
@@ -141,7 +169,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `edicao carrega o lancamento e salvar nao duplica`() = runTest {
         val total = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao)
+        val vm = formulario(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao)
 
         assertTrue(vm.uiState.value.ehEdicao)
         assertEquals("125000", vm.uiState.value.valorDigitos)
@@ -170,7 +198,7 @@ class LancamentoFormViewModelTest {
         lista.aoBuscar("pivo")
         // exemplo-2 é de setembro; a pessoa o achou pela busca, olhando outubro.
         val vm =
-            LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", relogio = relogioEm(hoje), selecao = selecao)
+            formulario(lancamentos, propriedades, lancamentoId = "exemplo-2", relogio = relogioEm(hoje), selecao = selecao)
 
         vm.aoTeclar("0")
         vm.aoSalvar()
@@ -185,7 +213,7 @@ class LancamentoFormViewModelTest {
     fun `salvar edicao que muda o mes leva a selecao para o mes novo`() = runTest {
         selecao.selecionarMes(YearMonth.of(2026, 9))
         val vm =
-            LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", relogio = relogioEm(hoje), selecao = selecao)
+            formulario(lancamentos, propriedades, lancamentoId = "exemplo-2", relogio = relogioEm(hoje), selecao = selecao)
 
         vm.aoEscolherData(LocalDate.of(2026, 10, 2))
         vm.aoSalvar()
@@ -196,7 +224,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `editar lancamento que nao existe mais avisa e salvar nao o recria`() = runTest {
         val total = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "apagado", relogio = relogioEm(hoje), selecao = selecao)
+        val vm = formulario(lancamentos, propriedades, lancamentoId = "apagado", relogio = relogioEm(hoje), selecao = selecao)
 
         assertTrue(vm.uiState.value.naoEncontrado)
 
@@ -211,7 +239,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `lancamento existente nao e marcado como nao encontrado`() {
         assertFalse(
-            LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao).uiState.value.naoEncontrado
+            formulario(lancamentos, propriedades, lancamentoId = "exemplo-2", selecao = selecao).uiState.value.naoEncontrado
         )
         assertFalse(novo().uiState.value.naoEncontrado)
     }
@@ -219,7 +247,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `excluir remove na hora e oferece desfazer, que traz de volta igual`() = runTest {
         val original = lancamentos.buscarPorId("exemplo-3")
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
+        val vm = formulario(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
         vm.aoExcluir()
 
         assertTrue(vm.uiState.value.excluido)
@@ -243,7 +271,7 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `excluir lancamento que ja nao existe nao oferece desfazer`() = runTest {
-        val vm = LancamentoFormViewModel(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
+        val vm = formulario(lancamentos, propriedades, lancamentoId = "exemplo-3", desfazer = desfazer, selecao = selecao)
         lancamentos.excluir("exemplo-3")
 
         vm.aoExcluir()
@@ -327,7 +355,7 @@ class LancamentoFormViewModelTest {
     fun `lancar de novo copia tudo menos a data, que vira hoje`() = runTest {
         val total = lancamentos.observarTodos().first().size
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = null,
@@ -439,7 +467,7 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `atalho receita abre o formulario ja em receita`() {
-        val vm = LancamentoFormViewModel(
+        val vm = formulario(
             lancamentos,
             propriedades,
             lancamentoId = null,
@@ -454,7 +482,7 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `na edicao o tipo do lancamento manda, nao o do atalho`() {
-        val vm = LancamentoFormViewModel(
+        val vm = formulario(
             lancamentos,
             propriedades,
             lancamentoId = "exemplo-2",
@@ -498,7 +526,7 @@ class LancamentoFormViewModelTest {
     fun `dois toques em salvar gravam um lancamento so`() = runTest {
         val lentos = LancamentosLentos(lancamentos)
         val antes = lancamentos.observarTodos().first().size
-        val vm = LancamentoFormViewModel(lentos, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
+        val vm = formulario(lentos, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
         vm.aoTeclar("5000")
 
         vm.aoSalvar()
@@ -515,7 +543,7 @@ class LancamentoFormViewModelTest {
         val quebrado = object : LancamentoRepository by lancamentos {
             override suspend fun salvar(lancamento: Lancamento) = throw IllegalArgumentException("Banco recusou.")
         }
-        val vm = LancamentoFormViewModel(quebrado, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
+        val vm = formulario(quebrado, propriedades, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
         vm.aoTeclar("5000")
         vm.aoSalvar()
 
@@ -530,7 +558,7 @@ class LancamentoFormViewModelTest {
         val lentas = object : PropriedadeRepository by propriedades {
             override fun observarTodas(): Flow<List<Propriedade>> = aindaCarregando
         }
-        val vm = LancamentoFormViewModel(lancamentos, lentas, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
+        val vm = formulario(lancamentos, lentas, lancamentoId = null, relogio = relogioEm(hoje), selecao = selecao)
         assertFalse(vm.uiState.value.carregado)
 
         vm.aoTeclar("5")
@@ -544,7 +572,7 @@ class LancamentoFormViewModelTest {
 
     @Test
     fun `lancar de novo usa o tipo do original, nao o do atalho`() {
-        val vm = LancamentoFormViewModel(
+        val vm = formulario(
             lancamentos,
             propriedades,
             lancamentoId = null,
@@ -567,7 +595,7 @@ class LancamentoFormViewModelTest {
     @Test
     fun `sem nenhum sitio o formulario sabe que carregou e esta vazio`() {
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 PropriedadeRepositoryMemoria(emptyList()),
                 lancamentoId = null,
@@ -582,7 +610,7 @@ class LancamentoFormViewModelTest {
     fun `o que foi preenchido volta depois que o Android mata o processo`() {
         val guardado = SavedStateHandle()
         val antes =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = null,
@@ -601,7 +629,7 @@ class LancamentoFormViewModelTest {
         assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
         val restaurado = SavedStateHandle(guardado.keys().associateWith { guardado.get<Any?>(it) })
         val depois =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = null,
@@ -628,7 +656,7 @@ class LancamentoFormViewModelTest {
             )
         )
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = "exemplo-2",
@@ -655,7 +683,7 @@ class LancamentoFormViewModelTest {
             )
         )
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 propriedades,
                 lancamentoId = null,
@@ -677,7 +705,7 @@ class LancamentoFormViewModelTest {
         }
         val guardado = SavedStateHandle(mapOf(LancamentoFormViewModel.CHAVE_VALOR to "777"))
         val vm =
-            LancamentoFormViewModel(
+            formulario(
                 lancamentos,
                 lentas,
                 lancamentoId = null,

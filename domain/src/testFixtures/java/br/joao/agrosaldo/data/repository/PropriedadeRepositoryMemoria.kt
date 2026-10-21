@@ -32,14 +32,10 @@ class PropriedadeRepositoryMemoria(
         }
     }
 
-    override suspend fun excluir(id: String) {
-        propriedadesGuardadas.update { lista -> lista.filterNot { it.id == id } }
-    }
-
     override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {
         val propriedade = buscarPorId(id) ?: return null
         val dela = lancamentos?.tirarDaPropriedade(id).orEmpty()
-        excluir(id)
+        propriedadesGuardadas.update { lista -> lista.filterNot { it.id == id } }
         return PropriedadeExcluida(propriedade, dela)
     }
 

@@ -8,6 +8,7 @@ import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.UsuarioLogadoMemoria
 import br.joao.agrosaldo.data.preferencias.AgendaFalsa
 import br.joao.agrosaldo.data.preferencias.AjustesAvisoMemoria
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
@@ -38,7 +39,7 @@ import org.junit.Test
 class ClimaViewModelsTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
-    private val selecao = SelecaoAtual()
+    private val selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 10, 1)))
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()

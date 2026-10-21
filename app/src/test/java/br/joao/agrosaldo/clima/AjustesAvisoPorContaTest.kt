@@ -6,6 +6,9 @@ import br.joao.agrosaldo.data.preferencias.ArmazenamentoMemoria
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.repository.AjustesAviso
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,7 +21,12 @@ class AjustesAvisoPorContaTest {
     private val armazenamento = ArmazenamentoMemoria()
     private val sessao = SessaoMemoria("ana")
 
-    private fun repositorio(aoEntrarEmConta: (AjustesAviso) -> Unit = {}) = AjustesAvisoPorConta(armazenamento, sessao, aoEntrarEmConta)
+    private fun repositorio(aoEntrarEmConta: (AjustesAviso) -> Unit = {}) = AjustesAvisoPorConta(
+        armazenamento,
+        sessao,
+        aoEntrarEmConta,
+        escopo = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    )
 
     @Test
     fun `ajustes e ultimo aviso valem so para a conta que gravou`() {

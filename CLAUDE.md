@@ -63,7 +63,7 @@ data/            SelecaoAtual, Desfazer, local/ (Room: entidades, DAOs, Transaca
 domain/          MÓDULO :domain (domain/src/main/java/br/joao/agrosaldo/domain): model/, repository/ (interfaces),
                  financeiro/ (ResumoFinanceiro), clima/ (RegraDeChuva), conta/ (HashDeSenha, regras da conta e do bloqueio),
                  Relogio e Despachantes
-feature/         inicio, lancamento, propriedade, clima, historico, conta;
+feature/         inicio, lancamento, propriedade, clima, historico, conta, sessao (ViewModels globais da navegação);
                  cada uma com *Screen.kt + *ViewModel.kt (+ UiState e arquivos de partes da tela)
 ui/theme/        Color.kt, Type.kt, Shape.kt, Espacos, Theme.kt, IconesAgro.kt (ícones desenhados)
 ```
@@ -206,6 +206,7 @@ config/detekt/         detekt.yml
 - **Documentação técnica em MDX (`docs/`)** para os devs do grupo, e branch `prod` como principal (a antiga `main` virou `desenvolvimento`, backup).
 - **Detekt sem baseline:** os 115 achados antigos foram resolvidos (constantes nomeadas, `aoSalvar` e `verificar` quebrados em funções menores, `Desfazer.desfazerExclusao`) ou justificados no `detekt.yml` (testes que capturam exceção de propósito, guardas, telas Compose) ou com `@Suppress` comentado no ponto exato. Achado novo = corrigir, não baselinar.
 - **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
+- **Auditoria de arquitetura (out/2026):** MVVM conferido de ponta a ponta. Corrigidos: Flow do nome do usuário sem tratamento de erro no Início; transação obrigatória nos repositórios (a `TransacaoDireta` foi para o `testFixtures`); despachante de E/S injetado na chamada de rede; nenhum valor padrão de relógio, despachantes ou `Desfazer` em produção (os testes passam relógio fixo); `FontePrevisao` pelo Hilt; `PropriedadeRepository.excluir(id)` sem uso removido; `SessaoViewModel` e `PrivacidadeViewModel` em `feature/sessao`. Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesSemDono` são legado dos dados de exemplo (mexer exige a migração 4).
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 
 ### R9 — Play Store (futuro, sem data)

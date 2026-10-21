@@ -1,7 +1,6 @@
 package br.joao.agrosaldo.data
 
 import br.joao.agrosaldo.domain.RelogioMonotonico
-import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +28,7 @@ class ExclusaoRecente(
  * e exibe o snackbar, pois a tela de origem já pode ter sido fechada.
  * Só a exclusão mais recente é desfazível; uma nova oferta descarta a anterior.
  */
-class Desfazer(private val relogio: RelogioMonotonico = RelogioMonotonicoIndisponivel) {
+class Desfazer(private val relogio: RelogioMonotonico) {
 
     private val _pendente = MutableStateFlow<ExclusaoRecente?>(null)
     val pendente: StateFlow<ExclusaoRecente?> = _pendente.asStateFlow()

@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SelecaoAtual(
     propriedadeInicial: String? = null,
     private val aoMudarPropriedade: (String?) -> Unit = {},
-    private val relogio: Clock = RelogioDoAparelho,
+    private val relogio: Clock,
     mesInicial: YearMonth = YearMonth.now(relogio)
 ) {
 

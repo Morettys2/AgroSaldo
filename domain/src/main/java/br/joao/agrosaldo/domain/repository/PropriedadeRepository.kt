@@ -13,8 +13,6 @@ interface PropriedadeRepository {
 
     suspend fun salvar(propriedade: Propriedade)
 
-    suspend fun excluir(id: String)
-
     /**
      * Exclui a propriedade e seus lançamentos numa única transação.
      * Retorna o que foi removido (para desfazer) ou null se o id não existe.
