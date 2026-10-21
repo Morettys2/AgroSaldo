@@ -51,7 +51,7 @@ import org.junit.Test
 class ResumosViewModelTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
-    private val selecao = SelecaoAtual()
+    private val selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()

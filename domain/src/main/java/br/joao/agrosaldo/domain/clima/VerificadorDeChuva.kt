@@ -40,7 +40,7 @@ class VerificadorDeChuva(
     private val propriedades: PropriedadeRepository,
     private val clima: ClimaRepository,
     private val ajustes: AjustesAvisoRepository,
-    private val relogio: Clock = Clock.systemDefaultZone()
+    private val relogio: Clock
 ) {
 
     /**

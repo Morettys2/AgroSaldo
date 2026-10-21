@@ -13,6 +13,7 @@ import br.joao.agrosaldo.data.local.dao.UsuarioDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
@@ -99,7 +100,14 @@ class AgroSaldoDatabaseTest {
         semearExemplos()
         val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
         propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1", agora = 0L))
-        val repositorio = PropriedadeRepositoryRoom(propriedadeDao, lancamentoDao, SessaoMemoria("u1"), TransacaoRoom(banco))
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                propriedadeDao,
+                lancamentoDao,
+                SessaoMemoria("u1"),
+                TransacaoRoom(banco),
+                relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         val nomes = repositorio.observarTodas().first().map { it.nome }
         assertEquals(listOf("Água Limpa", "Fazenda Santa Clara", "Sítio Boa Vista"), nomes)

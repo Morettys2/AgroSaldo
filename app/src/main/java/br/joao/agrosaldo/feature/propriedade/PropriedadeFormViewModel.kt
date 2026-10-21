@@ -120,7 +120,7 @@ class PropriedadeFormViewModel(
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
     private val propriedadeId: String?,
-    private val desfazer: Desfazer = Desfazer(),
+    private val desfazer: Desfazer,
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 

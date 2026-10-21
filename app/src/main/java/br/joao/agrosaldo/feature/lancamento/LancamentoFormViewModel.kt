@@ -14,7 +14,6 @@ import br.joao.agrosaldo.core.util.rotuloDeData
 import br.joao.agrosaldo.core.util.rotuloRelativoCurto
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.Desfazer
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -102,8 +101,8 @@ class LancamentoFormViewModel(
     private val selecao: SelecaoAtual,
     private val lancamentoId: String?,
     private val copiaDe: String? = null,
-    private val desfazer: Desfazer = Desfazer(),
-    private val relogio: Clock = RelogioDoAparelho,
+    private val desfazer: Desfazer,
+    private val relogio: Clock,
     tipoInicial: TipoLancamento? = null,
     private val estadoSalvo: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {

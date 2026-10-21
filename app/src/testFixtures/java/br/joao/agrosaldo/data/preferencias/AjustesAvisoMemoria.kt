@@ -5,6 +5,9 @@ import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /** [ArmazenamentoDeAjustes] em um mapa, para testes. */
 class ArmazenamentoMemoria(iniciais: Map<String, Any> = emptyMap()) : ArmazenamentoDeAjustes {
@@ -27,7 +30,7 @@ class AjustesAvisoMemoria private constructor(private val porConta: AjustesAviso
     constructor(
         inicial: AjustesAviso = AjustesAviso(),
         sessao: SessaoRepository = SessaoMemoria(CONTA_PADRAO)
-    ) : this(AjustesAvisoPorConta(ArmazenamentoMemoria(), sessao)) {
+    ) : this(AjustesAvisoPorConta(ArmazenamentoMemoria(), sessao, escopo = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))) {
         porConta.salvar(inicial)
     }
 

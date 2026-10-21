@@ -6,6 +6,7 @@ import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.DespachantesDeTeste
 import br.joao.agrosaldo.data.RelogioMonotonicoFalso
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.relogioFixo
 import br.joao.agrosaldo.data.relogioPorMs
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
@@ -30,6 +31,7 @@ import br.joao.agrosaldo.feature.conta.ContaViewModel
 import br.joao.agrosaldo.feature.conta.LoginViewModel
 import br.joao.agrosaldo.feature.conta.NovoConsentimentoViewModel
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,11 +71,12 @@ class ContaViewModelsTest {
         hash = HashDeSenha(iteracoes = 1_000),
         // 30/09/2026 22:40 UTC.
         relogio = relogioPorMs { 1_790_808_000_000L },
-        despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+        relogioMonotonico = RelogioMonotonicoIndisponivel
     )
 
     private val propriedades = PropriedadeRepositoryMemoria()
-    private val selecao = SelecaoAtual()
+    private val selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
     private fun sessaoViewModel(
         conta: ContaService = this.conta,
@@ -505,7 +508,8 @@ class ContaViewModelsTest {
         tentativas = TentativasMemoria(),
         hash = HashDeSenha(iteracoes = 1_000),
         relogio = relogioPorMs { 1_790_808_000_000L },
-        despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
+        despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+        relogioMonotonico = RelogioMonotonicoIndisponivel
     )
 
     @Test

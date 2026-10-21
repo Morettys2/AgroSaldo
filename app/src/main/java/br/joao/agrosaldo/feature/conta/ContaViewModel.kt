@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.formatarDataHoraBr
 import br.joao.agrosaldo.core.util.formatarEspera
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
@@ -51,7 +50,7 @@ class ContaViewModel @Inject constructor(
     private val conta: ContaService,
     private val propriedadeRepository: PropriedadeRepository,
     private val bloqueio: BloqueioRepository,
-    private val relogio: Clock = RelogioDoAparelho
+    private val relogio: Clock
 ) : ViewModel() {
 
     private val exclusaoEmAndamento = MutableStateFlow(EstadoExclusao())

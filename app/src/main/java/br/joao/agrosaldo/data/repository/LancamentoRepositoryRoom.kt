@@ -1,6 +1,5 @@
 package br.joao.agrosaldo.data.repository
 
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.paraDominio
@@ -23,7 +22,7 @@ class LancamentoRepositoryRoom(
     private val dao: LancamentoDao,
     private val sessao: SessaoRepository,
     private val transacao: Transacao,
-    private val relogio: Clock = RelogioDoAparelho
+    private val relogio: Clock
 ) : LancamentoRepository {
 
     @OptIn(ExperimentalCoroutinesApi::class)

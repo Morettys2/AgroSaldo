@@ -50,6 +50,7 @@ class ContaTest {
         tentativas = tentativas,
         hash = hashRapido,
         relogio = relogioPorMs { agora },
+        relogioMonotonico = RelogioMonotonicoIndisponivel,
         despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
         aoTrocarDeUsuario = { trocasDeUsuario++ }
     )
@@ -450,6 +451,7 @@ class ContaTest {
             tentativas,
             hash = HashDeSenha(iteracoes = 500),
             relogio = relogioPorMs { agora },
+            relogioMonotonico = RelogioMonotonicoIndisponivel,
             despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
         )
         antigo.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
@@ -591,6 +593,7 @@ class ContaTest {
         tentativas = tentativas,
         hash = hashRapido,
         relogio = relogioPorMs { agora },
+        relogioMonotonico = RelogioMonotonicoIndisponivel,
         despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
         aoExcluirConta = aoExcluirConta
     )

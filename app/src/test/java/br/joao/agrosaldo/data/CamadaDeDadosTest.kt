@@ -11,6 +11,7 @@ import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
@@ -231,7 +232,14 @@ class CamadaDeDadosTest {
         listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara").forEachIndexed { i, nome ->
             dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1", agora = 0L))
         }
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"), TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                dao,
+                LancamentoDaoFalso(dao),
+                SessaoMemoria("u1"),
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         assertEquals(
             "a primeira da lista é a propriedade padrão",
@@ -243,7 +251,14 @@ class CamadaDeDadosTest {
     @Test
     fun `repositorio Room entrega objetos de dominio a partir das entidades`() = runTest {
         val dao = PropriedadeDaoFalso()
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"), TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                dao,
+                LancamentoDaoFalso(dao),
+                SessaoMemoria("u1"),
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
         val fazenda = DadosDeExemplo.propriedades().first()
 
         repositorio.salvar(fazenda)
@@ -260,7 +275,8 @@ class CamadaDeDadosTest {
     fun `cada conta so enxerga as proprias propriedades`() = runTest {
         val dao = PropriedadeDaoFalso()
         val sessao = SessaoMemoria("u1")
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao, TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         val fazenda = DadosDeExemplo.propriedades().first()
         repositorio.salvar(fazenda)
 
@@ -280,7 +296,8 @@ class CamadaDeDadosTest {
     fun `uma conta nao sobrescreve a propriedade da outra`() = runTest {
         val dao = PropriedadeDaoFalso()
         val sessao = SessaoMemoria("u1")
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao, TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         val fazenda = DadosDeExemplo.propriedades().first()
         repositorio.salvar(fazenda)
 
@@ -313,7 +330,14 @@ class CamadaDeDadosTest {
         val dao = PropriedadeDaoFalso()
         val exemplo = DadosDeExemplo.propriedades().first()
         dao.salvar(exemplo.paraEntidade(usuarioId = null, agora = 0L))
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria("u1"), TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                dao,
+                LancamentoDaoFalso(dao),
+                SessaoMemoria("u1"),
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         try {
             repositorio.salvar(exemplo.copy(nome = "Tomada"))
@@ -334,7 +358,14 @@ class CamadaDeDadosTest {
                 gravouDentro = transacao.aberta
             }
         }
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(PropriedadeDaoFalso()), SessaoMemoria("u1"), transacao)
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                dao,
+                LancamentoDaoFalso(PropriedadeDaoFalso()),
+                SessaoMemoria("u1"),
+                transacao,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         repositorio.salvar(DadosDeExemplo.propriedades().first())
 
@@ -349,7 +380,8 @@ class CamadaDeDadosTest {
             DadosDeExemplo.propriedades().first().copy(id = "sitio-u2", nome = "Sítio da outra conta")
                 .paraEntidade(usuarioId = "u2", agora = 0L)
         )
-        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u2"), TransacaoDireta)
+        val repositorio =
+            LancamentoRepositoryRoom(dao, SessaoMemoria("u2"), TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         val original = checkNotNull(dao.tabela.value.firstOrNull { it.id == "exemplo-1" })
 
         try {
@@ -370,7 +402,7 @@ class CamadaDeDadosTest {
                 gravouDentro = transacao.aberta
             }
         }
-        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao)
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         val existente = checkNotNull(repositorio.buscarPorId("exemplo-2"))
 
         repositorio.salvar(existente.copy(valorCentavos = 130_000L))
@@ -395,7 +427,7 @@ class CamadaDeDadosTest {
                 falso.excluir(id, usuarioId)
             }
         }
-        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao)
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, transacao, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         val antes = checkNotNull(repositorio.buscarPorId("exemplo-2"))
         passos.clear()
 
@@ -410,7 +442,8 @@ class CamadaDeDadosTest {
     @Test
     fun `excluir lancamento inexistente ou de outra conta devolve null e nao apaga nada`() = runTest {
         val (_, dao, _) = cenarioDeLancamentos()
-        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u2"), TransacaoDireta)
+        val repositorio =
+            LancamentoRepositoryRoom(dao, SessaoMemoria("u2"), TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
         assertNull(repositorio.excluir("exemplo-1"))
         assertNull(repositorio.excluir("nao-existe"))
@@ -421,7 +454,14 @@ class CamadaDeDadosTest {
     fun `sem ninguem conectado a lista vem vazia e gravar e recusado`() = runTest {
         val dao = PropriedadeDaoFalso()
         dao.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 0L))
-        val repositorio = PropriedadeRepositoryRoom(dao, LancamentoDaoFalso(dao), SessaoMemoria(null), TransacaoDireta)
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                dao,
+                LancamentoDaoFalso(dao),
+                SessaoMemoria(null),
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         assertEquals(emptyList<Any>(), repositorio.observarTodas().first())
         try {
@@ -450,8 +490,9 @@ class CamadaDeDadosTest {
                 return bloco()
             }
         }
-        val propriedades = PropriedadeRepositoryRoom(propriedadesDao, lancamentosDao, sessao, transacao)
-        val lancamentos = LancamentoRepositoryRoom(lancamentosDao, sessao, TransacaoDireta)
+        val propriedades =
+            PropriedadeRepositoryRoom(propriedadesDao, lancamentosDao, sessao, transacao, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
+        val lancamentos = LancamentoRepositoryRoom(lancamentosDao, sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
         val excluida = checkNotNull(propriedades.excluirComLancamentos(DadosDeExemplo.ID_SITIO))
 
@@ -469,7 +510,14 @@ class CamadaDeDadosTest {
     @Test
     fun `excluir propriedade de outra conta nao apaga nada`() = runTest {
         val (propriedadesDao, lancamentosDao, _) = cenarioDeLancamentos()
-        val propriedades = PropriedadeRepositoryRoom(propriedadesDao, lancamentosDao, SessaoMemoria("u2"), TransacaoDireta)
+        val propriedades =
+            PropriedadeRepositoryRoom(
+                propriedadesDao,
+                lancamentosDao,
+                SessaoMemoria("u2"),
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
 
         assertNull(propriedades.excluirComLancamentos(DadosDeExemplo.ID_SITIO))
         assertEquals(9, lancamentosDao.tabela.value.size)
@@ -479,7 +527,7 @@ class CamadaDeDadosTest {
     @Test
     fun `lancamentos de outra conta nao aparecem nem podem ser gravados`() = runTest {
         val (_, dao, sessao) = cenarioDeLancamentos()
-        val repositorio = LancamentoRepositoryRoom(dao, sessao, TransacaoDireta)
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
         assertEquals(9, repositorio.observarTodos().first().size)
 
         sessao.iniciar("u2")

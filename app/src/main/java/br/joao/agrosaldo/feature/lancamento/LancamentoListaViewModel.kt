@@ -5,10 +5,8 @@ import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloRelativo
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.Despachantes
-import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
@@ -98,8 +96,8 @@ class LancamentoListaViewModel @Inject constructor(
     private val propriedadeRepository: PropriedadeRepository,
     /** Propriedade e mês escolhidos, compartilhados com as outras telas. */
     private val selecao: SelecaoAtual,
-    private val relogio: Clock = RelogioDoAparelho,
-    private val despachantes: Despachantes = DespachantesDoSistema
+    private val relogio: Clock,
+    private val despachantes: Despachantes
 ) : ViewModel() {
 
     private fun hoje(): LocalDate = LocalDate.now(relogio)

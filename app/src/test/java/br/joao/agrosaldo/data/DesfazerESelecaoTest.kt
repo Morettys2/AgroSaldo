@@ -1,6 +1,9 @@
 package br.joao.agrosaldo.data
 
+import br.joao.agrosaldo.data.relogioEm
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.model.InstanteMonotonico
+import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -19,7 +22,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `desfazer restaura e tira a oferta da tela`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         var restaurou = 0
         desfazer.oferecer("Lançamento excluído") { restaurou++ }
         val pendente = desfazer.pendente.value
@@ -32,7 +35,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `tocar duas vezes rapido em desfazer restaura uma vez so`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         var restaurou = 0
         // Restauração bloqueada até [gravacao] completar: o segundo toque chega com a primeira em andamento.
         val gravacao = CompletableDeferred<Unit>()
@@ -55,7 +58,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `a barra sumiu sozinha - a exclusao fica valendo`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         var restaurou = 0
         desfazer.oferecer("x") { restaurou++ }
         val pendente = checkNotNull(desfazer.pendente.value)
@@ -69,7 +72,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `uma exclusao nova substitui a anterior, que nao volta mais`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         var primeira = 0
         desfazer.oferecer("primeira") { primeira++ }
         val antiga = checkNotNull(desfazer.pendente.value)
@@ -113,7 +116,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `se a restauracao falhar, avisa e tira a oferta da tela`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         desfazer.oferecer("x") { throw IllegalStateException("banco indisponível") }
 
         val restaurou = desfazer.desfazerExclusao(checkNotNull(desfazer.pendente.value))
@@ -124,7 +127,7 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `cancelamento durante a restauracao e repassado, nao vira falha`() = runTest {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         desfazer.oferecer("x") { throw CancellationException("cancelado") }
         val pendente = checkNotNull(desfazer.pendente.value)
 
@@ -138,19 +141,22 @@ class DesfazerESelecaoTest {
 
     @Test
     fun `trocar de conta esquece o que dava para desfazer`() {
-        val desfazer = Desfazer()
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         desfazer.oferecer("x") { }
         desfazer.esquecer()
         assertNull(desfazer.pendente.value)
     }
 
     /** Uma seleção nova por teste (antes era um `object` global zerado no @Before). */
-    private val selecao = SelecaoAtual()
+    private val selecao = SelecaoAtual(relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
     @Test
     fun `lembra a propriedade escolhida da ultima vez`() {
         val gravadas = mutableListOf<String?>()
-        val selecao = SelecaoAtual(propriedadeInicial = "sitio-1", aoMudarPropriedade = { gravadas += it })
+        val selecao =
+            SelecaoAtual(propriedadeInicial = "sitio-1", aoMudarPropriedade = {
+                gravadas += it
+            }, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
 
         assertEquals("sitio-1", selecao.propriedadeId.value)
 
@@ -167,13 +173,13 @@ class DesfazerESelecaoTest {
         selecao.voltarMes()
         selecao.voltarMes()
         selecao.avancarMes()
-        assertEquals(YearMonth.now().minusMonths(1), selecao.mes.value)
+        assertEquals(YearMonth.of(2026, 8), selecao.mes.value)
 
         selecao.selecionarMes(YearMonth.of(2025, 1))
         assertEquals(YearMonth.of(2025, 1), selecao.mes.value)
 
         selecao.limpar()
-        assertEquals(YearMonth.now(), selecao.mes.value)
+        assertEquals(YearMonth.of(2026, 9), selecao.mes.value)
     }
 
     @Test

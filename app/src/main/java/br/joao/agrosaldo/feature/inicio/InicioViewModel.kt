@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
@@ -85,7 +84,7 @@ class InicioViewModel @Inject constructor(
     private val selecao: SelecaoAtual,
     /** Quem está conectado; o nome gera as iniciais do cabeçalho. */
     usuarioLogado: UsuarioLogadoRepository,
-    private val relogio: Clock = RelogioDoAparelho
+    private val relogio: Clock
 ) : ViewModel() {
 
     private fun hoje(): LocalDate = LocalDate.now(relogio)

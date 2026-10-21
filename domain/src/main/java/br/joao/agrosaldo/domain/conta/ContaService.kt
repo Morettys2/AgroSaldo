@@ -1,9 +1,7 @@
 package br.joao.agrosaldo.domain.conta
 
 import br.joao.agrosaldo.domain.Despachantes
-import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.RelogioMonotonico
-import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.domain.model.Usuario
 import br.joao.agrosaldo.domain.repository.EstadoTentativas
@@ -73,9 +71,9 @@ class ContaService(
     private val sessao: SessaoRepository,
     private val tentativas: TentativasRepository,
     private val hash: HashDeSenha = HashDeSenha(),
-    private val relogio: Clock = Clock.systemDefaultZone(),
-    private val relogioMonotonico: RelogioMonotonico = RelogioMonotonicoIndisponivel,
-    private val despachantes: Despachantes = DespachantesDoSistema,
+    private val relogio: Clock,
+    private val relogioMonotonico: RelogioMonotonico,
+    private val despachantes: Despachantes,
     private val aoTrocarDeUsuario: () -> Unit = {},
     private val aoExcluirConta: suspend (usuarioId: String) -> Unit = {}
 ) {

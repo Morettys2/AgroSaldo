@@ -1,6 +1,5 @@
 package br.joao.agrosaldo.data.repository
 
-import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.LeitorOpenMeteo
 import br.joao.agrosaldo.data.clima.OpenMeteo
@@ -9,7 +8,6 @@ import br.joao.agrosaldo.data.clima.ServicoIndisponivelException
 import br.joao.agrosaldo.data.local.dao.PrevisaoDao
 import br.joao.agrosaldo.data.local.entidade.PrevisaoEntity
 import br.joao.agrosaldo.domain.Despachantes
-import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.clima.PoliticaDeAtualizacao
 import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -35,8 +33,8 @@ class ClimaRepositoryRoom(
     private val fonte: FontePrevisao,
     private val dao: PrevisaoDao,
     /** O JSON é convertido em [Previsao] em [Despachantes.calculo]: fora da thread de quem chama (a main, na UI). */
-    private val despachantes: Despachantes = DespachantesDoSistema,
-    private val relogio: Clock = RelogioDoAparelho
+    private val despachantes: Despachantes,
+    private val relogio: Clock
 ) : ClimaRepository {
 
     // Serializa atualizações concorrentes (ex.: Início e Clima): a segunda

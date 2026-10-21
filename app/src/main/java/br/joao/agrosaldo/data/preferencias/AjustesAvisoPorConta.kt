@@ -6,8 +6,6 @@ import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,7 +38,7 @@ class AjustesAvisoPorConta(
     private val sessao: SessaoRepository,
     private val aoEntrarEmConta: (AjustesAviso) -> Unit = {},
     /** Escopo da coleta da sessão; o do app em produção (vive enquanto o processo viver). */
-    escopo: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    escopo: CoroutineScope
 ) : AjustesAvisoRepository {
 
     private var contaCarregada: String? = sessao.usuarioId.value

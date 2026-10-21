@@ -11,10 +11,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
 import br.joao.agrosaldo.feature.inicio.InicioScreen
 import br.joao.agrosaldo.feature.inicio.InicioUiState
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
@@ -57,9 +59,10 @@ class TelasTest {
         val viewModel = LancamentoFormViewModel(
             lancamentoRepository = LancamentoRepositoryMemoria(emptyList()),
             propriedadeRepository = PropriedadeRepositoryMemoria(),
-            selecao = SelecaoAtual(propriedadeInicial = DadosDeExemplo.ID_FAZENDA),
+            selecao = SelecaoAtual(propriedadeInicial = DadosDeExemplo.ID_FAZENDA, relogio = relogioEm(LocalDate.of(2026, 10, 14))),
             lancamentoId = null,
-            relogio = relogioEm(hoje)
+            relogio = relogioEm(hoje),
+            desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         )
         compose.setContent {
             AgroSaldoTheme(escuro = false) {
