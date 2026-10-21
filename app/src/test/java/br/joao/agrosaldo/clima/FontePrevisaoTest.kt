@@ -32,7 +32,7 @@ class FontePrevisaoTest {
     @Test
     fun `cancelar a busca fecha a conexao e o download para na hora`() = runBlocking {
         val busca = CoroutineScope(Dispatchers.Default).async {
-            chamadaBloqueante(60_000, interromper = { fechada.countDown() }, bloqueante = leituraTravada)
+            chamadaBloqueante(60_000, Dispatchers.IO, interromper = { fechada.countDown() }, bloqueante = leituraTravada)
         }
         assertTrue(comecou.await(5, TimeUnit.SECONDS))
 
@@ -46,7 +46,7 @@ class FontePrevisaoTest {
     @Test
     fun `download que passa do tempo total vira falta de conexao`() = runBlocking {
         val erro = runCatching {
-            chamadaBloqueante(100, interromper = { fechada.countDown() }, bloqueante = leituraTravada)
+            chamadaBloqueante(100, Dispatchers.IO, interromper = { fechada.countDown() }, bloqueante = leituraTravada)
         }.exceptionOrNull()
 
         assertTrue("erro: $erro", erro is IOException)
@@ -57,7 +57,7 @@ class FontePrevisaoTest {
     fun `download que termina devolve o corpo e fecha a conexao`() = runBlocking {
         val fechou = AtomicBoolean(false)
 
-        assertEquals("{}", chamadaBloqueante(5_000, interromper = { fechou.set(true) }) { "{}" })
+        assertEquals("{}", chamadaBloqueante(5_000, Dispatchers.IO, interromper = { fechou.set(true) }) { "{}" })
         assertTrue(fechou.get())
     }
 }

@@ -59,7 +59,7 @@ object RepositoriosModule {
     @Provides
     @Singleton
     fun clima(dao: PrevisaoDao, despachantes: Despachantes, relogio: Clock): ClimaRepository =
-        ClimaRepositoryRoom(OpenMeteoHttp(), dao, despachantes, relogio)
+        ClimaRepositoryRoom(OpenMeteoHttp(despachantes), dao, despachantes, relogio)
 
     /** Desfazer de exclusões, compartilhado entre telas; a validade da oferta usa o relógio monotônico. */
     @Provides

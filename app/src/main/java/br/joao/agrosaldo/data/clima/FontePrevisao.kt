@@ -1,10 +1,11 @@
 package br.joao.agrosaldo.data.clima
 
+import br.joao.agrosaldo.domain.Despachantes
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -25,13 +26,13 @@ fun interface FontePrevisao {
 
 /**
  * GET HTTPS na Open-Meteo via HttpURLConnection. Uma única chamada não
- * justifica uma biblioteca de rede.
+ * justifica uma biblioteca de rede. A leitura bloqueante roda em [Despachantes.io].
  */
-class OpenMeteoHttp : FontePrevisao {
+class OpenMeteoHttp(private val despachantes: Despachantes) : FontePrevisao {
 
     override suspend fun baixar(latitude: Double, longitude: Double): String {
         val conexao = URL(OpenMeteo.endereco(latitude, longitude)).openConnection() as HttpURLConnection
-        return chamadaBloqueante(TEMPO_TOTAL_MS, interromper = conexao::disconnect) { ler(conexao) }
+        return chamadaBloqueante(TEMPO_TOTAL_MS, despachantes.io, interromper = conexao::disconnect) { ler(conexao) }
     }
 
     private fun ler(conexao: HttpURLConnection): String {
@@ -59,7 +60,7 @@ class OpenMeteoHttp : FontePrevisao {
 }
 
 /**
- * Executa [bloqueante] em [Dispatchers.IO] com limite total de [tempoTotalMs].
+ * Executa [bloqueante] em [despachante] (o de E/S, em produção) com limite total de [tempoTotalMs].
  *
  * E/S de rede bloqueante não atende à interrupção da thread. No cancelamento, ou quando o
  * tempo acaba, [interromper] é chamado (ex.: `HttpURLConnection.disconnect`) para destravá-la
@@ -69,9 +70,14 @@ class OpenMeteoHttp : FontePrevisao {
  *   chegando como CancellationException.
  */
 @Suppress("TooGenericExceptionCaught") // confere o cancelamento e relança a mesma exceção
-internal suspend fun <T : Any> chamadaBloqueante(tempoTotalMs: Long, interromper: () -> Unit, bloqueante: () -> T): T =
+internal suspend fun <T : Any> chamadaBloqueante(
+    tempoTotalMs: Long,
+    despachante: CoroutineDispatcher,
+    interromper: () -> Unit,
+    bloqueante: () -> T
+): T =
     withTimeoutOrNull(tempoTotalMs) {
-        withContext(Dispatchers.IO) {
+        withContext(despachante) {
             // UNDISPATCHED: o finally fica armado antes de bloqueante() começar.
             val vigia = launch(start = CoroutineStart.UNDISPATCHED) {
                 try {
