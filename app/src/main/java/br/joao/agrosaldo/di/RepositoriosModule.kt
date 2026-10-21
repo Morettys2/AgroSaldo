@@ -1,6 +1,7 @@
 package br.joao.agrosaldo.di
 
 import br.joao.agrosaldo.data.Desfazer
+import br.joao.agrosaldo.data.clima.FontePrevisao
 import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
@@ -55,11 +56,16 @@ object RepositoriosModule {
     fun lancamentos(dao: LancamentoDao, sessao: SessaoRepository, transacao: Transacao, relogio: Clock): LancamentoRepository =
         LancamentoRepositoryRoom(dao, sessao, transacao, relogio)
 
+    /** Download da previsão na Open-Meteo (HTTPS); num teste do grafo pode ser trocado por uma fonte falsa. */
+    @Provides
+    @Singleton
+    fun fontePrevisao(despachantes: Despachantes): FontePrevisao = OpenMeteoHttp(despachantes)
+
     /** Previsão da Open-Meteo guardada no Room (cache primeiro; a rede só renova). */
     @Provides
     @Singleton
-    fun clima(dao: PrevisaoDao, despachantes: Despachantes, relogio: Clock): ClimaRepository =
-        ClimaRepositoryRoom(OpenMeteoHttp(despachantes), dao, despachantes, relogio)
+    fun clima(fonte: FontePrevisao, dao: PrevisaoDao, despachantes: Despachantes, relogio: Clock): ClimaRepository =
+        ClimaRepositoryRoom(fonte, dao, despachantes, relogio)
 
     /** Desfazer de exclusões, compartilhado entre telas; a validade da oferta usa o relógio monotônico. */
     @Provides

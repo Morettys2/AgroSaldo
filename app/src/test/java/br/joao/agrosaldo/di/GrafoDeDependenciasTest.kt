@@ -4,6 +4,8 @@ import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.LimpezaDaConta
 import br.joao.agrosaldo.data.RelogioDoAparelho
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.data.clima.FontePrevisao
+import br.joao.agrosaldo.data.clima.OpenMeteoHttp
 import br.joao.agrosaldo.domain.Despachantes
 import br.joao.agrosaldo.domain.DespachantesDoSistema
 import br.joao.agrosaldo.domain.RelogioMonotonico
@@ -63,6 +65,8 @@ class GrafoDeDependenciasTest {
 
     @Inject lateinit var clima: ClimaRepository
 
+    @Inject lateinit var fontePrevisao: FontePrevisao
+
     @Inject lateinit var ajustesAviso: AjustesAvisoRepository
 
     @Inject lateinit var agenda: AgendaDeVerificacao
@@ -116,6 +120,11 @@ class GrafoDeDependenciasTest {
         assertSame(RelogioDoAparelho, relogio)
         assertSame(DespachantesDoSistema, despachantes)
         assertTrue(relogioMonotonico.milissegundos() >= 0L)
+    }
+
+    @Test
+    fun `a previsao vem da Open-Meteo de verdade`() {
+        assertTrue(fontePrevisao is OpenMeteoHttp)
     }
 
     @Test
