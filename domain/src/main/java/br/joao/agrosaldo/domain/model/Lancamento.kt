@@ -3,16 +3,13 @@ package br.joao.agrosaldo.domain.model
 import java.time.LocalDate
 import java.util.UUID
 
+/** Tipo do lançamento: RECEITA (entrada) ou DESPESA (saída). */
 enum class TipoLancamento { RECEITA, DESPESA }
 
 /**
- * Categorias fixas, mais uma categoria "Outras" para cada tipo.
- *
- * Cada categoria pertence a um único [tipo]; [Lancamento] rejeita combinações
- * inconsistentes. O rótulo fica no domínio (e não em strings.xml) para manter
- * esta camada livre de dependências Android.
- *
- * O nome da constante é persistido no banco: não renomear sem migração.
+ * Categorias fixas de lançamento; cada uma pertence a um único [tipo] e [Lancamento] recusa
+ * combinações inconsistentes. O rótulo fica no domínio (e não em strings.xml) para esta camada
+ * não depender do Android. O nome da constante é gravado no banco: não renomear sem migração.
  */
 enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
     ENERGIA(TipoLancamento.DESPESA, "Energia elétrica"),
@@ -39,14 +36,11 @@ enum class CategoriaLancamento(val tipo: TipoLancamento, val rotulo: String) {
 }
 
 /**
- * Lançamento financeiro de uma propriedade. Valores em centavos.
+ * Modelo de domínio de um lançamento financeiro, sempre ligado a uma propriedade. O valor é `Long`
+ * em centavos e sempre positivo; o sinal vem do [tipo].
  *
- * - Pertence a exatamente uma propriedade.
- * - [valorCentavos] é sempre positivo; o sinal vem do [tipo].
- *
- * O init só valida invariantes independentes do tempo. O limite de data futura
- * depende do relógio e é checado ao salvar via [dataDentroDoLimite];
- * no init, registros já gravados poderiam falhar ao serem lidos.
+ * O `init` valida só o que não depende do relógio. O limite de data futura é checado ao salvar
+ * ([dataDentroDoLimite]): no `init`, um registro já gravado poderia falhar ao ser lido.
  */
 data class Lancamento(
     val id: String = UUID.randomUUID().toString(),
@@ -72,20 +66,20 @@ data class Lancamento(
         }
     }
 
-    /** Valor com sinal, usado no cálculo de saldo do período. */
+    /** Valor com sinal: positivo para receita e negativo para despesa (usado no saldo). */
     val valorComSinal: Long
         get() = if (tipo == TipoLancamento.RECEITA) valorCentavos else -valorCentavos
 
     val ehReceita: Boolean get() = tipo == TipoLancamento.RECEITA
 
     companion object {
-        /** Tamanho máximo da descrição: texto sem limite travaria a lista e o banco. */
+        /** Tamanho máximo da descrição, validado no `init`. */
         const val DESCRICAO_MAXIMA = 200
 
         /** Limite de meses no futuro para a data de um lançamento. */
         const val MESES_NO_FUTURO = 12L
 
-        /** É true se [data] não passa de [MESES_NO_FUTURO] meses após [hoje]. */
+        /** true se [data] não passa de [MESES_NO_FUTURO] meses depois de [hoje]. */
         fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean = !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
     }
 }

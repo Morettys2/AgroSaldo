@@ -5,10 +5,8 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * Propriedade rural (sítio) do usuário.
- *
- * O id é um UUID gerado no cliente para evitar colisão com ids de um
- * backend futuro, o que um autoincremento local não garantiria.
+ * Modelo de domínio da propriedade rural (sítio). O id é um UUID gerado no app, sem depender
+ * de autoincremento do banco. O `init` valida nome, cultura, área e coordenadas.
  */
 data class Propriedade(
     val id: String = UUID.randomUUID().toString(),
@@ -30,27 +28,28 @@ data class Propriedade(
     }
 
     companion object {
+        /** Limites validados no `init`. */
         const val NOME_MAXIMO = 80
 
         val LATITUDES: ClosedFloatingPointRange<Double> = -90.0..90.0
         val LONGITUDES: ClosedFloatingPointRange<Double> = -180.0..180.0
         const val CULTURA_MAXIMA = 60
 
-        /** Maior que qualquer fazenda real; só barra digitação errada (zeros a mais). */
+        /** Teto da área em hectares: barra valor digitado com zeros a mais. */
         const val AREA_MAXIMA_HECTARES = 1_000_000.0
     }
 }
 
 /**
- * Snapshot de uma exclusão em cascata: a propriedade e seus lançamentos,
- * com os ids originais, para permitir desfazer.
+ * Resultado de uma exclusão em cascata: a propriedade e os lançamentos removidos, com os ids
+ * originais, para o desfazer reinserir exatamente o que saiu.
  */
 data class PropriedadeExcluida(val propriedade: Propriedade, val lancamentos: List<Lancamento>)
 
 /**
- * Ordem alfabética do português: acento e maiúscula não mandam o nome para o fim da lista
- * ("Água Limpa" antes de "Boa Vista"), ao contrário do `COLLATE NOCASE` do SQLite. Empates
- * são desfeitos pelo id, para a primeira da lista (a propriedade padrão) ser estável.
+ * Ordena pela ordem alfabética do português (`Collator` pt-BR): acento e maiúscula não mandam o
+ * nome para o fim da lista, ao contrário do `COLLATE NOCASE` do SQLite. Empates são desfeitos
+ * pelo id, para a ordem ser estável.
  */
 fun List<Propriedade>.emOrdemAlfabetica(): List<Propriedade> {
     // Uma instância por chamada: Collator não garante uso seguro entre threads.

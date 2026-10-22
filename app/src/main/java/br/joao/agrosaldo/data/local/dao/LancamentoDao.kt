@@ -7,13 +7,13 @@ import br.joao.agrosaldo.data.local.entidade.LancamentoEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
- * `lancamentos` não tem coluna de dono: a posse é derivada via JOIN com
- * `propriedades.usuario_id`. Os Flows observam as duas tabelas.
+ * DAO (`@Dao`) da tabela `lancamentos`. A tabela não tem coluna de dono: a posse vem do JOIN com
+ * `propriedades.usuario_id`, e os `Flow` observam as duas tabelas.
  */
 @Dao
 interface LancamentoDao {
 
-    /** Ordenado por data e depois por última gravação, mais recentes primeiro. */
+    /** Observa os lançamentos do usuário (`Flow`), mais recentes primeiro: por data e depois pela última gravação. */
     @Query(
         """
         SELECT lancamentos.* FROM lancamentos
@@ -24,6 +24,7 @@ interface LancamentoDao {
     )
     fun observarDoUsuario(usuarioId: String): Flow<List<LancamentoEntity>>
 
+    /** Lê um lançamento do usuário pelo id. */
     @Query(
         """
         SELECT lancamentos.* FROM lancamentos
@@ -33,12 +34,12 @@ interface LancamentoDao {
     )
     suspend fun buscarPorId(id: String, usuarioId: String): LancamentoEntity?
 
-    /** Usado antes de gravar para impedir lançamento em propriedade de outra conta. */
+    /** true se a propriedade pertence ao usuário; conferido antes de gravar um lançamento nela. */
     @Query("SELECT EXISTS(SELECT 1 FROM propriedades WHERE id = :propriedadeId AND usuario_id = :usuarioId)")
     suspend fun propriedadeEhDoUsuario(propriedadeId: String, usuarioId: String): Boolean
 
     /**
-     * true se o lançamento [id] existe numa propriedade que não é de [usuarioId]. Usado antes
+     * true se o lançamento [id] existe numa propriedade que não é de [usuarioId]. Conferido antes
      * do upsert, que casa só pelo id.
      */
     @Query(
@@ -52,14 +53,15 @@ interface LancamentoDao {
     )
     suspend fun existeSemSerDoUsuario(id: String, usuarioId: String): Boolean
 
+    /** Insere ou atualiza um lançamento (`@Upsert`, pela chave primária `id`). */
     @Upsert
     suspend fun salvar(lancamento: LancamentoEntity)
 
-    /** Usado ao desfazer a exclusão de uma propriedade. */
+    /** Insere ou atualiza vários lançamentos; usado ao restaurar uma propriedade excluída. */
     @Upsert
     suspend fun salvarTodos(lancamentos: List<LancamentoEntity>)
 
-    /** Snapshot dos lançamentos antes da exclusão da propriedade (para desfazer). */
+    /** Lista os lançamentos de uma propriedade do usuário (lidos antes de excluí-la, para o desfazer). */
     @Query(
         """
         SELECT lancamentos.* FROM lancamentos
@@ -69,6 +71,7 @@ interface LancamentoDao {
     )
     suspend fun daPropriedade(propriedadeId: String, usuarioId: String): List<LancamentoEntity>
 
+    /** Exclui um lançamento, só se a propriedade dele for do usuário. */
     @Query(
         """
         DELETE FROM lancamentos
@@ -79,8 +82,8 @@ interface LancamentoDao {
     suspend fun excluir(id: String, usuarioId: String)
 
     /**
-     * Redundante com o ON DELETE CASCADE; chamado explicitamente na mesma
-     * transação para não depender só da FK.
+     * Exclui os lançamentos de uma propriedade do usuário. É redundante com o ON DELETE CASCADE,
+     * mas roda explicitamente na mesma transação para não depender só da chave estrangeira.
      */
     @Query(
         """

@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
- * [PropriedadeRepository] em Room. Toda consulta é filtrada pelo usuário da
+ * Implementação de [PropriedadeRepository] com Room. Toda consulta é filtrada pelo usuário da
  * [sessao]; escritas sem sessão lançam IllegalStateException.
  */
 class PropriedadeRepositoryRoom(
@@ -30,8 +30,8 @@ class PropriedadeRepositoryRoom(
 ) : PropriedadeRepository {
 
     /**
-     * Reinicia a consulta a cada troca de usuário; lista vazia sem sessão. Em ordem alfabética
-     * pt-BR ([emOrdemAlfabetica]): a primeira é a propriedade padrão das telas.
+     * Reinicia a consulta a cada troca de usuário (`flatMapLatest`); lista vazia sem sessão.
+     * Sai em ordem alfabética pt-BR ([emOrdemAlfabetica]).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodas(): Flow<List<Propriedade>> = sessao.usuarioId.flatMapLatest { usuarioId ->
@@ -61,6 +61,7 @@ class PropriedadeRepositoryRoom(
         dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId, agora = relogio.millis()))
     }
 
+    /** Numa transação: lê a propriedade e os lançamentos, apaga os dois e devolve o que saiu. */
     override suspend fun excluirComLancamentos(id: String): PropriedadeExcluida? {
         val usuarioId = usuarioConectado()
         return transacao.executar {
@@ -72,6 +73,7 @@ class PropriedadeRepositoryRoom(
         }
     }
 
+    /** Regrava a propriedade e os lançamentos numa transação. */
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
         val usuarioId = usuarioConectado()
         transacao.executar {
@@ -81,5 +83,6 @@ class PropriedadeRepositoryRoom(
         }
     }
 
+    /** Id do usuário da sessão; lança IllegalStateException se não há ninguém conectado. */
     private fun usuarioConectado(): String = checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

@@ -14,12 +14,11 @@ import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 
 /**
- * Banco Room local ([NOME_ARQUIVO], armazenamento privado do app); fonte da
- * verdade offline.
+ * Banco Room do app (`@Database`), gravado no arquivo [NOME_ARQUIVO] no armazenamento privado
+ * do aplicativo. Registra as quatro entidades e expõe um DAO por tabela.
  *
- * Versão 3 é o ponto de partida da produção: usuários, propriedades, lançamentos
- * e cache de previsão. Toda mudança de schema exige incrementar a versão e
- * escrever uma Migration sem perda de dados (schemas exportados em app/schemas).
+ * Versão do schema: 3, exportado em `app/schemas`. Mudar o schema exige subir a versão e
+ * escrever uma `Migration`.
  */
 @Database(
     entities = [
@@ -33,6 +32,7 @@ import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 )
 abstract class AgroSaldoDatabase : RoomDatabase() {
 
+    /** DAOs: o Room gera a implementação de cada um na compilação (KSP). */
     abstract fun usuarioDao(): UsuarioDao
     abstract fun propriedadeDao(): PropriedadeDao
     abstract fun lancamentoDao(): LancamentoDao
@@ -42,17 +42,16 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
         const val NOME_ARQUIVO = "agrosaldo.db"
 
         /**
-         * Abre o banco, sempre vazio na primeira vez: nenhum dado de exemplo é gravado.
-         * Deve existir uma única instância por processo (garantida pelo
-         * `BancoModule` do Hilt, que a fornece como `@Singleton`).
+         * Cria o banco com `Room.databaseBuilder`. Deve existir uma única instância por processo:
+         * o `BancoModule` do Hilt a fornece como `@Singleton`.
          */
         fun criar(context: Context): AgroSaldoDatabase = Room.databaseBuilder(
             context.applicationContext,
             AgroSaldoDatabase::class.java,
             NOME_ARQUIVO
         )
-            // Sem fallbackToDestructiveMigration: migração ausente deve falhar,
-            // nunca apagar dados do usuário.
+            // Sem fallbackToDestructiveMigration: sem a Migration, abrir o banco falha em vez de
+            // recriá-lo vazio (o que apagaria os dados).
             .build()
     }
 }
