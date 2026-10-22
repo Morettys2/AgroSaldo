@@ -4,11 +4,10 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Conta local do aparelho.
- *
- * [senhaHash] está no formato de [br.joao.agrosaldo.domain.conta.HashDeSenha];
- * a senha em texto puro nunca é armazenada.
- * [consentimentoEm] e [versaoTermo] registram o aceite LGPD.
+ * Modelo de domínio da conta local. [senhaHash] está no formato de
+ * [br.joao.agrosaldo.domain.conta.HashDeSenha] (a senha em texto puro nunca é guardada);
+ * [consentimentoEm] e [versaoTermo] registram o aceite do termo de privacidade (LGPD).
+ * O `init` valida os campos obrigatórios.
  */
 data class Usuario(
     val id: String = UUID.randomUUID().toString(),
@@ -27,13 +26,8 @@ data class Usuario(
 }
 
 /**
- * Versão do termo de privacidade. Incrementar a cada mudança relevante do
- * texto: quem aceitou uma versão anterior vê o termo de novo no próximo acesso.
- *
- * Histórico:
- * - 1: texto inicial (conta local e LGPD).
- * - 2: uso opcional da localização no cadastro da propriedade.
- * - 3: backup do Android e o que a exclusão da conta apaga.
+ * Versão atual do termo de privacidade. Ao subir o número, quem aceitou uma versão anterior
+ * precisa aceitar de novo no próximo acesso.
  */
 object TermoDePrivacidade {
     const val VERSAO_ATUAL = 3

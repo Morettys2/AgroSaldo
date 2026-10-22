@@ -12,10 +12,11 @@ import java.time.Instant
 import java.time.LocalDate
 
 /*
- * Conversões entidade <-> domínio. Formatos persistidos: datas em epochDay,
- * instantes em epoch ms, enums pelo nome da constante.
+ * Conversões entre entidades do Room e modelos do domínio. Formatos gravados: datas em epochDay,
+ * instantes em epoch ms e enums pelo nome da constante.
  */
 
+/** Converte [PropriedadeEntity] (Room) em [Propriedade] (domínio). */
 fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
     id = id,
     nome = nome,
@@ -26,8 +27,9 @@ fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
 )
 
 /**
- * @param usuarioId dono, definido pelo repositório a partir da sessão (não faz
- *   parte do modelo de domínio).
+ * Converte [Propriedade] em [PropriedadeEntity].
+ *
+ * @param usuarioId dono, vindo da sessão (não faz parte do modelo de domínio).
  * @param agora valor de `atualizado_em`, em epoch ms.
  */
 fun Propriedade.paraEntidade(usuarioId: String?, agora: Long): PropriedadeEntity = PropriedadeEntity(
@@ -42,9 +44,9 @@ fun Propriedade.paraEntidade(usuarioId: String?, agora: Long): PropriedadeEntity
 )
 
 /**
- * Enums são lidos com valueOf: renomear ou remover constantes de
- * [TipoLancamento]/[CategoriaLancamento] quebra a leitura de dados gravados.
- * Adicionar constantes é seguro.
+ * Converte [LancamentoEntity] em [Lancamento]. Os enums são lidos com `valueOf`: renomear ou
+ * remover constantes de [TipoLancamento]/[CategoriaLancamento] quebra a leitura de dados gravados;
+ * adicionar constantes é seguro.
  */
 fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     id = id,
@@ -56,6 +58,7 @@ fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     descricao = descricao
 )
 
+/** Converte [Lancamento] em [LancamentoEntity]; [agora] vira `atualizado_em` (epoch ms). */
 fun Lancamento.paraEntidade(agora: Long): LancamentoEntity = LancamentoEntity(
     id = id,
     propriedadeId = propriedadeId,
@@ -67,6 +70,7 @@ fun Lancamento.paraEntidade(agora: Long): LancamentoEntity = LancamentoEntity(
     atualizadoEm = agora
 )
 
+/** Converte [UsuarioEntity] em [Usuario] (epoch ms vira `Instant`). */
 fun UsuarioEntity.paraDominio(): Usuario = Usuario(
     id = id,
     nome = nome,
@@ -77,6 +81,7 @@ fun UsuarioEntity.paraDominio(): Usuario = Usuario(
     criadoEm = Instant.ofEpochMilli(criadoEm)
 )
 
+/** Converte [Usuario] em [UsuarioEntity] (`Instant` vira epoch ms). */
 fun Usuario.paraEntidade(): UsuarioEntity = UsuarioEntity(
     id = id,
     nome = nome,

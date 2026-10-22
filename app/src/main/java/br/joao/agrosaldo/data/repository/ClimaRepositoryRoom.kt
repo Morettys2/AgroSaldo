@@ -26,19 +26,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * [ClimaRepository] cache-first: a leitura vem sempre do Room; a rede só
- * substitui o JSON guardado. O cache armazena a resposta bruta da API.
+ * Implementação de [ClimaRepository] com cache no Room (cache-first): a leitura vem sempre do
+ * banco e a rede só substitui o JSON guardado, que é a resposta bruta da API.
  */
 class ClimaRepositoryRoom(
     private val fonte: FontePrevisao,
     private val dao: PrevisaoDao,
-    /** O JSON é convertido em [Previsao] em [Despachantes.calculo]: fora da thread de quem chama (a main, na UI). */
+    /** O JSON é convertido em [Previsao] em [Despachantes.calculo], fora da thread principal. */
     private val despachantes: Despachantes,
     private val relogio: Clock
 ) : ClimaRepository {
 
-    // Serializa atualizações concorrentes (ex.: Início e Clima): a segunda
-    // encontra o cache já renovado em [atualizarSeNecessario].
+    // Serializa atualizações concorrentes: a segunda encontra o cache já renovado em
+    // [atualizarSeNecessario].
     private val trava = Mutex()
 
     override fun observar(propriedade: Propriedade): Flow<Previsao?> =
@@ -54,6 +54,7 @@ class ClimaRepositoryRoom(
         if (PoliticaDeAtualizacao.precisaAtualizar(guardada?.obtidaEm, agora())) buscarEGuardar(propriedade) else null
     }
 
+    /** Baixa, valida e grava a previsão; cada falha vira um [ResultadoAtualizacao]. */
     @Suppress("SwallowedException") // cada falha vira um ResultadoAtualizacao; a causa não é usada pela tela
 
     private suspend fun buscarEGuardar(propriedade: Propriedade): ResultadoAtualizacao {

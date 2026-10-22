@@ -28,7 +28,10 @@ import dagger.hilt.components.SingletonComponent
 import java.time.Clock
 import javax.inject.Singleton
 
-/** Os repositórios: o domínio só conhece as interfaces, e aqui elas ganham a implementação Room (e a da rede). */
+/**
+ * Módulo do Hilt que liga cada interface de repositório do domínio à sua implementação (Room e
+ * Open-Meteo). Os ViewModels recebem as interfaces pelo construtor.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoriosModule {
@@ -56,7 +59,7 @@ object RepositoriosModule {
     fun lancamentos(dao: LancamentoDao, sessao: SessaoRepository, transacao: Transacao, relogio: Clock): LancamentoRepository =
         LancamentoRepositoryRoom(dao, sessao, transacao, relogio)
 
-    /** Download da previsão na Open-Meteo (HTTPS); num teste do grafo pode ser trocado por uma fonte falsa. */
+    /** Fonte da previsão: GET HTTPS na Open-Meteo ([OpenMeteoHttp]). */
     @Provides
     @Singleton
     fun fontePrevisao(despachantes: Despachantes): FontePrevisao = OpenMeteoHttp(despachantes)

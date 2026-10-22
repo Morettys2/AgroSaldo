@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
- * [LancamentoRepository] em Room, restrito ao usuário da [sessao]. [transacao] mantém a
- * checagem de posse e a gravação atômicas.
+ * Implementação de [LancamentoRepository] com Room, restrita ao usuário da [sessao]. A
+ * [transacao] mantém a checagem de posse e a gravação atômicas.
  */
 class LancamentoRepositoryRoom(
     private val dao: LancamentoDao,
@@ -25,6 +25,7 @@ class LancamentoRepositoryRoom(
     private val relogio: Clock
 ) : LancamentoRepository {
 
+    /** Reinicia a consulta a cada troca de usuário (`flatMapLatest`); lista vazia sem sessão. */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observarTodos(): Flow<List<Lancamento>> = sessao.usuarioId.flatMapLatest { usuarioId ->
         if (usuarioId == null) {
@@ -40,9 +41,10 @@ class LancamentoRepositoryRoom(
     }
 
     /**
-     * @throws IllegalArgumentException se a propriedade ou o lançamento existente com o
-     *   mesmo id não pertencem ao usuário (mesmo tipo das validações do modelo, já tratado
-     *   pelo formulário).
+     * Grava numa transação, depois de conferir que a propriedade e o lançamento (pelo id) são do
+     * usuário.
+     *
+     * @throws IllegalArgumentException se a propriedade ou o lançamento com o mesmo id é de outra conta.
      * @throws IllegalStateException sem sessão.
      */
     override suspend fun salvar(lancamento: Lancamento) {
@@ -59,6 +61,7 @@ class LancamentoRepositoryRoom(
         }
     }
 
+    /** Lê e apaga na mesma transação e devolve o lançamento apagado. */
     override suspend fun excluir(id: String): Lancamento? {
         val usuarioId = usuarioConectado()
         return transacao.executar {
@@ -68,5 +71,6 @@ class LancamentoRepositoryRoom(
         }
     }
 
+    /** Id do usuário da sessão; lança IllegalStateException se não há ninguém conectado. */
     private fun usuarioConectado(): String = checkNotNull(sessao.usuarioId.value) { "Nenhum usuário conectado." }
 }

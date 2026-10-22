@@ -7,22 +7,26 @@ import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Consultas e escritas filtram por `usuario_id` para isolar os dados de cada
- * conta. Exceção: [existeSemSerDoUsuario], usado na checagem de posse.
+ * DAO (`@Dao`) da tabela `propriedades`. Consultas e escritas filtram por `usuario_id`, o que
+ * isola os dados de cada conta; a exceção é [existeSemSerDoUsuario], a checagem de posse.
  */
 @Dao
 interface PropriedadeDao {
 
-    /** Sem ORDER BY: o COLLATE do SQLite não trata acentos; o repositório ordena em pt-BR. */
+    /**
+     * Observa as propriedades do usuário (`Flow`). Sem ORDER BY: o COLLATE do SQLite não trata
+     * acentos, então o repositório ordena em pt-BR.
+     */
     @Query("SELECT * FROM propriedades WHERE usuario_id = :usuarioId")
     fun observarDoUsuario(usuarioId: String): Flow<List<PropriedadeEntity>>
 
+    /** Lê uma propriedade do usuário pelo id. */
     @Query("SELECT * FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
     suspend fun buscarPorId(id: String, usuarioId: String): PropriedadeEntity?
 
     /**
-     * true se a propriedade [id] existe e não é de [usuarioId]: é de outra conta ou ainda
-     * não tem dono (só a criação da conta adota essas).
+     * true se a propriedade [id] existe e não pertence a [usuarioId] (é de outra conta ou não tem
+     * dono). Checagem de posse antes do upsert, que casa só pelo id.
      */
     @Query(
         """
@@ -35,16 +39,17 @@ interface PropriedadeDao {
     suspend fun existeSemSerDoUsuario(id: String, usuarioId: String): Boolean
 
     /**
-     * Não trocar por @Insert(onConflict = REPLACE): o REPLACE do SQLite faz
-     * DELETE + INSERT, o que dispara o CASCADE e apaga os lançamentos e a
-     * previsão da propriedade. @Upsert faz UPDATE (coberto por teste).
+     * Insere ou atualiza (`@Upsert`). Não trocar por `@Insert(onConflict = REPLACE)`: no SQLite o
+     * REPLACE faz DELETE + INSERT, o que dispara o CASCADE e apaga os lançamentos e a previsão.
      */
     @Upsert
     suspend fun salvar(propriedade: PropriedadeEntity)
 
+    /** Exclui a propriedade do usuário; lançamentos e previsão saem pelo ON DELETE CASCADE. */
     @Query("DELETE FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
     suspend fun excluir(id: String, usuarioId: String)
 
+    /** Quantidade de propriedades do usuário. */
     @Query("SELECT COUNT(*) FROM propriedades WHERE usuario_id = :usuarioId")
     suspend fun contarDoUsuario(usuarioId: String): Int
 }

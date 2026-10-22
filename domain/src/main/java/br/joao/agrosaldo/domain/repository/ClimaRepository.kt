@@ -4,7 +4,9 @@ import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.Propriedade
 import kotlinx.coroutines.flow.Flow
 
+/** Resultado de uma atualização da previsão. */
 sealed interface ResultadoAtualizacao {
+    /** Previsão baixada e gravada no cache. */
     data class Sucesso(val previsao: Previsao) : ResultadoAtualizacao
 
     /** Falha de rede ou tempo esgotado; o cache permanece. */
@@ -18,14 +20,15 @@ sealed interface ResultadoAtualizacao {
 }
 
 /**
- * Previsão do tempo por propriedade, cache-first: a UI observa o cache e a
- * rede apenas substitui o valor guardado. Sem conexão, mantém a última previsão.
+ * Contrato da previsão do tempo por propriedade, no modelo cache-first: a UI observa o cache e a
+ * rede só substitui o valor guardado. Sem conexão, vale a última previsão.
  */
 interface ClimaRepository {
 
     /** Previsão em cache para as coordenadas atuais da propriedade, ou null. */
     fun observar(propriedade: Propriedade): Flow<Previsao?>
 
+    /** Lê o cache da propriedade uma vez (null se não há ou se venceu). */
     suspend fun emCache(propriedade: Propriedade): Previsao?
 
     /** Busca na API e grava no cache, ignorando a validade. */

@@ -6,7 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Tabela `usuarios`. Índice único em `email` (normalizado). Instantes em epoch ms.
+ * Entidade da tabela `usuarios` (`@Entity`). O índice único em `email` impede duas contas
+ * com o mesmo e-mail. Instantes são gravados em epoch ms (`Long`).
  */
 @Entity(
     tableName = "usuarios",
@@ -17,7 +18,7 @@ data class UsuarioEntity(
     val id: String,
     val nome: String,
     val email: String,
-    /** Hash no formato de [br.joao.agrosaldo.domain.conta.HashDeSenha]; nunca a senha. */
+    /** Hash PBKDF2 da senha, no formato de [br.joao.agrosaldo.domain.conta.HashDeSenha]; nunca a senha em si. */
     @ColumnInfo(name = "senha_hash")
     val senhaHash: String,
     @ColumnInfo(name = "consentimento_em")

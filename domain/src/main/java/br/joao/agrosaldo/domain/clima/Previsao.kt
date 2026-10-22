@@ -22,6 +22,7 @@ enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
     DESCONHECIDA("Sem informação", false);
 
     companion object {
+        /** Converte o código WMO da Open-Meteo na condição do tempo. */
         @Suppress("MagicNumber") // tabela de códigos de tempo da OMM (WMO), como a Open-Meteo os devolve
         fun doCodigoWmo(codigo: Int?): CondicaoTempo = when (codigo) {
             0 -> CEU_LIMPO
@@ -38,6 +39,7 @@ enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
     }
 }
 
+/** Previsão de um dia da série diária. */
 data class PrevisaoDia(
     val data: LocalDate,
     val condicao: CondicaoTempo,
@@ -49,6 +51,7 @@ data class PrevisaoDia(
     val probabilidadeChuva: Int
 )
 
+/** Previsão de uma hora da série horária. */
 data class PrevisaoHora(
     /** Hora local da propriedade (fuso informado pela Open-Meteo). */
     val horario: LocalDateTime,
@@ -57,9 +60,8 @@ data class PrevisaoHora(
 )
 
 /**
- * Previsão de um ponto: condição atual, série horária e diária.
- *
- * Os horários estão no fuso da propriedade ([fusoSegundos]), não no do aparelho.
+ * Previsão de um ponto: condição atual, série horária e série diária. Os horários estão no fuso
+ * da propriedade ([fusoSegundos]), não no do aparelho.
  */
 data class Previsao(
     val latitude: Double,

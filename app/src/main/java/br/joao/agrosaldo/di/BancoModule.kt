@@ -16,17 +16,19 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * O banco Room e os DAOs. O banco é aberto na primeira consulta e começa sempre vazio:
- * nenhum dado de exemplo é gravado.
+ * Módulo do Hilt (`@InstallIn(SingletonComponent::class)`) que fornece o banco, os DAOs e a
+ * [Transacao]. O banco é aberto na primeira injeção.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object BancoModule {
 
+    /** Instância única do banco no app (`@Singleton`). */
     @Provides
     @Singleton
     fun banco(@ApplicationContext contexto: Context): AgroSaldoDatabase = AgroSaldoDatabase.criar(contexto)
 
+    /** Os DAOs vêm do banco único. */
     @Provides
     fun usuarioDao(banco: AgroSaldoDatabase): UsuarioDao = banco.usuarioDao()
 
@@ -39,7 +41,7 @@ object BancoModule {
     @Provides
     fun previsaoDao(banco: AgroSaldoDatabase): PrevisaoDao = banco.previsaoDao()
 
-    /** Transação do Room para repositórios que combinam várias escritas e checagens. */
+    /** Transação real, para os repositórios que gravam em mais de uma tabela. */
     @Provides
     @Singleton
     fun transacao(banco: AgroSaldoDatabase): Transacao = TransacaoRoom(banco)

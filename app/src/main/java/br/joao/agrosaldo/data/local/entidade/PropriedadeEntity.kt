@@ -7,8 +7,9 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Tabela `propriedades`. FK `usuario_id` com CASCADE (desde a versão 2):
- * excluir a conta remove as propriedades e, em cadeia, lançamentos e previsões.
+ * Entidade da tabela `propriedades` (`@Entity`). A chave estrangeira `usuario_id` → `usuarios.id`
+ * tem ON DELETE CASCADE: excluir a conta apaga as propriedades e, em cadeia, os lançamentos
+ * e as previsões. O índice em `usuario_id` acelera o filtro por dono.
  */
 @Entity(
     tableName = "propriedades",
@@ -31,14 +32,12 @@ data class PropriedadeEntity(
     val areaHectares: Double,
     val latitude: Double,
     val longitude: Double,
-    /** Última gravação (epoch ms). Não exibido; reservado para sincronização futura. */
+    /** Instante da última gravação, em epoch ms. */
     @ColumnInfo(name = "atualizado_em")
     val atualizadoEm: Long,
     /**
-     * Dono. Nulo apenas para dados de exemplo, até serem adotados pela
-     * primeira conta criada.
-     *
-     * Deve ser a última coluna: a ordem precisa coincidir com o schema exportado.
+     * Dono (chave estrangeira para `usuarios.id`); nulo indica propriedade sem dono.
+     * Fica por último porque a ordem das colunas precisa coincidir com o schema exportado.
      */
     @ColumnInfo(name = "usuario_id")
     val usuarioId: String?

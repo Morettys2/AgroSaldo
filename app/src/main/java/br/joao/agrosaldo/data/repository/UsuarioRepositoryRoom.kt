@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * [UsuarioRepository] em Room. [transacao] torna o cadastro atômico: a conta e a adoção das
- * propriedades sem dono entram juntas ou nenhuma entra.
+ * Implementação de [UsuarioRepository] com Room. O cadastro roda na [transacao]: a conta e a
+ * atribuição das propriedades sem dono entram juntas, ou nenhuma entra.
  */
 class UsuarioRepositoryRoom(private val dao: UsuarioDao, private val transacao: Transacao) : UsuarioRepository {
 
