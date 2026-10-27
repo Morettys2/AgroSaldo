@@ -1,0 +1,280 @@
+---
+title: "AgroSaldo — Perguntas da banca"
+description: "Perguntas que os avaliadores podem fazer na apresentação, com respostas curtas baseadas no código da branch prod"
+---
+
+# AgroSaldo — Perguntas da banca
+
+Perguntas prováveis de uma banca sobre o AgroSaldo, com respostas para falar em voz alta. Tudo bate com o código da branch `prod`.
+
+**Como usar:** fale primeiro a **resposta curta**. Só entre no **se pedirem detalhe** se o avaliador quiser mais. Se não souber algo, diga o que o app faz hoje e o que está planejado: é melhor que inventar.
+
+## Sumário
+
+1. [Dados do usuário e LGPD](#1-dados-do-usuário-e-lgpd)
+2. [Segurança](#2-segurança)
+3. [E se o app crescer?](#3-e-se-o-app-crescer)
+4. [Arquitetura e tecnologia](#4-arquitetura-e-tecnologia)
+5. [Qualidade e testes](#5-qualidade-e-testes)
+6. [Produto e usuário](#6-produto-e-usuário)
+7. [Perguntas difíceis (pontos fracos)](#7-perguntas-difíceis-pontos-fracos)
+8. [Cola de números](#8-cola-de-números)
+
+---
+
+## 1. Dados do usuário e LGPD
+
+### 1.1 "Como vocês estão salvando os dados dos usuários?"
+
+**Resposta curta:** tudo fica **no próprio celular**, num banco de dados SQLite gerenciado pelo **Room**, dentro da área privada do app. Não temos servidor: nenhum dado financeiro ou pessoal sai do aparelho.
+
+**Se pedirem detalhe:**
+- O banco tem 4 tabelas: `usuarios`, `propriedades`, `lancamentos` e `previsoes`.
+- A área privada do app é isolada pelo Android: outros apps não conseguem ler esse arquivo.
+- Preferências pequenas, como a sessão, o bloqueio por digital e o "esconder valores", ficam em `SharedPreferences`, também na área privada.
+- Dinheiro é guardado em **centavos, como número inteiro** (`Long`), para não ter erro de arredondamento.
+
+### 1.2 "Quais dados pessoais o app coleta?"
+
+**Resposta curta:** o mínimo para funcionar. Da conta: **nome, e-mail e a senha em forma de hash**. Das propriedades: nome, cultura, área e coordenadas. E os lançamentos que a pessoa cadastra.
+
+**Se pedirem detalhe:**
+- Também registramos a **data e a versão do termo aceito**. É a prova do consentimento.
+- **Não** coletamos CPF, telefone, endereço nem localização em segundo plano.
+- Não há anúncios, analytics nem rastreamento.
+
+### 1.3 "Qual a base legal na LGPD?"
+
+**Resposta curta:** **consentimento** (art. 7º, I). A conta só é gravada depois que a pessoa toca em "Aceito e quero continuar". Se tocar em "Não aceito", nada é salvo.
+
+**Se pedirem detalhe:**
+- O consentimento é **antes** do tratamento: o cadastro fica só na memória até o aceite.
+- A tela explica em linguagem simples o que fica no celular, o que sai (só as coordenadas, para a previsão do tempo), como a localização é usada e como apagar tudo.
+- A política completa fica dentro do app, na tela "Privacidade e dados".
+
+### 1.4 "E se a política de privacidade mudar?"
+
+**Resposta curta:** o termo tem **versão** (hoje é a 3). Se ele mudar, a versão sobe e todo usuário tem que **aceitar de novo** antes de usar o app. Quem recusa sai da conta, sem perder os dados.
+
+### 1.5 "Algum dado sai do celular? Vocês compartilham com terceiros?"
+
+**Resposta curta:** só **latitude e longitude** da propriedade vão para a **Open-Meteo**, para buscar a previsão do tempo. Nome, e-mail e valores nunca saem.
+
+**Se pedirem detalhe:**
+- As coordenadas vão **arredondadas para 2 casas decimais (cerca de 1 km)**. Isso é minimização de dados: a previsão não precisa de mais precisão que isso.
+- A chamada usa **HTTPS** e não precisa de chave nem de cadastro.
+- A Open-Meteo recebe o IP do celular, como qualquer site. A política pública da R9 vai citar isso.
+
+### 1.6 "Como o usuário exerce os direitos dele (art. 18)?"
+
+**Resposta curta:** ele **vê** os dados nas telas, **corrige** editando cada cadastro e **apaga tudo** em "Conta → Excluir conta e todos os dados".
+
+**Se pedirem detalhe:**
+- A exclusão pede a senha e apaga a conta. Propriedades, lançamentos e previsões vão junto, por **exclusão em cascata** no banco.
+- Depois o app roda um `VACUUM` no SQLite, para os registros apagados não ficarem nas páginas livres do arquivo.
+- Também zera os ajustes daquela conta (aviso de chuva, bloqueio, "esconder valores").
+- **Portabilidade** (exportar os dados) ainda não existe. Está no roadmap.
+
+### 1.7 "Por quanto tempo vocês guardam os dados?"
+
+**Resposta curta:** **enquanto a conta existir**. Excluiu a conta, os dados saem do celular na hora.
+
+**Se pedirem detalhe:** se o backup do Android estiver ligado, a cópia na nuvem do Google é substituída no próximo backup automático. Isso está explicado na política dentro do app.
+
+### 1.8 "E o backup? Os dados vão parar no Google?"
+
+**Resposta curta:** só se a pessoa usa o backup do Android, e o app **só permite o backup criptografado de ponta a ponta**, que exige bloqueio de tela no celular. Sem essa criptografia, o app fica fora do backup.
+
+**Se pedirem detalhe:**
+- A sessão, o contador de senhas erradas e o estado do bloqueio **nunca** vão para o backup. Depois de restaurar num celular novo, é preciso fazer login de novo.
+- No Android 8 (que não tem backup criptografado) nada do app entra no backup.
+- O `adb backup` não leva os dados.
+
+### 1.9 "Quem é o controlador dos dados?"
+
+**Resposta curta:** hoje o app é um projeto acadêmico da UNIFAE, e como os dados ficam só no celular, quem tem a posse deles é o próprio usuário. Para publicar na Play Store, a política pública vai ter o **nome do responsável e um e-mail de contato**, como a LGPD pede. Isso está planejado na R9.
+
+### 1.10 "O app usa a localização do usuário?"
+
+**Resposta curta:** só quando a pessoa toca em **"Usar minha localização"** no cadastro do sítio, e só para preencher as coordenadas. Não acompanha a pessoa, não roda em segundo plano e não guarda nada além das coordenadas que ela salvar. Se negar a permissão, dá para digitar as coordenadas.
+
+---
+
+## 2. Segurança
+
+### 2.1 "Como a senha é guardada?"
+
+**Resposta curta:** a senha **nunca** é guardada. Guardamos um **hash PBKDF2** com **600.000 iterações** e um **sal aleatório** para cada conta. Nem o app consegue saber a senha original.
+
+**Se pedirem detalhe:**
+- O algoritmo é PBKDF2-HMAC-SHA256, e 600 mil iterações é o mínimo que a OWASP recomenda hoje.
+- O sal tem 16 bytes e é diferente em cada conta, então duas senhas iguais geram hashes diferentes.
+- A comparação é em tempo constante, e o número de iterações fica gravado junto do hash: dá para aumentar no futuro sem quebrar as contas antigas.
+- Usamos só a criptografia nativa do Java, sem biblioteca externa.
+
+### 2.2 "E se alguém ficar chutando senhas?"
+
+**Resposta curta:** depois de **5 erros seguidos**, o login trava por **30 segundos**, e cada erro seguinte dobra a espera, até **15 minutos**.
+
+**Se pedirem detalhe:**
+- O contador é **por e-mail**, fica salvo (sobrevive a fechar o app) e vale para o login, a troca de senha e a exclusão da conta.
+- O tempo do bloqueio é medido num **relógio monotônico**, então adiantar a hora do celular não destrava.
+- A mensagem de erro é a mesma para e-mail inexistente e senha errada, e o tempo de resposta também. Assim ninguém descobre quais e-mails têm conta.
+
+### 2.3 "E se roubarem o celular desbloqueado?"
+
+**Resposta curta:** dá para ligar o **bloqueio por digital ou PIN**: o app pede a digital ao abrir e depois de 2 minutos fora. Com ele ligado, o app também **some das capturas de tela e da miniatura de Recentes** (`FLAG_SECURE`).
+
+**Se pedirem detalhe:** o app nunca vê a digital. Ele usa o `BiometricPrompt` do Android, que só responde "deu certo" ou "não deu". Ligar e desligar o bloqueio também pede a digital.
+
+### 2.4 "O banco de dados é criptografado?"
+
+**Resposta curta (honesta):** o arquivo do banco **não tem criptografia própria**. Ele é protegido pelo **isolamento do Android** (outros apps não acessam) e pela **criptografia do próprio celular**, que vem ligada nos aparelhos modernos. A senha já está em hash e a sessão não guarda senha.
+
+**Se pedirem detalhe:** criptografar o banco (por exemplo, com SQLCipher) é uma evolução possível. Para o nosso caso, um app offline de um usuário só, o isolamento do sistema mais o bloqueio por digital cobrem o risco principal: alguém pegar o celular.
+
+### 2.5 "O app grava algum log com dados pessoais?"
+
+**Resposta curta:** não. É regra do projeto: nada de `Log` ou `println` com dado pessoal ou financeiro.
+
+### 2.6 "E a notificação de chuva? Mostra dados na tela bloqueada?"
+
+**Resposta curta:** não. Na tela bloqueada aparece só "Chuva prevista". O nome do sítio e os números só aparecem com o celular desbloqueado.
+
+---
+
+## 3. E se o app crescer?
+
+### 3.1 "Como vocês vão salvar os dados dos usuários quando tiver servidor?"
+
+**Resposta curta:** hoje decidimos manter o app **100% local**, porque o produtor usa um celular só e muitas vezes fica sem sinal no campo. Mas o app já está preparado para sincronizar: os ids são **UUID** (não colidem entre aparelhos) e cada registro tem a data da última alteração (`atualizado_em`).
+
+**Se pedirem detalhe, o plano seria:**
+- uma API (já pensamos em NestJS) com banco relacional, **HTTPS** sempre e autenticação por token;
+- a senha continuaria em hash forte, agora no servidor;
+- o celular continuaria **offline-first**: grava no Room e sincroniza quando tiver internet;
+- pelo lado da LGPD: política pública com controlador e encarregado, contrato com o provedor de nuvem (operador), registro das operações, plano para incidentes e exportação dos dados.
+- E a interface da camada de dados não muda: só entra uma nova implementação do repositório.
+
+### 3.2 "Por que não fizeram o servidor agora?"
+
+**Resposta curta:** foi uma **decisão de escopo**. O usuário real usa um aparelho, não precisa de sincronização, e sem servidor não temos dados de ninguém sob nossa guarda. Isso diminui muito o risco de vazamento e a responsabilidade da LGPD.
+
+### 3.3 "E o 'esqueci minha senha'?"
+
+**Resposta curta:** como a conta só existe no celular, não tem como mandar um e-mail de recuperação. O app explica isso na tela de login. Esse recurso chega junto com a sincronização online.
+
+---
+
+## 4. Arquitetura e tecnologia
+
+### 4.1 "Qual a arquitetura do app?"
+
+**Resposta curta:** **MVVM com Repository**, como o guia oficial do Android recomenda.
+- A **tela** (Jetpack Compose) só desenha e repassa os toques.
+- O **ViewModel** guarda o estado da tela e chama as regras.
+- O **domínio** tem as regras de negócio.
+- Os **repositórios** buscam e gravam os dados no Room.
+
+**Se pedirem detalhe:** o domínio fica num **módulo Gradle separado (`:domain`)**, em Kotlin puro. O compilador nem deixa usar Android ali, então as regras são testadas sem emulador.
+
+### 4.2 "Por que Room e não um SQLite direto ou SharedPreferences?"
+
+**Resposta curta:** o **Room** confere o SQL na compilação, cuida das migrações e devolve os dados como `Flow`. Quando o banco muda, a tela se atualiza sozinha. Os `SharedPreferences` servem só para ajustes pequenos, não para dados relacionados entre si.
+
+### 4.3 "O que é o Hilt e por que usar?"
+
+**Resposta curta:** é a **injeção de dependência** oficial do Android. Cada classe recebe o que precisa pelo construtor, e o Hilt monta tudo. Nos testes, isso deixa trocar o banco de verdade por uma versão em memória.
+
+### 4.4 "Como o aviso de chuva funciona com o app fechado?"
+
+**Resposta curta:** com o **WorkManager**. A cada 12 horas ele busca a previsão e avisa se, nas próximas 12 horas, **a chance de chuva passa de 60% ou a chuva somada passa de 2 mm**. Os limites são ajustáveis pelo usuário.
+
+**Se pedirem detalhe:** o WorkManager continua funcionando depois de reiniciar o celular, respeita a economia de bateria e tenta de novo se faltar internet.
+
+### 4.5 "E sem internet?"
+
+**Resposta curta:** quase tudo funciona sem internet. A previsão fica salva no banco: sem sinal, o app mostra a última previsão salva e avisa que está offline.
+
+### 4.6 "Por que Kotlin e Jetpack Compose?"
+
+**Resposta curta:** são a linguagem e o kit de interface **recomendados pelo Google** para Android hoje. O Compose monta a tela a partir do estado, parecido com o React, e isso combina com o MVVM.
+
+---
+
+## 5. Qualidade e testes
+
+### 5.1 "Como vocês garantem que o app funciona?"
+
+**Resposta curta:** são **mais de 500 testes automáticos** e um **CI no GitHub** que roda tudo a cada mudança.
+
+**Se pedirem detalhe:**
+- O **domínio** é testado no JVM: saldo, regra de chuva, regras de senha.
+- Os **ViewModels** são testados com versões em memória do banco.
+- As **telas** são desenhadas no computador com Robolectric, e o CI gera capturas de tela (Roborazzi).
+- O **banco** é testado no aparelho.
+- Antes do merge, o CI ainda roda a **formatação (ktlint)**, a **análise estática (detekt, com zero achados)** e o **Android Lint**.
+
+### 5.2 "Como vocês organizam o código no Git?"
+
+**Resposta curta:** a branch principal é a **`prod`**. Cada tarefa vira uma branch, entra por pull request e só faz merge com o CI verde. Os commits seguem o padrão Conventional Commits, em português.
+
+---
+
+## 6. Produto e usuário
+
+### 6.1 "Qual problema o app resolve?"
+
+**Resposta curta:** o pequeno produtor controla as contas **no caderno** e decide a irrigação **no olho**. O app junta as duas coisas: mostra quanto cada sítio gastou e lucrou e avisa quando vai chover, para ele **adiar o pivô e economizar energia e água**.
+
+### 6.2 "Vocês testaram com usuário real?"
+
+**Resposta curta:** sim. Um produtor de Itobi/SP usa o APK no dia a dia, e o retorno dele guia os ajustes do app.
+
+### 6.3 "O que diferencia de uma planilha ou de outro app financeiro?"
+
+**Resposta curta:** é feito **para o campo**:
+- separa por **sítio**;
+- as categorias são do agro (adubo, defensivos, combustível, mão de obra);
+- funciona **sem internet**;
+- tem botões grandes e fonte legível;
+- junta finanças e **clima** num lugar só.
+
+### 6.4 "Vão publicar na Play Store? Vão cobrar?"
+
+**Resposta curta:** a publicação está planejada (R9), com política de privacidade pública e o formulário de segurança de dados do Google. Cobrar não está nos planos. Se um dia tiver, precisamos trocar para o plano pago da Open-Meteo, porque o gratuito é só para uso não comercial.
+
+---
+
+## 7. Perguntas difíceis (pontos fracos)
+
+Pontos fracos ditos com segurança passam confiança. Admita o limite e mostre que ele é conhecido e planejado.
+
+| Pergunta | Resposta |
+| --- | --- |
+| "E se o produtor perder o celular?" | Os dados só voltam se o backup do Android estiver ligado. Por isso a sincronização online é o próximo passo natural quando o app crescer. |
+| "E se ele esquecer a senha?" | Hoje não há recuperação por e-mail, porque não existe servidor. O app avisa isso na tela de login. |
+| "Dá para exportar os dados?" | Ainda não. A portabilidade está no roadmap, junto com a publicação. |
+| "O banco não é criptografado?" | Não tem criptografia própria. Ele é protegido pelo isolamento e pela criptografia do Android, e tem o bloqueio por digital. O SQLCipher é uma evolução possível. |
+| "Por que pedem localização precisa?" | Para preencher as coordenadas do sítio com um toque. Mesmo assim, só enviamos para a Open-Meteo com cerca de 1 km de precisão. Trocar para a localização aproximada está planejado na R9. |
+| "A política está publicada?" | Hoje ela fica dentro do app. O link público é exigência da Play Store e está planejado. |
+
+---
+
+## 8. Cola de números
+
+| O quê | Valor |
+| --- | --- |
+| Versão do app | 1.5 (`versionCode 6`) |
+| Android mínimo | 8.0 (API 26) |
+| Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), versão 3 |
+| Hash da senha | PBKDF2-HMAC-SHA256, 600.000 iterações, sal de 16 bytes |
+| Senha mínima | 8 caracteres, com letra e número, sem senhas comuns |
+| Bloqueio por erro | 5 erros → 30 s, dobrando até 15 min |
+| Bloqueio por digital | Ao abrir e depois de 2 min fora do app |
+| Aviso de chuva | A cada 12 h; chance ≥ 60% **ou** chuva ≥ 2 mm nas próximas 12 h |
+| Coordenadas enviadas | Arredondadas a 2 casas (~1 km) |
+| Desfazer exclusão | Até 15 s depois de excluir |
+| Data máxima de lançamento | 12 meses no futuro |
+| Versão do termo de privacidade | 3 |
+| Testes automáticos | Mais de 500 |
