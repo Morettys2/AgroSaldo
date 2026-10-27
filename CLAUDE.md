@@ -84,7 +84,7 @@ config/detekt/         detekt.yml
 
 **Convenção de nomes:** domínio em **português** (`Lancamento`, `Propriedade`, `aoSalvar`, `uiState`) com sufixos técnicos do Android em inglês (`Repository`, `Entity`, `Dao`, `Screen`, `ViewModel`, `UiState`). Mantenha esse padrão.
 
-**Data classes:** são 58 no `src/main`, em 5 grupos: modelos do domínio, regras e resultados do domínio, entidades do Room, `UiState` das telas e tema/navegação. Modelos do domínio validam invariantes no `init` (`require`). As entidades do Room são separadas dos modelos e convertidas nos repositórios. As classes do tema são `@Immutable`.
+**Data classes:** são 62 (somando `app` e `:domain`), em 5 grupos: modelos do domínio, regras e resultados do domínio, entidades do Room, `UiState` das telas e tema/navegação. Modelos do domínio validam invariantes no `init` (`require`). As entidades do Room são separadas dos modelos e convertidas nos repositórios. As classes do tema são `@Immutable`.
 
 ---
 

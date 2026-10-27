@@ -5,7 +5,7 @@ description: "Documentação técnica completa do AgroSaldo em um único arquivo
 
 # AgroSaldo: documentação técnica
 
-Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, para os desenvolvedores do grupo. Ela descreve a branch `prod` (a principal), versão `1.5` (`versionCode 6`), em 18/10/2026.
+Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, para os desenvolvedores do grupo. Ela descreve a branch `prod` (a principal), versão `1.5` (`versionCode 6`), em 27/10/2026.
 
 ## Sumário
 
@@ -48,7 +48,7 @@ Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, p
 
 O AgroSaldo é um app Android nativo, em Kotlin, que o pequeno produtor rural usa para controlar **receitas e despesas por propriedade** (sítio) e para receber **aviso de chuva**, que recomenda adiar a irrigação do pivô.
 
-Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abriu o projeto consegue entender **o que existe, onde fica e por que foi feito assim**. Ela descreve a branch `prod` (a principal) na versão `1.5` (`versionCode 6`), em 18/10/2026.
+Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abriu o projeto consegue entender **o que existe, onde fica e por que foi feito assim**. Ela descreve a branch `prod` (a principal) na versão `1.5` (`versionCode 6`), em 27/10/2026.
 
 > **Dica:** se você vem de NestJS ou React, procure as analogias nos textos e no [Glossário](#32-glossário). Exemplo: o ViewModel é como um service com estado, e o Compose é como React com state.
 
@@ -78,9 +78,9 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 | --- | --- |
 | Módulos Gradle | 2 (`:app` e `:domain`) |
 | Arquivos Kotlin de produção | 118 no `:app` e 24 no `:domain` |
-| Telas (arquivos `*Screen.kt`) | 15, cada uma com o seu ViewModel |
+| Telas (arquivos `*Screen.kt`) | 15, com 13 ViewModels de tela (o consentimento usa o `CadastroViewModel` e a política não tem estado) |
 | Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 3 |
-| Testes de JVM | 497: 80 no `:domain` e 417 no `:app` |
+| Testes de JVM | 499: 80 no `:domain` e 419 no `:app` |
 | Testes no aparelho | 15 (DAOs do Room) |
 | Achados do detekt | 0, sem baseline |
 
@@ -685,7 +685,7 @@ Decisões:
 Conta local do aparelho e versão do termo de privacidade.
 
 - `Usuario`: `id` (UUID), `nome`, `email`, `senhaHash`, `consentimentoEm`, `versaoTermo` e `criadoEm`. O `init` exige nome, e-mail e hash preenchidos.
-- `TermoDePrivacidade.VERSAO_ATUAL = 3`: versão vigente do termo. O comentário guarda o histórico: 1 é o texto inicial, 2 acrescenta o uso opcional da localização e 3 trata do backup do Android e do que a exclusão da conta apaga.
+- `TermoDePrivacidade.VERSAO_ATUAL = 3`: versão vigente do termo. Histórico das versões (o código não o guarda mais): 1 é o texto inicial, 2 acrescenta o uso opcional da localização e 3 trata do backup do Android e do que a exclusão da conta apaga.
 
 Regras: `senhaHash` segue o formato de `HashDeSenha`, e a senha em texto puro nunca é guardada. `consentimentoEm` e `versaoTermo` registram o aceite LGPD (RNF10). Quando `VERSAO_ATUAL` sobe, quem aceitou uma versão anterior vê o termo de novo.
 
@@ -972,7 +972,7 @@ Fonte: as classes `@Entity` e `app/schemas/br.joao.agrosaldo.data.local.AgroSald
 - PK: `id`.
 - FK: `usuario_id` → `usuarios(id)`, **ON DELETE CASCADE** (ON UPDATE NO ACTION).
 - Índice: `index_propriedades_usuario_id` em `usuario_id`.
-- `usuario_id` só é nulo em dados de exemplo, até a primeira conta criada adotá-los. Ele **precisa ser a última coluna**, para a ordem coincidir com o schema exportado (`3.json`).
+- `usuario_id` nulo indica propriedade sem dono, legado dos antigos dados de exemplo (o app não grava mais nenhum); a criação de uma conta adota essas propriedades. Ele **precisa ser a última coluna**, para a ordem coincidir com o schema exportado (`3.json`).
 
 **`lancamentos`** (`LancamentoEntity.kt`)
 
@@ -1188,7 +1188,7 @@ Implementação de `AjustesAvisoRepository` que **separa os ajustes por conta**,
   - `janela_horas` (Int);
   - `propriedades_sem_aviso` (Set\&lt;String\>);
   - `ultimo_aviso_<propriedadeId>` (Long, epoch ms).
-- `ajustes` acompanha a conta conectada: no `init`, uma corrotina em `Dispatchers.Unconfined` coleta `sessao.usuarioId` e recarrega a cada troca. Sem sessão, valem os padrões.
+- `ajustes` acompanha a conta conectada: no `init`, uma corrotina no `escopo` recebido pelo construtor (em produção, o `@EscopoDoApp`, com `SupervisorJob` + `Dispatchers.Unconfined`) coleta `sessao.usuarioId` e recarrega a cada troca. Sem sessão, valem os padrões.
 - Ao ler, se os valores gravados estiverem fora da faixa, o `init` de `LimitesChuva` lança erro e o código volta aos padrões (`runCatching ... getOrDefault`).
 - **Migração de chaves antigas**: as chaves sem prefixo, da época em que os ajustes valiam para o aparelho todo, são adotadas pela primeira conta carregada, sem sobrescrever o que essa conta já tinha gravado.
 - `esquecerAvisosExceto` remove os `ultimo_aviso_*` de propriedades que não existem mais. `excluirDadosDoUsuario` apaga todas as chaves com o prefixo da conta.
@@ -1222,7 +1222,7 @@ Implementa o "desfazer" de exclusões compartilhado entre telas.
   - `pendente: StateFlow<ExclusaoRecente?>`: a oferta atual, se houver.
   - `oferecer(mensagem, restaurar)`: registra uma nova oferta. Só a mais recente pode ser desfeita, e uma oferta nova descarta a anterior.
   - `expirou(exclusao)`: devolve `true` se passaram mais de `VALIDADE_MS = 15 s` (uma margem sobre os 10 s do snackbar longo do Material).
-  - `desfazer(exclusao)`: restaura e só depois limpa `pendente`. Ignora ofertas que não são a pendente, que já foram usadas ou que expiraram. Roda em `NonCancellable`, então a restauração não é interrompida se o escopo de quem chamou for cancelado (por exemplo, numa mudança de configuração). Devolve `false` se a restauração falhar, mas repassa `CancellationException`.
+  - `desfazerExclusao(exclusao)`: restaura e só depois limpa `pendente`. Ignora ofertas que não são a pendente, que já foram usadas ou que expiraram. Roda em `NonCancellable`, então a restauração não é interrompida se o escopo de quem chamou for cancelado (por exemplo, numa mudança de configuração). Devolve `false` se a restauração falhar, mas repassa `CancellationException`.
   - `esquecer()`: descarta a oferta pendente na troca de conta.
   - `dispensar(exclusao)`: o snackbar fechou sem desfazer, então a exclusão vira definitiva.
 
@@ -1292,7 +1292,7 @@ Com `exportSchema = true` no `@Database` e o argumento `room.schemaLocation` do 
 - As migrações 1→2 e 2→3 (`MigracoesSql`) e o `MigracaoTest` foram removidos: não havia dados reais a preservar, então a versão 3 é o ponto de partida.
 - O banco é aberto **sem** `fallbackToDestructiveMigration`: uma migração que falte faz o app falhar em vez de apagar os dados do usuário.
 - Ao mudar entidade: suba a versão (4), escreva a `Migration(3, 4)`, exporte o `4.json` e acrescente o teste de migração (por exemplo com `MigrationTestHelper`). Prefira `ALTER TABLE` a recriar tabela, porque um `DROP TABLE` em `propriedades` dispararia o `ON DELETE CASCADE` e apagaria os lançamentos.
-- A `main` ainda guarda o histórico completo das migrações 1→3, caso precise consultar.
+- A branch `desenvolvimento` (a antiga `main`, congelada como backup) ainda guarda o histórico completo das migrações 1→3, caso precise consultar.
 
 ### Arquivos da raiz
 
@@ -1303,7 +1303,7 @@ Com `exportSchema = true` no `@Database` e o argumento `room.schemaLocation` do 
 | `gradle/libs.versions.toml` | Version catalog: todas as versões de bibliotecas e plugins |
 | `gradle/gradle-daemon-jvm.properties` | JDK do daemon do Gradle (`25`) e links de download por sistema |
 | `settings.gradle.kts` | Primeiro arquivo lido pelo Gradle. Ver detalhes abaixo |
-| `build.gradle.kts` | Script da raiz: só declara os 4 plugins do catálogo com `apply false` |
+| `build.gradle.kts` | Script da raiz: só declara os 6 plugins do catálogo com `apply false` (Android, Compose, Kotlin JVM, KSP, Hilt e ktlint) |
 | `gradle.properties` | Memória do daemon, configuration cache e estilo Kotlin |
 | `app/` | O módulo Android: código (`src/`), `build.gradle.kts`, e `schemas/` |
 | `domain/` | O módulo `:domain` (Kotlin puro): regras de negócio, `src/test` e `src/testFixtures` |
@@ -1311,14 +1311,15 @@ Com `exportSchema = true` no `@Database` e o argumento `room.schemaLocation` do 
 | `.editorconfig` | Regras de formatação (ktlint e Android Studio) |
 | `.github/workflows/android.yml` | Pipeline de CI |
 | `.idea/` | Parte das configurações do projeto no Android Studio (ex.: `gradle.xml`, `misc.xml`, perfil de inspeções); o `.idea/.gitignore` exclui `/shelf/` e `/workspace.xml` |
-| `CLAUDE.md` | Única documentação dentro do repositório: contexto, stack, regras de código, segurança, comandos, CI e histórico; é o arquivo que o assistente de IA consulta antes de mexer no projeto |
+| `docs/DOCUMENTACAO_TECNICA.mdx` | Esta documentação técnica, para os devs do grupo |
+| `CLAUDE.md` | Regras permanentes e decisões: contexto, stack, regras de código, segurança, comandos, CI e histórico; é o arquivo que o assistente de IA consulta antes de mexer no projeto |
 
 **Detalhes do `settings.gradle.kts`:**
 
 - **Repositórios de plugins:** `google()` (filtrado aos grupos `com.android.*`, `com.google.*` e `androidx.*`), `mavenCentral()` e `gradlePluginPortal()`.
 - **Plugin `foojay-resolver-convention`:** permite baixar JDKs automaticamente.
 - **`repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`:** só valem os repositórios `google()` e `mavenCentral()` declarados aqui. Um módulo que tente declarar outro repositório faz o build falhar, o que evita baixar dependências de fontes não autorizadas.
-- **Projeto:** `rootProject.name = "AgroSaldo"` e `include(":app")`.
+- **Projeto:** `rootProject.name = "AgroSaldo"`, `include(":app")` e `include(":domain")`.
 
 #### `.gitignore` e por que ele importa para a segurança
 
@@ -1426,7 +1427,7 @@ Registra os destinos dentro do `NavHost`, divididos em três funções de extens
 
 - **`grafoDaConta(navegador)`** — login, cadastro, consentimento LGPD, política e área "Conta".
   - `CRIAR_CONTA` cria um `CadastroViewModel` no escopo da sua entrada da back stack.
-  - `CONSENTIMENTO` **reutiliza** esse mesmo `CadastroViewModel`, buscando a entrada `CRIAR_CONTA` com `getBackStackEntry` e um `ViewModelProvider`. O acesso fica dentro de `remember(entrada)`, porque depois de criar a conta a pilha é limpa e `getBackStackEntry` lançaria exceção durante a animação de saída.
+  - `CONSENTIMENTO` **reutiliza** esse mesmo `CadastroViewModel`: busca a entrada `CRIAR_CONTA` com `getBackStackEntry` e a passa como dono para `hiltViewModel(donoDoCadastro)`. O acesso fica dentro de `remember(entrada)`, porque depois de criar a conta a pilha é limpa e `getBackStackEntry` lançaria exceção durante a animação de saída.
   - Recusar o consentimento faz `popBackStack(Rotas.LOGIN, inclusive = false)`; o comentário diz que a recusa não grava nada.
   - Em `NOVO_CONSENTIMENTO`, a navegação depois de aceitar ou recusar vem do efeito de sessão em `AppNavegacao`, e não da própria tela.
   - `CONTA` liga os atalhos para política, alterar senha, ajustes do aviso e a aba de propriedades.
@@ -1600,7 +1601,7 @@ Os requisitos listados são só os que aparecem citados em comentários do códi
 
 #### `InicioViewModel.kt`
 
-Contém `InicioUiState`, `CartaoChuvaUi` e o `InicioViewModel`, que monta a tela inicial juntando lançamentos, propriedades, seleção atual e previsão do tempo. Segundo um comentário no código, os totais são agregados em memória a partir de todos os lançamentos a cada emissão, e há um `TODO` para levar essa agregação para SQL se o volume crescer.
+Contém `InicioUiState`, `CartaoChuvaUi` e o `InicioViewModel`, que monta a tela inicial juntando lançamentos, propriedades, seleção atual e previsão do tempo. Segundo um comentário no código, os totais são agregados em memória a partir de todos os lançamentos a cada emissão, e o mesmo comentário aponta como possível melhoria levar essa agregação para SQL (`SUM`/`GROUP BY`) se o volume crescer.
 
 - **Classes:** `InicioUiState`, `CartaoChuvaUi(rotulo, frase, detalhe, vaiChover)` e `InicioViewModel`.
 - **Funções internas:** `montarEstado(...)` (chama `ResumoFinanceiro.propriedadeAtual`, `doMes`, `totais` e `rankingDeGastos`) e `cartaoChuva(previsao, limites)` (chama `RegraDeChuva.avaliar` e os textos de `TextosDaChuva`).
@@ -2658,6 +2659,8 @@ O comentário destaca que **não há `ACCESS_BACKGROUND_LOCATION`**: a localiza�
 - `android:launchMode="singleTop"` (veja `onNewIntent`).
 - `android:theme="@style/Theme.AgroSaldo.Abertura"`, o tema da splash.
 
+**`<provider>` do App Startup:** o manifesto mescla o `androidx.startup.InitializationProvider` e remove dele o `androidx.work.WorkManagerInitializer` (`tools:node="remove"`). O comentário explica: o WorkManager é iniciado pelo `AgroSaldoApp` (`Configuration.Provider`), com a fábrica de Workers do Hilt.
+
 ### `res/values/`
 
 - **`strings.xml`** — apenas `app_name = "AgroSaldo"`. Os textos das telas estão no Kotlin; `TextosComuns` comenta que viram `strings.xml` quando o app for traduzido.
@@ -2734,13 +2737,16 @@ data class Lancamento(
 ) {
     init {
         require(propriedadeId.isNotBlank()) {
-            "Todo lançamento precisa de uma propriedade (RN01)."
+            "Todo lançamento precisa de uma propriedade."
         }
         require(valorCentavos > 0L) {
-            "O valor do lançamento deve ser positivo (RN06)."
+            "O valor do lançamento deve ser positivo."
         }
         require(categoria.tipo == tipo) {
             "A categoria ${categoria.rotulo} não pertence ao tipo $tipo."
+        }
+        require(descricao.length <= DESCRICAO_MAXIMA) {
+            "A descrição pode ter no máximo $DESCRICAO_MAXIMA caracteres."
         }
     }
 
@@ -2750,6 +2756,8 @@ data class Lancamento(
     val ehReceita: Boolean get() = tipo == TipoLancamento.RECEITA
 
     companion object {
+        const val DESCRICAO_MAXIMA = 200
+
         const val MESES_NO_FUTURO = 12L
 
         fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean = !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
@@ -2772,9 +2780,22 @@ data class Propriedade(
 ) {
     init {
         require(nome.isNotBlank()) { "O nome da propriedade não pode ser vazio." }
-        require(areaHectares > 0.0) { "A área deve ser maior que zero." }
-        require(latitude in -90.0..90.0) { "Latitude inválida." }
-        require(longitude in -180.0..180.0) { "Longitude inválida." }
+        require(nome.length <= NOME_MAXIMO) { "O nome pode ter no máximo $NOME_MAXIMO caracteres." }
+        require(cultura.length <= CULTURA_MAXIMA) { "A cultura pode ter no máximo $CULTURA_MAXIMA caracteres." }
+        require(areaHectares.isFinite() && areaHectares > 0.0) { "A área deve ser maior que zero." }
+        require(areaHectares <= AREA_MAXIMA_HECTARES) { "A área máxima é 1.000.000 ha." }
+        require(latitude in LATITUDES) { "Latitude inválida." }
+        require(longitude in LONGITUDES) { "Longitude inválida." }
+    }
+
+    companion object {
+        const val NOME_MAXIMO = 80
+
+        val LATITUDES: ClosedFloatingPointRange<Double> = -90.0..90.0
+        val LONGITUDES: ClosedFloatingPointRange<Double> = -180.0..180.0
+        const val CULTURA_MAXIMA = 60
+
+        const val AREA_MAXIMA_HECTARES = 1_000_000.0
     }
 }
 ```
@@ -2808,8 +2829,6 @@ data class Usuario(
     }
 }
 ```
-
----
 
 ## 18. Data classes: regras e resultados
 
@@ -3051,16 +3070,15 @@ data class TotaisDoPeriodo(val receitasCentavos: Long = 0L, val despesasCentavos
     val proporcaoReceitas: Float
         get() {
             val movimentado = receitasCentavos + despesasCentavos
-            return if (movimentado == 0L) 0.5f else receitasCentavos.toFloat() / movimentado
+            return if (movimentado == 0L) PROPORCAO_SEM_MOVIMENTO else receitasCentavos.toFloat() / movimentado
         }
 
     companion object {
         val VAZIO = TotaisDoPeriodo()
+        private const val PROPORCAO_SEM_MOVIMENTO = 0.5f
     }
 }
 ```
-
----
 
 ## 19. Data classes: tabelas do Room
 
@@ -3189,11 +3207,9 @@ data class UsuarioEntity(
 )
 ```
 
----
-
 ## 20. Data classes: UiState das telas
 
-> Telas — estados (UiState) e auxiliares (24)
+> Telas — estados (UiState) e auxiliares (28)
 
 ### AjustesAvisoUiState
 
@@ -3305,6 +3321,22 @@ data class ClimaUiState(
 )
 ```
 
+### ClimaViewModel.DadosDoClima
+
+`feature/clima/ClimaViewModel.kt`
+
+```kotlin
+private data class DadosDoClima(
+    val propriedades: List<Propriedade>,
+    val propriedade: Propriedade?,
+    val previsao: Previsao?,
+    val limites: LimitesChuva,
+    val avisoAtivo: Boolean,
+    val atualizando: Boolean,
+    val falha: FalhaDeAtualizacao?
+)
+```
+
 ### ContaUiState
 
 `feature/conta/ContaViewModel.kt`
@@ -3354,6 +3386,14 @@ data class DiaUi(
 )
 ```
 
+### EntradasValidas
+
+`feature/propriedade/PropriedadeFormViewModel.kt`
+
+```kotlin
+private data class EntradasValidas(val area: Double, val latitude: Double, val longitude: Double)
+```
+
 ### Filtros
 
 `feature/lancamento/LancamentoListaViewModel.kt`
@@ -3398,7 +3438,6 @@ data class HistoricoUiState(
     val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
     val temMovimento: Boolean get() = meses.any { it.temMovimento }
 
-    /** Meses da lista "mês a mês": os futuros só aparecem se tiverem lançamento agendado. */
     val mesesNaLista: List<MesDoHistorico> get() = meses.filter { !it.futuro || it.temMovimento }
 }
 ```
@@ -3469,6 +3508,7 @@ data class LancamentoFormUiState(
     val erroData: String? = null,
     val erroGeral: String? = null,
     val ehEdicao: Boolean = false,
+    val ehCopia: Boolean = false,
     val salvo: Boolean = false,
     val excluido: Boolean = false,
     val salvando: Boolean = false,
@@ -3628,7 +3668,21 @@ private data class Secao(val titulo: String, val texto: String)
 data class SitioDoAviso(val id: String, val nome: String, val avisa: Boolean)
 ```
 
----
+### Validacao.Invalida
+
+`feature/propriedade/PropriedadeFormViewModel.kt`
+
+```kotlin
+data class Invalida(val estado: PropriedadeFormUiState) : Validacao
+```
+
+### Validacao.Valida
+
+`feature/propriedade/PropriedadeFormViewModel.kt`
+
+```kotlin
+data class Valida(val entradas: EntradasValidas) : Validacao
+```
 
 ## 21. Data classes: tema e navegação
 
@@ -3701,8 +3755,6 @@ data class CoresCategorias(
     val neutra: CorCategoria
 )
 ```
-
----
 
 ## 22. Segurança e privacidade
 
@@ -3816,7 +3868,7 @@ Para rodar: `./gradlew connectedAndroidTest`, com um emulador aberto ou um celul
 
 ### Fakes e dados de `src/testFixtures`
 
-Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `domain/src/testFixtures`; o `Semeador` e o `AjustesAvisoMemoria` ficam em `app/src/testFixtures`. Os fakes implementam as mesmas interfaces de repositório do domínio, guardando tudo em memória (normalmente num `MutableStateFlow`), para que ViewModels e serviços sejam testados sem banco nem Android.
+Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `domain/src/testFixtures`; o `Semeador`, o `AjustesAvisoMemoria` e a `TransacaoDireta` ficam em `app/src/testFixtures`, porque dependem de código do app. Os fakes implementam as mesmas interfaces de repositório do domínio, guardando tudo em memória (normalmente num `MutableStateFlow`), para que ViewModels e serviços sejam testados sem banco nem Android.
 
 | Arquivo / classe | O que simula |
 |---|---|
@@ -3826,6 +3878,8 @@ Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `dom
 | `data/repository/LancamentoRepositoryMemoria.kt` | `LancamentoRepository` em memória (upsert por id, exclusão) |
 | `data/repository/UsuarioRepositoryMemoria.kt` | `UsuarioRepository`: recusa e-mail ou id repetido; troca de senha, consentimento e exclusão |
 | `data/RelogiosDeTeste.kt` | `relogioEm`, `relogioFixo` e `relogioPorMs` (um `java.time.Clock` controlado pelo teste), `RelogioMutavel` (que anda quando o teste manda), `RelogioMonotonicoFalso`, `DespachantesDeTeste` (todos os dispatchers no mesmo) e `UsuarioLogadoMemoria` |
+| `domain/RelogioMonotonicoIndisponivel.kt` | `RelogioMonotonico` sem boot conhecido (`instante()` devolve `null`) |
+| `data/local/TransacaoDireta.kt` (app) | `Transacao` que só executa o bloco, sem transação de verdade, para os repositórios Room rodarem na JVM com DAOs falsos |
 | `data/repository/ClimaRepositoryMemoria.kt` | `ClimaRepository` com cache por propriedade; `respostas`, `semInternet` e `indisponivel` decidem o resultado de `atualizar`, e `atualizacoes` conta as chamadas |
 | `data/preferencias/AjustesAvisoMemoria.kt` (`ArmazenamentoMemoria`) | `ArmazenamentoDeAjustes` sobre um mapa |
 | `data/preferencias/AjustesAvisoMemoria.kt` (`AjustesAvisoMemoria`) | `AjustesAvisoRepository` real (`AjustesAvisoPorConta`) sobre o armazenamento em memória, com uma conta fixa já conectada |
@@ -3982,8 +4036,6 @@ Os nomes abaixo foram copiados dos arquivos.
 
 #### `src/test/…/data/CamadaDeDadosTest.kt` (26)
 
-Novos: `excluir lancamento le e apaga na mesma transacao e devolve o apagado` e `excluir lancamento inexistente ou de outra conta devolve null e nao apaga nada`.
-
 - propriedade vai para o banco e volta igual
 - lancamento guarda enum como texto e data como epochDay
 - todas as categorias sobrevivem a ida e volta
@@ -4000,6 +4052,8 @@ Novos: `excluir lancamento le e apaga na mesma transacao e devolve o apagado` e 
 - salvar propriedade confere o dono e grava na mesma transacao
 - lancamento de outra conta nao muda de dono por ter o mesmo id
 - salvar lancamento confere o dono e grava na mesma transacao
+- excluir lancamento le e apaga na mesma transacao e devolve o apagado
+- excluir lancamento inexistente ou de outra conta devolve null e nao apaga nada
 - sem ninguem conectado a lista vem vazia e gravar e recusado
 - excluir propriedade leva os lancamentos dela e desfazer traz tudo de volta
 - excluir propriedade de outra conta nao apaga nada
@@ -4034,6 +4088,24 @@ Novos: `excluir lancamento le e apaga na mesma transacao e devolve o apagado` e 
 - contador antigo sem e-mail e descartado na atualizacao
 - sessao continua aberta depois de reiniciar e some ao sair
 - bloqueio por digital e valores escondidos ficam gravados
+
+#### `src/test/…/data/RelogiosEUsuarioLogadoTest.kt` (7)
+
+- relogio do aparelho acompanha o fuso a cada leitura e nao o de quando foi criado
+- relogio do aparelho anda com o tempo real
+- relogio mutavel muda o dia e mantem a hora
+- relogio por milissegundos le a fonte a cada chamada
+- relogio monotonico sem boot conhecido nao compara com outros processos
+- usuario logado entrega o nome de quem esta na sessao
+- usuario logado e nulo sem sessao e acompanha login e logout
+
+#### `src/test/…/di/GrafoDeDependenciasTest.kt` (5)
+
+- o grafo monta e o app comeca sem ninguem conectado
+- o app comeca vazio e sem ninguem conectado
+- tempo e despachantes injetados sao os do aparelho
+- a previsao vem da Open-Meteo de verdade
+- o estado compartilhado e um objeto so no app inteiro
 
 #### `src/test/…/domain/ContaTest.kt` (50)
 
@@ -4219,8 +4291,6 @@ Novos: `excluir lancamento le e apaga na mesma transacao e devolve o apagado` e 
 
 #### `src/test/…/feature/HistoricoViewModelTest.kt` (20)
 
-Novos: `lista mes a mes omite mes futuro sem lancamento e mantem o futuro agendado` e `lista mes a mes sem agendamentos termina no mes atual`.
-
 - RF10 - mostra os 12 meses do ano com entradas e saidas de cada um
 - totais do ano e a escala do grafico
 - a escala do grafico considera um mes em que saiu mais do que entrou
@@ -4231,6 +4301,8 @@ Novos: `lista mes a mes omite mes futuro sem lancamento e mantem o futuro agenda
 - dois meses empatados nao viram melhor e mais fraco ao mesmo tempo
 - maiores gastos do ano somam todos os meses e vem do maior para o menor
 - meses depois de hoje aparecem como futuros
+- lista mes a mes omite mes futuro sem lancamento e mantem o futuro agendado
+- lista mes a mes sem agendamentos termina no mes atual
 - cada propriedade tem o seu historico
 - ano anterior sem lancamentos fica vazio
 - avanca no maximo ate o ano que vem
@@ -4530,7 +4602,7 @@ O AgroSaldo é compilado pelo **Gradle**, com scripts em Kotlin (`*.gradle.kts`)
 | Bytecode Java gerado | Java `11` | `app/build.gradle.kts` (`sourceCompatibility` / `targetCompatibility = JavaVersion.VERSION_11`) |
 | JDK do detekt | `21` | `app/build.gradle.kts` (`javaToolchains.launcherFor { ... of(21) }`) |
 
-Não há o plugin `org.jetbrains.kotlin.android` na lista: no AGP 9 o suporte a Kotlin já vem embutido no próprio plugin Android, e o único plugin Kotlin declarado é o do Compose (`org.jetbrains.kotlin.plugin.compose`).
+Não há o plugin `org.jetbrains.kotlin.android` na lista: no AGP 9 o suporte a Kotlin já vem embutido no próprio plugin Android, e o único plugin Kotlin aplicado no `:app` é o do Compose (`org.jetbrains.kotlin.plugin.compose`). O `org.jetbrains.kotlin.jvm` (`kotlin-jvm` no catálogo, mesma versão `2.2.10`) é usado só pelo `:domain`.
 
 **Duas JVMs diferentes, dois papéis diferentes:**
 
@@ -4653,12 +4725,13 @@ No `app/build.gradle.kts` o BOM fica numa variável (`val composeBom = platform(
 |---|---|---|---|
 | `com.android.application` (AGP) | `9.3.2` | Compila o módulo `:app` como aplicativo Android (APK) | É o plugin oficial do Google para apps Android |
 | `org.jetbrains.kotlin.plugin.compose` | `2.2.10` | Compilador do Jetpack Compose (transforma funções `@Composable`) | Desde o Kotlin 2.0 o compilador do Compose é distribuído junto com o Kotlin, na mesma versão |
+| `org.jetbrains.kotlin.jvm` | `2.2.10` | Compila o módulo `:domain` como Kotlin JVM puro | Sem Android no classpath, o compilador recusa `import android.*` no domínio; no `:app` o Kotlin já vem embutido no AGP |
 | `com.google.dagger.hilt.android` | `2.60.1` | Liga as classes geradas pelo Hilt ao `Application` | Exige AGP 9 desde o Hilt 2.59 |
 | `com.google.devtools.ksp` | `2.3.11` | Roda o `room-compiler` | "Processador de anotações do Room" (comentário do catálogo); o KSP é o substituto mais rápido do antigo kapt |
 | `org.jlleitschuh.gradle.ktlint` | `14.2.0` | Tarefas `ktlintCheck` e `ktlintFormat` | Integra o ktlint (formatação) ao Gradle |
 | `org.gradle.toolchains.foojay-resolver-convention` | `1.0.0` | Baixa automaticamente JDKs que faltem (ex.: o 21 do detekt) | Declarado em `settings.gradle.kts`, fora do catálogo; é o resolvedor de toolchains padrão sugerido pelo Gradle |
 
-Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false` (só declarados, com a versão resolvida uma vez) e são aplicados de fato em `app/build.gradle.kts`.
+Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false` (só declarados, com a versão resolvida uma vez) e são aplicados de fato nos módulos: Android, Compose, KSP, Hilt e ktlint em `app/build.gradle.kts`; Kotlin JVM, `java-test-fixtures` (do próprio Gradle) e ktlint em `domain/build.gradle.kts`.
 
 ### Android/Jetpack
 
@@ -4693,7 +4766,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 |---|---|---|---|
 | `androidx.room:room-runtime` | `2.8.5` | Banco SQLite local (`AgroSaldoDatabase`, DAOs, migrações) | Camada oficial sobre o SQLite, com checagem de SQL em tempo de compilação e `Flow` para observar dados; o app funciona offline |
 | `androidx.room:room-compiler` | `2.8.5` | Gera o código dos DAOs (via `ksp`) e exporta os schemas JSON | Par obrigatório do `room-runtime` |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-core` | `1.11.0` | `Flow`/`StateFlow` nos fakes de `src/testFixtures` | Coroutines são o modelo assíncrono padrão do Kotlin; a versão vem de `coroutinesTest` |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-core` | `1.11.0` | `Flow`/`StateFlow` nas interfaces do `:domain` (declarada como `api`, então chega ao app) e nos fakes de `src/testFixtures` | Coroutines são o modelo assíncrono padrão do Kotlin; a versão vem de `coroutinesTest` |
 
 ### Injeção de dependências (Hilt)
 
@@ -4701,7 +4774,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 |---|---|---|---|
 | `com.google.dagger:hilt-android` | `2.60.1` | Injeção de dependências (Dagger): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` | Padrão do mercado; valida as ligações na compilação e elimina as `Factory` escritas à mão |
 | `com.google.dagger:hilt-android-compiler` (`ksp`) | `2.60.1` | Gera o grafo de dependências | Roda no KSP, o mesmo do Room |
-| `androidx.hilt:hilt-navigation-compose` | `1.4.0` | `hiltViewModel()` nas telas Compose | Um ViewModel por entrada da navegação, com os argumentos da rota no `SavedStateHandle` |
+| `androidx.hilt:hilt-navigation-compose` | `1.4.0` | `hiltViewModel()` nas telas Compose, importado de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto) | Um ViewModel por entrada da navegação, com os argumentos da rota no `SavedStateHandle` |
 | `androidx.hilt:hilt-work` e `hilt-compiler` (`ksp`) | `1.4.0` | `@HiltWorker`: injeta dependências no Worker | O WorkManager passa a criar o Worker pela fábrica do Hilt |
 | `com.google.dagger:hilt-android-testing` (teste) | `2.60.1` | `HiltAndroidRule` e `HiltTestApplication` | Teste do grafo de verdade no Robolectric |
 
@@ -4731,7 +4804,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 | `io.github.takahirom.roborazzi:roborazzi-compose` | `1.76.0` | `captureRoboImage()` em nós do Compose | Integração do Roborazzi com Compose |
 | `androidx.test:core` | `1.7.0` | `ApplicationProvider` no `PreferenciasTest` (Robolectric) | Acesso ao `Context` em testes |
 | `androidx.test.ext:junit` | `1.3.0` | `AndroidJUnit4` nos testes no aparelho | Runner JUnit 4 do AndroidX Test |
-| `androidx.test.espresso:espresso-core` | `3.7.0` | Declarada em `androidTestImplementation` | Biblioteca padrão de testes instrumentados (os dois testes atuais não importam Espresso diretamente) |
+| `androidx.test.espresso:espresso-core` | `3.7.0` | Declarada em `androidTestImplementation` | Biblioteca padrão de testes instrumentados (o teste atual, `AgroSaldoDatabaseTest`, não importa Espresso) |
 
 ### Qualidade de código
 
@@ -4845,7 +4918,7 @@ Ainda não está feita. O plano (política de privacidade pública, troca da loc
 
 ### Decisões de out/2026 (entrega à professora)
 
-- **Branch `prod`:** versão de apresentação, igual à `main` mas sem as migrações 1→2 e 2→3 (banco v3 como base). Motivo: o app no celular do pai era só teste, sem dados reais a preservar. Testes, fakes e CI continuam no repo, e já ficam fora do APK. A `main` segue como desenvolvimento.
+- **Branch `prod`:** versão de apresentação, igual à `main` mas sem as migrações 1→2 e 2→3 (banco v3 como base). Motivo: o app no celular do pai era só teste, sem dados reais a preservar. Testes, fakes e CI continuam no repo, e já ficam fora do APK. Depois, a `prod` virou a branch principal (padrão no GitHub) e a antiga `main` foi renomeada para `desenvolvimento`, congelada como backup.
 - **Regra de senha mantida com 3 requisitos** (8 caracteres, letra e número, "difícil de adivinhar"). Foi pedido tirar o terceiro, mas a decisão final foi **não enfraquecer** a senha.
 - **Coil não é usado.** A Open-Meteo devolve só JSON, sem imagens, e os ícones de clima são desenhados no código. Pendente: confirmar com a professora se a exigência de usar o Coil vale mesmo assim. Se valer, a opção honesta é carregar de uma URL um recurso de imagem real.
 - **Transições de tela:** trocar de aba é instantâneo e as demais telas deslizam, para não ficar a tela antiga "fantasma" por baixo da nova (ver [Ponto de entrada e navegação](#12-ponto-de-entrada-e-navegação)).
@@ -4884,7 +4957,7 @@ Fluxo: `Screen → ViewModel → Repository (interface no domínio) → implemen
 | Estado global mutável em `object`? | Não. Os `object` são utilitários sem estado; o estado compartilhado (`SelecaoAtual`) é injetado |
 | Tela separada em `*Route` e `*Screen`? | 14 de 15 (a `PoliticaScreen` é texto estático) |
 
-Na estrutura, a interface é organizada **por funcionalidade** (`feature/inicio`, `feature/clima`…) e os dados **por camada** (`data/`, `domain/`). É um híbrido comum e alinhado ao guia oficial de arquitetura do Android. Não há camada de use cases, o que é opcional nesse tamanho de app. Há um só módulo Gradle, o que também é adequado.
+Na estrutura, a interface é organizada **por funcionalidade** (`feature/inicio`, `feature/clima`…) e os dados **por camada** (`data/`, `domain/`). É um híbrido comum e alinhado ao guia oficial de arquitetura do Android. Não há camada de use cases, o que é opcional nesse tamanho de app. Há dois módulos Gradle (`:app` e `:domain`), o que basta para esse tamanho.
 
 ### Pontos de melhoria (não são erros)
 
@@ -4894,7 +4967,20 @@ Na estrutura, a interface é organizada **por funcionalidade** (`feature/inicio`
 4. **`aviso/` está solto na raiz**, enquanto as outras funcionalidades ficam em `feature/`.
 5. ~~Regra de exibição dentro da tela~~ **Corrigido em 18/10/2026:** o filtro "meses futuros sem movimento ficam ocultos" saiu do `HistoricoScreen` e virou `HistoricoUiState.mesesNaLista`, com 2 testes.
 
-Os itens 1 a 4 mudam pacotes e dezenas de imports e só trazem ganho de organização. Decisão: **não mexer antes da apresentação**; se for feito, na `main`.
+Os itens 1 a 4 mudam pacotes e dezenas de imports e só trazem ganho de organização. Decisão: **não mexer antes da apresentação**; se for feito, numa branch própria a partir da `prod`.
+
+### Segunda rodada (out/2026)
+
+O MVVM foi conferido de novo, de ponta a ponta. Corrigido:
+
+- o `Flow` do nome do usuário no Início ganhou tratamento de erro;
+- a transação ficou obrigatória nos repositórios Room, e a `TransacaoDireta` foi para o `app/src/testFixtures`;
+- o despachante de E/S passou a ser injetado na chamada de rede, e a `FontePrevisao` passou a vir do Hilt;
+- nenhum valor padrão de relógio, despachantes ou `Desfazer` em produção (os testes passam relógio fixo);
+- `PropriedadeRepository.excluir(id)`, sem uso, foi removido;
+- `SessaoViewModel` e `PrivacidadeViewModel` foram para `feature/sessao`.
+
+Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesSemDono` são legado dos dados de exemplo; mexer nisso exige a migração 4.
 
 ---
 
@@ -4910,6 +4996,7 @@ Os itens 1 a 4 mudam pacotes e dezenas de imports e só trazem ganho de organiza
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 - **Entrega (out/2026, branch `prod`):** migrações removidas (banco v3 como base), transições de tela sem fantasma, limites de texto e de área no domínio, exclusão de lançamento atômica (devolve o apagado), regra da lista do Histórico movida para o `HistoricoUiState`, auditoria de arquitetura (MVVM conferido). 480 testes de JVM e 15 instrumentados passando.
 - **Arquitetura profissional (out/2026):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta`; `UsuarioLogadoRepository`; teste do grafo. 497 testes de JVM e 15 instrumentados passando; app conferido no emulador (cadastro, propriedade, lançamento, edição, cópia e Worker). Em seguida, o domínio virou o módulo Gradle `:domain` (80 testes próprios) e o **baseline do detekt foi zerado** (115 achados resolvidos ou justificados).
+- **Auditoria de arquitetura e comentários técnicos (out/2026):** segunda rodada da auditoria (veja [Auditoria de arquitetura](#29-auditoria-de-arquitetura)) e KDoc técnico em entidades, DAOs, banco, mapeadores, modelos e repositórios. 499 testes de JVM e 15 instrumentados.
 
 ---
 
