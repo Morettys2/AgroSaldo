@@ -44,6 +44,7 @@ import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.rotulo
+import br.joao.agrosaldo.domain.financeiro.PropriedadeComSaldo
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos

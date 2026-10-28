@@ -6,6 +6,7 @@ import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
+import br.joao.agrosaldo.domain.financeiro.MesDoAno
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -23,18 +24,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Totais de um mês, em centavos. */
-data class MesDoHistorico(
-    val mes: YearMonth,
-    val receitasCentavos: Long,
-    val despesasCentavos: Long,
-    /** Mês posterior ao atual (exibido esmaecido no gráfico). */
-    val futuro: Boolean
-) {
-    val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
-    val temMovimento: Boolean get() = receitasCentavos > 0L || despesasCentavos > 0L
-}
-
 data class HistoricoUiState(
     val carregando: Boolean = true,
     val temPropriedade: Boolean = false,
@@ -43,15 +32,15 @@ data class HistoricoUiState(
     /** Sem valor padrão: vem do mês escolhido, que segue o relógio injetado. */
     val ano: Int,
     /** Sempre 12 itens, de janeiro a dezembro. */
-    val meses: List<MesDoHistorico> = emptyList(),
+    val meses: List<MesDoAno> = emptyList(),
     val receitasCentavos: Long = 0L,
     val despesasCentavos: Long = 0L,
     /** Maior receita ou despesa mensal do ano; define a escala (100%) do gráfico. */
     val maiorValorMensal: Long = 0L,
     /** Entre os meses não futuros com movimento. */
-    val melhorMes: MesDoHistorico? = null,
+    val melhorMes: MesDoAno? = null,
     /** Nulo se houver menos de dois meses não futuros com movimento ou se o menor saldo empatar com o maior. */
-    val piorMes: MesDoHistorico? = null,
+    val piorMes: MesDoAno? = null,
     val gastosDoAno: List<GastoPorCategoria> = emptyList(),
     val podeAvancar: Boolean = false,
     /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
@@ -61,7 +50,7 @@ data class HistoricoUiState(
     val temMovimento: Boolean get() = meses.any { it.temMovimento }
 
     /** Meses da lista "mês a mês": os futuros só aparecem se tiverem lançamento agendado. */
-    val mesesNaLista: List<MesDoHistorico> get() = meses.filter { !it.futuro || it.temMovimento }
+    val mesesNaLista: List<MesDoAno> get() = meses.filter { !it.futuro || it.temMovimento }
 }
 
 /**
@@ -114,29 +103,9 @@ class HistoricoViewModel @Inject constructor(
             return HistoricoUiState(carregando = false, ano = ano, podeAvancar = podeAvancar)
         }
 
-        val doAno = todosLancamentos.filter { it.propriedadeId == propriedade.id && it.data.year == ano }
-        val mesAtual = YearMonth.from(hoje())
-
-        val porMes = doAno.groupBy { YearMonth.from(it.data) }
-        val meses = (1..MESES_DO_ANO).map { numero ->
-            val mes = YearMonth.of(ano, numero)
-            val totais = ResumoFinanceiro.totais(porMes[mes].orEmpty())
-            MesDoHistorico(
-                mes = mes,
-                receitasCentavos = totais.receitasCentavos,
-                despesasCentavos = totais.despesasCentavos,
-                futuro = mes.isAfter(mesAtual)
-            )
-        }
-
-        // Mês futuro só tem lançamentos agendados; não entra na comparação.
-        val comMovimento = meses.filter { it.temMovimento && !it.futuro }
-        val melhor = comMovimento.maxByOrNull { it.saldoCentavos }
-        val pior = if (comMovimento.size >= 2) {
-            comMovimento.minByOrNull { it.saldoCentavos }?.takeIf { melhor != null && it.saldoCentavos < melhor.saldoCentavos }
-        } else {
-            null
-        }
+        // As contas do ano (meses, melhor e pior mês, ranking) são regras do domínio; aqui só se junta.
+        val meses = ResumoFinanceiro.mesesDoAno(todosLancamentos, propriedade.id, ano, mesAtual = YearMonth.from(hoje()))
+        val destaques = ResumoFinanceiro.melhorEPiorMes(meses)
 
         return HistoricoUiState(
             carregando = false,
@@ -148,9 +117,12 @@ class HistoricoViewModel @Inject constructor(
             receitasCentavos = meses.sumOf { it.receitasCentavos },
             despesasCentavos = meses.sumOf { it.despesasCentavos },
             maiorValorMensal = meses.maxOfOrNull { maxOf(it.receitasCentavos, it.despesasCentavos) } ?: 0L,
-            melhorMes = melhor,
-            piorMes = pior,
-            gastosDoAno = ResumoFinanceiro.rankingDeGastos(doAno, quantos = MAXIMO_CATEGORIAS),
+            melhorMes = destaques.melhor,
+            piorMes = destaques.pior,
+            gastosDoAno = ResumoFinanceiro.rankingDeGastos(
+                ResumoFinanceiro.doAno(todosLancamentos, propriedade.id, ano),
+                quantos = MAXIMO_CATEGORIAS
+            ),
             podeAvancar = podeAvancar
         )
     }
@@ -173,7 +145,6 @@ class HistoricoViewModel @Inject constructor(
 
     companion object {
         const val MAXIMO_CATEGORIAS = 5
-        const val MESES_DO_ANO = 12
 
         const val MENSAGEM_ERRO = "Não foi possível carregar o histórico. Tentando de novo…"
     }

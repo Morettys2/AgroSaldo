@@ -5,6 +5,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import java.time.YearMonth
+import kotlin.math.abs
 
 /**
  * Receitas e despesas de um período, em centavos.
@@ -35,6 +36,24 @@ data class TotaisDoPeriodo(val receitasCentavos: Long = 0L, val despesasCentavos
  * (não ao total), para a primeira barra do ranking ficar sempre cheia.
  */
 data class GastoPorCategoria(val categoria: CategoriaLancamento, val totalCentavos: Long, val proporcao: Float)
+
+/**
+ * Totais de um mês do ano, em centavos. [futuro]: o mês ainda não chegou (só tem lançamentos
+ * agendados), então fica fora da comparação de melhor e pior mês.
+ */
+data class MesDoAno(val mes: YearMonth, val receitasCentavos: Long, val despesasCentavos: Long, val futuro: Boolean) {
+    val saldoCentavos: Long get() = receitasCentavos - despesasCentavos
+    val temMovimento: Boolean get() = receitasCentavos > 0L || despesasCentavos > 0L
+}
+
+/** Melhor e pior mês do ano pelo saldo; ver [ResumoFinanceiro.melhorEPiorMes]. */
+data class MelhorEPiorMes(val melhor: MesDoAno?, val pior: MesDoAno?)
+
+/** Propriedade com o saldo do mês, em centavos; [proporcao] em 0..1 é o |saldo| relativo ao maior |saldo|. */
+data class PropriedadeComSaldo(val propriedade: Propriedade, val saldoCentavos: Long, val proporcao: Float)
+
+/** Comparativo do mês entre as propriedades: uma linha por propriedade e o total somado. */
+data class ComparativoDePropriedades(val itens: List<PropriedadeComSaldo>, val totalCentavos: Long)
 
 /**
  * Regras de negócio das contas do produtor: totais, saldo e ranking de gastos.
@@ -98,4 +117,54 @@ object ResumoFinanceiro {
      */
     fun propriedadeAtual(propriedades: List<Propriedade>, idSelecionado: String?): Propriedade? =
         propriedades.firstOrNull { it.id == idSelecionado } ?: propriedades.firstOrNull()
+
+    /** Lançamentos da propriedade [propriedadeId] com data em [ano]. */
+    fun doAno(lancamentos: Iterable<Lancamento>, propriedadeId: String, ano: Int): List<Lancamento> =
+        lancamentos.filter { it.propriedadeId == propriedadeId && it.data.year == ano }
+
+    /**
+     * Os 12 meses de [ano] da propriedade, de janeiro a dezembro, com os totais de cada um. Ano-calendário
+     * (alinhado ao fechamento contábil e ao IR rural), não os últimos 12 meses. Os meses depois de
+     * [mesAtual] saem marcados como [MesDoAno.futuro].
+     */
+    fun mesesDoAno(lancamentos: Iterable<Lancamento>, propriedadeId: String, ano: Int, mesAtual: YearMonth): List<MesDoAno> {
+        val porMes = doAno(lancamentos, propriedadeId, ano).groupBy { YearMonth.from(it.data) }
+        return (1..MESES_DO_ANO).map { numero ->
+            val mes = YearMonth.of(ano, numero)
+            val totais = totais(porMes[mes].orEmpty())
+            MesDoAno(mes, totais.receitasCentavos, totais.despesasCentavos, futuro = mes.isAfter(mesAtual))
+        }
+    }
+
+    /**
+     * Melhor e pior mês pelo saldo, só entre os meses que já chegaram e tiveram movimento (mês futuro só
+     * tem lançamentos agendados). Não há pior com menos de dois meses, nem quando o menor saldo empata
+     * com o maior: os dois cartões mostrariam a mesma coisa.
+     */
+    fun melhorEPiorMes(meses: List<MesDoAno>): MelhorEPiorMes {
+        val comMovimento = meses.filter { it.temMovimento && !it.futuro }
+        val melhor = comMovimento.maxByOrNull { it.saldoCentavos } ?: return MelhorEPiorMes(null, null)
+        val pior = comMovimento.minByOrNull { it.saldoCentavos }
+            ?.takeIf { comMovimento.size >= 2 && it.saldoCentavos < melhor.saldoCentavos }
+        return MelhorEPiorMes(melhor, pior)
+    }
+
+    /**
+     * Saldo do [mes] em cada propriedade, na ordem recebida, e o total somado. A proporção é o |saldo|
+     * relativo ao maior |saldo| entre elas, para a barra da maior ficar cheia; sem movimento, 0.
+     */
+    fun comparativoDePropriedades(
+        propriedades: List<Propriedade>,
+        lancamentos: Iterable<Lancamento>,
+        mes: YearMonth
+    ): ComparativoDePropriedades {
+        val saldos = propriedades.map { propriedade -> propriedade to resumoDoMes(lancamentos, propriedade.id, mes).saldoCentavos }
+        val maior = saldos.maxOfOrNull { abs(it.second) }?.takeIf { it > 0 } ?: 1L
+        return ComparativoDePropriedades(
+            itens = saldos.map { (propriedade, saldo) -> PropriedadeComSaldo(propriedade, saldo, abs(saldo).toFloat() / maior) },
+            totalCentavos = saldos.sumOf { it.second }
+        )
+    }
+
+    private const val MESES_DO_ANO = 12
 }

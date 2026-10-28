@@ -5,28 +5,19 @@ import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.financeiro.PropriedadeComSaldo
 import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
-import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.YearMonth
 import javax.inject.Inject
-import kotlin.math.abs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-/** Propriedade com o saldo do mês selecionado, em centavos. */
-data class PropriedadeComSaldo(
-    val propriedade: Propriedade,
-    val saldoCentavos: Long,
-    /** |saldo| relativo ao maior |saldo| entre as propriedades, em 0..1. */
-    val proporcao: Float
-)
 
 data class PropriedadeListaUiState(
     val carregando: Boolean = true,
@@ -59,24 +50,13 @@ class PropriedadeListaViewModel @Inject constructor(
                 lancamentoRepository.observarTodos(),
                 selecao.mes
             ) { propriedades, lancamentos, mes ->
-
-                val saldos = propriedades.map { propriedade ->
-                    propriedade to ResumoFinanceiro.resumoDoMes(lancamentos, propriedade.id, mes).saldoCentavos
-                }
-
-                val maior = saldos.maxOfOrNull { abs(it.second) }?.takeIf { it > 0 } ?: 1L
-
+                // O comparativo (saldo, proporção e total) é regra do domínio; aqui só se junta.
+                val comparativo = ResumoFinanceiro.comparativoDePropriedades(propriedades, lancamentos, mes)
                 PropriedadeListaUiState(
                     carregando = false,
                     mes = mes,
-                    itens = saldos.map { (propriedade, saldo) ->
-                        PropriedadeComSaldo(
-                            propriedade = propriedade,
-                            saldoCentavos = saldo,
-                            proporcao = abs(saldo).toFloat() / maior
-                        )
-                    },
-                    totalCentavos = saldos.sumOf { it.second }
+                    itens = comparativo.itens,
+                    totalCentavos = comparativo.totalCentavos
                 )
             }
                 .repetirAposErro { erro ->

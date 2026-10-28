@@ -342,12 +342,14 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `area no formato brasileiro com milhar e decimais`() = runTest {
         for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "123.456,25" to 123_456.25, "1250,5" to 1_250.5)) {
+            // Repositório novo a cada caso: só um "Sítio Novo" na lista, sem depender da ordem dos ids.
+            propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
             val vm = novo()
             preencher(vm, area = texto)
             vm.aoSalvar()
 
             assertTrue(texto, vm.uiState.value.salvo)
-            assertEquals(texto, esperado, propriedades.observarTodas().first().last().areaHectares, 0.0001)
+            assertEquals(texto, esperado, gravada().areaHectares, 0.0001)
         }
     }
 
