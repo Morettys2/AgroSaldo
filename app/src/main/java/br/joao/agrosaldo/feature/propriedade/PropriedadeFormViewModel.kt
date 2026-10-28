@@ -212,18 +212,21 @@ class PropriedadeFormViewModel(
     }
 
     fun aoMudarArea(v: String) {
-        estadoSalvo[CHAVE_AREA] = v
-        _uiState.update { it.copy(area = v, erroArea = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_AREA] = texto
+        _uiState.update { it.copy(area = texto, erroArea = null) }
     }
 
     fun aoMudarLatitude(v: String) {
-        estadoSalvo[CHAVE_LATITUDE] = v
-        _uiState.update { it.copy(latitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_LATITUDE] = texto
+        _uiState.update { it.copy(latitude = texto, erroCoordenadas = null, avisoCoordenadas = null) }
     }
 
     fun aoMudarLongitude(v: String) {
-        estadoSalvo[CHAVE_LONGITUDE] = v
-        _uiState.update { it.copy(longitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_LONGITUDE] = texto
+        _uiState.update { it.copy(longitude = texto, erroCoordenadas = null, avisoCoordenadas = null) }
     }
 
     /** Botão ±: o teclado numérico de alguns aparelhos não tem o sinal de menos. */
@@ -367,6 +370,12 @@ class PropriedadeFormViewModel(
     companion object {
         /** Aviso exibido quando [PropriedadeFormUiState.naoEncontrado]. */
         const val AVISO_NAO_ENCONTRADO = "Esta propriedade não existe mais."
+
+        /**
+         * Teto de caracteres dos campos de área, latitude e longitude. Sobra para "1.000.000,5" e
+         * para as 6 casas do GPS ("-23,123457"), e barra um texto enorme colado por engano.
+         */
+        const val TEXTO_NUMERICO_MAXIMO = 20
 
         /** Falha ao ler o banco ao abrir a edição; salvar fica bloqueado para não gravar por cima. */
         const val AVISO_FALHA_AO_CARREGAR = "Não foi possível carregar a propriedade. Volte e tente de novo."

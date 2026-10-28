@@ -40,7 +40,8 @@ data class LancamentoFormUiState(
     val categoria: CategoriaLancamento = CategoriaLancamento.ENERGIA,
     /** Valor em centavos como string de dígitos: "125050" = R$ 1.250,50. */
     val valorDigitos: String = "",
-    val data: String = LocalDate.now().formatarBr(),
+    /** Data digitada ("dd/MM/aaaa"); sem valor padrão: o ViewModel a monta pelo relógio injetado. */
+    val data: String,
     val propriedadeId: String = "",
     val descricao: String = "",
     val propriedades: List<Propriedade> = emptyList(),
@@ -58,8 +59,8 @@ data class LancamentoFormUiState(
     val carregado: Boolean = false,
     /** O lançamento em edição não existe mais (ex.: foi excluído); a tela avisa e fecha. */
     val naoEncontrado: Boolean = false,
-    /** Referência para os rótulos relativos de data ("Hoje", "Ontem"). */
-    val hoje: LocalDate = LocalDate.now()
+    /** Referência para os rótulos relativos de data ("Hoje", "Ontem"); vem do relógio injetado. */
+    val hoje: LocalDate
 ) {
     val categoriasDisponiveis: List<CategoriaLancamento>
         get() = CategoriaLancamento.porTipo(tipo)

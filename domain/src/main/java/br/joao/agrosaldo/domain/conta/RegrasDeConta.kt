@@ -1,5 +1,7 @@
 package br.joao.agrosaldo.domain.conta
 
+import br.joao.agrosaldo.domain.model.Usuario
+
 /** Estado de cada requisito de senha, exibido como checklist no formulário. */
 data class RequisitosSenha(
     val temTamanhoMinimo: Boolean,
@@ -21,10 +23,10 @@ object RegrasDeConta {
     /** Comporta frases-senha e limita o custo do PBKDF2 com entradas enormes. */
     const val SENHA_MAXIMO = 128
 
-    const val NOME_MAXIMO = 80
+    const val NOME_MAXIMO = Usuario.NOME_MAXIMO
 
     /** Tamanho máximo de um endereço de e-mail (RFC 5321). */
-    const val EMAIL_MAXIMO = 254
+    const val EMAIL_MAXIMO = Usuario.EMAIL_MAXIMO
 
     /** Pedaço do nome ou do e-mail que, dentro da senha, a torna previsível. */
     private const val TAMANHO_MINIMO_DO_PEDACO = 4

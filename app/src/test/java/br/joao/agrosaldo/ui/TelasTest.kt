@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import br.joao.agrosaldo.core.util.emReal
+import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.data.Desfazer
 import br.joao.agrosaldo.data.SelecaoAtual
@@ -29,6 +30,7 @@ import br.joao.agrosaldo.feature.lancamento.LancamentoListaScreen
 import br.joao.agrosaldo.feature.lancamento.LancamentoListaUiState
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import java.time.LocalDate
+import java.time.YearMonth
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -106,7 +108,7 @@ class TelasTest {
         compose.setContent {
             AgroSaldoTheme(escuro = false) {
                 LancamentoFormScreen(
-                    uiState = LancamentoFormUiState(carregado = true, propriedades = emptyList(), hoje = hoje),
+                    uiState = LancamentoFormUiState(data = hoje.formatarBr(), carregado = true, propriedades = emptyList(), hoje = hoje),
                     titulo = "Novo lançamento",
                     acoes = LancamentoFormAcoes(aoCadastrarPropriedade = { pediuCadastro = true })
                 )
@@ -124,7 +126,7 @@ class TelasTest {
         compose.setContent {
             AgroSaldoTheme(escuro = false) {
                 InicioScreen(
-                    uiState = InicioUiState(carregando = false, temPropriedade = false, hoje = hoje),
+                    uiState = InicioUiState(mes = YearMonth.from(hoje), carregando = false, temPropriedade = false, hoje = hoje),
                     aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
                     aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {}, aoAbrirHistorico = {},
                     aoAbrirLancamentos = {}, aoAbrirConta = {}, aoAlternarValores = {},
@@ -143,7 +145,13 @@ class TelasTest {
         compose.setContent {
             AgroSaldoTheme(escuro = false) {
                 InicioScreen(
-                    uiState = InicioUiState(carregando = false, temPropriedade = false, hoje = hoje, erro = "Deu ruim."),
+                    uiState = InicioUiState(
+                        mes = YearMonth.from(hoje),
+                        carregando = false,
+                        temPropriedade = false,
+                        hoje = hoje,
+                        erro = "Deu ruim."
+                    ),
                     aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
                     aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {}, aoAbrirHistorico = {},
                     aoAbrirLancamentos = {}, aoAbrirConta = {}, aoAlternarValores = {}, aoCadastrarPropriedade = {}
@@ -162,6 +170,7 @@ class TelasTest {
             AgroSaldoTheme(escuro = false) {
                 LancamentoListaScreen(
                     uiState = LancamentoListaUiState(
+                        mes = YearMonth.from(hoje),
                         carregando = false,
                         temPropriedade = true,
                         nomePropriedade = propriedades.first().nome,
@@ -182,6 +191,7 @@ class TelasTest {
     }
 
     private fun formulario(salvando: Boolean) = LancamentoFormUiState(
+        data = hoje.formatarBr(),
         carregado = true,
         propriedades = propriedades,
         propriedadeId = propriedades.first().id,

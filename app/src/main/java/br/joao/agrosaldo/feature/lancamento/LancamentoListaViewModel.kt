@@ -40,7 +40,8 @@ data class LancamentoListaUiState(
     val carregando: Boolean = true,
     val nomePropriedade: String = "",
     val temPropriedade: Boolean = false,
-    val mes: YearMonth = YearMonth.now(),
+    /** Sem valor padrão: vem da seleção, que segue o relógio injetado. */
+    val mes: YearMonth,
     val filtro: FiltroLancamento = FiltroLancamento.TUDO,
     /** Filtro de categoria; null = todas. */
     val categoria: CategoriaLancamento? = null,
@@ -107,7 +108,7 @@ class LancamentoListaViewModel @Inject constructor(
     /** Incrementado ao retomar a tela para recalcular rótulos relativos após a meia-noite. */
     private val voltasATela = MutableStateFlow(0)
 
-    private val _uiState = MutableStateFlow(LancamentoListaUiState())
+    private val _uiState = MutableStateFlow(LancamentoListaUiState(mes = selecao.mes.value))
     val uiState: StateFlow<LancamentoListaUiState> = _uiState.asStateFlow()
 
     init {

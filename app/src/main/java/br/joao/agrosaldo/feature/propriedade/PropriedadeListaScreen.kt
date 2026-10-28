@@ -49,6 +49,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
 import br.joao.agrosaldo.ui.theme.agro
+import java.time.YearMonth
 import kotlin.math.abs
 
 @Composable
@@ -289,6 +290,9 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
 
 // ---------- Previews ----------
 
+/** Mês fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val MES_DA_PREVIA: YearMonth = YearMonth.of(2026, 10)
+
 @Preview(name = "Fonte 2x", showBackground = true, heightDp = 1300, fontScale = 2f)
 @Preview(showBackground = true, heightDp = 650)
 @Composable
@@ -296,6 +300,7 @@ private fun PreviewComDados() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(
+                mes = MES_DA_PREVIA,
                 carregando = false,
                 totalCentavos = 1_418_000L,
                 itens = listOf(
@@ -337,7 +342,7 @@ private fun PreviewComDados() {
 private fun PreviewVazio() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
-            uiState = PropriedadeListaUiState(carregando = false),
+            uiState = PropriedadeListaUiState(mes = MES_DA_PREVIA, carregando = false),
             aoVoltarMes = {},
             aoAvancarMes = {},
             aoAbrirNova = {},
@@ -352,7 +357,7 @@ private fun PreviewVazio() {
 private fun PreviewCarregando() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
-            uiState = PropriedadeListaUiState(carregando = true),
+            uiState = PropriedadeListaUiState(mes = MES_DA_PREVIA, carregando = true),
             aoVoltarMes = {},
             aoAvancarMes = {},
             aoAbrirNova = {},

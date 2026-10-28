@@ -78,11 +78,14 @@ fun Lancamento.paraEntidade(agora: Long): LancamentoEntity = LancamentoEntity(
     atualizadoEm = agora
 )
 
-/** Converte [UsuarioEntity] em [Usuario] (epoch ms vira `Instant`). */
+/**
+ * Converte [UsuarioEntity] em [Usuario] (epoch ms vira `Instant`). Nome e e-mail gravados antes do
+ * limite no modelo são lidos cortados, pelo mesmo motivo de [PropriedadeEntity.paraDominio].
+ */
 fun UsuarioEntity.paraDominio(): Usuario = Usuario(
     id = id,
-    nome = nome,
-    email = email,
+    nome = nome.take(Usuario.NOME_MAXIMO),
+    email = email.take(Usuario.EMAIL_MAXIMO),
     senhaHash = senhaHash,
     consentimentoEm = Instant.ofEpochMilli(consentimentoEm),
     versaoTermo = versaoTermo,

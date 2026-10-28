@@ -29,6 +29,7 @@ import br.joao.agrosaldo.feature.inicio.InicioViewModel
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -76,12 +77,19 @@ class ClimaViewModelsTest {
         selecao = selecao
     )
 
-    @Test
-    fun `ferramenta de teste do aviso usa a propriedade escolhida no app`() {
-        selecao.selecionar("p-escolhida")
-        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao)
+    /** Relógio do teste: [AGORA] (14:40 do dia 1, hora de Brasília). */
+    private val relogioDoTeste = relogioPorMs(ZoneOffset.ofHours(-3)) { AGORA.toEpochMilli() }
 
-        assertEquals("p-escolhida", vm.propriedadeSelecionadaId())
+    @Test
+    fun `aviso de exemplo das ferramentas de teste usa a propriedade escolhida e o relogio do app`() {
+        selecao.selecionar("p-escolhida")
+        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
+
+        val aviso = vm.avisoDeExemplo()
+
+        assertEquals("p-escolhida", aviso.propriedadeId)
+        // 14:40: a chuva de exemplo começa 3 horas depois da hora cheia, e não pelo relógio do sistema.
+        assertEquals(LocalDateTime.of(2026, 10, 1, 17, 0), aviso.avaliacao.inicioPrevisto)
     }
 
     @Test
@@ -246,7 +254,7 @@ class ClimaViewModelsTest {
     fun `ajustes so gravam ao salvar e religam o agendamento`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()
-        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
 
         vm.aoMudarProbabilidade(72f) // Arredonda para 70.
         vm.aoMudarChuva(3.3f) // Arredonda para 3,5.
@@ -264,7 +272,7 @@ class ClimaViewModelsTest {
     fun `desligar o aviso cancela a verificacao em segundo plano`() {
         val ajustes = AjustesAvisoMemoria()
         val agenda = AgendaFalsa()
-        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(ajustes, agenda, PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
 
         vm.aoMudarAtivo(false)
         vm.aoSalvar()
@@ -276,13 +284,13 @@ class ClimaViewModelsTest {
     @Test
     fun `ferramenta de teste dispara a verificacao na hora`() {
         val agenda = AgendaFalsa()
-        AjustesAvisoViewModel(AjustesAvisoMemoria(), agenda, PropriedadeRepositoryMemoria(), selecao).aoVerificarAgora()
+        AjustesAvisoViewModel(AjustesAvisoMemoria(), agenda, PropriedadeRepositoryMemoria(), selecao, relogioDoTeste).aoVerificarAgora()
         assertEquals(1, agenda.verificacoesManuais)
     }
 
     @Test
     fun `controles nao saem da faixa permitida`() {
-        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
         vm.aoMudarProbabilidade(5f)
         vm.aoMudarChuva(99f)
         assertEquals(AjustesAvisoViewModel.PROBABILIDADE_MIN, vm.uiState.value.probabilidadeMinima)
@@ -292,7 +300,7 @@ class ClimaViewModelsTest {
     @Test
     fun `cada sitio pode ficar sem aviso, e o desligado e gravado`() {
         val ajustes = AjustesAvisoMemoria()
-        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
 
         assertTrue("dois sítios: a lista aparece", vm.uiState.value.mostrarSitios)
         assertTrue("sítio novo já nasce avisando", vm.uiState.value.sitios.all { it.avisa })
@@ -309,7 +317,7 @@ class ClimaViewModelsTest {
     @Test
     fun `ajuste de um sitio fora da lista nao se perde ao salvar`() {
         val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf("sitio-de-outra-conta")))
-        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
 
         vm.aoMudarSitio(DadosDeExemplo.ID_FAZENDA, false)
         vm.aoSalvar()
@@ -320,7 +328,7 @@ class ClimaViewModelsTest {
     @Test
     fun `religar um sitio tira ele da lista de desligados`() {
         val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf(DadosDeExemplo.ID_SITIO)))
-        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao)
+        val vm = AjustesAvisoViewModel(ajustes, AgendaFalsa(), PropriedadeRepositoryMemoria(), selecao, relogioDoTeste)
         assertFalse(vm.uiState.value.sitios.first { it.id == DadosDeExemplo.ID_SITIO }.avisa)
 
         vm.aoMudarSitio(DadosDeExemplo.ID_SITIO, true)
@@ -332,14 +340,14 @@ class ClimaViewModelsTest {
     @Test
     fun `com um sitio so a lista de sitios nao aparece`() {
         val um = PropriedadeRepositoryMemoria(DadosDeExemplo.propriedades().take(1))
-        assertFalse(AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), um, selecao).uiState.value.mostrarSitios)
+        assertFalse(AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), um, selecao, relogioDoTeste).uiState.value.mostrarSitios)
     }
 
     @Test
     fun `sitio que sobrou desligado continua com a lista, para dar para religar`() {
         val um = PropriedadeRepositoryMemoria(DadosDeExemplo.propriedades().take(1))
         val ajustes = AjustesAvisoMemoria(AjustesAviso(propriedadesSemAviso = setOf(DadosDeExemplo.ID_FAZENDA)))
-        assertTrue(AjustesAvisoViewModel(ajustes, AgendaFalsa(), um, selecao).uiState.value.mostrarSitios)
+        assertTrue(AjustesAvisoViewModel(ajustes, AgendaFalsa(), um, selecao, relogioDoTeste).uiState.value.mostrarSitios)
     }
 
     private fun inicio(clima: ClimaRepositoryMemoria, agora: Instant = AGORA, nome: String? = null) = InicioViewModel(
@@ -550,7 +558,7 @@ class ClimaViewModelsTest {
                 flow { throw IllegalStateException("SQLiteDatabaseLockedException: database is locked") }
         }
 
-        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), quebrado, selecao)
+        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), quebrado, selecao, relogioDoTeste)
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.sitios.isEmpty())

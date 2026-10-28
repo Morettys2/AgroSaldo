@@ -599,4 +599,19 @@ class PropriedadeFormViewModelTest {
         val noBanco = propriedades.observarTodas().first().first { it.id == DadosDeExemplo.ID_FAZENDA }
         assertEquals("o registro do banco continua igual", original, noBanco)
     }
+
+    // ---------- teto de caracteres dos campos numéricos (ENT-01) ----------
+
+    @Test
+    fun `area e coordenadas tem teto de caracteres ao colar`() {
+        val vm = novo()
+
+        vm.aoMudarArea("1".repeat(500))
+        vm.aoMudarLatitude("-2" + "3".repeat(500))
+        vm.aoMudarLongitude("-4" + "8".repeat(500))
+
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.area.length)
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.latitude.length)
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.longitude.length)
+    }
 }

@@ -43,7 +43,8 @@ data class InicioUiState(
     val temPropriedade: Boolean = false,
     val nomePropriedade: String = "",
     val propriedades: List<Propriedade> = emptyList(),
-    val mes: YearMonth = YearMonth.now(),
+    /** Sem valor padrão: vem da seleção, que segue o relógio injetado. */
+    val mes: YearMonth,
     val saldoCentavos: Long = 0L,
     val receitasCentavos: Long = 0L,
     val despesasCentavos: Long = 0L,
@@ -55,8 +56,8 @@ data class InicioUiState(
     val chuva: CartaoChuvaUi? = null,
     /** Iniciais do usuário para o botão da conta (ex.: "MS"); vazio se o nome não estiver disponível. */
     val iniciais: String = "",
-    /** Referência para os rótulos relativos de data. */
-    val hoje: LocalDate = LocalDate.now(),
+    /** Referência para os rótulos relativos de data; vem do relógio injetado. */
+    val hoje: LocalDate,
     /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
     val erro: String? = null
 )
@@ -90,7 +91,7 @@ class InicioViewModel @Inject constructor(
 
     private fun hoje(): LocalDate = LocalDate.now(relogio)
 
-    private val _uiState = MutableStateFlow(InicioUiState())
+    private val _uiState = MutableStateFlow(InicioUiState(mes = selecao.mes.value, hoje = hoje()))
     val uiState: StateFlow<InicioUiState> = _uiState.asStateFlow()
 
     /**

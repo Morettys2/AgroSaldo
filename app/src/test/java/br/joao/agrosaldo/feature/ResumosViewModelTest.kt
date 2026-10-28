@@ -28,6 +28,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -495,5 +496,42 @@ class ResumosViewModelTest {
         quebrado = false
         advanceUntilIdle()
         assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    // ---------- estado inicial pelo relógio injetado, e não pelo do sistema (REL-01) ----------
+
+    /** Propriedades que ainda não responderam: a tela fica no estado inicial. */
+    private val semResposta = object : PropriedadeRepository by PropriedadeRepositoryMemoria() {
+        override fun observarTodas(): Flow<List<Propriedade>> = flow { awaitCancellation() }
+    }
+
+    @Test
+    fun `antes da primeira leitura o inicio ja usa o mes escolhido e o dia do relogio do app`() {
+        val vm = InicioViewModel(
+            lancamentos,
+            semResposta,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
+        assertEquals(hoje, vm.uiState.value.hoje)
+    }
+
+    @Test
+    fun `antes da primeira leitura a lista de lancamentos ja usa o mes escolhido`() {
+        val vm = LancamentoListaViewModel(lancamentos, semResposta, selecao, relogioEm(hoje), DespachantesDeTeste(Dispatchers.Unconfined))
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
+    }
+
+    @Test
+    fun `antes da primeira leitura a lista de propriedades ja usa o mes escolhido`() {
+        val vm = PropriedadeListaViewModel(semResposta, lancamentos, selecao)
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
     }
 }

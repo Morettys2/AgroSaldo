@@ -6,6 +6,7 @@ import br.joao.agrosaldo.core.util.formatarEspera
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
+import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -27,8 +28,9 @@ class LoginViewModel @Inject constructor(private val conta: ContaService) : View
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim(), erro = null) }
-    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v, erro = null) }
+    // Cortados no limite do domínio ao digitar ou colar.
+    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim().take(RegrasDeConta.EMAIL_MAXIMO), erro = null) }
+    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v.take(RegrasDeConta.SENHA_MAXIMO), erro = null) }
 
     fun aoEntrar() {
         val estado = _uiState.value

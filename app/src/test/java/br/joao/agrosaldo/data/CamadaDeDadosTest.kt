@@ -667,4 +667,11 @@ class CamadaDeDadosTest {
 
         assertEquals(dao.tabela.value.size, repositorio.observarTodos().first().size)
     }
+
+    @Test
+    fun `usuario antigo com nome acima do limite e lido cortado`() {
+        val antigo = usuario("u1", "maria@exemplo.com").paraEntidade().copy(nome = "N".repeat(120))
+
+        assertEquals(Usuario.NOME_MAXIMO, antigo.paraDominio().nome.length)
+    }
 }

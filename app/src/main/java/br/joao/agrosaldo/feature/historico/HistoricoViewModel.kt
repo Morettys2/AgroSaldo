@@ -40,7 +40,8 @@ data class HistoricoUiState(
     val temPropriedade: Boolean = false,
     val nomePropriedade: String = "",
     val propriedades: List<Propriedade> = emptyList(),
-    val ano: Int = LocalDate.now().year,
+    /** Sem valor padrão: vem do mês escolhido, que segue o relógio injetado. */
+    val ano: Int,
     /** Sempre 12 itens, de janeiro a dezembro. */
     val meses: List<MesDoHistorico> = emptyList(),
     val receitasCentavos: Long = 0L,

@@ -354,7 +354,12 @@ private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier =
 
 // ---------- prévias ----------
 
+/** Dia fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val HOJE_DA_PREVIA: LocalDate = LocalDate.of(2026, 10, 15)
+
 private val ESTADO_DE_EXEMPLO = InicioUiState(
+    mes = YearMonth.from(HOJE_DA_PREVIA),
+    hoje = HOJE_DA_PREVIA,
     carregando = false,
     temPropriedade = true,
     nomePropriedade = "Fazenda Modelo",
@@ -380,7 +385,7 @@ private val ESTADO_DE_EXEMPLO = InicioUiState(
             tipo = TipoLancamento.RECEITA,
             categoria = CategoriaLancamento.VENDA_SAFRA,
             valorCentavos = 1_800_000L,
-            data = LocalDate.now().minusDays(1),
+            data = HOJE_DA_PREVIA.minusDays(1),
             descricao = "Venda de milho"
         ),
         Lancamento(
@@ -388,7 +393,7 @@ private val ESTADO_DE_EXEMPLO = InicioUiState(
             tipo = TipoLancamento.DESPESA,
             categoria = CategoriaLancamento.ENERGIA,
             valorCentavos = 125_000L,
-            data = LocalDate.now().minusDays(2),
+            data = HOJE_DA_PREVIA.minusDays(2),
             descricao = "Conta do pivô"
         )
     )
@@ -421,5 +426,9 @@ private fun InicioEscuroPreview() {
 @Preview(showBackground = true, heightDp = 700)
 @Composable
 private fun InicioVazioPreview() {
-    AgroSaldoTheme { InicioDeExemplo(InicioUiState(carregando = false, temPropriedade = false)) }
+    AgroSaldoTheme {
+        InicioDeExemplo(
+            InicioUiState(mes = YearMonth.from(HOJE_DA_PREVIA), hoje = HOJE_DA_PREVIA, carregando = false, temPropriedade = false)
+        )
+    }
 }

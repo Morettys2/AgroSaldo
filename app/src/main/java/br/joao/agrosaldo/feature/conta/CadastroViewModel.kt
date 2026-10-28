@@ -50,10 +50,13 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
     private val _uiState = MutableStateFlow(CadastroUiState())
     val uiState: StateFlow<CadastroUiState> = _uiState.asStateFlow()
 
-    fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v, erroNome = null) }
-    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim(), erroEmail = null) }
-    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v, erroSenha = null) }
-    fun aoMudarConfirmacao(v: String) = _uiState.update { it.copy(confirmacao = v, erroConfirmacao = null) }
+    // Cada campo é cortado no limite do domínio ao digitar ou colar; o domínio confere de novo ao criar a conta.
+    fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v.take(RegrasDeConta.NOME_MAXIMO), erroNome = null) }
+    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim().take(RegrasDeConta.EMAIL_MAXIMO), erroEmail = null) }
+    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v.take(RegrasDeConta.SENHA_MAXIMO), erroSenha = null) }
+    fun aoMudarConfirmacao(v: String) = _uiState.update {
+        it.copy(confirmacao = v.take(RegrasDeConta.SENHA_MAXIMO), erroConfirmacao = null)
+    }
 
     fun aoContinuar() {
         val estado = _uiState.value

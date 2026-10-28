@@ -255,8 +255,11 @@ private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
     longitude = -48.5
 )
 
+/** Dia fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val HOJE_DA_PREVIA: LocalDate = LocalDate.of(2026, 10, 15)
+
 private fun estadoDeExemplo(): LancamentoListaUiState {
-    val hoje = LocalDate.now()
+    val hoje = HOJE_DA_PREVIA
     val lancamentos = listOf(
         Lancamento(
             propriedadeId = "p1",
@@ -283,6 +286,7 @@ private fun estadoDeExemplo(): LancamentoListaUiState {
         )
     )
     return LancamentoListaUiState(
+        mes = YearMonth.from(hoje),
         carregando = false,
         nomePropriedade = PROPRIEDADE_DE_EXEMPLO.nome,
         temPropriedade = true,
@@ -297,7 +301,7 @@ private fun estadoDeExemplo(): LancamentoListaUiState {
         saldoCentavos = 1_597_000L,
         receitasCentavos = 1_800_000L,
         despesasCentavos = 203_000L,
-        meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), hoje),
+        meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.from(hoje), hoje),
         propriedades = listOf(PROPRIEDADE_DE_EXEMPLO)
     )
 }
@@ -331,10 +335,11 @@ private fun LancamentoListaVazioPreview() {
     AgroSaldoTheme {
         ListaDeExemplo(
             LancamentoListaUiState(
+                mes = YearMonth.from(HOJE_DA_PREVIA),
                 carregando = false,
                 nomePropriedade = "Sítio Exemplo",
                 temPropriedade = true,
-                meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), LocalDate.now())
+                meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.from(HOJE_DA_PREVIA), HOJE_DA_PREVIA)
             )
         )
     }

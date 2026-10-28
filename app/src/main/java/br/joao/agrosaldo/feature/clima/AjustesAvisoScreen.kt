@@ -72,7 +72,7 @@ fun AjustesAvisoRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, vie
         ferramentasDeTeste = if (ehDebug) {
             FerramentasDeTeste(
                 aoMostrarExemplo = {
-                    NotificadorDeChuva.mostrarExemplo(context, viewModel.propriedadeSelecionadaId())
+                    NotificadorDeChuva.mostrar(context, viewModel.avisoDeExemplo(), uiState.janelaHoras)
                 },
                 aoVerificarAgora = {
                     viewModel.aoVerificarAgora()

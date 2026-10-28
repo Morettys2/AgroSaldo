@@ -55,9 +55,12 @@ class AlterarSenhaViewModel @Inject constructor(private val conta: ContaService)
         }
     }
 
-    fun aoMudarSenhaAtual(v: String) = _uiState.update { it.copy(senhaAtual = v, erroSenhaAtual = null) }
-    fun aoMudarNovaSenha(v: String) = _uiState.update { it.copy(novaSenha = v, erroNovaSenha = null) }
-    fun aoMudarConfirmacao(v: String) = _uiState.update { it.copy(confirmacao = v, erroConfirmacao = null) }
+    // Cortadas no limite do domínio ao digitar ou colar.
+    fun aoMudarSenhaAtual(v: String) = _uiState.update { it.copy(senhaAtual = v.take(RegrasDeConta.SENHA_MAXIMO), erroSenhaAtual = null) }
+    fun aoMudarNovaSenha(v: String) = _uiState.update { it.copy(novaSenha = v.take(RegrasDeConta.SENHA_MAXIMO), erroNovaSenha = null) }
+    fun aoMudarConfirmacao(v: String) = _uiState.update {
+        it.copy(confirmacao = v.take(RegrasDeConta.SENHA_MAXIMO), erroConfirmacao = null)
+    }
 
     fun aoSalvar() {
         val estado = _uiState.value

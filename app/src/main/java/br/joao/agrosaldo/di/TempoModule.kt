@@ -34,7 +34,11 @@ object TempoModule {
     @Singleton
     fun despachantes(): Despachantes = DespachantesDoSistema
 
-    /** Coleta de longa duração (ex.: ajustes que acompanham a sessão). Unconfined: reage na thread que mudou. */
+    /**
+     * Coleta de longa duração (ex.: ajustes que acompanham a sessão). Unconfined: reage na thread que
+     * mudou. É o único `Dispatchers.*` fora de [DespachantesDoSistema]: este módulo é a raiz que monta
+     * as dependências, e os testes não usam este escopo (passam o deles).
+     */
     @Provides
     @Singleton
     @EscopoDoApp

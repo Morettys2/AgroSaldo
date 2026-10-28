@@ -30,7 +30,8 @@ data class PropriedadeComSaldo(
 
 data class PropriedadeListaUiState(
     val carregando: Boolean = true,
-    val mes: YearMonth = YearMonth.now(),
+    /** Sem valor padrão: vem da seleção, que segue o relógio injetado. */
+    val mes: YearMonth,
     val itens: List<PropriedadeComSaldo> = emptyList(),
     val totalCentavos: Long = 0L,
     val erro: String? = null
@@ -48,7 +49,7 @@ class PropriedadeListaViewModel @Inject constructor(
     private val selecao: SelecaoAtual
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PropriedadeListaUiState())
+    private val _uiState = MutableStateFlow(PropriedadeListaUiState(mes = selecao.mes.value))
     val uiState: StateFlow<PropriedadeListaUiState> = _uiState.asStateFlow()
 
     init {
