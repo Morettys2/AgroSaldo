@@ -74,7 +74,7 @@ data class LancamentoFormUiState(
     val rotuloData: String
         get() = data.paraLocalDateOuNulo()?.rotuloDeData(hoje) ?: data
 
-    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda Santa Clara". */
+    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda Modelo". */
     val resumo: String
         get() = listOfNotNull(
             categoria.rotulo,

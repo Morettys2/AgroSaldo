@@ -88,7 +88,7 @@ class CamadaDeDadosTest {
 
     @Test
     fun `usuario vai para o banco e volta igual com instantes em milissegundos`() {
-        val original = usuario("u1", "fabio@exemplo.com")
+        val original = usuario("u1", "maria@exemplo.com")
         val entidade = original.paraEntidade()
 
         assertEquals(original.consentimentoEm.toEpochMilli(), entidade.consentimentoEm)
@@ -218,7 +218,7 @@ class CamadaDeDadosTest {
 
     private fun usuario(id: String, email: String) = Usuario(
         id = id,
-        nome = "Fábio Moretti",
+        nome = "Maria Souza",
         email = email,
         senhaHash = "hash-de-teste",
         consentimentoEm = Instant.ofEpochMilli(1_000L),
@@ -230,7 +230,7 @@ class CamadaDeDadosTest {
     fun `propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo`() = runTest {
         val dao = PropriedadeDaoFalso()
         val modelo = DadosDeExemplo.propriedades().first()
-        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara").forEachIndexed { i, nome ->
+        listOf("Sítio Exemplo", "Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo").forEachIndexed { i, nome ->
             dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1", agora = 0L))
         }
         val repositorio =
@@ -244,7 +244,7 @@ class CamadaDeDadosTest {
 
         assertEquals(
             "a primeira da lista é a propriedade padrão",
-            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara", "Sítio Boa Vista"),
+            listOf("Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo", "Sítio Exemplo"),
             repositorio.observarTodas().first().map { it.nome }
         )
     }
@@ -307,7 +307,7 @@ class CamadaDeDadosTest {
             repositorio.salvar(fazenda.copy(nome = "Tomada"))
             fail("Deveria recusar a gravação")
         } catch (esperado: IllegalArgumentException) {
-            assertEquals("Fazenda Santa Clara", dao.tabela.value.single().nome)
+            assertEquals("Fazenda Modelo", dao.tabela.value.single().nome)
         }
     }
 
@@ -556,7 +556,7 @@ class CamadaDeDadosTest {
         DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = null, agora = 0L)) }
         val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
 
-        assertTrue(repositorio.criar(usuario("u1", "fabio@exemplo.com")))
+        assertTrue(repositorio.criar(usuario("u1", "maria@exemplo.com")))
 
         assertTrue(propriedades.tabela.value.all { it.usuarioId == "u1" })
     }
@@ -590,7 +590,7 @@ class CamadaDeDadosTest {
         val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)
 
         try {
-            repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+            repositorio.criar(usuario("u1", "maria@exemplo.com"))
             fail("A falha na adoção deveria chegar ao cadastro")
         } catch (esperado: IllegalStateException) {
             assertNull("a conta não fica criada pela metade", usuarios.buscarPorId("u1"))
@@ -603,10 +603,10 @@ class CamadaDeDadosTest {
     fun `email repetido nao cria conta nem rouba propriedades`() = runTest {
         val propriedades = PropriedadeDaoFalso()
         val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
-        repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+        repositorio.criar(usuario("u1", "maria@exemplo.com"))
         propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
 
-        assertFalse(repositorio.criar(usuario("u2", "fabio@exemplo.com")))
+        assertFalse(repositorio.criar(usuario("u2", "maria@exemplo.com")))
 
         assertNull(repositorio.buscarPorId("u2"))
         assertNull(propriedades.tabela.value.single().usuarioId)
@@ -615,7 +615,7 @@ class CamadaDeDadosTest {
     @Test
     fun `novo aceite grava a data e a versao do termo`() = runTest {
         val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(PropriedadeDaoFalso()), TransacaoDireta)
-        repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+        repositorio.criar(usuario("u1", "maria@exemplo.com"))
 
         repositorio.registrarConsentimento("u1", Instant.ofEpochMilli(5_000L), versao = 2)
 

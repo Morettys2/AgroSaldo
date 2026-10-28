@@ -69,8 +69,8 @@ class ContaTest {
         despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
     )
 
-    private suspend fun cadastrarFabio(): ResultadoCadastro =
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+    private suspend fun cadastrarMaria(): ResultadoCadastro =
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
 
     @Test
     fun `senha precisa de 8 caracteres com letra e numero`() {
@@ -92,16 +92,16 @@ class ContaTest {
 
     @Test
     fun `email e normalizado e validado`() {
-        assertEquals("fabio@exemplo.com", RegrasDeConta.normalizarEmail("  Fabio@Exemplo.COM "))
-        assertTrue(RegrasDeConta.emailValido("fabio@exemplo.com"))
-        assertFalse(RegrasDeConta.emailValido("fabio@exemplo"))
-        assertFalse(RegrasDeConta.emailValido("fabio exemplo.com"))
+        assertEquals("maria@exemplo.com", RegrasDeConta.normalizarEmail("  Maria@Exemplo.COM "))
+        assertTrue(RegrasDeConta.emailValido("maria@exemplo.com"))
+        assertFalse(RegrasDeConta.emailValido("maria@exemplo"))
+        assertFalse(RegrasDeConta.emailValido("maria exemplo.com"))
         assertFalse(RegrasDeConta.emailValido(""))
     }
 
     @Test
     fun `iniciais usam primeiro e ultimo nome`() {
-        assertEquals("FM", RegrasDeConta.iniciais("Fábio Pereira Moretti"))
+        assertEquals("MS", RegrasDeConta.iniciais("Maria Lima Souza"))
         assertEquals("F", RegrasDeConta.iniciais("fábio"))
         assertEquals("?", RegrasDeConta.iniciais("   "))
     }
@@ -138,11 +138,11 @@ class ContaTest {
 
     @Test
     fun `RF01 - cadastro grava conta com consentimento e ja conecta`() = runTest {
-        val resultado = cadastrarFabio()
+        val resultado = cadastrarMaria()
 
         assertTrue(resultado is ResultadoCadastro.Sucesso)
         val gravado = usuarios.todos.single()
-        assertEquals("fabio@exemplo.com", gravado.email)
+        assertEquals("maria@exemplo.com", gravado.email)
         assertEquals(Instant.ofEpochMilli(agora), gravado.consentimentoEm)
         assertEquals(TermoDePrivacidade.VERSAO_ATUAL, gravado.versaoTermo)
         assertEquals(gravado.id, sessao.usuarioId.value)
@@ -151,7 +151,7 @@ class ContaTest {
 
     @Test
     fun `senha fica gravada so como hash`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         val gravado = usuarios.todos.single()
         assertFalse(gravado.senhaHash.contains("milho2026"))
         assertTrue(hashRapido.confere("milho2026", gravado.senhaHash))
@@ -159,7 +159,7 @@ class ContaTest {
 
     @Test
     fun `RNF10 - sem aceite do termo nao existe conta`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = false)
+        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = false)
 
         assertEquals(ResultadoCadastro.TermoNaoAceito, resultado)
         assertTrue(usuarios.todos.isEmpty())
@@ -168,10 +168,10 @@ class ContaTest {
 
     @Test
     fun `mesmo email com maiusculas nao cria segunda conta`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
-        val segundo = conta.cadastrar("Outro", " FABIO@exemplo.com", "outra2026", aceitouTermo = true)
+        val segundo = conta.cadastrar("Outro", " MARIA@exemplo.com", "outra2026", aceitouTermo = true)
 
         assertEquals(ResultadoCadastro.EmailJaCadastrado, segundo)
         assertEquals(1, usuarios.todos.size)
@@ -179,17 +179,17 @@ class ContaTest {
 
     @Test
     fun `cadastro recusa senha fraca mesmo que a tela deixe passar`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "fabio@exemplo.com", "123", aceitouTermo = true)
+        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "123", aceitouTermo = true)
         assertTrue(resultado is ResultadoCadastro.DadosInvalidos)
         assertTrue(usuarios.todos.isEmpty())
     }
 
     @Test
     fun `RF02 - login com a senha certa conecta`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
-        val resultado = conta.entrar("Fabio@Exemplo.com ", "milho2026")
+        val resultado = conta.entrar("Maria@Exemplo.com ", "milho2026")
 
         assertTrue(resultado is ResultadoLogin.Sucesso)
         assertEquals(usuarios.todos.single().id, sessao.usuarioId.value)
@@ -197,48 +197,48 @@ class ContaTest {
 
     @Test
     fun `senha errada e email inexistente dao a mesma resposta`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
-        assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("fabio@exemplo.com", "errada123"))
+        assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("maria@exemplo.com", "errada123"))
         assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("ninguem@exemplo.com", "milho2026"))
         assertNull(sessao.usuarioId.value)
     }
 
     @Test
     fun `cinco erros seguidos bloqueiam por 30 segundos`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         // Nem a senha certa entra durante o bloqueio.
-        val bloqueado = conta.entrar("fabio@exemplo.com", "milho2026")
+        val bloqueado = conta.entrar("maria@exemplo.com", "milho2026")
         assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), bloqueado)
         assertNull(sessao.usuarioId.value)
 
         agora += 29_500
-        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 1), conta.entrar("fabio@exemplo.com", "milho2026"))
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 1), conta.entrar("maria@exemplo.com", "milho2026"))
 
         agora += 500
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
     fun `a senha errada que bloqueia ja avisa o bloqueio`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
         repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
-            assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("fabio@exemplo.com", "errada123"))
+            assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("maria@exemplo.com", "errada123"))
         }
 
-        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("fabio@exemplo.com", "errada123"))
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("maria@exemplo.com", "errada123"))
     }
 
     @Test
     fun `troca de senha e exclusao tambem avisam no erro que bloqueia`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
             assertEquals(ResultadoAlteracaoSenha.SenhaAtualIncorreta, conta.alterarSenha("errada123", "colheita2026"))
         }
@@ -251,26 +251,26 @@ class ContaTest {
 
     @Test
     fun `fechar e abrir o app nao zera o bloqueio`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         val depoisDeReabrir = novoContaService()
 
-        assertTrue(depoisDeReabrir.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(depoisDeReabrir.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
     }
 
     @Test
     fun `cada erro depois do bloqueio dobra a espera ate 15 minutos`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         val esperas = mutableListOf(30L)
         repeat(6) {
             agora += 16 * 60_000L // Passa do bloqueio anterior (máximo de 15 min).
-            conta.entrar("fabio@exemplo.com", "errada123")
-            val r = conta.entrar("fabio@exemplo.com", "errada123") as ResultadoLogin.Bloqueado
+            conta.entrar("maria@exemplo.com", "errada123")
+            val r = conta.entrar("maria@exemplo.com", "errada123") as ResultadoLogin.Bloqueado
             esperas += r.segundosRestantes
         }
 
@@ -279,76 +279,76 @@ class ContaTest {
 
     @Test
     fun `atrasar o relogio do celular nao cria bloqueio de meses`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         agora -= 365L * 24 * 60 * 60 * 1000 // Relógio do aparelho voltado um ano.
 
-        val r = conta.entrar("fabio@exemplo.com", "milho2026") as ResultadoLogin.Bloqueado
+        val r = conta.entrar("maria@exemplo.com", "milho2026") as ResultadoLogin.Bloqueado
         assertEquals(ContaService.BLOQUEIO_MAXIMO_MS / 1000, r.segundosRestantes)
     }
 
     @Test
     fun `relogio adiantado ao errar nao trava a conta alem do maximo`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
         val dezAnos = 10L * 365 * 24 * 60 * 60 * 1000
 
         agora += dezAnos
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
         agora -= dezAnos
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
         agora += ContaService.BLOQUEIO_MAXIMO_MS
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
     fun `adiantar o relogio do celular nao encerra o bloqueio`() = runTest {
         val conta = contaComRelogioMonotonico()
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         agora += 24 * 60 * 60 * 1000L
 
-        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("fabio@exemplo.com", "milho2026"))
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("maria@exemplo.com", "milho2026"))
     }
 
     @Test
     fun `bloqueio termina no tempo certo mesmo com o relogio do celular atrasado`() = runTest {
         val conta = contaComRelogioMonotonico()
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         agora -= 24 * 60 * 60 * 1000L
         desdeOBoot += 30_000
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
     fun `depois de reiniciar o celular o bloqueio segue pelo relogio do sistema`() = runTest {
         val conta = contaComRelogioMonotonico()
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
         // Reinício: o contador monotônico recomeça e o identificador do boot muda.
         boot += 1
         desdeOBoot = 0L
         agora += 10_000
 
-        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 20), conta.entrar("fabio@exemplo.com", "milho2026"))
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 20), conta.entrar("maria@exemplo.com", "milho2026"))
         agora += 20_000
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
     fun `senha errada na exclusao conta como tentativa`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         repeat(ContaService.MAXIMO_TENTATIVAS) { conta.excluirConta("errada123") }
 
         assertTrue(conta.excluirConta("milho2026") is ResultadoExclusao.Bloqueado)
@@ -357,15 +357,15 @@ class ContaTest {
 
     @Test
     fun `acerto zera a contagem de erros`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
-        repeat(4) { conta.entrar("fabio@exemplo.com", "errada123") }
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        repeat(4) { conta.entrar("maria@exemplo.com", "errada123") }
+        conta.entrar("maria@exemplo.com", "milho2026")
         conta.sair()
-        repeat(4) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(4) { conta.entrar("maria@exemplo.com", "errada123") }
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     private suspend fun cadastrarIntrusoESair() {
@@ -375,72 +375,72 @@ class ContaTest {
 
     @Test
     fun `entrar na propria conta nao zera os erros no email de outra pessoa`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
         cadastrarIntrusoESair()
 
         // Quem pega o celular erra no e-mail do dono e entra na própria conta, repetidas vezes.
-        repeat(ContaService.MAXIMO_TENTATIVAS - 1) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS - 1) { conta.entrar("maria@exemplo.com", "errada123") }
         assertTrue(conta.entrar("intruso@exemplo.com", "trigo2026") is ResultadoLogin.Sucesso)
         conta.sair()
-        conta.entrar("fabio@exemplo.com", "errada123")
+        conta.entrar("maria@exemplo.com", "errada123")
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
     }
 
     @Test
     fun `erros no email de uma conta nao bloqueiam outra`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
         cadastrarIntrusoESair()
 
-        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
         assertTrue(conta.entrar("intruso@exemplo.com", "trigo2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
     fun `email digitado de outro jeito conta no mesmo contador`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
         repeat(ContaService.MAXIMO_TENTATIVAS) { i ->
-            conta.entrar(if (i % 2 == 0) " FABIO@exemplo.com" else "fabio@Exemplo.com ", "errada123")
+            conta.entrar(if (i % 2 == 0) " MARIA@exemplo.com" else "maria@Exemplo.com ", "errada123")
         }
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
     }
 
     @Test
     fun `contador guarda so um resumo do email, nunca o email`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
-        conta.entrar("fabio@exemplo.com", "errada123")
+        conta.entrar("maria@exemplo.com", "errada123")
 
         val chave = tentativas.chaves.single()
-        assertFalse(chave.contains("fabio"))
+        assertFalse(chave.contains("maria"))
         assertTrue(chave.matches(Regex("[0-9a-f]{64}")))
     }
 
     @Test
     fun `acerto apaga o registro de tentativas do email`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
-        repeat(2) { conta.entrar("fabio@exemplo.com", "errada123") }
+        repeat(2) { conta.entrar("maria@exemplo.com", "errada123") }
 
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        conta.entrar("maria@exemplo.com", "milho2026")
 
         assertTrue(tentativas.chaves.isEmpty())
     }
 
     @Test
     fun `erros na troca de senha bloqueiam o login da mesma conta`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         repeat(ContaService.MAXIMO_TENTATIVAS) { conta.alterarSenha("errada123", "colheita2026") }
         conta.sair()
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Bloqueado)
     }
 
     @Test
@@ -454,15 +454,15 @@ class ContaTest {
             relogioMonotonico = RelogioMonotonicoIndisponivel,
             despachantes = DespachantesDeTeste(Dispatchers.Unconfined)
         )
-        antigo.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        antigo.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         antigo.sair()
         assertTrue(usuarios.todos.single().senhaHash.startsWith("pbkdf2_sha256\$500\$"))
 
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
 
         assertTrue(usuarios.todos.single().senhaHash.startsWith("pbkdf2_sha256\$1000\$"))
         conta.sair()
-        assertTrue(conta.entrar("fabio@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
@@ -512,9 +512,9 @@ class ContaTest {
         assertFalse(RegrasDeConta.senhaValida("abcdef12")) // sequência
         assertFalse(RegrasDeConta.senhaValida("senha1234!")) // variação da lista
         assertFalse(RegrasDeConta.senhaValida("987654zz")) // sequência descendo
-        assertFalse(RegrasDeConta.senhaValida("moretti2026", email = "x@y.com", nome = "Fábio Moretti"))
-        assertFalse(RegrasDeConta.senhaValida("fabio2026x", email = "fabio@exemplo.com"))
-        assertTrue(RegrasDeConta.senhaValida("colheita2026", email = "fabio@exemplo.com", nome = "Fábio Moretti"))
+        assertFalse(RegrasDeConta.senhaValida("souza2026", email = "x@y.com", nome = "Maria Souza"))
+        assertFalse(RegrasDeConta.senhaValida("maria2026x", email = "maria@exemplo.com"))
+        assertTrue(RegrasDeConta.senhaValida("colheita2026", email = "maria@exemplo.com", nome = "Maria Souza"))
     }
 
     @Test
@@ -526,7 +526,7 @@ class ContaTest {
 
     @Test
     fun `trocar senha exige a atual e passa a valer a nova`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
 
         assertEquals(ResultadoAlteracaoSenha.SenhaAtualIncorreta, conta.alterarSenha("errada123", "colheita2026"))
         assertEquals(ResultadoAlteracaoSenha.NovaIgualAAtual, conta.alterarSenha("milho2026", "milho2026"))
@@ -534,8 +534,8 @@ class ContaTest {
         assertEquals(ResultadoAlteracaoSenha.Sucesso, conta.alterarSenha("milho2026", "colheita2026"))
 
         conta.sair()
-        assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("fabio@exemplo.com", "milho2026"))
-        assertTrue(conta.entrar("fabio@exemplo.com", "colheita2026") is ResultadoLogin.Sucesso)
+        assertEquals(ResultadoLogin.CredenciaisInvalidas, conta.entrar("maria@exemplo.com", "milho2026"))
+        assertTrue(conta.entrar("maria@exemplo.com", "colheita2026") is ResultadoLogin.Sucesso)
     }
 
     @Test
@@ -546,7 +546,7 @@ class ContaTest {
     @Test
     fun `so a sessao aberta pelo cadastro conta como de conta nova`() = runTest {
         assertFalse(conta.sessaoDeContaNova.value)
-        cadastrarFabio()
+        cadastrarMaria()
         assertTrue(conta.sessaoDeContaNova.value)
 
         conta.esquecerContaNova()
@@ -554,13 +554,13 @@ class ContaTest {
 
         cadastrarIntrusoESair()
         assertFalse(conta.sessaoDeContaNova.value)
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        conta.entrar("maria@exemplo.com", "milho2026")
         assertFalse(conta.sessaoDeContaNova.value)
     }
 
     @Test
     fun `sair encerra a sessao e avisa a troca de usuario`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
         conta.sair()
 
         assertNull(sessao.usuarioId.value)
@@ -570,7 +570,7 @@ class ContaTest {
 
     @Test
     fun `excluir conta pede a senha`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
 
         assertEquals(ResultadoExclusao.SenhaIncorreta, conta.excluirConta("errada123"))
         assertEquals(1, usuarios.todos.size)
@@ -579,7 +579,7 @@ class ContaTest {
 
     @Test
     fun `excluir conta apaga o usuario e desconecta`() = runTest {
-        cadastrarFabio()
+        cadastrarMaria()
 
         assertEquals(ResultadoExclusao.Sucesso, conta.excluirConta("milho2026"))
 
@@ -608,7 +608,7 @@ class ContaTest {
             contasNoBancoNaLimpeza = usuarios.todos.size
             conectadoNaLimpeza = sessao.usuarioId.value != null
         }
-        val criada = conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val criada = conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val id = (criada as ResultadoCadastro.Sucesso).usuario.id
 
         conta.excluirConta("errada123")
@@ -626,7 +626,7 @@ class ContaTest {
     @Test
     fun `falha na limpeza nao deixa a sessao presa a conta apagada`() = runTest {
         val conta = contaQueLimpaAoExcluir { error("disco cheio") }
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
 
         assertTrue(runCatching { conta.excluirConta("milho2026") }.isFailure)
 
@@ -644,7 +644,7 @@ class ContaTest {
     @Test
     fun `observar usuario logado acompanha a sessao`() = runTest {
         assertNull(conta.observarUsuarioLogado().first())
-        cadastrarFabio()
-        assertEquals("Fábio Moretti", conta.observarUsuarioLogado().first()?.nome)
+        cadastrarMaria()
+        assertEquals("Maria Souza", conta.observarUsuarioLogado().first()?.nome)
     }
 }

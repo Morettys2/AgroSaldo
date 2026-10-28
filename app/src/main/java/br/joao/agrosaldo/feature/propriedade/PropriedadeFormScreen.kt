@@ -337,8 +337,8 @@ private fun PropriedadeFormComErroPreview() {
                 nome = "",
                 cultura = "Milho",
                 area = "abc",
-                latitude = "-21,7333",
-                longitude = "-46,9667",
+                latitude = "-23,5",
+                longitude = "-48,5",
                 erroNome = "Informe o nome da propriedade.",
                 erroArea = "A área deve ser um número maior que zero.",
                 ehEdicao = true

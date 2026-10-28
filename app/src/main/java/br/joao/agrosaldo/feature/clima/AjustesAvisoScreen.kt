@@ -274,8 +274,8 @@ private fun AjustesAvisoPreview() {
         AjustesAvisoScreen(
             uiState = AjustesAvisoUiState(
                 sitios = listOf(
-                    SitioDoAviso("1", "Fazenda Santa Clara", avisa = true),
-                    SitioDoAviso("2", "Sítio Boa Vista", avisa = false)
+                    SitioDoAviso("1", "Fazenda Modelo", avisa = true),
+                    SitioDoAviso("2", "Sítio Exemplo", avisa = false)
                 )
             ),
             permissao = PermissaoNotificacao(concedida = false, pedir = {}),

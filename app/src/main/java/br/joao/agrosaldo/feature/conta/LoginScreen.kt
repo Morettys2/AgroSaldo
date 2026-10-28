@@ -174,7 +174,7 @@ fun LoginScreen(
 private fun LoginPreview() {
     AgroSaldoTheme {
         LoginScreen(
-            uiState = LoginUiState(email = "fabio@exemplo.com", senha = "milho2026"),
+            uiState = LoginUiState(email = "maria@exemplo.com", senha = "milho2026"),
             aoMudarEmail = {},
             aoMudarSenha = {},
             aoEntrar = {},
@@ -188,7 +188,7 @@ private fun LoginPreview() {
 private fun LoginComErroPreview() {
     AgroSaldoTheme {
         LoginScreen(
-            uiState = LoginUiState(email = "fabio@exemplo.com", erro = "E-mail ou senha incorretos."),
+            uiState = LoginUiState(email = "maria@exemplo.com", erro = "E-mail ou senha incorretos."),
             aoMudarEmail = {},
             aoMudarSenha = {},
             aoEntrar = {},

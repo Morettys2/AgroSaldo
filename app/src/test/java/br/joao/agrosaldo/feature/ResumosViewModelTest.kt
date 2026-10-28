@@ -42,7 +42,7 @@ import org.junit.Test
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
  *
- * Com [DadosDeExemplo], a Fazenda Santa Clara no mês corrente tem:
+ * Com [DadosDeExemplo], a Fazenda Modelo no mês corrente tem:
  *   entrou  R$ 18.000   (venda de milho)
  *   saiu    R$  2.350   (energia 1.250 + adubo 780 + combustível 320)
  *   saldo   R$ 15.650
@@ -97,7 +97,7 @@ class ResumosViewModelTest {
         val estado = inicio().uiState.value
 
         assertFalse(estado.carregando)
-        assertEquals("Fazenda Santa Clara", estado.nomePropriedade)
+        assertEquals("Fazenda Modelo", estado.nomePropriedade)
         assertEquals(1_800_000L, estado.receitasCentavos)
         assertEquals(235_000L, estado.despesasCentavos)
         assertEquals(1_565_000L, estado.saldoCentavos)
@@ -132,7 +132,7 @@ class ResumosViewModelTest {
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
         val estado = vm.uiState.value
-        assertEquals("Sítio Boa Vista", estado.nomePropriedade)
+        assertEquals("Sítio Exemplo", estado.nomePropriedade)
         assertEquals(450_000L - 210_000L, estado.saldoCentavos)
     }
 

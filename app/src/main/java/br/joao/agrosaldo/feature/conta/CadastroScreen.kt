@@ -149,8 +149,8 @@ private fun CadastroPreview() {
     AgroSaldoTheme {
         CadastroScreen(
             uiState = CadastroUiState(
-                nome = "Fábio Moretti",
-                email = "fabio@exemplo.com",
+                nome = "Maria Souza",
+                email = "maria@exemplo.com",
                 senha = "milho20",
                 confirmacao = ""
             ),

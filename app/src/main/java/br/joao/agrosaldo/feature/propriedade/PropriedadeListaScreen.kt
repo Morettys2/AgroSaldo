@@ -301,22 +301,22 @@ private fun PreviewComDados() {
                 itens = listOf(
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Fazenda Santa Clara",
+                            nome = "Fazenda Modelo",
                             cultura = "Milho",
                             areaHectares = 50.0,
-                            latitude = -21.7333,
-                            longitude = -46.9667
+                            latitude = -23.5,
+                            longitude = -48.5
                         ),
                         saldoCentavos = 1_247_000L,
                         proporcao = 1f
                     ),
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Sítio Boa Vista",
+                            nome = "Sítio Exemplo",
                             cultura = "Soja",
                             areaHectares = 18.0,
-                            latitude = -21.8012,
-                            longitude = -46.9021
+                            latitude = -22.5,
+                            longitude = -47.5
                         ),
                         saldoCentavos = 171_000L,
                         proporcao = 0.14f

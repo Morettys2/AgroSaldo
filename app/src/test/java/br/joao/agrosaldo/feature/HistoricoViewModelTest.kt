@@ -30,7 +30,7 @@ import org.junit.Test
 /**
  * Histórico do ano.
  *
- * Com os dados de exemplo e "hoje" em 30/09/2026, a Fazenda Santa Clara tem:
+ * Com os dados de exemplo e "hoje" em 30/09/2026, a Fazenda Modelo tem:
  *   agosto:   entrou R$ 9.400  · saiu R$ 2.100  · saldo R$  7.300
  *   setembro: entrou R$ 18.000 · saiu R$ 2.350  · saldo R$ 15.650
  */
@@ -249,7 +249,7 @@ class HistoricoViewModelTest {
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
         val estado = vm.uiState.value
-        assertEquals("Sítio Boa Vista", estado.nomePropriedade)
+        assertEquals("Sítio Exemplo", estado.nomePropriedade)
         assertEquals(450_000L, estado.receitasCentavos)
         assertEquals(273_000L, estado.despesasCentavos)
     }

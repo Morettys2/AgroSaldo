@@ -242,7 +242,7 @@ class PropriedadeFormViewModel(
 
     private fun formatarCoordenada(valor: Double): String = String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
-    /** Formata para o campo: "18", "12,5", "-21,7333" (sem notação científica nem agrupamento). */
+    /** Formata para o campo: "18", "12,5", "-23,5" (sem notação científica nem agrupamento). */
     private fun Double.paraCampo(): String = numeroBr(agrupar = false)
 
     /** Coordenada: aceita vírgula ou ponto decimal; rejeita NaN e infinito. */

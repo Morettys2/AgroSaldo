@@ -24,8 +24,8 @@ object ApoioClima {
     fun previsao(
         chuvaPorHora: Map<Int, Pair<Int, Double>> = emptyMap(),
         obtidaEm: Instant = AGORA,
-        latitude: Double = -21.7,
-        longitude: Double = -46.9
+        latitude: Double = -23.7,
+        longitude: Double = -48.9
     ): Previsao = Previsao(
         latitude = latitude,
         longitude = longitude,
@@ -53,8 +53,8 @@ object ApoioClima {
     fun jsonOpenMeteo(
         probabilidades: List<Int?> = List(48) { 5 },
         chuvas: List<Double?> = List(48) { 0.0 },
-        latitude: Double = -21.7,
-        longitude: Double = -46.9
+        latitude: Double = -23.7,
+        longitude: Double = -48.9
     ): String {
         val horas = (0 until probabilidades.size).joinToString(",") { "\"${MEIA_NOITE.plusHours(it.toLong())}\"" }
         val dias = (0 until 7).joinToString(",") { "\"${LocalDate.of(2026, 10, 1).plusDays(it.toLong())}\"" }

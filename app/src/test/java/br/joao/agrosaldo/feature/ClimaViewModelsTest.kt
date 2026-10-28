@@ -177,7 +177,7 @@ class ClimaViewModelsTest {
 
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
-        assertEquals("Sítio Boa Vista", vm.uiState.value.nomePropriedade)
+        assertEquals("Sítio Exemplo", vm.uiState.value.nomePropriedade)
         assertFalse(vm.uiState.value.vaiChover)
     }
 

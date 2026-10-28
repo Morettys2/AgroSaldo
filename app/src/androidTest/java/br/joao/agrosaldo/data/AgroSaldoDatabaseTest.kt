@@ -73,7 +73,7 @@ class AgroSaldoDatabaseTest {
 
     /** Cria a conta "u1" com as duas propriedades e os nove lançamentos de exemplo. */
     private suspend fun semearExemplos() {
-        usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+        usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
         DadosDeExemplo.propriedades().forEach { propriedadeDao.salvar(it.paraEntidade(usuarioId = "u1", agora = 0L)) }
         DadosDeExemplo.lancamentos(hoje).forEach { lancamentoDao.salvar(it.paraEntidade(agora = 0L)) }
     }
@@ -86,7 +86,7 @@ class AgroSaldoDatabaseTest {
 
     @Test
     fun salvarEBuscarPropriedade() = runBlocking {
-        usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+        usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
         val fazenda = DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 1L)
         propriedadeDao.salvar(fazenda)
 
@@ -98,7 +98,7 @@ class AgroSaldoDatabaseTest {
     @Test
     fun listaDePropriedadesVemEmOrdemAlfabeticaDoPortugues() = runBlocking {
         semearExemplos()
-        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Limpa")
+        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Exemplo")
         propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1", agora = 0L))
         val repositorio =
             PropriedadeRepositoryRoom(
@@ -110,7 +110,7 @@ class AgroSaldoDatabaseTest {
             )
 
         val nomes = repositorio.observarTodas().first().map { it.nome }
-        assertEquals(listOf("Água Limpa", "Fazenda Santa Clara", "Sítio Boa Vista"), nomes)
+        assertEquals(listOf("Água Exemplo", "Fazenda Modelo", "Sítio Exemplo"), nomes)
     }
 
     /**
@@ -123,11 +123,11 @@ class AgroSaldoDatabaseTest {
         val antes = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
 
         val fazenda = checkNotNull(propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1"))
-        propriedadeDao.salvar(fazenda.copy(nome = "Fazenda Santa Clara (editada)"))
+        propriedadeDao.salvar(fazenda.copy(nome = "Fazenda Modelo (editada)"))
 
         val depois = lancamentoDao.observarDoUsuario("u1").first().count { it.propriedadeId == DadosDeExemplo.ID_FAZENDA }
         assertEquals(antes, depois)
-        assertEquals("Fazenda Santa Clara (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1")?.nome)
+        assertEquals("Fazenda Modelo (editada)", propriedadeDao.buscarPorId(DadosDeExemplo.ID_FAZENDA, "u1")?.nome)
     }
 
     @Test
@@ -188,7 +188,7 @@ class AgroSaldoDatabaseTest {
         Semeador.semear(executar = { sql, args -> sqlite.execSQL(sql, args) }, hoje = hoje)
 
         runBlocking {
-            usuarioDao.inserir(usuario("u1", "fabio@exemplo.com"))
+            usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
             assertEquals(2, usuarioDao.adotarPropriedadesSemDono("u1"))
             assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
             assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
@@ -197,8 +197,8 @@ class AgroSaldoDatabaseTest {
 
     @Test
     fun emailRepetidoNaoEntraEOIgnoreDevolveMenosUm() = runBlocking {
-        assertTrue(usuarioDao.inserir(usuario("u1", "fabio@exemplo.com")) != -1L)
-        assertEquals(-1L, usuarioDao.inserir(usuario("u2", "fabio@exemplo.com")))
+        assertTrue(usuarioDao.inserir(usuario("u1", "maria@exemplo.com")) != -1L)
+        assertEquals(-1L, usuarioDao.inserir(usuario("u2", "maria@exemplo.com")))
         assertNull(usuarioDao.buscarPorId("u2"))
     }
 
@@ -256,8 +256,8 @@ class AgroSaldoDatabaseTest {
     fun previsaoGuardadaSomeJuntoComAPropriedade() = runBlocking {
         semearExemplos()
         val previsaoDao = banco.previsaoDao()
-        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
-        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{\"nova\":1}", 2L))
+        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -23.8, -48.8, "{}", 1L))
+        previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -23.8, -48.8, "{\"nova\":1}", 2L))
 
         // Upsert: a segunda gravação substitui a primeira, sem duplicar a linha.
         assertEquals(2L, previsaoDao.buscar(DadosDeExemplo.ID_SITIO)?.obtidaEm)
@@ -279,7 +279,7 @@ class AgroSaldoDatabaseTest {
 
         assertFalse(previsaoDao.propriedadeExiste(DadosDeExemplo.ID_SITIO))
         try {
-            previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -21.8, -46.8, "{}", 1L))
+            previsaoDao.salvar(PrevisaoEntity(DadosDeExemplo.ID_SITIO, -23.8, -48.8, "{}", 1L))
             fail("A chave estrangeira deveria ter recusado a previsão")
         } catch (esperado: SQLiteConstraintException) {
             // RuntimeException: é o que ClimaRepositoryRoom.guardar trata.

@@ -375,9 +375,9 @@ private fun ContaPreview() {
         ContaScreen(
             uiState = ContaUiState(
                 carregando = false,
-                nome = "Fábio Moretti",
-                email = "fabio@exemplo.com",
-                iniciais = "FM",
+                nome = "Maria Souza",
+                email = "maria@exemplo.com",
+                iniciais = "MS",
                 consentimentoEm = "30/09/2026 às 19:40",
                 versaoTermo = 1,
                 quantidadePropriedades = 2,

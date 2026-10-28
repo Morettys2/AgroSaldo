@@ -10,7 +10,7 @@ A documentação técnica detalhada (pasta por pasta, arquivo por arquivo, bibli
 
 App Android nativo para o pequeno produtor rural controlar **receitas e despesas por propriedade** (sítio) e receber **aviso de chuva**, que recomenda adiar a irrigação do pivô.
 
-- Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: o pai do João, produtor de Itobi/SP, que já usa o APK.
+- Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: um produtor rural real (pai do João), que já usa o APK.
 - A professora cobra **MVVM** e **persistência local com Room**. Há um protótipo no Figma que o app precisa seguir.
 - O app é **100% local**: Room no celular, sem backend e sem sincronização. A única chamada de rede é a previsão da Open-Meteo.
 - Versão atual: `versionCode 6` / `versionName 1.5`.

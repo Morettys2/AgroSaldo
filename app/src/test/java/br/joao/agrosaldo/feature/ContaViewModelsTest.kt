@@ -85,14 +85,14 @@ class ContaViewModelsTest {
     ) = SessaoViewModel(conta, bloqueio, propriedades, relogio, selecao)
 
     private fun cadastroPreenchido() = CadastroViewModel(conta).apply {
-        aoMudarNome("Fábio Moretti")
-        aoMudarEmail("fabio@exemplo.com")
+        aoMudarNome("Maria Souza")
+        aoMudarEmail("maria@exemplo.com")
         aoMudarSenha("milho2026")
         aoMudarConfirmacao("milho2026")
     }
 
     private suspend fun contaCriadaESaiu() {
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
     }
 
@@ -184,7 +184,7 @@ class ContaViewModelsTest {
     fun `login errado mostra mensagem generica e limpa a senha`() = runTest {
         contaCriadaESaiu()
         val vm = LoginViewModel(conta)
-        vm.aoMudarEmail("fabio@exemplo.com")
+        vm.aoMudarEmail("maria@exemplo.com")
         vm.aoMudarSenha("errada123")
         vm.aoEntrar()
 
@@ -198,7 +198,7 @@ class ContaViewModelsTest {
     fun `login certo conecta`() = runTest {
         contaCriadaESaiu()
         val vm = LoginViewModel(conta)
-        vm.aoMudarEmail("  fabio@exemplo.com ")
+        vm.aoMudarEmail("  maria@exemplo.com ")
         vm.aoMudarSenha("milho2026")
         vm.aoEntrar()
 
@@ -218,7 +218,7 @@ class ContaViewModelsTest {
     fun `quinta tentativa errada avisa do bloqueio`() = runTest {
         contaCriadaESaiu()
         val vm = LoginViewModel(conta)
-        vm.aoMudarEmail("fabio@exemplo.com")
+        vm.aoMudarEmail("maria@exemplo.com")
         repeat(ContaService.MAXIMO_TENTATIVAS - 1) {
             vm.aoMudarSenha("errada123")
             vm.aoEntrar()
@@ -237,20 +237,20 @@ class ContaViewModelsTest {
 
     @Test
     fun `tela de conta mostra nome email iniciais e data do aceite`() = runTest {
-        conta.cadastrar("Fábio Pereira Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Lima Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val estado = contaViewModel().uiState.value
 
         assertFalse(estado.carregando)
-        assertEquals("Fábio Pereira Moretti", estado.nome)
-        assertEquals("fabio@exemplo.com", estado.email)
-        assertEquals("FM", estado.iniciais)
+        assertEquals("Maria Lima Souza", estado.nome)
+        assertEquals("maria@exemplo.com", estado.email)
+        assertEquals("MS", estado.iniciais)
         assertEquals("30/09/2026 às 22:40", estado.consentimentoEm)
         assertEquals("2 cadastradas", estado.resumoPropriedades)
     }
 
     @Test
     fun `sair pela tela de conta encerra a sessao`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = contaViewModel()
         vm.aoSair()
         assertNull(sessao.usuarioId.value)
@@ -258,7 +258,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `excluir com senha errada mostra erro e mantem a conta`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = contaViewModel()
 
         vm.aoExcluirConta("")
@@ -274,7 +274,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `RF16 - excluir com a senha certa apaga a conta e desconecta`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = contaViewModel()
         vm.aoExcluirConta("milho2026")
 
@@ -287,7 +287,7 @@ class ContaViewModelsTest {
         val vm = sessaoViewModel()
         assertFalse(vm.logado.value)
 
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         assertTrue(vm.logado.value)
 
         conta.sair()
@@ -296,7 +296,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `tela de conta liga e desliga o bloqueio`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = contaViewModel()
         assertFalse(vm.uiState.value.bloqueioAtivo)
 
@@ -319,7 +319,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `abrir o app com sessao gravada e bloqueio ligado pede a digital`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()
 
         assertTrue(vm.precisaDesbloquear.value)
@@ -329,7 +329,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `com o bloqueio desligado nunca trava`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio(ativo = false)
         vm.aoIrParaSegundoPlano()
         agora += 10 * 60_000L
@@ -343,7 +343,7 @@ class ContaViewModelsTest {
         val vm = sessaoComBloqueio()
         assertFalse(vm.precisaDesbloquear.value)
 
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        conta.entrar("maria@exemplo.com", "milho2026")
 
         assertTrue(vm.logado.value)
         assertFalse(vm.precisaDesbloquear.value)
@@ -351,7 +351,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `trava de novo depois de 2 minutos fora, nao antes`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()
         vm.aoDesbloquear()
 
@@ -368,7 +368,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `digitar o PIN numa tela do sistema nao trava de novo`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()
 
         // A tela de PIN do sistema põe o app em segundo plano; o desbloqueio chega antes
@@ -383,7 +383,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `ligar o bloqueio na tela de conta nao trava na cara da pessoa`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val bloqueioDoApp = BloqueioMemoria(false)
         val vm = sessaoViewModel(bloqueio = bloqueioDoApp, relogio = RelogioMonotonicoFalso { InstanteMonotonico(1, agora) })
 
@@ -395,7 +395,7 @@ class ContaViewModelsTest {
     @Test
     fun `quem acabou de criar a conta recebe a oferta do bloqueio`() = runTest {
         val vm = sessaoViewModel()
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         assertTrue(vm.oferecerBloqueio.value)
     }
 
@@ -403,7 +403,7 @@ class ContaViewModelsTest {
     fun `entrar com a senha nao oferece o bloqueio`() = runTest {
         contaCriadaESaiu()
         val vm = sessaoViewModel()
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        conta.entrar("maria@exemplo.com", "milho2026")
         assertFalse(vm.oferecerBloqueio.value)
     }
 
@@ -411,7 +411,7 @@ class ContaViewModelsTest {
     fun `agora nao dispensa a oferta sem ligar o bloqueio`() = runTest {
         val bloqueioDoApp = BloqueioMemoria(false)
         val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
 
         vm.aoDispensarOfertaDeBloqueio()
 
@@ -423,7 +423,7 @@ class ContaViewModelsTest {
     fun `ligar pela oferta liga o bloqueio sem travar na hora`() = runTest {
         val bloqueioDoApp = BloqueioMemoria(false)
         val vm = sessaoViewModel(bloqueio = bloqueioDoApp)
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
 
         vm.aoLigarBloqueioPelaOferta()
 
@@ -438,7 +438,7 @@ class ContaViewModelsTest {
     @Test
     fun `sem oferta com o bloqueio ja ligado ou depois de sair`() = runTest {
         val vm = sessaoViewModel(bloqueio = BloqueioMemoria(true))
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         assertFalse(vm.oferecerBloqueio.value)
 
         val outro = sessaoViewModel()
@@ -448,7 +448,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `usar a senha na tela de bloqueio sai da conta`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoComBloqueio()
 
         vm.aoUsarSenha()
@@ -458,7 +458,7 @@ class ContaViewModelsTest {
     }
 
     private suspend fun contaQueAceitouVersao1(): String {
-        val criada = conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        val criada = conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val id = (criada as ResultadoCadastro.Sucesso).usuario.id
         usuarios.registrarConsentimento(id, Instant.ofEpochMilli(1_000L), versao = 1)
         return id
@@ -466,7 +466,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `conta nova ja nasce com a versao atual e nao pede aceite`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoViewModel()
         assertEquals(false, vm.precisaNovoAceite.value)
     }
@@ -534,12 +534,12 @@ class ContaViewModelsTest {
     fun `entrar em outra conta volta a nao saber ate ler a conta nova`() = runTest {
         val demorados = UsuariosDemorados(usuarios).apply { liberado.value = true }
         val conta = contaSobre(demorados)
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
         val vm = sessaoViewModel(conta)
 
         demorados.liberado.value = false
-        conta.entrar("fabio@exemplo.com", "milho2026")
+        conta.entrar("maria@exemplo.com", "milho2026")
         assertNull(vm.precisaNovoAceite.value)
 
         demorados.liberado.value = true
@@ -554,7 +554,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `notificacao abre o clima com sessao e aceite em dia`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         assertTrue(sessaoViewModel().prepararAberturaDoClima(null))
     }
 
@@ -565,7 +565,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `notificacao seleciona a propriedade do aviso antes de abrir o clima`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoViewModel()
 
         assertTrue(vm.prepararAberturaDoClima(DadosDeExemplo.ID_SITIO))
@@ -574,7 +574,7 @@ class ContaViewModelsTest {
 
     @Test
     fun `pedido com propriedade que nao e do usuario e ignorado`() = runTest {
-        conta.cadastrar("Fábio", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         val vm = sessaoViewModel()
 
         // O repositório real só encontra propriedades do usuário conectado.
@@ -623,7 +623,7 @@ class ContaViewModelsTest {
     }
 
     private suspend fun alterarSenhaViewModel(): AlterarSenhaViewModel {
-        conta.cadastrar("Fábio Moretti", "fabio@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         return AlterarSenhaViewModel(conta)
     }
 
@@ -641,8 +641,8 @@ class ContaViewModelsTest {
     fun `nova senha com o proprio nome nao passa e o campo mostra o erro`() = runTest {
         val vm = alterarSenhaViewModel()
         vm.aoMudarSenhaAtual("milho2026")
-        vm.aoMudarNovaSenha("moretti2026")
-        vm.aoMudarConfirmacao("moretti2026")
+        vm.aoMudarNovaSenha("souza2026")
+        vm.aoMudarConfirmacao("souza2026")
         assertFalse(vm.uiState.value.requisitos.naoEhPrevisivel)
 
         vm.aoSalvar()
@@ -674,6 +674,6 @@ class ContaViewModelsTest {
         assertTrue(vm.uiState.value.concluido)
         assertEquals("", vm.uiState.value.novaSenha)
         conta.sair()
-        assertTrue(conta.entrar("fabio@exemplo.com", "colheita2026") is ResultadoLogin.Sucesso)
+        assertTrue(conta.entrar("maria@exemplo.com", "colheita2026") is ResultadoLogin.Sucesso)
     }
 }

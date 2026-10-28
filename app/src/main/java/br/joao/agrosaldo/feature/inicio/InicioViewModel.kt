@@ -52,7 +52,7 @@ data class InicioUiState(
     val ultimosLancamentos: List<Lancamento> = emptyList(),
     /** Nulo enquanto não há previsão em cache para a propriedade. */
     val chuva: CartaoChuvaUi? = null,
-    /** Iniciais do usuário para o botão da conta (ex.: "FM"); vazio se o nome não estiver disponível. */
+    /** Iniciais do usuário para o botão da conta (ex.: "MS"); vazio se o nome não estiver disponível. */
     val iniciais: String = "",
     /** Referência para os rótulos relativos de data. */
     val hoje: LocalDate = LocalDate.now(),

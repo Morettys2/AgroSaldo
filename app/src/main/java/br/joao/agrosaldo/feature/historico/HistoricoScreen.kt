@@ -461,7 +461,7 @@ private fun HistoricoPreview() {
             uiState = HistoricoUiState(
                 carregando = false,
                 temPropriedade = true,
-                nomePropriedade = "Fazenda Santa Clara",
+                nomePropriedade = "Fazenda Modelo",
                 ano = ano,
                 meses = meses,
                 receitasCentavos = receitas.sum(),

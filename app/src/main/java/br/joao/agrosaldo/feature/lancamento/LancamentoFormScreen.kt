@@ -347,8 +347,8 @@ private val ALTURA_PARA_TECLADO_FIXO = 760.dp
 // ---------- prévias ----------
 
 private val SITIOS_DE_EXEMPLO = listOf(
-    Propriedade(id = "p1", nome = "Fazenda Santa Clara", cultura = "Milho", areaHectares = 50.0, latitude = -21.7, longitude = -46.9),
-    Propriedade(id = "p2", nome = "Sítio Boa Vista", cultura = "Café", areaHectares = 12.0, latitude = -21.7, longitude = -46.9)
+    Propriedade(id = "p1", nome = "Fazenda Modelo", cultura = "Milho", areaHectares = 50.0, latitude = -23.7, longitude = -48.9),
+    Propriedade(id = "p2", nome = "Sítio Exemplo", cultura = "Café", areaHectares = 12.0, latitude = -23.7, longitude = -48.9)
 )
 
 @Composable

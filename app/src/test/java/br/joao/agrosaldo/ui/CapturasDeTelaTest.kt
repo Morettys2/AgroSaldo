@@ -180,7 +180,7 @@ class CapturasDeTelaTest {
         val estado = ClimaUiState(
             carregando = false,
             temPropriedade = true,
-            nomePropriedade = "Fazenda Santa Clara",
+            nomePropriedade = "Fazenda Modelo",
             temPrevisao = true,
             temperaturaAtual = "26°",
             condicaoAtual = CondicaoTempo.NUBLADO,

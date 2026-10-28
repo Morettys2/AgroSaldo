@@ -2323,7 +2323,7 @@ Usa `java.time`, que dispensa *desugaring* porque o `minSdk` é 26.
 
 #### `core/util/Numeros.kt`
 
-`Double.numeroBr(agrupar)` formata números em pt-BR sem notação científica e sem ",0" sobrando ("12,5", "-21,7333", "18"), com até 8 casas decimais. Com `agrupar = true` usa separador de milhar ("12.000"), o que o KDoc recomenda evitar em campos editáveis. Como `DecimalFormat` não é *thread-safe*, cada chamada cria uma instância nova.
+`Double.numeroBr(agrupar)` formata números em pt-BR sem notação científica e sem ",0" sobrando ("12,5", "-23,5", "18"), com até 8 casas decimais. Com `agrupar = true` usa separador de milhar ("12.000"), o que o KDoc recomenda evitar em campos editáveis. Como `DecimalFormat` não é *thread-safe*, cada chamada cria uma instância nova.
 
 #### `core/util/FormatoClima.kt`
 
@@ -3872,7 +3872,7 @@ Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `dom
 
 | Arquivo / classe | O que simula |
 |---|---|
-| `data/DadosDeExemplo.kt` (`DadosDeExemplo`) | Massa fixa de dados fictícios: 2 propriedades ("Fazenda Santa Clara" e "Sítio Boa Vista") e 9 lançamentos no mês de "hoje" e no anterior, sem datas futuras |
+| `data/DadosDeExemplo.kt` (`DadosDeExemplo`) | Massa fixa de dados fictícios: 2 propriedades ("Fazenda Modelo" e "Sítio Exemplo") e 9 lançamentos no mês de "hoje" e no anterior, sem datas futuras |
 | `data/local/Semeador.kt` (`Semeador`) | Gera os `INSERT` dos dados de exemplo (propriedades antes dos lançamentos, por causa da chave estrangeira, e sem dono). Recebe uma função `executar` em vez do banco, para servir tanto no SQLite real quanto na JVM |
 | `data/repository/PropriedadeRepositoryMemoria.kt` | `PropriedadeRepository` sem filtro por usuário; se receber o repositório de lançamentos, simula o CASCADE ao excluir e o desfazer |
 | `data/repository/LancamentoRepositoryMemoria.kt` | `LancamentoRepository` em memória (upsert por id, exclusão) |

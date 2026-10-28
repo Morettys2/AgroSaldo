@@ -89,7 +89,7 @@ object RegrasDeConta {
         return maior
     }
 
-    /** Iniciais do primeiro e último nome ("Fábio Moretti" -> "FM"); "?" se vazio. */
+    /** Iniciais do primeiro e último nome ("Maria Souza" -> "MS"); "?" se vazio. */
     fun iniciais(nome: String): String {
         val partes = nome.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         return when {

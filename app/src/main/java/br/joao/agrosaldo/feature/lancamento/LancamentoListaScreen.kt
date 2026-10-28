@@ -248,11 +248,11 @@ private fun ItemDoCartao(posicao: Int, total: Int, conteudo: @Composable () -> U
 // ---------- prévias ----------
 
 private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
-    nome = "Fazenda Santa Clara",
+    nome = "Fazenda Modelo",
     cultura = "Milho",
     areaHectares = 50.0,
-    latitude = -21.7333,
-    longitude = -46.9667
+    latitude = -23.5,
+    longitude = -48.5
 )
 
 private fun estadoDeExemplo(): LancamentoListaUiState {
@@ -332,7 +332,7 @@ private fun LancamentoListaVazioPreview() {
         ListaDeExemplo(
             LancamentoListaUiState(
                 carregando = false,
-                nomePropriedade = "Sítio Boa Vista",
+                nomePropriedade = "Sítio Exemplo",
                 temPropriedade = true,
                 meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), LocalDate.now())
             )

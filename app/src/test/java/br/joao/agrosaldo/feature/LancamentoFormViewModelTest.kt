@@ -135,7 +135,7 @@ class LancamentoFormViewModelTest {
             )
 
         assertEquals("31/02/2026", vm.uiState.value.rotuloData)
-        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda Santa Clara", vm.uiState.value.resumo)
+        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda Modelo", vm.uiState.value.resumo)
 
         vm.aoTeclar("1000")
         vm.aoSalvar()
@@ -382,7 +382,7 @@ class LancamentoFormViewModelTest {
         selecao.selecionar("propriedade-apagada")
         val estado = novo().uiState.value
         assertEquals(DadosDeExemplo.ID_FAZENDA, estado.propriedadeId)
-        assertEquals("Fazenda Santa Clara", estado.nomePropriedadeSelecionada)
+        assertEquals("Fazenda Modelo", estado.nomePropriedadeSelecionada)
     }
 
     @Test
@@ -510,7 +510,7 @@ class LancamentoFormViewModelTest {
     fun `linha de resumo junta categoria, dia e sitio`() {
         val vm = novo()
         vm.aoMudarCategoria(CategoriaLancamento.COMBUSTIVEL)
-        assertEquals("Combustível · Hoje · Fazenda Santa Clara", vm.uiState.value.resumo)
+        assertEquals("Combustível · Hoje · Fazenda Modelo", vm.uiState.value.resumo)
     }
 
     /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
