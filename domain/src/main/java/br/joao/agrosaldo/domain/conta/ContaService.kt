@@ -64,7 +64,8 @@ sealed interface ResultadoAlteracaoSenha {
  * @param aoTrocarDeUsuario chamado antes de iniciar ou encerrar uma sessão,
  *   para limpar estado ligado ao usuário anterior (ex.: propriedade selecionada).
  * @param aoExcluirConta chamado com o id da conta logo depois de apagá-la do banco e antes
- *   de encerrar a sessão, para apagar o que o app guarda dela fora do banco.
+ *   de encerrar a sessão, para apagar o que o app guarda dela fora do banco. `ultimaConta` diz
+ *   se não sobrou nenhuma conta no aparelho: só então os ajustes do aparelho voltam ao padrão.
  */
 class ContaService(
     private val usuarios: UsuarioRepository,
@@ -75,7 +76,7 @@ class ContaService(
     private val relogioMonotonico: RelogioMonotonico,
     private val despachantes: Despachantes,
     private val aoTrocarDeUsuario: () -> Unit = {},
-    private val aoExcluirConta: suspend (usuarioId: String) -> Unit = {}
+    private val aoExcluirConta: suspend (usuarioId: String, ultimaConta: Boolean) -> Unit = { _, _ -> }
 ) {
 
     val usuarioLogadoId: StateFlow<String?> = sessao.usuarioId
@@ -244,7 +245,7 @@ class ContaService(
 
         usuarios.excluir(usuario.id)
         try {
-            aoExcluirConta(usuario.id)
+            aoExcluirConta(usuario.id, usuarios.contar() == 0)
         } finally {
             // A conta já não existe: a sessão não pode continuar apontando para ela.
             sair()
@@ -284,16 +285,20 @@ class ContaService(
             tentativas.gravar(chave, EstadoTentativas(falhasSeguidas = falhas))
             return null
         }
-        val dobras = (falhas - MAXIMO_TENTATIVAS).coerceAtMost(MAXIMO_DOBRAS)
-        val duracao = (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
+        val duracao = duracaoDoBloqueio(falhas)
         bloquear(chave, falhas, duracao)
         return duracao / MS_POR_SEGUNDO
     }
 
+    /** [BLOQUEIO_MS] na falha de número [MAXIMO_TENTATIVAS], dobrando a cada falha seguinte até [BLOQUEIO_MAXIMO_MS]. */
+    private fun duracaoDoBloqueio(falhas: Int): Long {
+        val dobras = (falhas - MAXIMO_TENTATIVAS).coerceIn(0, MAXIMO_DOBRAS)
+        return (BLOQUEIO_MS shl dobras).coerceAtMost(BLOQUEIO_MAXIMO_MS)
+    }
+
     /**
-     * Grava o fim do bloqueio nos dois relógios: o monotônico decide enquanto o
-     * aparelho não reinicia (alterar data/hora não tem efeito); o de parede é a
-     * reserva depois de um reinício.
+     * Grava o fim do bloqueio nos dois relógios: o monotônico decide (alterar data/hora não tem
+     * efeito); o de parede só vale quando o aparelho não informa o boot.
      */
     private fun bloquear(chave: String, falhas: Int, duracao: Long) {
         tentativas.gravar(
@@ -306,15 +311,22 @@ class ContaService(
         )
     }
 
-    /** Segundos restantes de bloqueio (arredondados para cima), ou null se liberado. */
+    /**
+     * Segundos restantes de bloqueio (arredondados para cima), ou null se liberado.
+     *
+     * Se o aparelho reiniciou desde o bloqueio, o relógio monotônico gravado não vale mais e o de
+     * parede pode ter sido adiantado. A espera então recomeça inteira no boot novo: reiniciar e mexer
+     * na hora nunca encurta o bloqueio. O preço é que quem errou a senha, não acertou depois e
+     * reiniciou o celular espera de novo uma vez.
+     */
     private fun segundosDeBloqueio(chave: String): Long? {
         val estado = tentativas.ler(chave)
         val fimMonotonico = estado.fimMonotonico
         val agoraMonotonico = relogioMonotonico.instante()
-        val restante = if (fimMonotonico != null && agoraMonotonico?.boot == fimMonotonico.boot) {
-            fimMonotonico.desdeOBootMs - agoraMonotonico.desdeOBootMs
-        } else {
-            estado.bloqueadoAte - relogio.millis()
+        val restante = when {
+            fimMonotonico == null || agoraMonotonico == null -> estado.bloqueadoAte - relogio.millis()
+            agoraMonotonico.boot == fimMonotonico.boot -> fimMonotonico.desdeOBootMs - agoraMonotonico.desdeOBootMs
+            else -> return recomecarDepoisDoReinicio(chave, estado.falhasSeguidas)
         }
         if (restante <= 0L) return null
 
@@ -325,6 +337,13 @@ class ContaService(
             return BLOQUEIO_MAXIMO_MS / MS_POR_SEGUNDO
         }
         return (restante + MS_POR_SEGUNDO - 1) / MS_POR_SEGUNDO
+    }
+
+    /** Bloqueia de novo, pela duração inteira, a partir do boot atual; devolve os segundos de espera. */
+    private fun recomecarDepoisDoReinicio(chave: String, falhas: Int): Long {
+        val duracao = duracaoDoBloqueio(falhas)
+        bloquear(chave, falhas, duracao)
+        return duracao / MS_POR_SEGUNDO
     }
 
     /** Resumo SHA-256 do e-mail normalizado: o contador fica por conta sem guardar o e-mail em claro. */

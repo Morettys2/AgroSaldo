@@ -42,6 +42,10 @@ interface UsuarioDao {
     @Query("DELETE FROM usuarios WHERE id = :id")
     suspend fun excluir(id: String)
 
+    /** Quantas contas existem no aparelho (decide se a exclusão volta os ajustes do aparelho ao padrão). */
+    @Query("SELECT COUNT(*) FROM usuarios")
+    suspend fun contar(): Int
+
     /** Atribui a [usuarioId] as propriedades sem dono (`usuario_id IS NULL`); devolve quantas linhas mudaram. */
     @Query("UPDATE propriedades SET usuario_id = :usuarioId WHERE usuario_id IS NULL")
     suspend fun adotarPropriedadesSemDono(usuarioId: String): Int

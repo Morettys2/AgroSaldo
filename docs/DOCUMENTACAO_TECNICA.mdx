@@ -730,12 +730,12 @@ Regras e decisões visíveis no código:
 
 - **Bloqueio por tentativas**: depois de `MAXIMO_TENTATIVAS = 5` falhas seguidas, bloqueia por `BLOQUEIO_MS = 30 s`. O tempo dobra a cada falha extra, até `BLOQUEIO_MAXIMO_MS = 15 min` (no máximo 5 dobras).
 - O contador é **um por e-mail**, e é o mesmo para login, troca de senha e exclusão, para nenhum desses fluxos virar atalho para força bruta. A chave é o **SHA-256 do e-mail normalizado**, então o e-mail não fica gravado em claro. De propósito, não há contador global: com ele, quem pegasse o celular conseguiria bloquear todas as contas.
-- **Dois relógios no bloqueio**: o fim do bloqueio é gravado no relógio de parede (`bloqueadoAte`) e no monotônico (`fimMonotonico`). Enquanto o aparelho não reinicia, vale o monotônico, então mudar a data/hora não adianta. Depois de um reinício, vale o de parede. Se o tempo restante passar do máximo (relógio de parede alterado), o bloqueio é reancorado no máximo.
+- **Dois relógios no bloqueio**: o fim do bloqueio é gravado no relógio de parede (`bloqueadoAte`) e no monotônico (`fimMonotonico`). Enquanto o aparelho não reinicia, vale o monotônico, então mudar a data/hora não adianta. Depois de um reinício, a espera recomeça inteira no boot novo (`recomecarDepoisDoReinicio`), porque o relógio de parede pode ter sido adiantado: reiniciar nunca encurta o bloqueio. O relógio de parede só decide quando o sistema não informa o boot; se o tempo restante passar do máximo (relógio alterado), o bloqueio é reancorado no máximo.
 - **Proteção contra enumeração por tempo de resposta**: quando o e-mail não existe, a senha é conferida contra um `hashFicticio`. Assim a resposta demora o mesmo que uma senha errada, e o login responde igual nos dois casos.
 - **Rehash transparente**: no login, se `hash.precisaAtualizar(...)` indicar menos iterações que o padrão atual, o hash é recalculado e salvo.
 - O PBKDF2 consome bastante CPU (centenas de ms), então roda sempre em `despachantes.calculo` (`Dispatchers.Default` em produção), nunca na main thread.
 - Corrida no cadastro: se dois cadastros com o mesmo e-mail passam juntos pela checagem, o índice único do e-mail barra o segundo, e `criar` devolve `false`.
-- Os callbacks `aoTrocarDeUsuario` e `aoExcluirConta` deixam o serviço limpar estado externo (seleção, notificações, preferências) sem conhecer o Android.
+- Os callbacks `aoTrocarDeUsuario` e `aoExcluirConta` deixam o serviço limpar estado externo (seleção, notificações, preferências) sem conhecer o Android. O `aoExcluirConta` recebe também `ultimaConta`, que diz se sobrou alguma conta no aparelho (`UsuarioRepository.contar()`).
 - `emailEmUso` revela de propósito se o e-mail já existe e não passa pelo limite de tentativas. O comentário explica o motivo: as contas são locais, o cadastro precisa dessa informação, e a proteção contra adivinhação de senha fica no login.
 
 #### HashDeSenha.kt
@@ -1259,7 +1259,7 @@ As classes do domínio e da camada de dados **não têm anotação do Hilt**: qu
 Antes, o container tinha lógica de negócio dentro. Agora a classe `LimpezaDaConta` cuida do que o app limpa fora do domínio, e o `ContaService` a chama nos momentos certos:
 
 - `limparEstadoDaContaAnterior()`: limpa a seleção, descarta o desfazer pendente e cancela todas as notificações (que contêm nomes de propriedades).
-- `apagarRastrosDaConta(usuarioId)`: volta a privacidade e o bloqueio ao padrão, apaga os ajustes de aviso da conta, avisa o `BackupManager` (`dataChanged()`) e roda o `VACUUM` e o `wal_checkpoint(TRUNCATE)` em `Despachantes.io` para tirar do arquivo as páginas que ainda guardam os registros apagados. Se faltar espaço (`SQLiteException`), o erro é ignorado de propósito.
+- `apagarRastrosDaConta(usuarioId, ultimaConta)`: só com `ultimaConta` volta a privacidade e o bloqueio ao padrão (são ajustes do aparelho: com outra conta no celular, excluir uma conta qualquer desligaria a proteção de quem continua usando, sem pedir a digital); apaga os ajustes de aviso da conta, avisa o `BackupManager` (`dataChanged()`) e roda o `VACUUM` e o `wal_checkpoint(TRUNCATE)` em `Despachantes.io` para tirar do arquivo as páginas que ainda guardam os registros apagados. Se faltar espaço (`SQLiteException`), o erro é ignorado de propósito.
 
 #### Tempo, threads e usuário conectado
 
@@ -3763,8 +3763,10 @@ data class CoresCategorias(
 - `.gitignore` precisa ter `*.jks`, `*.keystore`, `/app/release/`, `*.apk`, `*.aab`, `local.properties`.
 - **Dados pessoais reais do produtor não entram em código, testes nem docs**: nada de CNPJ, endereço, telefone, e-mail, nome ou coordenadas da fazenda. Use dados fictícios.
 - Senha: PBKDF2 (`domain/conta/HashDeSenha.kt`). Não enfraqueça.
-- Bloqueio por senhas erradas usa relógio monotônico (`InstanteMonotonico`, imune a mudar a hora do celular) e contador por e-mail que sobrevive a reiniciar o app.
-- `FLAG_SECURE` na Activity (sem miniatura em Recentes com valores) e backup criptografado/limitado. Não remova.
+- Bloqueio por senhas erradas usa relógio monotônico (`InstanteMonotonico`, imune a mudar a hora do celular) e contador por e-mail que sobrevive a reiniciar o app. Depois de reiniciar o aparelho, a espera recomeça inteira no boot novo: reiniciar e mexer na hora nunca a encurtam. Só sem o `BOOT_COUNT` do sistema o bloqueio cai para o relógio de parede.
+- `FLAG_SECURE` na Activity **só com o bloqueio por digital ligado** (sem captura de tela nem miniatura em Recentes com valores). Com o bloqueio desligado, a captura é permitida: decisão de produto de out/2026. Não remova.
+- O bloqueio por digital e os valores ocultos são ajustes **do aparelho**. Desligar o bloqueio pede a digital; excluir uma conta só volta esses ajustes ao padrão quando não sobra nenhuma conta.
+- Backup criptografado/limitado. Não remova.
 - Nada de `Log`/`println` com dado pessoal ou financeiro.
 - Open-Meteo: o plano grátis é só para uso **não comercial**, e os dados são CC BY 4.0 (crédito com link na tela de Clima). Se o app ganhar anúncio ou cobrança, precisa do plano pago.
 

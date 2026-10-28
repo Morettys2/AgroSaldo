@@ -35,4 +35,6 @@ class UsuarioRepositoryRoom(private val dao: UsuarioDao, private val transacao: 
         dao.registrarConsentimento(id, em.toEpochMilli(), versao)
 
     override suspend fun excluir(id: String) = dao.excluir(id)
+
+    override suspend fun contar(): Int = dao.contar()
 }

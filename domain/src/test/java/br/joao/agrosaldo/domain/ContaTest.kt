@@ -330,7 +330,7 @@ class ContaTest {
     }
 
     @Test
-    fun `depois de reiniciar o celular o bloqueio segue pelo relogio do sistema`() = runTest {
+    fun `depois de reiniciar o celular a espera recomeca inteira e nunca encurta`() = runTest {
         val conta = contaComRelogioMonotonico()
         conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
         conta.sair()
@@ -341,9 +341,54 @@ class ContaTest {
         desdeOBoot = 0L
         agora += 10_000
 
-        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 20), conta.entrar("maria@exemplo.com", "milho2026"))
-        agora += 20_000
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("maria@exemplo.com", "milho2026"))
+        desdeOBoot += 30_000
         assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+    }
+
+    @Test
+    fun `reiniciar o celular e adiantar a hora nao encerra o bloqueio`() = runTest {
+        val conta = contaComRelogioMonotonico()
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
+        conta.sair()
+        repeat(ContaService.MAXIMO_TENTATIVAS) { conta.entrar("maria@exemplo.com", "errada123") }
+
+        boot += 1
+        desdeOBoot = 0L
+        agora += 24 * 60 * 60 * 1000L
+
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("maria@exemplo.com", "milho2026"))
+        // Reiniciar de novo também não encurta: a espera recomeça no boot novo.
+        boot += 1
+        desdeOBoot = 0L
+        assertEquals(ResultadoLogin.Bloqueado(segundosRestantes = 30), conta.entrar("maria@exemplo.com", "milho2026"))
+        desdeOBoot += 30_000
+        assertTrue(conta.entrar("maria@exemplo.com", "milho2026") is ResultadoLogin.Sucesso)
+    }
+
+    @Test
+    fun `excluir uma de duas contas avisa que ainda restam contas no aparelho`() = runTest {
+        val ultimas = mutableListOf<Boolean>()
+        val conta = ContaService(
+            usuarios = usuarios,
+            sessao = sessao,
+            tentativas = tentativas,
+            hash = hashRapido,
+            relogio = relogioPorMs { agora },
+            relogioMonotonico = RelogioMonotonicoIndisponivel,
+            despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
+            aoExcluirConta = { _, ultimaConta -> ultimas += ultimaConta }
+        )
+        conta.cadastrar("José Lima", "jose@exemplo.com", "trigo2026", aceitouTermo = true)
+        conta.sair()
+        conta.cadastrar("Maria Souza", "maria@exemplo.com", "milho2026", aceitouTermo = true)
+
+        conta.excluirConta("milho2026")
+        assertEquals("ainda resta a conta do José", listOf(false), ultimas)
+
+        conta.entrar("jose@exemplo.com", "trigo2026")
+        conta.excluirConta("trigo2026")
+        assertEquals("a última conta saiu", listOf(false, true), ultimas)
     }
 
     @Test
@@ -595,7 +640,7 @@ class ContaTest {
         relogio = relogioPorMs { agora },
         relogioMonotonico = RelogioMonotonicoIndisponivel,
         despachantes = DespachantesDeTeste(Dispatchers.Unconfined),
-        aoExcluirConta = aoExcluirConta
+        aoExcluirConta = { usuarioId, _ -> aoExcluirConta(usuarioId) }
     )
 
     @Test

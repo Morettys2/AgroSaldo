@@ -208,6 +208,7 @@ class CamadaDeDadosTest {
             lista.map { if (it.id == id) it.copy(consentimentoEm = em, versaoTermo = versao) else it }
         }
         override suspend fun excluir(id: String) = tabela.update { it.filterNot { u -> u.id == id } }
+        override suspend fun contar() = tabela.value.size
         override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int {
             val orfas = propriedades.tabela.value.count { it.usuarioId == null }
             propriedades.tabela.update { lista ->

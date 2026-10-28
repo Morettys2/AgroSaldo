@@ -120,8 +120,10 @@ config/detekt/         detekt.yml
 - `.gitignore` precisa ter `*.jks`, `*.keystore`, `/app/release/`, `*.apk`, `*.aab`, `local.properties`.
 - **Dados pessoais reais do produtor não entram em código, testes nem docs**: nada de CNPJ, endereço, telefone, e-mail, nome ou coordenadas da fazenda. Use dados fictícios.
 - Senha: PBKDF2 (`domain/conta/HashDeSenha.kt`). Não enfraqueça.
-- Bloqueio por senhas erradas usa relógio monotônico (`InstanteMonotonico`, imune a mudar a hora do celular) e contador por e-mail que sobrevive a reiniciar o app.
-- `FLAG_SECURE` na Activity (sem miniatura em Recentes com valores) e backup criptografado/limitado. Não remova.
+- Bloqueio por senhas erradas usa relógio monotônico (`InstanteMonotonico`, imune a mudar a hora do celular) e contador por e-mail que sobrevive a reiniciar o app. Depois de reiniciar o aparelho, a espera recomeça inteira no boot novo: reiniciar e mexer na hora nunca a encurtam. Só sem o `BOOT_COUNT` do sistema o bloqueio cai para o relógio de parede.
+- `FLAG_SECURE` na Activity **só com o bloqueio por digital ligado** (sem captura de tela nem miniatura em Recentes com valores). Com o bloqueio desligado, a captura é permitida: decisão de produto de out/2026. Não remova.
+- O bloqueio por digital e os valores ocultos são ajustes **do aparelho**. Desligar o bloqueio pede a digital; excluir uma conta só volta esses ajustes ao padrão quando não sobra nenhuma conta.
+- Backup criptografado/limitado. Não remova.
 - Nada de `Log`/`println` com dado pessoal ou financeiro.
 - Open-Meteo: o plano grátis é só para uso **não comercial**, e os dados são CC BY 4.0 (crédito com link na tela de Clima). Se o app ganhar anúncio ou cobrança, precisa do plano pago.
 

@@ -40,4 +40,6 @@ class UsuarioRepositoryMemoria(iniciais: List<Usuario> = emptyList()) : UsuarioR
     override suspend fun excluir(id: String) {
         usuariosGuardados.update { lista -> lista.filterNot { it.id == id } }
     }
+
+    override suspend fun contar(): Int = usuariosGuardados.value.size
 }
