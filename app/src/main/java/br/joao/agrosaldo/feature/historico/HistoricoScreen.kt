@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +60,7 @@ import br.joao.agrosaldo.domain.financeiro.MesDoAno
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.YearMonth
 
@@ -343,7 +343,7 @@ private fun Destaque(titulo: String, mes: MesDoAno, modifier: Modifier = Modifie
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.padding(Espacos.medio), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(mes.mes.nomeDoMes(), style = MaterialTheme.typography.titleMedium)
             Text(
@@ -364,7 +364,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
             gastos.forEach { gasto ->
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -447,8 +447,7 @@ private fun Secao(titulo: String) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 1400)
+@PreviasDaTela
 @Composable
 private fun HistoricoPreview() {
     val ano = 2026

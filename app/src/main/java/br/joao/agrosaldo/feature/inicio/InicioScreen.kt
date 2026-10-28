@@ -55,6 +55,7 @@ import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 import java.time.YearMonth
@@ -410,8 +411,7 @@ private fun InicioDeExemplo(uiState: InicioUiState) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2200, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 1100)
+@PreviasDaTela
 @Composable
 private fun InicioPreview() {
     AgroSaldoTheme { InicioDeExemplo(ESTADO_DE_EXEMPLO) }

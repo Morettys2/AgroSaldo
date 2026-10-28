@@ -21,8 +21,8 @@ style:
     ignoreAnnotated: ['Composable', 'Preview']
     excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**', '**/testFixtures/**', '**/ui/theme/**']
   UnusedPrivateMember:
-    # Os @Preview são privados e só o Android Studio os chama.
-    ignoreAnnotated: ['Preview']
+    # Os @Preview (e a multiprévia @PreviasDaTela) são privados e só o Android Studio os chama.
+    ignoreAnnotated: ['Preview', 'PreviasDaTela']
   MaxLineLength:
     maxLineLength: 140
   ReturnCount:

@@ -48,7 +48,7 @@ internal fun CartaoRecomendacao(uiState: ClimaUiState, modifier: Modifier = Modi
     ) {
         Row(
             modifier = Modifier.padding(Espacos.largo),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(Espacos.medio)
         ) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -84,7 +84,12 @@ internal fun CartaoDias(dias: List<DiaUi>, modifier: Modifier = Modifier) {
     CartaoSafra(modifier = modifier, preenchimento = 0.dp) {
         TituloDeCartao(
             titulo = "Próximos 7 dias",
-            modifier = Modifier.padding(start = Espacos.margemDaTela, end = Espacos.margemDaTela, top = 18.dp, bottom = Espacos.minimo)
+            modifier = Modifier.padding(
+                start = Espacos.margemDaTela,
+                end = Espacos.margemDaTela,
+                top = Espacos.padrao,
+                bottom = Espacos.minimo
+            )
         )
         Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = Espacos.pequeno)) {
             dias.forEachIndexed { indice, dia ->

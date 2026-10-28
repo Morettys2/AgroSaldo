@@ -19,6 +19,9 @@ ktlint_function_naming_ignore_when_annotated_with = Composable
 ktlint_ignore_back_ticked_identifier = true
 # Regras de Compose (io.nlopez.compose.rules): CompositionLocals que o app usa de propósito.
 compose_allowed_composition_locals = LocalValoresOcultos,LocalCoresAgro,LocalCoresCategorias
+# A multiprévia das telas segue a convenção em português do projeto (@PreviasDaTela, em ui/theme),
+# e não o prefixo "Preview" que esta regra exige.
+ktlint_compose_preview-annotation-naming = disabled
 
 [*.{yml,yaml}]
 indent_size = 2

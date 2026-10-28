@@ -29,6 +29,9 @@ object Espacos {
     /** 24 dp: separação entre seções. */
     val grande = 24.dp
 
+    /** 28 dp: respiro do topo das telas de entrada e da base do cabeçalho do lançamento. */
+    val amplo = 28.dp
+
     /** 32 dp: respiro grande (antes do rodapé, estados vazios). */
     val enorme = 32.dp
 

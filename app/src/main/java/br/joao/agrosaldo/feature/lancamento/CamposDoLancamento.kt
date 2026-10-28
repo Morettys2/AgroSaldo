@@ -152,7 +152,7 @@ internal fun CampoDeEscolha(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = Espacos.medio, vertical = 10.dp)
         ) {
             Icon(icone, contentDescription = null, modifier = Modifier.size(20.dp))
             Column {

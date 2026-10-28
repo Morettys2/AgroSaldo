@@ -51,6 +51,7 @@ import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 @Composable
@@ -312,8 +313,7 @@ private fun BotaoSinal(campo: String, aoClicar: () -> Unit) {
     }
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1700, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 850)
+@PreviasDaTela
 @Composable
 private fun PropriedadeFormNovaPreview() {
     AgroSaldoTheme {

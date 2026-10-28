@@ -50,6 +50,7 @@ import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 /** Previsão do tempo e recomendação de irrigação da propriedade selecionada. */
@@ -267,7 +268,7 @@ private fun Cabecalho(
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.agro.cabecalhoElevado)
-                    .padding(horizontal = Espacos.padrao, vertical = 14.dp)
+                    .padding(horizontal = Espacos.padrao, vertical = Espacos.medio)
                     .semantics(mergeDescendants = true) {}
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -329,8 +330,7 @@ private val ESTADO_EXEMPLO = ClimaUiState(
     atualizadaEm = "Atualizada às 14:05"
 )
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2200, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 1100)
+@PreviasDaTela
 @Composable
 private fun ClimaPreview() {
     AgroSaldoTheme {

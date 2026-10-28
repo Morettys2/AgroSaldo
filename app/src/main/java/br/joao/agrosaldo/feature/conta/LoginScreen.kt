@@ -37,6 +37,7 @@ import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 /**
  * Rota de login. Não há callback de sucesso: a AppNavegacao observa a
@@ -74,7 +75,7 @@ fun LoginScreen(
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Espacos.margemDaTela)
-            .padding(top = 40.dp, bottom = Espacos.enorme),
+            .padding(top = Espacos.enorme + Espacos.pequeno, bottom = Espacos.enorme),
         verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         Surface(
@@ -168,8 +169,7 @@ fun LoginScreen(
     }
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1600, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 800)
+@PreviasDaTela
 @Composable
 private fun LoginPreview() {
     AgroSaldoTheme {

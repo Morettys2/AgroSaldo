@@ -43,6 +43,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -198,7 +199,12 @@ private fun LazyListScope.itensDaLista(grupos: List<GrupoDoDia>, aoEditarLancame
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .padding(start = 20.dp, end = 20.dp, top = if (indiceDoGrupo == 0) 16.dp else 12.dp, bottom = 2.dp)
+                        .padding(
+                            start = Espacos.margemDaTela,
+                            end = Espacos.margemDaTela,
+                            top = if (indiceDoGrupo == 0) Espacos.padrao else Espacos.medio,
+                            bottom = 2.dp
+                        )
                         .semantics { heading() }
                 )
             }
@@ -213,10 +219,10 @@ private fun LazyListScope.itensDaLista(grupos: List<GrupoDoDia>, aoEditarLancame
                         apoio = lancamento.descricao,
                         aoClicar = { aoEditarLancamento(lancamento.id) },
                         margem = PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
+                            start = Espacos.margemDaTela,
+                            end = Espacos.margemDaTela,
                             top = 10.dp,
-                            bottom = if (posicaoDaLinha == total - 1) 16.dp else 10.dp
+                            bottom = if (posicaoDaLinha == total - 1) Espacos.padrao else 10.dp
                         )
                     )
                 }
@@ -316,8 +322,7 @@ private fun ListaDeExemplo(uiState: LancamentoListaUiState) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun LancamentoListaPreview() {
     AgroSaldoTheme { ListaDeExemplo(estadoDeExemplo()) }

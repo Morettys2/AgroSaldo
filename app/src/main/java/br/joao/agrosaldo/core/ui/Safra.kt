@@ -104,7 +104,7 @@ fun CartaoNoCabecalho(rotulo: String, valor: String, corDoValor: Color, modifier
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.agro.cabecalhoElevado)
-            .padding(horizontal = 14.dp, vertical = Espacos.medio)
+            .padding(horizontal = Espacos.medio, vertical = Espacos.medio)
             .semantics(mergeDescendants = true) {}
     ) {
         Text(rotulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.agro.sobreCabecalhoSecundario)
@@ -180,7 +180,7 @@ fun TituloDeCartao(titulo: String, modifier: Modifier = Modifier, acao: String? 
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable(role = Role.Button, onClick = aoClicarAcao)
-                    .padding(horizontal = Espacos.pequeno, vertical = 14.dp)
+                    .padding(horizontal = Espacos.pequeno, vertical = Espacos.medio)
             )
         }
     }

@@ -52,6 +52,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 
@@ -295,7 +296,7 @@ private fun SemPropriedade(aoCadastrar: () -> Unit) {
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Falta cadastrar um sítio", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = "Todo lançamento pertence a uma propriedade. Cadastre a primeira e depois volte aqui.",
@@ -362,8 +363,7 @@ private fun FormDeExemplo(uiState: LancamentoFormUiState) {
     LancamentoFormScreen(uiState = uiState, titulo = "Novo lançamento", acoes = LancamentoFormAcoes())
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun LancamentoFormPreview() {
     AgroSaldoTheme {

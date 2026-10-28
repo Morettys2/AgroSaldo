@@ -49,6 +49,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.YearMonth
 import kotlin.math.abs
@@ -194,7 +195,7 @@ private fun BotaoNova(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.heightIn(min = 48.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = Espacos.medio),
+            modifier = Modifier.padding(horizontal = Espacos.largo, vertical = Espacos.medio),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -223,7 +224,7 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
     ) {
         Column(
             modifier = Modifier.padding(Espacos.largo),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(Espacos.medio)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -294,8 +295,7 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
 /** Mês fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
 private val MES_DA_PREVIA: YearMonth = YearMonth.of(2026, 10)
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1300, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 650)
+@PreviasDaTela
 @Composable
 private fun PreviewComDados() {
     AgroSaldoTheme {
