@@ -5,7 +5,7 @@ naming:
   FunctionNaming:
     # Composable é PascalCase (InicioScreen); nomes de teste vêm entre crases.
     ignoreAnnotated: ['Composable']
-    excludes: ['**/test/**', '**/androidTest/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**']
   TopLevelPropertyNaming:
     constantPattern: '[A-Z][_A-Z0-9]*'
   MatchingDeclarationName:
@@ -19,7 +19,7 @@ style:
     ignoreNumbers: ['-1', '0', '1', '2', '100']
     # Telas Compose são cheias de dp e sp; testes, de valores de exemplo.
     ignoreAnnotated: ['Composable', 'Preview']
-    excludes: ['**/test/**', '**/androidTest/**', '**/testFixtures/**', '**/ui/theme/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**', '**/testFixtures/**', '**/ui/theme/**']
   UnusedPrivateMember:
     # Os @Preview são privados e só o Android Studio os chama.
     ignoreAnnotated: ['Preview']
@@ -32,16 +32,16 @@ style:
     excludeGuardClauses: true
   UseCheckOrError:
     # Os testes lançam IllegalStateException de propósito para simular falhas.
-    excludes: ['**/test/**', '**/androidTest/**', '**/testFixtures/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**', '**/testFixtures/**']
   WildcardImport:
     active: true
 
 exceptions:
   SwallowedException:
     # Nos testes a exceção esperada é capturada de propósito (`esperado`).
-    excludes: ['**/test/**', '**/androidTest/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**']
   TooGenericExceptionCaught:
-    excludes: ['**/test/**', '**/androidTest/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**']
 
 complexity:
   LongParameterList:
@@ -58,7 +58,7 @@ complexity:
     # Uma tela Compose ramifica por natureza (estado, permissão, bloqueio...).
     ignoreAnnotated: ['Composable']
   TooManyFunctions:
-    excludes: ['**/test/**', '**/androidTest/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/sharedTest/**']
     # ViewModel tem um método por ação da tela; arquivo de tela junta as partes dela.
     thresholdInClasses: 25
     thresholdInFiles: 25

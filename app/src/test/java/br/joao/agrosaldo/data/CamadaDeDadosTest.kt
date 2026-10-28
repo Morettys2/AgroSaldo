@@ -13,6 +13,7 @@ import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
+import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
@@ -21,6 +22,7 @@ import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.model.Usuario
+import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -673,5 +675,18 @@ class CamadaDeDadosTest {
         val antigo = usuario("u1", "maria@exemplo.com").paraEntidade().copy(nome = "N".repeat(120))
 
         assertEquals(Usuario.NOME_MAXIMO, antigo.paraDominio().nome.length)
+    }
+
+    // ---------- fakes do testFixtures iguais ao Room (FAKE-01) ----------
+
+    @Test
+    fun `fake em memoria entrega as propriedades na mesma ordem do repositorio Room`() = runTest {
+        val modelo = DadosDeExemplo.propriedades().first()
+        val nomes = listOf("Sítio Exemplo", "Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo")
+        val propriedades = nomes.mapIndexed { i, nome -> modelo.copy(id = "p$i", nome = nome) }
+
+        val fake = PropriedadeRepositoryMemoria(propriedades)
+
+        assertEquals(propriedades.emOrdemAlfabetica(), fake.observarTodas().first())
     }
 }

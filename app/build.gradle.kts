@@ -50,6 +50,16 @@ android {
         // Robolectric precisa dos recursos (fontes, temas, strings) para desenhar as telas.
         unitTests.isIncludeAndroidResources = true
     }
+    // src/sharedTest: testes do banco (DAOs) que rodam nos dois lugares. No JVM, com Robolectric,
+    // entram no testDebugUnitTest e no CI; no aparelho, no connectedAndroidTest.
+    sourceSets {
+        listOf("test", "androidTest").forEach { nome ->
+            getByName(nome) {
+                // O Kotlin embutido no AGP 9 compila pelo conjunto `kotlin` do source set.
+                kotlin.directories.add("src/sharedTest/java")
+            }
+        }
+    }
 }
 
 // Formatação: `./gradlew ktlintCheck` confere, `./gradlew ktlintFormat` arruma sozinho.
@@ -82,6 +92,7 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
         "src/test/java",
         "src/testFixtures/java",
         "src/androidTest/java",
+        "src/sharedTest/java",
         "../domain/src/main/java",
         "../domain/src/test/java",
         "../domain/src/testFixtures/java"
@@ -201,6 +212,8 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    // AndroidJUnit4 dos testes de src/sharedTest: no JVM ele delega para o Robolectric.
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

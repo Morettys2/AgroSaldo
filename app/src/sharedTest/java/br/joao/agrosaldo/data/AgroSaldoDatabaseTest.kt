@@ -35,7 +35,8 @@ import org.junit.runner.RunWith
 /**
  * DAOs e restrições do SQLite (chaves estrangeiras, CASCADE, índice único) sobre o Room real.
  *
- * Banco em memória, recriado a cada teste; não toca no banco do app.
+ * Banco em memória, recriado a cada teste; não toca no banco do app. Fica em `src/sharedTest`:
+ * roda no JVM com Robolectric (`testDebugUnitTest`, também no CI) e no aparelho (`connectedAndroidTest`).
  */
 @RunWith(AndroidJUnit4::class)
 class AgroSaldoDatabaseTest {
@@ -193,6 +194,17 @@ class AgroSaldoDatabaseTest {
             assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
             assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
         }
+    }
+
+    @Test
+    fun contarConsideraTodasAsContasDoAparelho() = runBlocking {
+        assertEquals(0, usuarioDao.contar())
+        usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
+        usuarioDao.inserir(usuario("u2", "jose@exemplo.com"))
+        assertEquals(2, usuarioDao.contar())
+
+        usuarioDao.excluir("u1")
+        assertEquals(1, usuarioDao.contar())
     }
 
     @Test
