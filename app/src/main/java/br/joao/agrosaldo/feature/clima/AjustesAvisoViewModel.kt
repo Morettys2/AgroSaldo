@@ -2,6 +2,7 @@ package br.joao.agrosaldo.feature.clima
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
@@ -69,7 +70,8 @@ class AjustesAvisoViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val lista = propriedades.observarTodas().first()
+            // Banco travado: a lista fica vazia, e salvar preserva os sítios desligados (ver aoSalvar).
+            val lista = tentar { propriedades.observarTodas().first() }.getOrDefault(emptyList())
             _uiState.update { estado ->
                 estado.copy(sitios = lista.map { SitioDoAviso(it.id, it.nome, avisa = it.id !in semAvisoAoAbrir) })
             }

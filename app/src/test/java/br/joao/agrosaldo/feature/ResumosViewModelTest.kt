@@ -11,10 +11,12 @@ import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
@@ -436,5 +438,62 @@ class ResumosViewModelTest {
         assertEquals(mesPassado, lista.uiState.value.mes)
         assertEquals(mesPassado, sitios.uiState.value.mes)
         assertEquals(2, lista.uiState.value.quantidade)
+    }
+
+    // ---------- leituras do banco que não podem fechar o app (FLW-01) ----------
+
+    @Test
+    fun `erro ao ler as propriedades no inicio vira mensagem e nao fecha o app`() = runTest {
+        var quebrado = true
+        val instavel = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> = flow {
+                if (quebrado) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(propriedades.observarTodas())
+            }
+        }
+        val vm = InicioViewModel(
+            lancamentos,
+            instavel,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertEquals(InicioViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+
+        quebrado = false
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
+    fun `erro ao ler a previsao guardada no inicio nao fecha o app`() = runTest {
+        var quebrado = true
+        val base = ClimaRepositoryMemoria()
+        val instavel = object : ClimaRepository by base {
+            override fun observar(propriedade: Propriedade): Flow<Previsao?> = flow {
+                if (quebrado) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(base.observar(propriedade))
+            }
+        }
+        val vm = InicioViewModel(
+            lancamentos,
+            propriedades,
+            instavel,
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertNull(vm.uiState.value.chuva)
+        assertEquals("o resto da tela não é afetado", 1_565_000L, vm.uiState.value.saldoCentavos)
+
+        quebrado = false
+        advanceUntilIdle()
+        assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
     }
 }

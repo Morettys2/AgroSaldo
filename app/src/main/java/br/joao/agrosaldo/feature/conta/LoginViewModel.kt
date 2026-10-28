@@ -3,6 +3,8 @@ package br.joao.agrosaldo.feature.conta
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.formatarEspera
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.ResultadoLogin
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +41,11 @@ class LoginViewModel @Inject constructor(private val conta: ContaService) : View
 
         _uiState.update { it.copy(entrando = true, erro = null) }
         viewModelScope.launch {
-            when (val resultado = conta.entrar(estado.email, estado.senha)) {
+            val resultado = tentar { conta.entrar(estado.email, estado.senha) }.getOrElse { erro ->
+                _uiState.update { it.copy(entrando = false, erro = erro.mensagemParaUsuario("Não foi possível entrar. Tente de novo.")) }
+                return@launch
+            }
+            when (resultado) {
                 // Remove a senha do estado assim que não é mais necessária.
                 is ResultadoLogin.Sucesso -> _uiState.update { it.copy(entrando = false, senha = "") }
 

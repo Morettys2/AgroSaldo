@@ -46,6 +46,10 @@ data class PropriedadeFormUiState(
     /** A propriedade em edição não existe mais (ex.: foi excluída); a tela avisa e fecha. */
     val naoEncontrado: Boolean = false
 ) {
+    /** Gravando, já gravada ou sem registro para editar: salvar de novo não faz nada. */
+    val ocupado: Boolean
+        get() = salvando || salvo || naoEncontrado
+
     /** Como a área digitada será gravada ("= 1.000 ha"); nulo se vazia ou não reconhecida. */
     val leituraDaArea: String?
         get() = (lerArea(area) as? Area.Valida)?.let { "= ${it.hectares.numeroBr(agrupar = true)} ha" }
@@ -157,13 +161,19 @@ class PropriedadeFormViewModel(
      */
     private var coordenadasConferidas: Pair<String, String>? = null
 
+    /** false enquanto a edição não leu o banco (ou se a leitura falhou): salvar gravaria por cima do registro. */
+    private var podeSalvar = propriedadeId == null
+
     init {
         if (propriedadeId != null) carregar(propriedadeId)
     }
 
     private fun carregar(id: String) {
         viewModelScope.launch {
-            val propriedade = propriedadeRepository.buscarPorId(id)
+            val propriedade = tentar { propriedadeRepository.buscarPorId(id) }.getOrElse {
+                _uiState.update { it.copy(erroGeral = AVISO_FALHA_AO_CARREGAR) }
+                return@launch
+            }
             if (propriedade == null) {
                 // Salvar recriaria o registro com o id antigo.
                 _uiState.update { it.copy(naoEncontrado = true) }
@@ -172,6 +182,7 @@ class PropriedadeFormViewModel(
             val latitude = propriedade.latitude.paraCampo()
             val longitude = propriedade.longitude.paraCampo()
             coordenadasConferidas = latitude to longitude
+            podeSalvar = true
             // O que foi restaurado (ou digitado antes de carregar) vale mais que o banco.
             _uiState.update {
                 it.copy(
@@ -251,7 +262,7 @@ class PropriedadeFormViewModel(
     fun aoSalvar() {
         val estado = _uiState.value
         // Ignora toques repetidos durante ou após a gravação.
-        if (estado.salvando || estado.salvo || estado.naoEncontrado) return
+        if (estado.ocupado || !podeSalvar) return
 
         when (val validacao = validar(estado)) {
             is Validacao.Invalida -> _uiState.value = validacao.estado
@@ -356,6 +367,9 @@ class PropriedadeFormViewModel(
     companion object {
         /** Aviso exibido quando [PropriedadeFormUiState.naoEncontrado]. */
         const val AVISO_NAO_ENCONTRADO = "Esta propriedade não existe mais."
+
+        /** Falha ao ler o banco ao abrir a edição; salvar fica bloqueado para não gravar por cima. */
+        const val AVISO_FALHA_AO_CARREGAR = "Não foi possível carregar a propriedade. Volte e tente de novo."
 
         // Chaves do SavedStateHandle; os valores são o texto dos campos.
         internal const val CHAVE_NOME = "nome"

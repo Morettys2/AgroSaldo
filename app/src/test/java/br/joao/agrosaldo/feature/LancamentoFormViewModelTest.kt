@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -719,5 +720,23 @@ class LancamentoFormViewModelTest {
 
         aindaCarregando.tryEmit(DadosDeExemplo.propriedades())
         assertEquals("777", vm.uiState.value.valorDigitos)
+    }
+
+    // ---------- banco travado ao abrir o formulário (FLW-02) ----------
+
+    @Test
+    fun `banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima`() = runTest {
+        val existente = lancamentos.observarTodos().first().first()
+        val quebradas = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> =
+                flow { throw IllegalStateException("SQLiteDatabaseLockedException: database is locked") }
+        }
+        val vm = formulario(lancamentos, quebradas, lancamentoId = existente.id, selecao = selecao)
+
+        assertEquals(LancamentoFormViewModel.AVISO_FALHA_AO_CARREGAR, vm.uiState.value.erroGeral)
+
+        vm.aoSalvar()
+        assertEquals("o registro do banco continua igual", existente, lancamentos.buscarPorId(existente.id))
+        assertFalse(vm.uiState.value.salvo)
     }
 }

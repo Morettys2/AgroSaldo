@@ -54,6 +54,7 @@ import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoSenha
+import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.agro
@@ -129,6 +130,11 @@ fun ContaScreen(
             nome = uiState.nome,
             email = uiState.email
         )
+
+        // Falha ao ler a conta: a leitura recomeça sozinha e a faixa some quando ela volta.
+        uiState.erro?.let { erro ->
+            EstadoErro(erro, Modifier.padding(bottom = Espacos.medio))
+        }
 
         ItemConta(
             icone = Icons.Outlined.NotificationsActive,

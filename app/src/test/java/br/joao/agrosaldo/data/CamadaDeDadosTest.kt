@@ -18,6 +18,7 @@ import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.model.Usuario
 import java.time.Instant
@@ -622,5 +623,47 @@ class CamadaDeDadosTest {
         val gravado = repositorio.buscarPorId("u1")
         assertEquals(2, gravado?.versaoTermo)
         assertEquals(Instant.ofEpochMilli(5_000L), gravado?.consentimentoEm)
+    }
+
+    // ---------- registros gravados antes dos limites de 18/10/2026 (BUG-01) ----------
+
+    @Test
+    fun `lancamento antigo com descricao acima do limite e lido cortado`() {
+        val antigo = Lancamento(
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ADUBO,
+            valorCentavos = 100L,
+            data = LocalDate.of(2026, 1, 1)
+        ).paraEntidade(agora = 0L).copy(descricao = "x".repeat(250))
+
+        assertEquals(Lancamento.DESCRICAO_MAXIMA, antigo.paraDominio().descricao.length)
+    }
+
+    @Test
+    fun `propriedade antiga com nome, cultura e area fora dos limites e lida normalizada`() {
+        val antiga = DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 0L)
+            .copy(nome = "N".repeat(90), cultura = "C".repeat(70), areaHectares = Double.POSITIVE_INFINITY)
+
+        val lida = antiga.paraDominio()
+
+        assertEquals(Propriedade.NOME_MAXIMO, lida.nome.length)
+        assertEquals(Propriedade.CULTURA_MAXIMA, lida.cultura.length)
+        assertEquals(Propriedade.AREA_MAXIMA_HECTARES, lida.areaHectares, 0.0)
+    }
+
+    @Test
+    fun `um lancamento antigo fora do limite nao esconde a lista inteira`() = runTest {
+        val propriedadesDao = PropriedadeDaoFalso()
+        val fazenda = DadosDeExemplo.propriedades().first()
+        propriedadesDao.salvar(fazenda.paraEntidade(usuarioId = "u1", agora = 0L))
+        val dao = LancamentoDaoFalso(propriedadesDao)
+        DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))
+            .filter { it.propriedadeId == fazenda.id }
+            .forEach { dao.salvar(it.paraEntidade(agora = 0L)) }
+        dao.salvar(dao.tabela.value.first().copy(descricao = "x".repeat(250)))
+        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u1"), TransacaoDireta, relogioEm(LocalDate.of(2026, 9, 30)))
+
+        assertEquals(dao.tabela.value.size, repositorio.observarTodos().first().size)
     }
 }

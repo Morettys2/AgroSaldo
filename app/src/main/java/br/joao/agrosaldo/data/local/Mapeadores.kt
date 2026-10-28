@@ -16,12 +16,19 @@ import java.time.LocalDate
  * instantes em epoch ms e enums pelo nome da constante.
  */
 
-/** Converte [PropriedadeEntity] (Room) em [Propriedade] (domínio). */
+/**
+ * Converte [PropriedadeEntity] (Room) em [Propriedade] (domínio).
+ *
+ * Os limites de nome, cultura e área entraram no domínio em 18/10/2026, e um registro gravado antes
+ * pode passar deles. Ele é lido ajustado ao limite: uma linha antiga não pode esconder a lista inteira
+ * (o `require` do modelo continua barrando as gravações novas).
+ */
 fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
     id = id,
-    nome = nome,
-    cultura = cultura,
-    areaHectares = areaHectares,
+    nome = nome.take(Propriedade.NOME_MAXIMO),
+    cultura = cultura.take(Propriedade.CULTURA_MAXIMA),
+    // O teto também cobre o infinito, que as versões antigas aceitavam.
+    areaHectares = areaHectares.coerceAtMost(Propriedade.AREA_MAXIMA_HECTARES),
     latitude = latitude,
     longitude = longitude
 )
@@ -46,7 +53,8 @@ fun Propriedade.paraEntidade(usuarioId: String?, agora: Long): PropriedadeEntity
 /**
  * Converte [LancamentoEntity] em [Lancamento]. Os enums são lidos com `valueOf`: renomear ou
  * remover constantes de [TipoLancamento]/[CategoriaLancamento] quebra a leitura de dados gravados;
- * adicionar constantes é seguro.
+ * adicionar constantes é seguro. A descrição de um registro gravado antes do limite (18/10/2026) é
+ * lida cortada, pelo mesmo motivo de [PropriedadeEntity.paraDominio].
  */
 fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     id = id,
@@ -55,7 +63,7 @@ fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     categoria = CategoriaLancamento.valueOf(categoria),
     valorCentavos = valorCentavos,
     data = LocalDate.ofEpochDay(data),
-    descricao = descricao
+    descricao = descricao.take(Lancamento.DESCRICAO_MAXIMA)
 )
 
 /** Converte [Lancamento] em [LancamentoEntity]; [agora] vira `atualizado_em` (epoch ms). */

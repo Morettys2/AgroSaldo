@@ -574,4 +574,29 @@ class PropriedadeFormViewModelTest {
         assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)
         assertTrue(vm.uiState.value.ehEdicao)
     }
+
+    // ---------- banco travado ao abrir o formulário (FLW-02) ----------
+
+    @Test
+    fun `banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima`() = runTest {
+        val original = propriedades.buscarPorId(DadosDeExemplo.ID_FAZENDA)
+        val quebradas = object : PropriedadeRepository by propriedades {
+            override suspend fun buscarPorId(id: String): Propriedade? =
+                throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+        }
+        val vm = PropriedadeFormViewModel(
+            quebradas,
+            propriedadeId = DadosDeExemplo.ID_FAZENDA,
+            selecao = selecao,
+            desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+        )
+
+        assertEquals(PropriedadeFormViewModel.AVISO_FALHA_AO_CARREGAR, vm.uiState.value.erroGeral)
+
+        preencher(vm)
+        vm.aoSalvar()
+        assertFalse(vm.uiState.value.salvo)
+        val noBanco = propriedades.observarTodas().first().first { it.id == DadosDeExemplo.ID_FAZENDA }
+        assertEquals("o registro do banco continua igual", original, noBanco)
+    }
 }

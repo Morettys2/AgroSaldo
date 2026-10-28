@@ -2,6 +2,8 @@ package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
@@ -66,7 +68,12 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
         _uiState.update { it.copy(verificando = true) }
         viewModelScope.launch {
             // Checa duplicidade antes do consentimento para não falhar só após o aceite.
-            val emUso = conta.emailEmUso(estado.email)
+            val emUso = tentar { conta.emailEmUso(estado.email) }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(verificando = false, erroEmail = erro.mensagemParaUsuario("Não foi possível conferir o e-mail. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 if (emUso) {
                     it.copy(verificando = false, erroEmail = "Já existe uma conta com este e-mail.")
@@ -94,12 +101,14 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
 
         _uiState.update { it.copy(criando = true, erroGeral = null) }
         viewModelScope.launch {
-            val resultado = conta.cadastrar(
-                nome = estado.nome,
-                email = estado.email,
-                senha = estado.senha,
-                aceitouTermo = true
-            )
+            val resultado = tentar {
+                conta.cadastrar(nome = estado.nome, email = estado.email, senha = estado.senha, aceitouTermo = true)
+            }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(criando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível criar a conta. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 when (resultado) {
                     // Sessão já iniciada pelo ContaService; a navegação segue ao início.

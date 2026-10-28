@@ -17,8 +17,12 @@ import br.joao.agrosaldo.domain.clima.CondicaoTempo
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.repository.AjustesAviso
+import br.joao.agrosaldo.domain.repository.ClimaRepository
+import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import br.joao.agrosaldo.domain.repository.ResultadoAtualizacao
 import br.joao.agrosaldo.feature.clima.AjustesAvisoViewModel
 import br.joao.agrosaldo.feature.clima.ClimaViewModel
 import br.joao.agrosaldo.feature.inicio.InicioViewModel
@@ -26,6 +30,11 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,6 +45,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /** ClimaViewModel, AjustesAvisoViewModel e o cartão de chuva do InicioViewModel. */
+@OptIn(ExperimentalCoroutinesApi::class) // advanceUntilIdle
 class ClimaViewModelsTest {
 
     /** Propriedade e mês escolhidos; cada teste tem a sua, sem estado global. */
@@ -482,5 +492,67 @@ class ClimaViewModelsTest {
 
         vm.aoVoltarParaATela()
         assertEquals(naAbertura + 1, clima.atualizacoes)
+    }
+
+    // ---------- leituras e buscas que não podem fechar o app (FLW-01, FLW-02) ----------
+
+    @Test
+    fun `erro ao ler as propriedades no clima vira mensagem e nao fecha o app`() = runTest {
+        var quebrado = true
+        val base = PropriedadeRepositoryMemoria()
+        val instavel = object : PropriedadeRepository by base {
+            override fun observarTodas(): Flow<List<Propriedade>> = flow {
+                if (quebrado) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(base.observarTodas())
+            }
+        }
+        val vm = ClimaViewModel(
+            instavel,
+            ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)),
+            AjustesAvisoMemoria(),
+            relogio = relogioPorMs(ZoneOffset.ofHours(-3)) { AGORA.toEpochMilli() },
+            selecao = selecao
+        )
+
+        assertEquals(ClimaViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+
+        quebrado = false
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertTrue(vm.uiState.value.temPrevisao)
+    }
+
+    @Test
+    fun `falha inesperada ao atualizar a previsao vira mensagem e nao fecha o app`() = runTest {
+        val falhando = object : ClimaRepository by ClimaRepositoryMemoria(mapOf(fazendaId to comChuva)) {
+            override suspend fun atualizar(propriedade: Propriedade): ResultadoAtualizacao =
+                throw IllegalStateException("SQLiteFullException: database or disk is full")
+        }
+        val vm = ClimaViewModel(
+            PropriedadeRepositoryMemoria(),
+            falhando,
+            AjustesAvisoMemoria(),
+            relogio = relogioPorMs(ZoneOffset.ofHours(-3)) { AGORA.toEpochMilli() },
+            selecao = selecao
+        )
+
+        vm.aoAtualizar()
+        advanceUntilIdle()
+
+        assertEquals(ClimaViewModel.MENSAGEM_FALHA, vm.uiState.value.mensagem)
+        assertFalse(vm.uiState.value.atualizando)
+    }
+
+    @Test
+    fun `erro ao ler as propriedades nos ajustes do aviso nao fecha o app`() = runTest {
+        val quebrado = object : PropriedadeRepository by PropriedadeRepositoryMemoria() {
+            override fun observarTodas(): Flow<List<Propriedade>> =
+                flow { throw IllegalStateException("SQLiteDatabaseLockedException: database is locked") }
+        }
+
+        val vm = AjustesAvisoViewModel(AjustesAvisoMemoria(), AgendaFalsa(), quebrado, selecao)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.sitios.isEmpty())
     }
 }
