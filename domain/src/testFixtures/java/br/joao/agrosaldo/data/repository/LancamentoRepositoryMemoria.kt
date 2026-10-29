@@ -2,7 +2,9 @@ package br.joao.agrosaldo.data.repository
 
 import br.joao.agrosaldo.data.DadosDeExemplo
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.LancamentoExcluido
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,11 +29,14 @@ class LancamentoRepositoryMemoria(iniciais: List<Lancamento> = DadosDeExemplo.la
         }
     }
 
-    override suspend fun excluir(id: String): Lancamento? {
-        val apagado = lancamentosGuardados.value.firstOrNull { it.id == id }
+    // O fake não guarda o instante de gravação; o excluído sai com Instant.EPOCH.
+    override suspend fun excluir(id: String): LancamentoExcluido? {
+        val apagado = lancamentosGuardados.value.firstOrNull { it.id == id } ?: return null
         lancamentosGuardados.update { lista -> lista.filterNot { it.id == id } }
-        return apagado
+        return LancamentoExcluido(apagado, Instant.EPOCH)
     }
+
+    override suspend fun restaurar(excluido: LancamentoExcluido) = salvar(excluido.lancamento)
 
     /** Remove e retorna os lançamentos da propriedade; simula o CASCADE para [PropriedadeRepositoryMemoria]. */
     internal fun tirarDaPropriedade(propriedadeId: String): List<Lancamento> {

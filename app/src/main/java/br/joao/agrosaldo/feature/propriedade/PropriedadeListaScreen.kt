@@ -40,6 +40,7 @@ import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.valorEscondido
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.numeroBr
@@ -253,7 +254,9 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${item.propriedade.cultura} · ${item.propriedade.areaHectares.numeroBr(agrupar = true)} ha",
+                        text = "${TextosComuns.cultura(
+                            item.propriedade.cultura
+                        )} · ${item.propriedade.areaHectares.numeroBr(agrupar = true)} ha",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

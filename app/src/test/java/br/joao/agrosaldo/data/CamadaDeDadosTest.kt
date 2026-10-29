@@ -438,7 +438,7 @@ class CamadaDeDadosTest {
 
         val apagado = repositorio.excluir("exemplo-2")
 
-        assertEquals(antes, apagado)
+        assertEquals(antes, apagado?.lancamento)
         assertNull(repositorio.buscarPorId("exemplo-2"))
         assertEquals("ler e apagar dentro da transação", listOf(true, true), passos.take(2))
         assertEquals(1, transacao.execucoes)
@@ -688,5 +688,43 @@ class CamadaDeDadosTest {
         val fake = PropriedadeRepositoryMemoria(propriedades)
 
         assertEquals(propriedades.emOrdemAlfabetica(), fake.observarTodas().first())
+    }
+
+    // ---------- desfazer devolve o atualizado_em original (DAD-01) ----------
+
+    @Test
+    fun `desfazer a exclusao de um lancamento devolve o atualizado_em original`() = runTest {
+        val (_, dao, sessao) = cenarioDeLancamentos()
+        val original = dao.tabela.value.first { it.id == "exemplo-2" }.copy(atualizadoEm = 111L)
+        dao.salvar(original)
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
+
+        repositorio.restaurar(checkNotNull(repositorio.excluir("exemplo-2")))
+
+        assertEquals(original, dao.tabela.value.first { it.id == "exemplo-2" })
+    }
+
+    @Test
+    fun `desfazer a exclusao de uma propriedade devolve o atualizado_em original dela e dos lancamentos`() = runTest {
+        val (propriedadesDao, lancamentosDao, sessao) = cenarioDeLancamentos()
+        val sitio = DadosDeExemplo.ID_SITIO
+        propriedadesDao.salvar(propriedadesDao.tabela.value.first { it.id == sitio }.copy(atualizadoEm = 222L))
+        lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }
+            .forEachIndexed { i, lancamento -> lancamentosDao.salvar(lancamento.copy(atualizadoEm = 300L + i)) }
+        val antes = propriedadesDao.tabela.value.first { it.id == sitio }
+        val lancamentosAntes = lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }.sortedBy { it.id }
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                propriedadesDao,
+                lancamentosDao,
+                sessao,
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
+
+        repositorio.restaurar(checkNotNull(repositorio.excluirComLancamentos(sitio)))
+
+        assertEquals(antes, propriedadesDao.tabela.value.first { it.id == sitio })
+        assertEquals(lancamentosAntes, lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }.sortedBy { it.id })
     }
 }

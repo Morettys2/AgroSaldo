@@ -12,4 +12,10 @@ object TextosComuns {
 
     /** Campo de propriedade ainda sem escolha (formulário de lançamento). */
     const val ESCOLHA_A_PROPRIEDADE = "Escolha a propriedade"
+
+    /** Cultura não preenchida, como aparece na tela (no banco ela fica vazia). */
+    const val CULTURA_NAO_INFORMADA = "Não informada"
+
+    /** A cultura como aparece na tela: [CULTURA_NAO_INFORMADA] quando a pessoa não preencheu. */
+    fun cultura(cultura: String): String = cultura.ifBlank { CULTURA_NAO_INFORMADA }
 }

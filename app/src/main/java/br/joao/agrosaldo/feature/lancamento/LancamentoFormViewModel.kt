@@ -354,7 +354,7 @@ class LancamentoFormViewModel(
                 lancamentoRepository.excluir(id)
             }.onSuccess { apagado ->
                 if (apagado != null) {
-                    desfazer.oferecer("Lançamento excluído") { lancamentoRepository.salvar(apagado) }
+                    desfazer.oferecer("Lançamento excluído") { lancamentoRepository.restaurar(apagado) }
                 }
                 _uiState.update { it.copy(excluido = true) }
             }.onFailure { erro ->

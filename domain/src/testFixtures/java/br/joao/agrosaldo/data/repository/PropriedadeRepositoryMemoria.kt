@@ -1,10 +1,12 @@
 package br.joao.agrosaldo.data.repository
 
 import br.joao.agrosaldo.data.DadosDeExemplo
+import br.joao.agrosaldo.domain.model.LancamentoExcluido
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -40,11 +42,12 @@ class PropriedadeRepositoryMemoria(
         val propriedade = buscarPorId(id) ?: return null
         val dela = lancamentos?.tirarDaPropriedade(id).orEmpty()
         propriedadesGuardadas.update { lista -> lista.filterNot { it.id == id } }
-        return PropriedadeExcluida(propriedade, dela)
+        // O fake não guarda o instante de gravação; tudo sai com Instant.EPOCH.
+        return PropriedadeExcluida(propriedade, Instant.EPOCH, dela.map { LancamentoExcluido(it, Instant.EPOCH) })
     }
 
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
         salvar(excluida.propriedade)
-        lancamentos?.devolver(excluida.lancamentos)
+        lancamentos?.devolver(excluida.lancamentos.map { it.lancamento })
     }
 }

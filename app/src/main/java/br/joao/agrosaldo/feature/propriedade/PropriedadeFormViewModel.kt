@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.navigation.Rotas
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.tentar
@@ -187,7 +188,9 @@ class PropriedadeFormViewModel(
             _uiState.update {
                 it.copy(
                     nome = restaurado(CHAVE_NOME) ?: propriedade.nome,
-                    cultura = restaurado(CHAVE_CULTURA) ?: propriedade.cultura,
+                    // "Não informada" gravado por versões antigas é texto da tela, não cultura digitada.
+                    cultura =
+                    restaurado(CHAVE_CULTURA) ?: propriedade.cultura.takeUnless { it == TextosComuns.CULTURA_NAO_INFORMADA }.orEmpty(),
                     area = restaurado(CHAVE_AREA) ?: propriedade.areaHectares.paraCampo(),
                     latitude = restaurado(CHAVE_LATITUDE) ?: latitude,
                     longitude = restaurado(CHAVE_LONGITUDE) ?: longitude
@@ -326,7 +329,8 @@ class PropriedadeFormViewModel(
                     // Mesmo id na edição: o repositório faz upsert.
                     id = propriedadeId ?: UUID.randomUUID().toString(),
                     nome = estado.nome.trim(),
-                    cultura = estado.cultura.trim().ifBlank { "Não informada" },
+                    // Cultura em branco fica vazia no banco; "Não informada" é só o texto da tela.
+                    cultura = estado.cultura.trim(),
                     areaHectares = entradas.area,
                     latitude = entradas.latitude,
                     longitude = entradas.longitude
@@ -355,7 +359,11 @@ class PropriedadeFormViewModel(
                 .onSuccess { excluida ->
                     selecao.limparSeFor(id)
                     if (excluida != null) {
-                        desfazer.oferecer("Propriedade excluída") { propriedadeRepository.restaurar(excluida) }
+                        desfazer.oferecer("Propriedade excluída") {
+                            propriedadeRepository.restaurar(excluida)
+                            // A propriedade volta a ser a escolhida, como estava antes de excluir.
+                            selecao.selecionar(excluida.propriedade.id)
+                        }
                     }
                     _uiState.update { it.copy(excluido = true) }
                 }

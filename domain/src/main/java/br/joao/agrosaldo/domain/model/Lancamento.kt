@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.domain.model
 
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -83,3 +84,9 @@ data class Lancamento(
         fun dataDentroDoLimite(data: LocalDate, hoje: LocalDate): Boolean = !data.isAfter(hoje.plusMonths(MESES_NO_FUTURO))
     }
 }
+
+/**
+ * Lançamento apagado e o instante da última gravação dele ([gravadoEm]). O "Desfazer" regrava com o
+ * mesmo instante, e o lançamento volta ao mesmo lugar da lista (a ordem do dia segue a última gravação).
+ */
+data class LancamentoExcluido(val lancamento: Lancamento, val gravadoEm: Instant)

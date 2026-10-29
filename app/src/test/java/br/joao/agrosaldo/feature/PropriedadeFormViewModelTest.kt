@@ -169,7 +169,7 @@ class PropriedadeFormViewModelTest {
     }
 
     @Test
-    fun `cultura vazia vira Nao informada`() = runTest {
+    fun `cultura nao digitada fica vazia no banco e Nao informada so aparece na tela`() = runTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Novo")
         vm.aoMudarArea("3")
@@ -178,7 +178,7 @@ class PropriedadeFormViewModelTest {
         vm.aoSalvar()
 
         val gravada = propriedades.observarTodas().first().first { it.nome == "Sítio Novo" }
-        assertEquals("Não informada", gravada.cultura)
+        assertEquals("", gravada.cultura)
     }
 
     @Test
@@ -615,5 +615,49 @@ class PropriedadeFormViewModelTest {
         assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.area.length)
         assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.latitude.length)
         assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.longitude.length)
+    }
+
+    // ---------- cultura vazia (BUG-02) e desfazer que volta a selecionar (DAD-01) ----------
+
+    @Test
+    fun `cultura em branco e gravada vazia e nao como texto`() = runTest {
+        val vm = novo()
+        preencher(vm)
+        vm.aoMudarCultura("   ")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals("", gravada().cultura)
+    }
+
+    @Test
+    fun `propriedade antiga com Nao informada gravado abre com a cultura vazia`() = runTest {
+        propriedades.salvar(
+            Propriedade(
+                id = "antiga",
+                nome = "Sítio Antigo",
+                cultura = "Não informada",
+                areaHectares = 3.0,
+                latitude = -23.0,
+                longitude = -48.0
+            )
+        )
+
+        val vm = editando("antiga")
+
+        assertEquals("", vm.uiState.value.cultura)
+    }
+
+    @Test
+    fun `desfazer a exclusao da propriedade volta a seleciona-la`() = runTest {
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+        selecao.selecionar(DadosDeExemplo.ID_SITIO)
+        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, selecao = selecao, desfazer = desfazer)
+
+        vm.aoExcluir()
+        assertNull("a seleção não aponta para a propriedade excluída", selecao.propriedadeId.value)
+
+        assertTrue(desfazer.desfazerExclusao(checkNotNull(desfazer.pendente.value)))
+        assertEquals(DadosDeExemplo.ID_SITIO, selecao.propriedadeId.value)
     }
 }

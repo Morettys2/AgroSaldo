@@ -186,4 +186,11 @@ class FormatacaoTest {
         assertEquals(125_050L.emReal(), 125_050L.emReal(oculto = false))
         assertEquals(125_000L.emRealCurto(), 125_000L.emRealCurto(oculto = false))
     }
+
+    @Test
+    fun `cultura em branco aparece como Nao informada so na tela`() {
+        assertEquals("Não informada", TextosComuns.cultura(""))
+        assertEquals("Não informada", TextosComuns.cultura("  "))
+        assertEquals("Milho", TextosComuns.cultura("Milho"))
+    }
 }

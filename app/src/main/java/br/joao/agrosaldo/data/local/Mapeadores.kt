@@ -5,6 +5,7 @@ import br.joao.agrosaldo.data.local.entidade.PropriedadeEntity
 import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.LancamentoExcluido
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.model.Usuario
@@ -65,6 +66,9 @@ fun LancamentoEntity.paraDominio(): Lancamento = Lancamento(
     data = LocalDate.ofEpochDay(data),
     descricao = descricao.take(Lancamento.DESCRICAO_MAXIMA)
 )
+
+/** O lançamento lido junto com o `atualizado_em`, para o "Desfazer" regravar o mesmo instante. */
+fun LancamentoEntity.paraExcluido(): LancamentoExcluido = LancamentoExcluido(paraDominio(), Instant.ofEpochMilli(atualizadoEm))
 
 /** Converte [Lancamento] em [LancamentoEntity]; [agora] vira `atualizado_em` (epoch ms). */
 fun Lancamento.paraEntidade(agora: Long): LancamentoEntity = LancamentoEntity(
