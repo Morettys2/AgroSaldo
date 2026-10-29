@@ -95,7 +95,7 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
         "../domain/src/main/java",
         "../domain/src/test/java",
         "../domain/src/testFixtures/java"
-    )
+    ).filter { file(it).isDirectory } // a CLI do detekt recusa pasta que não existe (ex.: src/androidTest sem código)
     inputs.files(fontes.map { fileTree(it) })
     args(
         "--input", fontes.joinToString(",") { file(it).path },
