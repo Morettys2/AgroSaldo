@@ -48,8 +48,4 @@ interface PropriedadeDao {
     /** Exclui a propriedade do usuário; lançamentos e previsão saem pelo ON DELETE CASCADE. */
     @Query("DELETE FROM propriedades WHERE id = :id AND usuario_id = :usuarioId")
     suspend fun excluir(id: String, usuarioId: String)
-
-    /** Quantidade de propriedades do usuário. */
-    @Query("SELECT COUNT(*) FROM propriedades WHERE usuario_id = :usuarioId")
-    suspend fun contarDoUsuario(usuarioId: String): Int
 }

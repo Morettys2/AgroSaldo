@@ -67,10 +67,6 @@ data class Lancamento(
         }
     }
 
-    /** Valor com sinal: positivo para receita e negativo para despesa (usado no saldo). */
-    val valorComSinal: Long
-        get() = if (tipo == TipoLancamento.RECEITA) valorCentavos else -valorCentavos
-
     val ehReceita: Boolean get() = tipo == TipoLancamento.RECEITA
 
     companion object {

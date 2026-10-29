@@ -69,7 +69,7 @@ class ResumoFinanceiroTest {
     fun `lista vazia da tudo zero e barra meio a meio`() {
         val totais = ResumoFinanceiro.totais(emptyList())
 
-        assertEquals(TotaisDoPeriodo.VAZIO, totais)
+        assertEquals(TotaisDoPeriodo(), totais)
         assertFalse(totais.temMovimento)
         assertEquals(0.5f, totais.proporcaoReceitas, 0.0001f)
     }

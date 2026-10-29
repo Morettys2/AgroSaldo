@@ -66,11 +66,10 @@ android {
 // As regras (estilo do Android Studio + regras de Compose) ficam no .editorconfig da raiz.
 ktlint {
     android.set(true)
-    baseline.set(file("ktlint-baseline.xml"))
 }
 
-// Análise estática: `./gradlew detekt`. O baseline guarda os achados antigos, para o CI
-// cobrar só código novo; ele encolhe conforme os arquivos são mexidos (`./gradlew detektBaseline`).
+// Análise estática: `./gradlew detekt`. Sem baseline: precisa dar zero achados, e achado novo se
+// corrige (ou se justifica no detekt.yml ou num @Suppress comentado), não se guarda num baseline.
 //
 // Roda pela linha de comando do detekt numa JVM 21 separada, e não pelo plugin: o detekt
 // 1.23 não funciona no JDK 25 em que o Gradle do Android Studio roda.
@@ -108,16 +107,9 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
     )
 }
 
-val baselineDoDetekt = file("detekt-baseline.xml")
-
 tasks.register<JavaExec>("detekt") {
     description = "Análise estática com o detekt."
-    configurarDetekt(*(if (baselineDoDetekt.exists()) arrayOf("--baseline", baselineDoDetekt.path) else emptyArray()))
-}
-
-tasks.register<JavaExec>("detektBaseline") {
-    description = "Grava os achados atuais do detekt no baseline."
-    configurarDetekt("--baseline", baselineDoDetekt.path, "--create-baseline")
+    configurarDetekt()
 }
 
 // Os testes de captura (CapturasDeTelaTest) gravam as imagens em app/build/capturas.
@@ -153,7 +145,6 @@ dependencies {
     // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
-    androidTestImplementation(composeBom)
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -174,7 +165,8 @@ dependencies {
     // Hilt: injeção de dependências (ViewModels, Worker e Application). O processador roda via KSP.
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation.compose)
+    // hiltViewModel() das telas (pacote androidx.hilt.lifecycle.viewmodel.compose).
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
 
     // WorkManager: verificação periódica de chuva em segundo plano.
     implementation(libs.androidx.work.runtime.ktx)
@@ -216,8 +208,7 @@ dependencies {
     testImplementation(libs.androidx.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // Os testes no aparelho são os de DAO (src/sharedTest): só precisam do runner do AndroidX.
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)

@@ -126,7 +126,7 @@ class PropriedadeFormViewModel(
     private val selecao: SelecaoAtual,
     private val propriedadeId: String?,
     private val desfazer: Desfazer,
-    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
+    private val estadoSalvo: SavedStateHandle
 ) : ViewModel() {
 
     /** Construtor do Hilt: o id da propriedade em edição vem do argumento da rota (nulo na criação). */

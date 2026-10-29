@@ -156,7 +156,6 @@ class CamadaDeDadosTest {
         }
         override suspend fun excluir(id: String, usuarioId: String) =
             tabela.update { it.filterNot { p -> p.id == id && p.usuarioId == usuarioId } }
-        override suspend fun contarDoUsuario(usuarioId: String) = tabela.value.count { it.usuarioId == usuarioId }
     }
 
     /** Resolve o dono de cada lançamento pela propriedade, como o JOIN das queries reais. */

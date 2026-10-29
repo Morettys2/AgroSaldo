@@ -43,10 +43,20 @@ class PropriedadeFormViewModelTest {
         propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
     }
 
-    private fun novo() =
-        PropriedadeFormViewModel(propriedades, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
-    private fun editando(id: String) =
-        PropriedadeFormViewModel(propriedades, propriedadeId = id, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+    private fun novo() = PropriedadeFormViewModel(
+        propriedades,
+        propriedadeId = null,
+        selecao = selecao,
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        estadoSalvo = SavedStateHandle()
+    )
+    private fun editando(id: String) = PropriedadeFormViewModel(
+        propriedades,
+        propriedadeId = id,
+        selecao = selecao,
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        estadoSalvo = SavedStateHandle()
+    )
 
     private fun preencher(vm: PropriedadeFormViewModel, area: String = "3") {
         vm.aoMudarNome("Sítio Novo")
@@ -227,7 +237,14 @@ class PropriedadeFormViewModelTest {
         val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         val antes = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
         val propriedadeAntes = propriedades.buscarPorId(DadosDeExemplo.ID_SITIO)
-        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, desfazer = desfazer, selecao = selecao)
+        val vm =
+            PropriedadeFormViewModel(
+                propriedades,
+                propriedadeId = DadosDeExemplo.ID_SITIO,
+                desfazer = desfazer,
+                selecao = selecao,
+                estadoSalvo = SavedStateHandle()
+            )
 
         vm.aoExcluir()
         val oferta = checkNotNull(desfazer.pendente.value)
@@ -267,7 +284,13 @@ class PropriedadeFormViewModelTest {
     fun `dois toques em salvar criam uma propriedade so`() = runTest {
         val lentas = PropriedadesLentas(propriedades)
         val vm =
-            PropriedadeFormViewModel(lentas, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+            PropriedadeFormViewModel(
+                lentas,
+                propriedadeId = null,
+                selecao = selecao,
+                desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+                estadoSalvo = SavedStateHandle()
+            )
         preencher(vm)
 
         vm.aoSalvar()
@@ -298,7 +321,13 @@ class PropriedadeFormViewModelTest {
             override suspend fun salvar(propriedade: Propriedade) = throw IllegalStateException("disco cheio")
         }
         val vm =
-            PropriedadeFormViewModel(quebrado, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+            PropriedadeFormViewModel(
+                quebrado,
+                propriedadeId = null,
+                selecao = selecao,
+                desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+                estadoSalvo = SavedStateHandle()
+            )
         preencher(vm)
         vm.aoSalvar()
 
@@ -590,7 +619,8 @@ class PropriedadeFormViewModelTest {
             quebradas,
             propriedadeId = DadosDeExemplo.ID_FAZENDA,
             selecao = selecao,
-            desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+            desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+            estadoSalvo = SavedStateHandle()
         )
 
         assertEquals(PropriedadeFormViewModel.AVISO_FALHA_AO_CARREGAR, vm.uiState.value.erroGeral)
@@ -652,7 +682,14 @@ class PropriedadeFormViewModelTest {
     fun `desfazer a exclusao da propriedade volta a seleciona-la`() = runTest {
         val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         selecao.selecionar(DadosDeExemplo.ID_SITIO)
-        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, selecao = selecao, desfazer = desfazer)
+        val vm =
+            PropriedadeFormViewModel(
+                propriedades,
+                propriedadeId = DadosDeExemplo.ID_SITIO,
+                selecao = selecao,
+                desfazer = desfazer,
+                estadoSalvo = SavedStateHandle()
+            )
 
         vm.aoExcluir()
         assertNull("a seleção não aponta para a propriedade excluída", selecao.propriedadeId.value)

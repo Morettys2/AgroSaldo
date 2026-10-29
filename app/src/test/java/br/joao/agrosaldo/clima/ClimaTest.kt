@@ -195,8 +195,6 @@ class ClimaTest {
         assertEquals(CondicaoTempo.TEMPESTADE, CondicaoTempo.doCodigoWmo(95))
         assertEquals(CondicaoTempo.DESCONHECIDA, CondicaoTempo.doCodigoWmo(null))
         assertEquals(CondicaoTempo.DESCONHECIDA, CondicaoTempo.doCodigoWmo(42))
-        assertTrue(CondicaoTempo.TEMPESTADE.molhado)
-        assertFalse(CondicaoTempo.NEBLINA.molhado)
     }
 
     @Test

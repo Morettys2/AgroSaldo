@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.data.DadosDeExemplo
@@ -64,7 +65,8 @@ class TelasTest {
             selecao = SelecaoAtual(propriedadeInicial = DadosDeExemplo.ID_FAZENDA, relogio = relogioEm(LocalDate.of(2026, 10, 14))),
             lancamentoId = null,
             relogio = relogioEm(hoje),
-            desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+            desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+            estadoSalvo = SavedStateHandle()
         )
         compose.setContent {
             AgroSaldoTheme(escuro = false) {

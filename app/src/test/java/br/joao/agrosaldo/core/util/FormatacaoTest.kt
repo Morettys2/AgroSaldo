@@ -3,9 +3,7 @@ package br.joao.agrosaldo.core.util
 import java.time.LocalDate
 import java.time.YearMonth
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FormatacaoTest {
@@ -108,12 +106,6 @@ class FormatacaoTest {
     fun `rotulo do mes tem inicial maiuscula`() {
         assertEquals("Setembro de 2026", YearMonth.of(2026, 9).rotulo())
         assertEquals("Março de 2027", YearMonth.of(2027, 3).rotulo())
-    }
-
-    @Test
-    fun `pertence ao mes compara mes e ano`() {
-        assertTrue(LocalDate.of(2026, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
-        assertFalse(LocalDate.of(2025, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
     }
 
     @Test

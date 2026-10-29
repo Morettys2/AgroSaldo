@@ -92,7 +92,7 @@ class AgroSaldoDatabaseTest {
         propriedadeDao.salvar(fazenda)
 
         assertEquals(fazenda, propriedadeDao.buscarPorId(fazenda.id, "u1"))
-        assertEquals(1, propriedadeDao.contarDoUsuario("u1"))
+        assertEquals(1, propriedadeDao.observarDoUsuario("u1").first().size)
     }
 
     /** A ordem vem do repositório (Collator pt-BR); o COLLATE NOCASE do SQLite mandaria "Água" para o fim. */
@@ -191,7 +191,7 @@ class AgroSaldoDatabaseTest {
         runBlocking {
             usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
             assertEquals(2, usuarioDao.adotarPropriedadesSemDono("u1"))
-            assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
+            assertEquals(2, propriedadeDao.observarDoUsuario("u1").first().size)
             assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
         }
     }
@@ -228,7 +228,7 @@ class AgroSaldoDatabaseTest {
         // Exclusões pela conta errada devem ser ignoradas.
         propriedadeDao.excluir(DadosDeExemplo.ID_FAZENDA, "u2")
         lancamentoDao.excluir("exemplo-1", "u2")
-        assertEquals(2, propriedadeDao.contarDoUsuario("u1"))
+        assertEquals(2, propriedadeDao.observarDoUsuario("u1").first().size)
         assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
     }
 
@@ -259,7 +259,7 @@ class AgroSaldoDatabaseTest {
         usuarioDao.excluir("u1")
 
         assertNull(usuarioDao.buscarPorId("u1"))
-        assertEquals(0, propriedadeDao.contarDoUsuario("u1"))
+        assertEquals(0, propriedadeDao.observarDoUsuario("u1").first().size)
         assertEquals(0, contarLinhas("lancamentos"))
         assertEquals("outra@exemplo.com", usuarioDao.buscarPorId("u2")?.email)
     }

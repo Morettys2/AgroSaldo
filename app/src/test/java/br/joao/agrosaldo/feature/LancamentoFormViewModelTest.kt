@@ -383,7 +383,7 @@ class LancamentoFormViewModelTest {
         selecao.selecionar("propriedade-apagada")
         val estado = novo().uiState.value
         assertEquals(DadosDeExemplo.ID_FAZENDA, estado.propriedadeId)
-        assertEquals("Fazenda Modelo", estado.nomePropriedadeSelecionada)
+        assertEquals("Fazenda Modelo", estado.propriedades.first { it.id == estado.propriedadeId }.nome)
     }
 
     @Test

@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.DIGITOS_MAXIMOS_DO_VALOR
-import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.digitosParaCentavos
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
@@ -72,9 +71,6 @@ data class LancamentoFormUiState(
     val aceitaSalvar: Boolean
         get() = carregado && !salvando && !salvo && !naoEncontrado
 
-    val nomePropriedadeSelecionada: String
-        get() = propriedades.firstOrNull { it.id == propriedadeId }?.nome ?: TextosComuns.ESCOLHA_A_PROPRIEDADE
-
     val valorCentavos: Long
         get() = valorDigitos.digitosParaCentavos() ?: 0L
 
@@ -112,7 +108,7 @@ class LancamentoFormViewModel(
     private val desfazer: Desfazer,
     private val relogio: Clock,
     tipoInicial: TipoLancamento? = null,
-    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
+    private val estadoSalvo: SavedStateHandle
 ) : ViewModel() {
 
     /**
