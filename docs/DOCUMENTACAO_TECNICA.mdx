@@ -79,9 +79,9 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 | Módulos Gradle | 2 (`:app` e `:domain`) |
 | Arquivos Kotlin de produção | 119 no `:app` e 24 no `:domain` |
 | Telas (arquivos `*Screen.kt`) | 15, com 13 ViewModels de tela (o consentimento usa o `CadastroViewModel` e a política não tem estado) |
-| Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 3 |
-| Testes de JVM | 581: 89 no `:domain` e 492 no `:app` (com os 16 de DAO do `src/sharedTest`) |
-| Testes no aparelho | 16 (os mesmos DAOs do Room, que também rodam no JVM) |
+| Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 4 |
+| Testes de JVM | 581: 89 no `:domain` e 492 no `:app` (com os 19 de banco do `src/sharedTest`: 16 de DAO e 3 de migração) |
+| Testes no aparelho | 19 (os mesmos testes de banco do `src/sharedTest`, que também rodam no JVM) |
 | Achados do detekt | 0, sem baseline |
 
 ### Stack
@@ -289,10 +289,10 @@ Siga a direção das dependências, de dentro para fora:
 ### Receita: mudar o banco
 
 1. Altere a entidade em `data/local/entidade/`.
-2. **Suba a versão** em `AgroSaldoDatabase` (hoje é a 3, então a próxima é a 4).
-3. Escreva a `Migration(3, 4)` e registre-a com `addMigrations(...)` em `AgroSaldoDatabase.criar`.
-4. Rebuilde: o Room exporta o novo schema em `app/schemas/.../4.json`. Versione esse arquivo.
-5. Escreva o teste de migração em `app/src/sharedTest` (roda no JVM com Robolectric e no aparelho) e rode também `connectedDebugAndroidTest`.
+2. **Suba a versão** em `AgroSaldoDatabase` (hoje é a 4, então a próxima é a 5).
+3. Escreva a `Migration(4, 5)` em `data/local/Migracoes.kt` e registre-a no `comMigracoes()`, que a produção e o teste usam.
+4. Rebuilde: o Room exporta o novo schema em `app/schemas/.../5.json`. Versione esse arquivo.
+5. Acrescente o teste no `MigracaoDoBancoTest` (`app/src/sharedTest`, roda no JVM com Robolectric e no aparelho): monte o arquivo da versão anterior com o SQL do JSON dela, abra com o `comMigracoes()` e confira os dados. Rode também `connectedDebugAndroidTest`.
 6. **Nunca** use `fallbackToDestructiveMigration`: ele apagaria os dados do produtor.
 
 Dinheiro é sempre `INTEGER` em centavos, nunca `REAL`. Mais em [Banco de dados](#11-banco-de-dados-e-arquivos-da-raiz).
@@ -507,7 +507,7 @@ app/
     │   └── assets/licencas/        licença da fonte Plus Jakarta Sans
     ├── testFixtures/               AjustesAvisoMemoria, Semeador e TransacaoDireta (dependem do app)
     ├── test/                       testes no JVM: ViewModels, dados, Worker, telas, capturas e o grafo do Hilt
-    └── sharedTest/                 testes de DAO do Room: no JVM (Robolectric) e no aparelho
+    └── sharedTest/                 testes de DAO e de migração do Room: no JVM (Robolectric) e no aparelho
 ```
 
 #### Pacote `br.joao.agrosaldo` (módulo `:app`)
@@ -857,7 +857,7 @@ Interfaces que a camada `data/` implementa (a "porta" do padrão ports & adapter
 
 #### UsuarioRepository.kt
 
-Interface das contas locais: `observar(id)`, `buscarPorId(id)`, `buscarPorEmail(email)` (o e-mail precisa vir normalizado), `criar(usuario)` (devolve `false` se o e-mail já existir e adota as propriedades sem dono), `atualizarSenha(id, senhaHash)`, `registrarConsentimento(id, em, versao)`, `excluir(id)` (remove a conta e, em cascata, as propriedades e os lançamentos dela) e `contar()` (quantas contas há no aparelho: só sem nenhuma, excluir a conta volta o bloqueio e os valores ocultos ao padrão).
+Interface das contas locais: `observar(id)`, `buscarPorId(id)`, `buscarPorEmail(email)` (o e-mail precisa vir normalizado), `criar(usuario)` (devolve `false` se o e-mail já existir), `atualizarSenha(id, senhaHash)`, `registrarConsentimento(id, em, versao)`, `excluir(id)` (remove a conta e, em cascata, as propriedades e os lançamentos dela) e `contar()` (quantas contas há no aparelho: só sem nenhuma, excluir a conta volta o bloqueio e os valores ocultos ao padrão).
 
 #### PropriedadeRepository.kt
 
@@ -922,22 +922,22 @@ Banco Room: a definição do banco, entidades, DAOs, mapeadores e a abstração 
 
 ##### AgroSaldoDatabase.kt
 
-Classe `@Database` do Room (versão 3, `exportSchema = true`). O arquivo do banco é `NOME_ARQUIVO = "agrosaldo.db"`, no armazenamento privado do app.
+Classe `@Database` do Room (versão 4, `exportSchema = true`). O arquivo do banco é `NOME_ARQUIVO = "agrosaldo.db"`, no armazenamento privado do app.
 
 - Entidades registradas: `UsuarioEntity`, `PropriedadeEntity`, `LancamentoEntity` e `PrevisaoEntity`.
 - DAOs: `usuarioDao()`, `propriedadeDao()`, `lancamentoDao()` e `previsaoDao()`.
-- `criar(context)`: monta o banco com `Room.databaseBuilder`, sem migrações registradas: a versão 3 é a base da produção (as migrações 1→2 e 2→3 foram removidas na branch `prod`, pois não havia dados reais a preservar).
+- `criar(context)`: monta o banco com `Room.databaseBuilder` e registra as migrações com `comMigracoes()` (hoje só a 3 → 4). A versão 3 é a base da produção (as migrações 1→2 e 2→3 foram removidas na branch `prod`, pois não havia dados reais a preservar).
 
 Decisões:
 
-- Não usa **`fallbackToDestructiveMigration`**: se faltar uma migração (a partir da versão 4), o app falha, mas nunca apaga dados do usuário.
+- Não usa **`fallbackToDestructiveMigration`**: se faltar uma migração, o app falha, mas nunca apaga dados do usuário.
 - O banco começa sempre vazio, sem dados de exemplo.
 - Deve existir uma única instância por processo, garantida pelo Hilt (`@Singleton` no `BancoModule`).
-- O schema exportado fica versionado em `app/schemas/` (hoje só o `3.json`).
+- O schema exportado fica versionado em `app/schemas/` (`3.json` e `4.json`).
 
-##### Tabelas (entidades e schema v3)
+##### Tabelas (entidades e schema v4)
 
-Fonte: as classes `@Entity` e `app/schemas/br.joao.agrosaldo.data.local.AgroSaldoDatabase/3.json`. Os instantes ficam em epoch ms (`INTEGER`) e as datas em epochDay.
+Fonte: as classes `@Entity` e `app/schemas/br.joao.agrosaldo.data.local.AgroSaldoDatabase/4.json`. Os instantes ficam em epoch ms (`INTEGER`) e as datas em epochDay.
 
 **`usuarios`** (`UsuarioEntity.kt`)
 
@@ -966,12 +966,12 @@ Fonte: as classes `@Entity` e `app/schemas/br.joao.agrosaldo.data.local.AgroSald
 | `latitude` | REAL | NOT NULL | |
 | `longitude` | REAL | NOT NULL | |
 | `atualizado_em` | INTEGER | NOT NULL | epoch ms; não exibido, reservado para sincronização futura |
-| `usuario_id` | TEXT | **NULL** | dono |
+| `usuario_id` | TEXT | NOT NULL | dono (obrigatório desde a versão 4) |
 
 - PK: `id`.
 - FK: `usuario_id` → `usuarios(id)`, **ON DELETE CASCADE** (ON UPDATE NO ACTION).
 - Índice: `index_propriedades_usuario_id` em `usuario_id`.
-- `usuario_id` nulo indica propriedade sem dono, legado dos antigos dados de exemplo (o app não grava mais nenhum); a criação de uma conta adota essas propriedades. Ele **precisa ser a última coluna**, para a ordem coincidir com o schema exportado (`3.json`).
+- `usuario_id` é obrigatório desde a versão 4: toda propriedade tem dono, e uma conta nova começa sem propriedades. Ele **precisa ser a última coluna**, para a ordem coincidir com o schema exportado (`4.json`).
 
 **`lancamentos`** (`LancamentoEntity.kt`)
 
@@ -1024,7 +1024,6 @@ Os DAOs são interfaces anotadas: o Room gera a implementação, mais ou menos c
 | `atualizarSenha(id, senhaHash)` | `UPDATE` de `senha_hash`. |
 | `excluir(id)` | `DELETE` do usuário. O CASCADE remove propriedades, lançamentos e previsões. |
 | `contar()` | `COUNT(*)` de todas as contas do aparelho. |
-| `adotarPropriedadesSemDono(usuarioId)` | `UPDATE propriedades SET usuario_id = ... WHERE usuario_id IS NULL` e devolve quantas foram adotadas. |
 
 **`PropriedadeDao`**
 
@@ -1032,7 +1031,7 @@ Os DAOs são interfaces anotadas: o Room gera a implementação, mais ou menos c
 |---|---|
 | `observarDoUsuario(usuarioId)` | `Flow` das propriedades do usuário, **sem ORDER BY**, porque o repositório ordena em pt-BR. |
 | `buscarPorId(id, usuarioId)` | Busca restrita ao dono. |
-| `existeSemSerDoUsuario(id, usuarioId)` | `true` se o id existe e é de outra conta ou ainda não tem dono. Usado na checagem de posse. |
+| `existeSemSerDoUsuario(id, usuarioId)` | `true` se o id existe e é de outra conta. Usado na checagem de posse. |
 | `salvar(propriedade)` | `@Upsert`. **Não deve ser trocado** por `@Insert(REPLACE)`: o REPLACE do SQLite faz DELETE + INSERT, que dispara o CASCADE e apaga os lançamentos e a previsão. O upsert faz UPDATE (há teste cobrindo isso). |
 | `excluir(id, usuarioId)` | `DELETE` restrito ao dono. |
 
@@ -1082,14 +1081,14 @@ Implementações das interfaces de repositório do domínio sobre o Room.
 
 ##### UsuarioRepositoryRoom.kt
 
-Implementa `UsuarioRepository`. Quase tudo repassa para o `UsuarioDao` e converte com os mapeadores. O ponto central é `criar(usuario)`, que roda dentro de `transacao`: insere a conta e, se a inserção funcionou (retorno diferente de -1), chama `adotarPropriedadesSemDono`. Ou as duas coisas acontecem, ou nenhuma.
+Implementa `UsuarioRepository`. Quase tudo repassa para o `UsuarioDao` e converte com os mapeadores. `criar(usuario)` insere a conta e devolve `false` se o e-mail já existir (o `IGNORE` do índice único devolve -1). Uma conta nova começa sem propriedades: a adoção das propriedades sem dono saiu na migração 4.
 
 ##### PropriedadeRepositoryRoom.kt
 
 Implementa `PropriedadeRepository`. Toda consulta é filtrada pelo usuário da sessão, e qualquer escrita sem sessão lança `IllegalStateException`.
 
 - `observarTodas()`: usa `sessao.usuarioId.flatMapLatest`, então a consulta recomeça a cada troca de usuário. Sem sessão, devolve uma lista vazia. O resultado sai em `emOrdemAlfabetica()`.
-- `salvar`: dentro de uma transação, faz a **checagem de posse** (`existeSemSerDoUsuario`) e depois o upsert. Sem essa checagem, o upsert poderia sobrescrever a propriedade de outra conta ou adotar uma sem dono.
+- `salvar`: dentro de uma transação, faz a **checagem de posse** (`existeSemSerDoUsuario`) e depois o upsert. Sem essa checagem, o upsert poderia sobrescrever a propriedade de outra conta.
 - `excluirComLancamentos(id)` (RN02): numa transação, lê a propriedade e os lançamentos, apaga os lançamentos, apaga a propriedade e devolve uma `PropriedadeExcluida` com o `atualizado_em` de cada registro (`paraExcluido`). O `restaurar` regrava com esses mesmos instantes.
 - `restaurar(excluida)`: numa transação, regrava a propriedade **antes** dos lançamentos, por causa da FK.
 
@@ -1287,13 +1286,16 @@ Com `exportSchema = true` no `@Database` e o argumento `room.schemaLocation` do 
 
 | Arquivo | Versão | Tabelas | O que mudou |
 |---|---|---|---|
+| `4.json` | 4 | as mesmas | `propriedades.usuario_id` passa a ser `NOT NULL` (migração 3 → 4) |
 | `3.json` | 3 | `usuarios`, `propriedades`, `lancamentos`, `previsoes` | Base da produção: schema completo (contas, propriedades com `usuario_id`, lançamentos e cache de previsão com CASCADE) |
 
 #### Migrações (a partir da versão 3)
 
+- **3 → 4** (`MIGRACAO_3_4`, em `data/local/Migracoes.kt`): `propriedades.usuario_id` passa a ser obrigatório. Uma propriedade sem dono, que só os dados de exemplo antigos geravam, vai para a conta mais antiga do aparelho (`criado_em`); sem conta nenhuma, ninguém conseguiria vê-la, e ela sai com os lançamentos e a previsão dela. O `comMigracoes()` registra as migrações no builder da produção e do teste.
+
 - As migrações 1→2 e 2→3 (`MigracoesSql`) e o `MigracaoTest` foram removidos: não havia dados reais a preservar, então a versão 3 é o ponto de partida.
 - O banco é aberto **sem** `fallbackToDestructiveMigration`: uma migração que falte faz o app falhar em vez de apagar os dados do usuário.
-- Ao mudar entidade: suba a versão (4), escreva a `Migration(3, 4)`, exporte o `4.json` e acrescente o teste de migração (por exemplo com `MigrationTestHelper`). Prefira `ALTER TABLE` a recriar tabela, porque um `DROP TABLE` em `propriedades` dispararia o `ON DELETE CASCADE` e apagaria os lançamentos.
+- Ao mudar entidade: suba a versão (5), escreva a `Migration(4, 5)` em `Migracoes.kt`, exporte o `5.json` e acrescente o teste no `MigracaoDoBancoTest`, sem biblioteca nova: o teste monta o arquivo antigo com o SQL do JSON dele. Recriar uma tabela (criar a nova, copiar, apagar a velha, renomear) é seguro dentro da migração: o Room só liga as chaves estrangeiras depois dela, então apagar `propriedades` não leva os lançamentos em cascata. O `MigracaoDoBancoTest` confere isso no JVM e no aparelho.
 - A branch `desenvolvimento` (a antiga `main`, congelada como backup) ainda guarda o histórico completo das migrações 1→3, caso precise consultar.
 
 ### Arquivos da raiz
@@ -3228,7 +3230,7 @@ data class PropriedadeEntity(
     @ColumnInfo(name = "atualizado_em")
     val atualizadoEm: Long,
     @ColumnInfo(name = "usuario_id")
-    val usuarioId: String?
+    val usuarioId: String
 )
 ```
 
@@ -3809,9 +3811,9 @@ Um *source set* é uma pasta de código com o seu próprio classpath. O projeto 
 | `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 80 testes | `./gradlew :domain:test` |
 | `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric), o grafo do Hilt, o contrato dos repositórios (Room e fakes) e os DAOs do `src/sharedTest`: 492 testes | `./gradlew testDebugUnitTest` |
 | `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` (no app). Fora do APK | (compilado junto com os testes) |
-| `app/src/sharedTest` | JVM com Robolectric, e aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras e CASCADE | `./gradlew testDebugUnitTest` e `./gradlew connectedAndroidTest` |
+| `app/src/sharedTest` | JVM com Robolectric, e aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras, CASCADE e a migração 3 → 4 | `./gradlew testDebugUnitTest` e `./gradlew connectedAndroidTest` |
 
-Em números: **581 testes** de JVM (89 em `domain/src/test` e 492 no `:app`, contando os 16 de DAO do `src/sharedTest`), e os mesmos **16** de DAO também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
+Em números: **581 testes** de JVM (89 em `domain/src/test` e 492 no `:app`, contando os 19 do `src/sharedTest`), e os mesmos **19** (16 de DAO e 3 de migração) também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
 
 Outros comandos úteis:
 
@@ -3843,7 +3845,7 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 |---|---|---|---|
 | `data/RelogiosEUsuarioLogadoTest.kt` | `RelogioDoAparelho` (acompanha o fuso a cada leitura), relógios de teste, relógio monotônico e `UsuarioLogadoRoom` | JUnit, coroutines-test | 7 |
 | `di/GrafoDeDependenciasTest.kt` | O grafo do Hilt montado de verdade no Robolectric: o app começa vazio, os singletons são compartilhados e a previsão vem da Open-Meteo | JUnit, Robolectric, Hilt testing | 5 |
-| `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 33 |
+| `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 30 |
 | `data/ContratoDosRepositoriosTest.kt` | Os mesmos 9 cenários contra o Room de verdade (em memória) e contra os fakes do `testFixtures` (FAKE-01): sem sessão a lista vem vazia e gravar falha, cada conta vê só o que é dela, gravar o que é de outra conta falha, ordem das propriedades e dos lançamentos, desfazer no mesmo lugar | JUnit, coroutines-test, Robolectric, Room | 18 |
 | `data/DesfazerESelecaoTest.kt` | `Desfazer` (oferta de desfazer exclusão, prazo e falhas) e `SelecaoAtual` (propriedade e mês compartilhados entre abas, virada do mês) | JUnit, coroutines-test | 14 |
 | `data/LimpezaDaContaTest.kt` | O que sobra da conta fora das tabelas: o bloqueio por digital e os valores ocultos são do aparelho e só voltam ao padrão quando sai a última conta (SEG-01) | JUnit, coroutines-test, Robolectric, Room | 2 |
@@ -3889,15 +3891,16 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 | `ui/TelasTest.kt` | A tela de verdade, desenhada no JVM, recebe toques e confere o que aparece: teclado numérico, botão desligado enquanto grava, convites ao cadastro, limpar filtros | JUnit, Robolectric, Compose UI test | 6 |
 | `ui/CapturasDeTelaTest.kt` | Desenha 10 telas com ViewModels reais e dados de exemplo e grava PNGs em `app/build/capturas/` (`01-inicio` ... `10-inicio-vazio`, incluindo modo escuro e fonte 2x). Não compara com imagem anterior, "só garante que a tela desenha sem erro" | JUnit, Robolectric, Compose UI test, Roborazzi | 10 |
 
-Os testes `CamadaDeDadosTest` e `ClimaTest` também declaram DAOs falsos privados dentro do próprio arquivo: `PropriedadeDaoFalso`, `LancamentoDaoFalso`, `UsuarioDaoFalso`, `TransacaoEmMemoria` e `PrevisaoDaoFalso`.
+Os testes `CamadaDeDadosTest` e `ClimaTest` também declaram DAOs falsos privados dentro do próprio arquivo: `PropriedadeDaoFalso`, `LancamentoDaoFalso`, `UsuarioDaoFalso` e `PrevisaoDaoFalso`.
 
-### Testes de DAO no JVM e no aparelho (`app/src/sharedTest`)
+### Testes de banco no JVM e no aparelho (`app/src/sharedTest`)
 
 | Arquivo | O que testa | Ferramentas | Testes |
 |---|---|---|---|
 | `data/AgroSaldoDatabaseTest.kt` | DAOs e restrições do SQLite sobre o Room real, em banco em memória recriado a cada teste: chave estrangeira, CASCADE (propriedade → lançamentos → previsão; conta → tudo), upsert que não apaga filhos, e-mail único, isolamento por conta | JUnit, AndroidX Test (`AndroidJUnit4`, `InstrumentationRegistry`), Room, coroutines (`runBlocking`), Robolectric no JVM | 16 |
+| `data/MigracaoDoBancoTest.kt` | Migração 3 → 4 sobre um arquivo montado com o SQL exato do `3.json`: a propriedade sem dono vai para a conta mais antiga sem perder lançamentos nem previsão; sem conta nenhuma, ela sai com o que é dela; depois da migração, o banco recusa propriedade sem dono | JUnit, AndroidX Test, Room, SQLite do Android, Robolectric no JVM | 3 |
 
-O mesmo arquivo entra nos dois source sets. No JVM, com Robolectric, roda no `./gradlew testDebugUnitTest` e no CI; no aparelho, no `./gradlew connectedAndroidTest`, com um emulador aberto ou um celular conectado. Mexeu em DAO, entidade ou migração? Rode também no aparelho.
+Os dois arquivos entram nos dois source sets. No JVM, com Robolectric, roda no `./gradlew testDebugUnitTest` e no CI; no aparelho, no `./gradlew connectedAndroidTest`, com um emulador aberto ou um celular conectado. Mexeu em DAO, entidade ou migração? Rode também no aparelho.
 
 ### Fakes e dados de `src/testFixtures`
 
@@ -3906,7 +3909,7 @@ Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `dom
 | Arquivo / classe | O que simula |
 |---|---|
 | `data/DadosDeExemplo.kt` (`DadosDeExemplo`) | Massa fixa de dados fictícios: 2 propriedades ("Fazenda Modelo" e "Sítio Exemplo") e 9 lançamentos no mês de "hoje" e no anterior, sem datas futuras |
-| `data/local/Semeador.kt` (`Semeador`) | Gera os `INSERT` dos dados de exemplo (propriedades antes dos lançamentos, por causa da chave estrangeira, e sem dono). Recebe uma função `executar` em vez do banco, para servir tanto no SQLite real quanto na JVM |
+| `data/local/Semeador.kt` (`Semeador`) | Gera os `INSERT` dos dados de exemplo (propriedades antes dos lançamentos, por causa da chave estrangeira, e com o dono informado, obrigatório desde a versão 4). Recebe uma função `executar` em vez do banco, para servir tanto no SQLite real quanto na JVM |
 | `data/repository/PropriedadeRepositoryMemoria.kt` | `PropriedadeRepository` na ordem alfabética do Room. Sem sessão, não filtra por conta; com uma `SessaoRepository`, confere sessão e posse como o Room. Se receber o repositório de lançamentos, simula o CASCADE ao excluir e o desfazer, e diz a ele de quem é cada propriedade |
 | `data/repository/LancamentoRepositoryMemoria.kt` | `LancamentoRepository` em memória, na ordem do Room (data e última gravação; a ordem das gravações faz o papel do `atualizado_em`, e o desfazer volta ao mesmo lugar). Com uma `SessaoRepository`, confere sessão e posse como o Room |
 | `data/repository/UsuarioRepositoryMemoria.kt` | `UsuarioRepository`: recusa e-mail ou id repetido; troca de senha, consentimento e exclusão |
@@ -4074,7 +4077,7 @@ Os nomes abaixo foram copiados dos arquivos.
 - com o olho aberto o valor aparece normal
 - cultura em branco aparece como Nao informada so na tela
 
-#### `src/test/…/data/CamadaDeDadosTest.kt` (33)
+#### `src/test/…/data/CamadaDeDadosTest.kt` (30)
 
 - propriedade vai para o banco e volta igual
 - lancamento guarda enum como texto e data como epochDay
@@ -4082,13 +4085,12 @@ Os nomes abaixo foram copiados dos arquivos.
 - usuario vai para o banco e volta igual com instantes em milissegundos
 - semeador insere propriedades antes dos lancamentos
 - cada INSERT do semeador tem um argumento por interrogacao
-- exemplos nascem sem dono para a primeira conta adotar
+- exemplos nascem com o dono informado
 - no dia 1 do mes nenhum exemplo fica no futuro
 - propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo
 - repositorio Room entrega objetos de dominio a partir das entidades
 - cada conta so enxerga as proprias propriedades
 - uma conta nao sobrescreve a propriedade da outra
-- propriedade sem dono nao e adotada por quem salva com o mesmo id
 - salvar propriedade confere o dono e grava na mesma transacao
 - lancamento de outra conta nao muda de dono por ter o mesmo id
 - salvar lancamento confere o dono e grava na mesma transacao
@@ -4098,9 +4100,7 @@ Os nomes abaixo foram copiados dos arquivos.
 - excluir propriedade leva os lancamentos dela e desfazer traz tudo de volta
 - excluir propriedade de outra conta nao apaga nada
 - lancamentos de outra conta nao aparecem nem podem ser gravados
-- conta nova fica com as propriedades sem dono
-- criar conta e adotar as propriedades sem dono e tudo ou nada
-- email repetido nao cria conta nem rouba propriedades
+- email repetido nao cria conta
 - novo aceite grava a data e a versao do termo
 - lancamento antigo com descricao acima do limite e lido cortado
 - propriedade antiga com nome, cultura e area fora dos limites e lida normalizada
@@ -4591,14 +4591,20 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - upsertAtualizaEmVezDeDuplicar
 - lancamentosVemDoMaisRecenteParaOMaisAntigo
 - excluirLancamento
-- semeadorGeraSqlValidoEAPrimeiraContaAdotaOsExemplos
+- semeadorGeraSqlValidoComODonoInformado
 - contarConsideraTodasAsContasDoAparelho
 - emailRepetidoNaoEntraEOIgnoreDevolveMenosUm
 - cadaContaSoEnxergaOsPropriosDados
-- idDeOutraContaOuSemDonoNaoContaComoDoUsuario
+- idDeOutraContaNaoContaComoDoUsuario
 - excluirContaApagaPropriedadesELancamentos
 - previsaoGuardadaSomeJuntoComAPropriedade
 - previsaoDePropriedadeExcluidaERecusadaPelaChaveEstrangeira
+
+#### `src/sharedTest/…/data/MigracaoDoBancoTest.kt` (3)
+
+- migracao3Para4DaAPropriedadeSemDonoAContaMaisAntigaSemPerderNada
+- migracao3Para4SemNenhumaContaTiraAPropriedadeSemDonoComOQueEDela
+- depoisDaMigracao3Para4OBancoRecusaPropriedadeSemDono
 
 ## 24. Qualidade de código e CI
 
@@ -4933,7 +4939,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 | `ci/capturas` | Criada pelo CI para publicar as imagens das telas geradas pelo Roborazzi. **Não apague** |
 | `feature/...`, `fix/...`, `refactor/...`, `docs/...` | Branches de trabalho, uma por tarefa |
 
-> **Nota:** o banco de dados parte da **versão 3** na `prod`. As migrações 1→2 e 2→3 foram removidas, porque o app ainda não tinha dados reais a preservar. A próxima migração parte da versão 3. Detalhes em [Banco de dados](#11-banco-de-dados-e-arquivos-da-raiz).
+> **Nota:** o banco de dados parte da **versão 3** na `prod`. As migrações 1→2 e 2→3 foram removidas, porque o app ainda não tinha dados reais a preservar. A migração 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da versão 4. Detalhes em [Banco de dados](#11-banco-de-dados-e-arquivos-da-raiz).
 
 ### Fluxo de trabalho
 
@@ -5087,7 +5093,7 @@ O MVVM foi conferido de novo, de ponta a ponta. Corrigido:
 - `PropriedadeRepository.excluir(id)`, sem uso, foi removido;
 - `SessaoViewModel` e `PrivacidadeViewModel` foram para `feature/sessao`.
 
-Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesSemDono` são legado dos dados de exemplo; mexer nisso exige a migração 4.
+O legado dos dados de exemplo (`propriedades.usuario_id` anulável e `adotarPropriedadesSemDono`) saiu na migração 4, em 02/11/2026.
 
 ---
 
@@ -5105,6 +5111,7 @@ Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesS
 - **Arquitetura profissional (out/2026):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta`; `UsuarioLogadoRepository`; teste do grafo. 497 testes de JVM e 15 instrumentados passando; app conferido no emulador (cadastro, propriedade, lançamento, edição, cópia e Worker). Em seguida, o domínio virou o módulo Gradle `:domain` (80 testes próprios) e o **baseline do detekt foi zerado** (115 achados resolvidos ou justificados).
 - **Auditoria de arquitetura e comentários técnicos (out/2026):** segunda rodada da auditoria (veja [Auditoria de arquitetura](#29-auditoria-de-arquitetura)) e KDoc técnico em entidades, DAOs, banco, mapeadores, modelos e repositórios. 499 testes de JVM e 15 instrumentados.
 - **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`):** dados reais do produtor fora do projeto; leitura resiliente (registros antigos lidos ajustados aos limites, sem migração; `.catch` em todas as leituras do banco; `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM (`src/sharedTest`); ano mês a mês e comparativo de propriedades no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer que devolve a ordem e a seleção; limpeza de build, CI, Lint e código sem uso. Em 02/11/2026, na mesma branch: teste do agendamento do WorkManager, fakes com sessão e posse (teste de contrato com o Room), ids de exemplo sem nomes antigos e o runner dos testes no aparelho declarado direto. 581 testes de JVM e 16 de DAO no aparelho, rodados no emulador.
+- **Migração 4 (02/11/2026, branch `feat/migracao-4-dono-obrigatorio`):** `propriedades.usuario_id` obrigatório; a propriedade sem dono vai para a conta mais antiga (ou sai, sem conta nenhuma); sai o `adotarPropriedadesSemDono`; o `MigracaoDoBancoTest` roda no JVM e no aparelho.
 - **Bibliotecas (02/11/2026, branch `chore/atualiza-dependencias`, DEP-01):** AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, KSP 2.3.13, Compose BOM 2026.09.00, WorkManager 2.12.0 e as menores; testes de tela no `createComposeRule` do `junit4.v2`; Lint sem nenhum aviso.
 
 ---

@@ -104,6 +104,7 @@ class CamadaDeDadosTest {
         val comandos = mutableListOf<Comando>()
         Semeador.semear(
             executar = { sql, argumentos -> comandos += Comando(sql, argumentos.toList()) },
+            usuarioId = "u1",
             hoje = hoje,
             agora = 0L
         )
@@ -128,10 +129,10 @@ class CamadaDeDadosTest {
     }
 
     @Test
-    fun `exemplos nascem sem dono para a primeira conta adotar`() {
+    fun `exemplos nascem com o dono informado`() {
         val propriedades = comandosDoSemeador(LocalDate.of(2026, 9, 30))
             .filter { it.sql.startsWith("INSERT INTO propriedades") }
-        assertTrue(propriedades.none { "usuario_id" in it.sql })
+        assertTrue(propriedades.all { "usuario_id" in it.sql && it.argumentos.last() == "u1" })
     }
 
     @Test
@@ -191,7 +192,7 @@ class CamadaDeDadosTest {
         }
     }
 
-    private class UsuarioDaoFalso(private val propriedades: PropriedadeDaoFalso) : UsuarioDao {
+    private class UsuarioDaoFalso : UsuarioDao {
         val tabela = MutableStateFlow<List<UsuarioEntity>>(emptyList())
         override suspend fun inserir(usuario: UsuarioEntity): Long {
             // Imita o índice único + IGNORE: e-mail repetido não entra e devolve -1.
@@ -210,13 +211,6 @@ class CamadaDeDadosTest {
         }
         override suspend fun excluir(id: String) = tabela.update { it.filterNot { u -> u.id == id } }
         override suspend fun contar() = tabela.value.size
-        override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int {
-            val orfas = propriedades.tabela.value.count { it.usuarioId == null }
-            propriedades.tabela.update { lista ->
-                lista.map { if (it.usuarioId == null) it.copy(usuarioId = usuarioId) else it }
-            }
-            return orfas
-        }
     }
 
     private fun usuario(id: String, email: String) = Usuario(
@@ -326,30 +320,6 @@ class CamadaDeDadosTest {
             } finally {
                 aberta = false
             }
-        }
-    }
-
-    @Test
-    fun `propriedade sem dono nao e adotada por quem salva com o mesmo id`() = runTest {
-        val dao = PropriedadeDaoFalso()
-        val exemplo = DadosDeExemplo.propriedades().first()
-        dao.salvar(exemplo.paraEntidade(usuarioId = null, agora = 0L))
-        val repositorio =
-            PropriedadeRepositoryRoom(
-                dao,
-                LancamentoDaoFalso(dao),
-                SessaoMemoria("u1"),
-                TransacaoDireta,
-                relogio = relogioEm(LocalDate.of(2026, 9, 30))
-            )
-
-        try {
-            repositorio.salvar(exemplo.copy(nome = "Tomada"))
-            fail("Deveria recusar a gravação")
-        } catch (esperado: IllegalArgumentException) {
-            val linha = dao.tabela.value.single()
-            assertNull(linha.usuarioId)
-            assertEquals(exemplo.nome, linha.nome)
         }
     }
 
@@ -554,70 +524,18 @@ class CamadaDeDadosTest {
     }
 
     @Test
-    fun `conta nova fica com as propriedades sem dono`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = null, agora = 0L)) }
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
-
-        assertTrue(repositorio.criar(usuario("u1", "maria@exemplo.com")))
-
-        assertTrue(propriedades.tabela.value.all { it.usuarioId == "u1" })
-    }
-
-    /** Transação falsa com rollback: restaura as tabelas em memória se o bloco falhar. */
-    private class TransacaoEmMemoria(private val usuarios: UsuarioDaoFalso, private val propriedades: PropriedadeDaoFalso) : Transacao {
-        var execucoes = 0
-        override suspend fun <R> executar(bloco: suspend () -> R): R {
-            execucoes++
-            val usuariosAntes = usuarios.tabela.value
-            val propriedadesAntes = propriedades.tabela.value
-            try {
-                return bloco()
-            } catch (e: Exception) {
-                usuarios.tabela.value = usuariosAntes
-                propriedades.tabela.value = propriedadesAntes
-                throw e
-            }
-        }
-    }
-
-    @Test
-    fun `criar conta e adotar as propriedades sem dono e tudo ou nada`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
-        val usuarios = UsuarioDaoFalso(propriedades)
-        val adocaoQuebrada = object : UsuarioDao by usuarios {
-            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int = throw IllegalStateException("disco cheio")
-        }
-        val transacao = TransacaoEmMemoria(usuarios, propriedades)
-        val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)
-
-        try {
-            repositorio.criar(usuario("u1", "maria@exemplo.com"))
-            fail("A falha na adoção deveria chegar ao cadastro")
-        } catch (esperado: IllegalStateException) {
-            assertNull("a conta não fica criada pela metade", usuarios.buscarPorId("u1"))
-            assertNull(propriedades.tabela.value.single().usuarioId)
-            assertEquals(1, transacao.execucoes)
-        }
-    }
-
-    @Test
-    fun `email repetido nao cria conta nem rouba propriedades`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
+    fun `email repetido nao cria conta`() = runTest {
+        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso())
         repositorio.criar(usuario("u1", "maria@exemplo.com"))
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
 
         assertFalse(repositorio.criar(usuario("u2", "maria@exemplo.com")))
 
         assertNull(repositorio.buscarPorId("u2"))
-        assertNull(propriedades.tabela.value.single().usuarioId)
     }
 
     @Test
     fun `novo aceite grava a data e a versao do termo`() = runTest {
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(PropriedadeDaoFalso()), TransacaoDireta)
+        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso())
         repositorio.criar(usuario("u1", "maria@exemplo.com"))
 
         repositorio.registrarConsentimento("u1", Instant.ofEpochMilli(5_000L), versao = 2)

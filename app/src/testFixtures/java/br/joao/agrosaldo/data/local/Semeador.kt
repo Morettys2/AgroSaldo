@@ -4,26 +4,26 @@ import br.joao.agrosaldo.data.DadosDeExemplo
 import java.time.LocalDate
 
 /**
- * Gera os INSERTs de [DadosDeExemplo]. Recebe a função `executar` em vez do
- * banco para ser usado tanto nos testes instrumentados (SQLite de verdade, inclusive
- * nas migrações) quanto nos testes JVM.
+ * Gera os INSERTs de [DadosDeExemplo], com as propriedades da conta [usuarioId] (o dono é
+ * obrigatório desde a versão 4 do banco). Recebe a função `executar` em vez do banco para ser
+ * usado tanto com o SQLite de verdade quanto nos testes JVM.
  */
 object Semeador {
 
     fun semear(
         executar: (sql: String, argumentos: Array<Any?>) -> Unit,
+        usuarioId: String,
         hoje: LocalDate = LocalDate.now(),
         agora: Long = System.currentTimeMillis()
     ) {
         // Propriedades antes dos lançamentos por causa da foreign key.
         DadosDeExemplo.propriedades().forEach { p ->
-            // Sem dono: adotadas pela primeira conta criada no aparelho.
-            val e = p.paraEntidade(usuarioId = null, agora = agora)
+            val e = p.paraEntidade(usuarioId = usuarioId, agora = agora)
             executar(
                 "INSERT INTO propriedades " +
-                    "(id, nome, cultura, area_hectares, latitude, longitude, atualizado_em) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                arrayOf(e.id, e.nome, e.cultura, e.areaHectares, e.latitude, e.longitude, e.atualizadoEm)
+                    "(id, nome, cultura, area_hectares, latitude, longitude, atualizado_em, usuario_id) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                arrayOf(e.id, e.nome, e.cultura, e.areaHectares, e.latitude, e.longitude, e.atualizadoEm, e.usuarioId)
             )
         }
 

@@ -36,9 +36,9 @@ data class PropriedadeEntity(
     @ColumnInfo(name = "atualizado_em")
     val atualizadoEm: Long,
     /**
-     * Dono (chave estrangeira para `usuarios.id`); nulo indica propriedade sem dono.
+     * Dono (chave estrangeira para `usuarios.id`), obrigatório desde a versão 4 do banco.
      * Fica por último porque a ordem das colunas precisa coincidir com o schema exportado.
      */
     @ColumnInfo(name = "usuario_id")
-    val usuarioId: String?
+    val usuarioId: String
 )
