@@ -77,7 +77,7 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 | Item | Quantidade |
 | --- | --- |
 | Módulos Gradle | 2 (`:app` e `:domain`) |
-| Arquivos Kotlin de produção | 119 no `:app` e 24 no `:domain` |
+| Arquivos Kotlin de produção | 120 no `:app` e 24 no `:domain` |
 | Telas (arquivos `*Screen.kt`) | 15, com 13 ViewModels de tela (o consentimento usa o `CadastroViewModel` e a política não tem estado) |
 | Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 4 |
 | Testes de JVM | 581: 89 no `:domain` e 492 no `:app` (com os 19 de banco do `src/sharedTest`: 16 de DAO e 3 de migração) |
@@ -1070,6 +1070,11 @@ Funções de extensão que convertem entidade ↔ domínio (o papel que um mappe
 Os limites de texto e de área entraram no domínio em 18/10/2026, e um registro gravado antes pode passar deles. Os `paraDominio()` leem esses registros ajustados ao limite (descrição, nome, cultura, e-mail cortados; área com teto, inclusive a infinita), sem migração: uma linha antiga não esconde a lista nem fecha o app, e o `require` do modelo continua barrando as gravações novas.
 
 Formatos gravados: datas em **epochDay**, instantes em **epoch ms** e enums pelo **nome da constante** (lidos com `valueOf`). Por isso, renomear ou remover uma constante de `TipoLancamento`/`CategoriaLancamento` quebra a leitura de dados já gravados. Adicionar constantes novas é seguro.
+
+##### Migracoes.kt
+
+- **`comMigracoes()`**: extensão do `RoomDatabase.Builder<AgroSaldoDatabase>` que registra as migrações a partir da versão 3. A produção (`AgroSaldoDatabase.criar`) e o `MigracaoDoBancoTest` usam a mesma função, então o teste roda exatamente as migrações do app.
+- **`MIGRACAO_3_4`**: deixa `propriedades.usuario_id` obrigatório. Dá a propriedade sem dono à conta mais antiga (`ORDER BY criado_em, id`); sem conta nenhuma, apaga a propriedade, os lançamentos e a previsão dela. Como o SQLite não transforma uma coluna em `NOT NULL`, a tabela é recriada: cria `propriedades_nova` com o `createSql` do `4.json`, copia, apaga a velha, renomeia e recria o índice. O Room só liga as chaves estrangeiras depois das migrações, então trocar a tabela não apaga os lançamentos em cascata.
 
 ##### Transacao.kt
 
