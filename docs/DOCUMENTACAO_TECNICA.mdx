@@ -3832,10 +3832,10 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 
 | Arquivo | O que testa | Ferramentas | Testes |
 |---|---|---|---|
-| `domain/ContaTest.kt` | Regras de conta: força da senha, e-mail, hash PBKDF2 com sal, cadastro com consentimento, login, bloqueio progressivo após erros (inclusive com o relógio do celular adiantado ou atrasado), troca de senha e exclusão de conta (RF01, RF02, RNF10) | JUnit, coroutines-test | 50 |
+| `domain/ContaTest.kt` | Regras de conta: força da senha, e-mail, hash PBKDF2 com sal, cadastro com consentimento, login, bloqueio progressivo após erros (inclusive com o relógio do celular adiantado ou atrasado), troca de senha e exclusão de conta (RF01, RF02, RNF10) | JUnit, coroutines-test | 52 |
 | `domain/RegrasDeNegocioTest.kt` | Validações no próprio modelo: valor positivo (RN06), data até 12 meses no futuro (RN07), lançamento com propriedade (RN01), categorias por tipo, validação de propriedade | JUnit | 9 |
-| `domain/ValidacaoDeEntradasTest.kt` | Limites de tamanho e valores inválidos recusados pelo domínio: descrição, nome, cultura, área (NaN, infinito, teto) e e-mail | JUnit | 5 |
-| `domain/ResumoFinanceiroTest.kt` | Funções puras de saldo (RN03), proporção receitas/despesas, resumo do mês e ranking de gastos ("entra lista, sai número") | JUnit | 16 |
+| `domain/ValidacaoDeEntradasTest.kt` | Limites de tamanho e valores inválidos recusados pelo domínio: descrição, nome, cultura, área (NaN, infinito, teto) e e-mail | JUnit | 7 |
+| `domain/ResumoFinanceiroTest.kt` | Funções puras de saldo (RN03), proporção receitas/despesas, resumo do mês e ranking de gastos ("entra lista, sai número") | JUnit | 21 |
 
 **Dados** (`data/`)
 
@@ -3843,9 +3843,10 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 |---|---|---|---|
 | `data/RelogiosEUsuarioLogadoTest.kt` | `RelogioDoAparelho` (acompanha o fuso a cada leitura), relógios de teste, relógio monotônico e `UsuarioLogadoRoom` | JUnit, coroutines-test | 7 |
 | `di/GrafoDeDependenciasTest.kt` | O grafo do Hilt montado de verdade no Robolectric: o app começa vazio, os singletons são compartilhados e a previsão vem da Open-Meteo | JUnit, Robolectric, Hilt testing | 5 |
-| `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 26 |
+| `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 33 |
 | `data/ContratoDosRepositoriosTest.kt` | Os mesmos 9 cenários contra o Room de verdade (em memória) e contra os fakes do `testFixtures` (FAKE-01): sem sessão a lista vem vazia e gravar falha, cada conta vê só o que é dela, gravar o que é de outra conta falha, ordem das propriedades e dos lançamentos, desfazer no mesmo lugar | JUnit, coroutines-test, Robolectric, Room | 18 |
 | `data/DesfazerESelecaoTest.kt` | `Desfazer` (oferta de desfazer exclusão, prazo e falhas) e `SelecaoAtual` (propriedade e mês compartilhados entre abas, virada do mês) | JUnit, coroutines-test | 14 |
+| `data/LimpezaDaContaTest.kt` | O que sobra da conta fora das tabelas: o bloqueio por digital e os valores ocultos são do aparelho e só voltam ao padrão quando sai a última conta (SEG-01) | JUnit, coroutines-test, Robolectric, Room | 2 |
 | `data/PreferenciasTest.kt` | Preferências em `SharedPreferences` sobrevivem a "reiniciar o app" (instância nova sobre o mesmo arquivo): contador de senhas erradas, sessão, bloqueio por digital, valores escondidos | JUnit, Robolectric (`ApplicationProvider`) | 6 |
 
 **Clima e aviso de chuva** (`clima/`, `aviso/`)
@@ -3871,11 +3872,13 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 
 | Arquivo | O que testa | Ferramentas | Testes |
 |---|---|---|---|
+| `feature/ContaComBancoTravadoTest.kt` | Telas de conta e sessão com o banco travado: conta, exclusão, login, cadastro, consentimento, novo aceite, troca de senha, abertura do app e do clima pela notificação viram mensagem e nunca fecham o app (FLW-01, FLW-02) | JUnit, coroutines-test | 9 |
+| `feature/ContaLimitesDeTextoTest.kt` | Campos de cadastro, login e troca de senha cortados no limite do domínio ao digitar ou colar (ENT-01) | JUnit, coroutines-test | 3 |
 | `feature/ContaViewModelsTest.kt` | ViewModels de cadastro, login, conta, sessão/bloqueio por digital, novo aceite da política, notificação que abre o clima e alteração de senha (usa o `ContaService` real) | JUnit, coroutines-test | 49 |
-| `feature/LancamentoFormViewModelTest.kt` | Formulário de lançamento: teclado numérico estilo maquininha, validações, edição, "lançar de novo", proteção contra toque duplo, restauração depois que o Android mata o processo, limite da descrição, argumentos da rota no construtor do Hilt | JUnit, coroutines-test | 42 |
-| `feature/ClimaViewModelsTest.kt` | `ClimaViewModel`, `AjustesAvisoViewModel` e o cartão de chuva do `InicioViewModel` (RF13) | JUnit, coroutines-test | 35 |
-| `feature/PropriedadeFormViewModelTest.kt` | Formulário de propriedade: números no formato brasileiro, coordenadas dentro do Brasil, GPS, exclusão com CASCADE e desfazer (RN02), restauração do processo, limites de nome, cultura e área, argumento da rota no construtor do Hilt | JUnit, coroutines-test | 35 |
-| `feature/ResumosViewModelTest.kt` | Cálculos das telas Início, Lançamentos e Sítios: saldo do mês (RF08), filtros (RF09), mês anterior (RF10), comparativo entre propriedades (RF11) | JUnit, coroutines-test | 25 |
+| `feature/LancamentoFormViewModelTest.kt` | Formulário de lançamento: teclado numérico estilo maquininha, validações, edição, "lançar de novo", proteção contra toque duplo, restauração depois que o Android mata o processo, limite da descrição, argumentos da rota no construtor do Hilt | JUnit, coroutines-test | 43 |
+| `feature/ClimaViewModelsTest.kt` | `ClimaViewModel`, `AjustesAvisoViewModel` e o cartão de chuva do `InicioViewModel` (RF13) | JUnit, coroutines-test | 38 |
+| `feature/PropriedadeFormViewModelTest.kt` | Formulário de propriedade: números no formato brasileiro, coordenadas dentro do Brasil, GPS, exclusão com CASCADE e desfazer (RN02), restauração do processo, limites de nome, cultura e área, argumento da rota no construtor do Hilt | JUnit, coroutines-test | 40 |
+| `feature/ResumosViewModelTest.kt` | Cálculos das telas Início, Lançamentos e Sítios: saldo do mês (RF08), filtros (RF09), mês anterior (RF10), comparativo entre propriedades (RF11) | JUnit, coroutines-test | 30 |
 | `feature/LancamentoListaBuscaTest.kt` | Lista de lançamentos: agrupamento por dia, busca em todos os meses (sem acento/maiúscula), pílulas de mês, ocultação de valores | JUnit, coroutines-test (`StandardTestDispatcher`, `runCurrent`) | 22 |
 | `feature/HistoricoViewModelTest.kt` | Histórico do ano (RF10): 12 meses, melhor e pior mês, escala do gráfico, maiores gastos, regra da lista mês a mês | JUnit, coroutines-test (`advanceUntilIdle`) | 20 |
 
@@ -4061,7 +4064,6 @@ Os nomes abaixo foram copiados dos arquivos.
 - texto que nao e data e recusado
 - formatar e ler de volta da a mesma data
 - rotulo do mes tem inicial maiuscula
-- pertence ao mes compara mes e ano
 - espera do bloqueio aparece em minutos e segundos
 - calendario - o dia escolhido nao volta um dia no fuso do Brasil
 - siglas e nomes dos meses em portugues
@@ -4070,8 +4072,9 @@ Os nomes abaixo foram copiados dos arquivos.
 - valor escondido tem sempre o mesmo tamanho, qualquer que seja o valor
 - total com sinal mostra mais ou menos, e com o olho fechado some o sinal tambem
 - com o olho aberto o valor aparece normal
+- cultura em branco aparece como Nao informada so na tela
 
-#### `src/test/…/data/CamadaDeDadosTest.kt` (26)
+#### `src/test/…/data/CamadaDeDadosTest.kt` (33)
 
 - propriedade vai para o banco e volta igual
 - lancamento guarda enum como texto e data como epochDay
@@ -4099,6 +4102,13 @@ Os nomes abaixo foram copiados dos arquivos.
 - criar conta e adotar as propriedades sem dono e tudo ou nada
 - email repetido nao cria conta nem rouba propriedades
 - novo aceite grava a data e a versao do termo
+- lancamento antigo com descricao acima do limite e lido cortado
+- propriedade antiga com nome, cultura e area fora dos limites e lida normalizada
+- um lancamento antigo fora do limite nao esconde a lista inteira
+- usuario antigo com nome acima do limite e lido cortado
+- fake em memoria entrega as propriedades na mesma ordem do repositorio Room
+- desfazer a exclusao de um lancamento devolve o atualizado_em original
+- desfazer a exclusao de uma propriedade devolve o atualizado_em original dela e dos lancamentos
 
 #### `src/test/…/data/ContratoDosRepositoriosTest.kt` (18: 9 cenários, no Room e nos fakes)
 
@@ -4131,6 +4141,11 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - mes escolhido a mao continua escolhido depois da virada
 - sem virada, ou com o relogio voltando, o mes nao muda
 
+#### `src/test/…/data/LimpezaDaContaTest.kt` (2)
+
+- excluir uma conta quando ainda restam outras nao desliga o bloqueio do aparelho
+- excluir a ultima conta volta os ajustes do aparelho ao padrao
+
 #### `src/test/…/data/PreferenciasTest.kt` (6)
 
 - senhas erradas continuam contadas depois de reiniciar o app
@@ -4158,7 +4173,7 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - a previsao vem da Open-Meteo de verdade
 - o estado compartilhado e um objeto so no app inteiro
 
-#### `src/test/…/domain/ContaTest.kt` (50)
+#### `src/test/…/domain/ContaTest.kt` (52)
 
 - senha precisa de 8 caracteres com letra e numero
 - requisitos da senha sao marcados um a um
@@ -4184,7 +4199,9 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - relogio adiantado ao errar nao trava a conta alem do maximo
 - adiantar o relogio do celular nao encerra o bloqueio
 - bloqueio termina no tempo certo mesmo com o relogio do celular atrasado
-- depois de reiniciar o celular o bloqueio segue pelo relogio do sistema
+- depois de reiniciar o celular a espera recomeca inteira e nunca encurta
+- reiniciar o celular e adiantar a hora nao encerra o bloqueio
+- excluir uma de duas contas avisa que ainda restam contas no aparelho
 - senha errada na exclusao conta como tentativa
 - acerto zera a contagem de erros
 - entrar na propria conta nao zera os erros no email de outra pessoa
@@ -4223,15 +4240,17 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - cada lado tem a sua categoria Outras e elas nao se misturam
 - propriedade valida nome, area e coordenadas
 
-#### `src/test/…/domain/ValidacaoDeEntradasTest.kt` (5)
+#### `src/test/…/domain/ValidacaoDeEntradasTest.kt` (7)
 
 - descricao de 200 caracteres passa e de 201 e recusada
 - nome e cultura da propriedade respeitam o tamanho maximo
 - area infinita ou NaN e recusada no dominio
 - area acima de um milhao de hectares e recusada e o limite exato passa
 - email com mais de 254 caracteres nao e valido
+- nome do usuario de 80 caracteres passa e de 81 e recusado
+- e-mail do usuario de 254 caracteres passa e de 255 e recusado
 
-#### `src/test/…/domain/ResumoFinanceiroTest.kt` (16)
+#### `src/test/…/domain/ResumoFinanceiroTest.kt` (21)
 
 - RN03 - saldo e receitas menos despesas
 - saldo pode ser negativo
@@ -4249,10 +4268,15 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - propriedade atual e a selecionada
 - selecao que nao existe mais cai na primeira
 - sem propriedades nao ha propriedade atual
+- meses do ano trazem os 12 meses da propriedade e marcam os que ainda nao chegaram
+- melhor e pior mes ficam entre os meses passados com movimento
+- sem pior mes com um mes so ou quando o menor saldo empata com o maior
+- comparativo soma o saldo do mes de cada propriedade e a barra e relativa ao maior saldo em modulo
+- comparativo sem movimento deixa as barras vazias
 
-#### `src/test/…/feature/ClimaViewModelsTest.kt` (35)
+#### `src/test/…/feature/ClimaViewModelsTest.kt` (38)
 
-- ferramenta de teste do aviso usa a propriedade escolhida no app
+- aviso de exemplo das ferramentas de teste usa a propriedade escolhida e o relogio do app
 - RF13 - mostra temperatura, 7 dias e a recomendacao do pivo
 - sem chuva a recomendacao e manter a irrigacao
 - limites do produtor mudam a recomendacao na hora
@@ -4287,6 +4311,27 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - cartao de chuva nao some quando um lancamento novo chega
 - voltar para a tela refaz a frase da chuva com a hora nova
 - voltar para a tela confere se a previsao precisa ser baixada de novo
+- erro ao ler as propriedades no clima vira mensagem e nao fecha o app
+- falha inesperada ao atualizar a previsao vira mensagem e nao fecha o app
+- erro ao ler as propriedades nos ajustes do aviso nao fecha o app
+
+#### `src/test/…/feature/ContaComBancoTravadoTest.kt` (9)
+
+- erro ao ler a conta vira mensagem na tela de conta e nao fecha o app
+- banco travado ao excluir a conta vira mensagem e nao fecha o app
+- banco travado no login vira mensagem e libera o botao
+- banco travado ao conferir o e-mail do cadastro vira mensagem
+- banco travado ao criar a conta vira mensagem no consentimento
+- banco travado ao registrar o novo aceite vira mensagem
+- banco travado na troca de senha nao fecha o app
+- banco travado ao abrir o app nao fecha o app e a navegacao espera a conta
+- banco travado ao abrir o clima pela notificacao ignora o pedido
+
+#### `src/test/…/feature/ContaLimitesDeTextoTest.kt` (3)
+
+- cadastro corta nome, e-mail e senha no limite ao digitar ou colar
+- login corta e-mail e senha no limite ao colar
+- troca de senha corta as senhas no limite ao colar
 
 #### `src/test/…/feature/ContaViewModelsTest.kt` (49)
 
@@ -4363,7 +4408,7 @@ Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoom
 - erro ao ler os lancamentos vira mensagem e o grafico volta sozinho
 - sem propriedade nao quebra
 
-#### `src/test/…/feature/LancamentoFormViewModelTest.kt` (42)
+#### `src/test/…/feature/LancamentoFormViewModelTest.kt` (43)
 
 Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancamento que ja nao existe nao oferece desfazer`.
 
@@ -4409,6 +4454,7 @@ Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancament
 - na edicao o valor restaurado vale mais que o do banco
 - restauracao ignora sitio que nao existe mais e categoria de outro tipo
 - antes de carregar nada e guardado, para nao apagar o que seria restaurado
+- banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima
 
 #### `src/test/…/feature/LancamentoListaBuscaTest.kt` (22)
 
@@ -4435,7 +4481,7 @@ Novos: `descricao digitada ou colada nunca passa do limite` e `excluir lancament
 - lista e busca sao montadas no contexto de processamento, fora da main
 - voltar para a tela depois da virada do mes mostra o mes novo
 
-#### `src/test/…/feature/PropriedadeFormViewModelTest.kt` (35)
+#### `src/test/…/feature/PropriedadeFormViewModelTest.kt` (40)
 
 Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, nada gravado) e área exatamente no limite aceita.
 
@@ -4449,7 +4495,7 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - salvar com tudo vazio marca os tres erros e nao grava nada
 - digitar no campo limpa so o erro daquele campo
 - aceita virgula como separador decimal
-- cultura vazia vira Nao informada
+- cultura nao digitada fica vazia no banco e Nao informada so aparece na tela
 - coordenada fora do planeta e recusada
 - edicao carrega os dados e mantem o mesmo id ao salvar
 - RN02 - excluir propriedade leva junto os lancamentos dela
@@ -4474,8 +4520,13 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - o que foi digitado volta depois que o Android mata o processo
 - coordenadas do GPS tambem sobrevivem a morte do processo
 - na edicao o valor restaurado vale mais que o do banco
+- banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima
+- area e coordenadas tem teto de caracteres ao colar
+- cultura em branco e gravada vazia e nao como texto
+- propriedade antiga com Nao informada gravado abre com a cultura vazia
+- desfazer a exclusao da propriedade volta a seleciona-la
 
-#### `src/test/…/feature/ResumosViewModelTest.kt` (25)
+#### `src/test/…/feature/ResumosViewModelTest.kt` (30)
 
 - RF08 - inicio mostra entradas, saidas e saldo do mes
 - pra onde foi o dinheiro ordena do maior gasto para o menor
@@ -4502,6 +4553,11 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - tocar de novo na categoria marcada desmarca, e limpar tira tudo
 - categoria marcada continua no chip mesmo num mes sem ela
 - o mes escolhido no inicio e o mesmo em lancamentos e sitios
+- erro ao ler as propriedades no inicio vira mensagem e nao fecha o app
+- erro ao ler a previsao guardada no inicio nao fecha o app
+- antes da primeira leitura o inicio ja usa o mes escolhido e o dia do relogio do app
+- antes da primeira leitura a lista de lancamentos ja usa o mes escolhido
+- antes da primeira leitura a lista de propriedades ja usa o mes escolhido
 
 #### `src/test/…/ui/CapturasDeTelaTest.kt` (10)
 
@@ -4543,8 +4599,6 @@ Novos: nome e cultura cortados no limite, área acima do teto (aviso próprio, n
 - excluirContaApagaPropriedadesELancamentos
 - previsaoGuardadaSomeJuntoComAPropriedade
 - previsaoDePropriedadeExcluidaERecusadaPelaChaveEstrangeira
-
----
 
 ## 24. Qualidade de código e CI
 
