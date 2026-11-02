@@ -492,11 +492,5 @@ Branch `fix/auditoria-2026-10-28`, a partir da `prod` (`a735a1b`). Um commit por
 
 **Ferramentas no fim:** ktlint, detekt (zero achados, sem baseline), `testDebugUnitTest` (470 testes, incluindo os 16 de DAO no JVM), `:domain:test` (89 testes), `assembleDebug` e `lintDebug` (0 erros, 10 avisos, todos de versão de dependência) passaram. O `assembleRelease` com R8 compila. O `connectedAndroidTest` não rodou aqui, por falta de emulador.
 
-**Busca de dados reais:** a busca pedida, no repositório inteiro e sem diferenciar maiúsculas, voltou **vazia**. Abaixo ela está escrita com colchetes (`mor[e]tti`, `ito[b]i`, `fab[i]o@`) para este arquivo não casar consigo mesmo; o padrão é equivalente:
-
-```
-git grep -n -i -E "f[áa]bio|mor[e]tti|ito[b]i|fab[i]o@|-21\.(6|7|8|9)[0-9]*|-46\.(8|9)[0-9]*|-47\.0[0-9]"
-```
-
-Uma segunda busca, pelos nomes de propriedade das prévias antigas e pelas casas decimais das coordenadas antigas, também voltou vazia. O histórico do Git, por decisão, não foi reescrito: os commits antigos da `prod` ainda têm esses dados. O repositório é privado; antes de torná-lo público, é preciso limpar o histórico (está no roadmap).
+**Busca de dados reais:** uma busca no repositório inteiro, sem diferenciar maiúsculas, pelo nome do produtor, os e-mails de exemplo antigos, a cidade e as coordenadas da região voltou **vazia**. O padrão da busca não fica escrito aqui, porque ele mesmo deixaria ler esses dados. Uma segunda busca, pelos nomes de propriedade das prévias antigas e pelas casas decimais das coordenadas antigas, também voltou vazia. O histórico do Git, por decisão, não foi reescrito: os commits antigos da `prod` ainda têm esses dados. O repositório é privado; antes de torná-lo público, é preciso limpar o histórico (está no roadmap).
 
