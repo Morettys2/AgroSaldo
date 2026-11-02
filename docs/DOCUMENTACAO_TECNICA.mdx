@@ -4720,7 +4720,7 @@ O AgroSaldo é compilado pelo **Gradle**, com scripts em Kotlin (`*.gradle.kts`)
 | Bytecode Java gerado | Java `11` | `app/build.gradle.kts` (`sourceCompatibility` / `targetCompatibility = JavaVersion.VERSION_11`) |
 | JDK do detekt | `21` | `app/build.gradle.kts` (`javaToolchains.launcherFor { ... of(21) }`) |
 
-Não há o plugin `org.jetbrains.kotlin.android` na lista: no AGP 9 o suporte a Kotlin já vem embutido no próprio plugin Android, e o único plugin Kotlin aplicado no `:app` é o do Compose (`org.jetbrains.kotlin.plugin.compose`). O `org.jetbrains.kotlin.jvm` (`kotlin-jvm` no catálogo, mesma versão `2.2.10`) é usado só pelo `:domain`.
+Não há o plugin `org.jetbrains.kotlin.android` na lista: no AGP 9 o suporte a Kotlin já vem embutido no próprio plugin Android, e o único plugin Kotlin aplicado no `:app` é o do Compose (`org.jetbrains.kotlin.plugin.compose`). O `org.jetbrains.kotlin.jvm` (`kotlin-jvm` no catálogo, mesma versão `2.4.21`) é aplicado só no `:domain`, mas por estar no classpath do build ele também define o Kotlin do `:app`: o AGP usa a versão do plugin Kotlin que encontra ali em vez da embutida.
 
 **Duas JVMs diferentes, dois papéis diferentes:**
 
@@ -4820,7 +4820,7 @@ Uma mesma versão pode servir a várias bibliotecas: `lifecycleRuntimeKtx` é "c
 
 ### Compose BOM
 
-Várias bibliotecas do Compose aparecem no catálogo **sem versão** (`androidx-compose-ui`, `androidx-compose-material3` etc.). Quem decide a versão é o **BOM** (*Bill of Materials*) `androidx.compose:compose-bom:2026.02.01`: um artefato que só contém uma lista de versões testadas juntas. Ao declarar `platform(libs.androidx.compose.bom)`, todas as bibliotecas do Compose sem versão recebem a versão indicada pelo BOM e ficam compatíveis entre si.
+Várias bibliotecas do Compose aparecem no catálogo **sem versão** (`androidx-compose-ui`, `androidx-compose-material3` etc.). Quem decide a versão é o **BOM** (*Bill of Materials*) `androidx.compose:compose-bom:2026.09.00`: um artefato que só contém uma lista de versões testadas juntas. Ao declarar `platform(libs.androidx.compose.bom)`, todas as bibliotecas do Compose sem versão recebem a versão indicada pelo BOM e ficam compatíveis entre si.
 
 No `app/build.gradle.kts` o BOM fica numa variável (`val composeBom = platform(...)`) para ser reaproveitado em `implementation`, `testImplementation` e `testFixturesImplementation` "sem o aviso *declared multiple times*". A exceção é `material-icons-extended`, que tem versão própria no catálogo (`materialIcons = "1.7.8"`).
 
