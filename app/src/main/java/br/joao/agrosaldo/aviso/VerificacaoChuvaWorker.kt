@@ -9,7 +9,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ListenableWorker
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -79,7 +81,32 @@ internal const val TENTATIVAS_MAXIMAS = 3
 class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
 
     override fun ligar() {
-        val pedido = PeriodicWorkRequestBuilder<VerificacaoChuvaWorker>(INTERVALO_HORAS, TimeUnit.HOURS)
+        // KEEP: se já agendado, preserva o horário; reabrir o app não reinicia o período.
+        WorkManager.getInstance(context)
+            .enqueueUniquePeriodicWork(NOME, ExistingPeriodicWorkPolicy.KEEP, pedidoPeriodico())
+    }
+
+    override fun desligar() {
+        WorkManager.getInstance(context).cancelUniqueWork(NOME)
+    }
+
+    override fun verificarAgora() {
+        WorkManager.getInstance(context).enqueueUniqueWork(NOME_AGORA, ExistingWorkPolicy.REPLACE, pedidoImediato())
+    }
+
+    // `internal` para o teste conferir os pedidos e a fila sem a biblioteca work-testing.
+    internal companion object {
+        const val NOME = "verificacao-de-chuva"
+        const val NOME_AGORA = "verificacao-de-chuva-agora"
+
+        /** Duas verificações por dia. */
+        private const val INTERVALO_HORAS = 12L
+
+        /** Primeira espera do backoff exponencial quando a verificação falha. */
+        private const val ESPERA_INICIAL_MINUTOS = 15L
+
+        /** A verificação periódica: a cada 12 h, só com internet, com nova tentativa em 15 min se falhar. */
+        fun pedidoPeriodico(): PeriodicWorkRequest = PeriodicWorkRequestBuilder<VerificacaoChuvaWorker>(INTERVALO_HORAS, TimeUnit.HOURS)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -88,28 +115,7 @@ class AgendaWorkManager(private val context: Context) : AgendaDeVerificacao {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, ESPERA_INICIAL_MINUTOS, TimeUnit.MINUTES)
             .build()
 
-        // KEEP: se já agendado, preserva o horário; reabrir o app não reinicia o período.
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(NOME, ExistingPeriodicWorkPolicy.KEEP, pedido)
-    }
-
-    override fun desligar() {
-        WorkManager.getInstance(context).cancelUniqueWork(NOME)
-    }
-
-    override fun verificarAgora() {
-        val pedido = OneTimeWorkRequestBuilder<VerificacaoChuvaWorker>().build()
-        WorkManager.getInstance(context).enqueueUniqueWork(NOME_AGORA, ExistingWorkPolicy.REPLACE, pedido)
-    }
-
-    private companion object {
-        const val NOME = "verificacao-de-chuva"
-        const val NOME_AGORA = "verificacao-de-chuva-agora"
-
-        /** Duas verificações por dia. */
-        const val INTERVALO_HORAS = 12L
-
-        /** Primeira espera do backoff exponencial quando a verificação falha. */
-        const val ESPERA_INICIAL_MINUTOS = 15L
+        /** Uma verificação imediata, fora do agendamento periódico. */
+        fun pedidoImediato(): OneTimeWorkRequest = OneTimeWorkRequestBuilder<VerificacaoChuvaWorker>().build()
     }
 }
