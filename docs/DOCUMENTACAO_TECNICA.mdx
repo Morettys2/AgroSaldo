@@ -88,16 +88,16 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 
 | Camada | Tecnologia | Versão |
 | --- | --- | --- |
-| Linguagem | Kotlin | 2.2.10 |
-| Interface | Jetpack Compose + Material 3 | BOM 2026.02.01 |
+| Linguagem | Kotlin | 2.4.21 |
+| Interface | Jetpack Compose + Material 3 | BOM 2026.09.00 |
 | Arquitetura | MVVM + Repository, com o domínio puro | |
 | Banco local | Room (SQLite) | 2.8.5 |
 | Injeção de dependência | Hilt | 2.60.1 |
-| Segundo plano | WorkManager | 2.11.0 |
+| Segundo plano | WorkManager | 2.12.0 |
 | Navegação | Navigation Compose | 2.10.2 |
 | Rede | `HttpURLConnection` e `org.json` (só a Open-Meteo, por HTTPS) | da plataforma |
-| Build | Android Gradle Plugin e Gradle | 9.3.2 e 9.5.0 |
-| Testes | JUnit 4, coroutines-test, Robolectric, Roborazzi | 4.13.2, 1.11.0, 4.17, 1.76.0 |
+| Build | Android Gradle Plugin e Gradle | 9.5.0 e 9.8.2 |
+| Testes | JUnit 4, coroutines-test, Robolectric, Roborazzi | 4.13.2, 1.11.0, 4.17, 1.77.0 |
 | Qualidade | ktlint, detekt, Android Lint, GitHub Actions | 14.2.0, 1.23.8 |
 
 SDKs: `minSdk 26` (Android 8.0), `compileSdk 37` e `targetSdk 37`. O código compila para Java 11.
@@ -4702,9 +4702,9 @@ O AgroSaldo é compilado pelo **Gradle**, com scripts em Kotlin (`*.gradle.kts`)
 | Item | Versão | Onde está definido |
 |---|---|---|
 | Gradle | `9.5.0` | `gradle/wrapper/gradle-wrapper.properties` (`distributionUrl`, com `distributionSha256Sum` para conferir o download) |
-| Android Gradle Plugin (AGP) | `9.3.2` | `gradle/libs.versions.toml` (`agp`) |
-| Kotlin (plugin do compilador do Compose) | `2.2.10` | `gradle/libs.versions.toml` (`kotlin`) |
-| KSP | `2.3.11` | `gradle/libs.versions.toml` (`ksp`) |
+| Android Gradle Plugin (AGP) | `9.5.0` | `gradle/libs.versions.toml` (`agp`) |
+| Kotlin (plugin do compilador do Compose) | `2.4.21` | `gradle/libs.versions.toml` (`kotlin`) |
+| KSP | `2.3.13` | `gradle/libs.versions.toml` (`ksp`) |
 | JDK do daemon do Gradle | `25` | `gradle/gradle-daemon-jvm.properties` (`toolchainVersion=25`) |
 | Bytecode Java gerado | Java `11` | `app/build.gradle.kts` (`sourceCompatibility` / `targetCompatibility = JavaVersion.VERSION_11`) |
 | JDK do detekt | `21` | `app/build.gradle.kts` (`javaToolchains.launcherFor { ... of(21) }`) |
@@ -4766,7 +4766,7 @@ O detekt **não** é aplicado como plugin do Gradle. O `app/build.gradle.kts` cr
 Detalhes, conforme os comentários do arquivo:
 
 - **Por que JVM 21:** "o detekt 1.23 não funciona no JDK 25 em que o Gradle do Android Studio roda". Por isso a tarefa pede um launcher Java 21 pelo `javaToolchains`.
-- **Configuração `detektCli`:** guarda o `detekt-cli` e força as dependências `org.jetbrains.kotlin` para `2.0.21`, porque "o detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.2 do app".
+- **Configuração `detektCli`:** guarda o `detekt-cli` e força as dependências `org.jetbrains.kotlin` para `2.0.21`, porque "o detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.4 do app".
 - **Entradas:** `src/main/java`, `src/test/java`, `src/testFixtures/java`, `src/androidTest/java` e `src/sharedTest/java` do app, mais `src/main/java`, `src/test/java` e `src/testFixtures/java` do `:domain`. Só entram as pastas que existem: a CLI do detekt recusa caminho inexistente, e hoje o app não tem `src/androidTest/java` (os testes de DAO ficam em `src/sharedTest`).
 - **Argumentos:** `--config config/detekt/detekt.yml`, `--build-upon-default-config`, `--jvm-target 21` e relatório HTML em `app/build/reports/detekt/detekt.html`.
 - Ambas ficam no grupo `verification`.
@@ -4793,6 +4793,7 @@ O arquivo `app/src/test/resources/robolectric.properties` completa a configuraç
 | `org.gradle.jvmargs` | `-Xmx2048m -Dfile.encoding=UTF-8` | Até 2 GB de memória para o daemon; arquivos lidos como UTF-8 |
 | `org.gradle.configuration-cache` | `true` | Liga o *configuration cache*: o Gradle guarda o resultado da fase de configuração e o reaproveita nas próximas execuções, deixando o build mais rápido |
 | `kotlin.code.style` | `official` | Estilo de código Kotlin padrão para a IDE |
+| `android.onlyEnableUnitTestForTheTestedBuildType` | `false` | Liga os testes unitários também no release: a prévia do Compose que o AGP 9.5 gera para o release precisa deles. O CI continua rodando só o `testDebugUnitTest` |
 
 O CI desliga o configuration cache explicitamente (`--no-configuration-cache`).
 
@@ -4829,11 +4830,11 @@ No `app/build.gradle.kts` o BOM fica numa variável (`val composeBom = platform(
 
 | Nome | Versão | Para que é usada neste app | Por que foi escolhida |
 |---|---|---|---|
-| `com.android.application` (AGP) | `9.3.2` | Compila o módulo `:app` como aplicativo Android (APK) | É o plugin oficial do Google para apps Android |
-| `org.jetbrains.kotlin.plugin.compose` | `2.2.10` | Compilador do Jetpack Compose (transforma funções `@Composable`) | Desde o Kotlin 2.0 o compilador do Compose é distribuído junto com o Kotlin, na mesma versão |
-| `org.jetbrains.kotlin.jvm` | `2.2.10` | Compila o módulo `:domain` como Kotlin JVM puro | Sem Android no classpath, o compilador recusa `import android.*` no domínio; no `:app` o Kotlin já vem embutido no AGP |
+| `com.android.application` (AGP) | `9.5.0` | Compila o módulo `:app` como aplicativo Android (APK) | É o plugin oficial do Google para apps Android |
+| `org.jetbrains.kotlin.plugin.compose` | `2.4.21` | Compilador do Jetpack Compose (transforma funções `@Composable`) | Desde o Kotlin 2.0 o compilador do Compose é distribuído junto com o Kotlin, na mesma versão |
+| `org.jetbrains.kotlin.jvm` | `2.4.21` | Compila o módulo `:domain` como Kotlin JVM puro | Sem Android no classpath, o compilador recusa `import android.*` no domínio; no `:app` o Kotlin já vem embutido no AGP |
 | `com.google.dagger.hilt.android` | `2.60.1` | Liga as classes geradas pelo Hilt ao `Application` | Exige AGP 9 desde o Hilt 2.59 |
-| `com.google.devtools.ksp` | `2.3.11` | Roda o `room-compiler` | "Processador de anotações do Room" (comentário do catálogo); o KSP é o substituto mais rápido do antigo kapt |
+| `com.google.devtools.ksp` | `2.3.13` | Roda o `room-compiler` | "Processador de anotações do Room" (comentário do catálogo); o KSP é o substituto mais rápido do antigo kapt |
 | `org.jlleitschuh.gradle.ktlint` | `14.2.0` | Tarefas `ktlintCheck` e `ktlintFormat` | Integra o ktlint (formatação) ao Gradle |
 | `org.gradle.toolchains.foojay-resolver-convention` | `1.0.0` | Baixa automaticamente JDKs que faltem (ex.: o 21 do detekt) | Declarado em `settings.gradle.kts`, fora do catálogo; é o resolvedor de toolchains padrão sugerido pelo Gradle |
 
@@ -4843,19 +4844,19 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 
 | Nome | Versão | Para que é usada neste app | Por que foi escolhida |
 |---|---|---|---|
-| `androidx.core:core-ktx` | `1.19.0` | APIs de compatibilidade e extensões Kotlin do Android (ex.: `ContextCompat`, `NotificationCompat` no aviso de chuva) | Base de praticamente todo app Android moderno |
+| `androidx.core:core-ktx` | `1.19.1` | APIs de compatibilidade e extensões Kotlin do Android (ex.: `ContextCompat`, `NotificationCompat` no aviso de chuva) | Base de praticamente todo app Android moderno |
 | `androidx.activity:activity-compose` | `1.13.0` | `setContent { }`: liga a `MainActivity` ao Compose | Ponte oficial entre Activity e Compose |
 | `androidx.lifecycle:lifecycle-runtime-ktx` | `2.11.0` | Ciclo de vida com coroutines (`lifecycleScope`) | Versão compartilhada por todos os artefatos `androidx.lifecycle` |
 | `androidx.lifecycle:lifecycle-viewmodel-compose` | `2.11.0` | ViewModel do AndroidX para o Compose (as telas usam `hiltViewModel()`, que parte dele) | Base do MVVM: o ViewModel sobrevive à rotação de tela |
 | `androidx.lifecycle:lifecycle-runtime-compose` | `2.11.0` | `collectAsStateWithLifecycle()` para ler o `StateFlow` dos ViewModels | Para de coletar quando a tela não está visível, economizando bateria |
 | `androidx.navigation:navigation-compose` | `2.10.2` | Navegação entre telas (grafos de navegação, barra inferior) | Biblioteca oficial de navegação para Compose |
-| `androidx.core:core-splashscreen` | `1.0.1` | Tela de abertura (`installSplashScreen()`) | "SplashScreen API compatível com API &lt; 31" (comentário do build) |
+| `androidx.core:core-splashscreen` | `1.2.0` | Tela de abertura (`installSplashScreen()`) | "SplashScreen API compatível com API &lt; 31" (comentário do build) |
 
 ### Compose
 
 | Nome | Versão | Para que é usada neste app | Por que foi escolhida |
 |---|---|---|---|
-| `androidx.compose:compose-bom` | `2026.02.01` | Define as versões das bibliotecas Compose sem versão | Garante versões compatíveis entre si |
+| `androidx.compose:compose-bom` | `2026.09.00` | Define as versões das bibliotecas Compose sem versão | Garante versões compatíveis entre si |
 | `androidx.compose.runtime:runtime` | (BOM) | Runtime do Compose em `src/testFixtures` | "O plugin do Compose também processa src/testFixtures e exige o runtime no classpath, mesmo sem nenhum @Composable lá" |
 | `androidx.compose.ui:ui` | (BOM) | Núcleo da interface: layout, `Modifier`, desenho | Base de qualquer tela Compose |
 | `androidx.compose.ui:ui-graphics` | (BOM) | Cores, formas e vetores (tema, ícones próprios) | Parte padrão do Compose |
@@ -4888,7 +4889,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 
 | Nome | Versão | Para que é usada neste app | Por que foi escolhida |
 |---|---|---|---|
-| `androidx.work:work-runtime-ktx` | `2.11.0` | `VerificacaoChuvaWorker`: "verificação periódica de chuva em segundo plano" | API recomendada para trabalho periódico que precisa sobreviver ao fechamento do app e ao reinício do aparelho |
+| `androidx.work:work-runtime-ktx` | `2.12.0` | `VerificacaoChuvaWorker`: "verificação periódica de chuva em segundo plano" | API recomendada para trabalho periódico que precisa sobreviver ao fechamento do app e ao reinício do aparelho |
 
 ### Segurança
 
@@ -4904,10 +4905,10 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 |---|---|---|---|
 | `junit:junit` | `4.13.2` | `@Test`, `assertEquals`, `@Rule` em todos os testes de JVM | Framework de testes padrão do Android (JUnit 4) |
 | `org.jetbrains.kotlinx:kotlinx-coroutines-test` | `1.11.0` | `runTest`, `advanceUntilIdle`, `runCurrent`, troca do `Dispatchers.Main` (`MainDispatcherRule`) | Controla o tempo virtual das coroutines nos testes |
-| `org.json:json` | `20250517` | `org.json` de verdade nos testes do leitor da Open-Meteo | "O android.jar só tem stubs" do `org.json` (comentário do build) |
+| `org.json:json` | `20260814` | `org.json` de verdade nos testes do leitor da Open-Meteo | "O android.jar só tem stubs" do `org.json` (comentário do build) |
 | `org.robolectric:robolectric` | `4.17` | Simula o Android na JVM (telas, `SharedPreferences`) | "Robolectric simula o Android" (catálogo): testes de tela sem emulador |
-| `io.github.takahirom.roborazzi:roborazzi` | `1.76.0` | Gera as capturas de tela no JVM | "Roborazzi tira a captura da tela" (catálogo) |
-| `io.github.takahirom.roborazzi:roborazzi-compose` | `1.76.0` | `captureRoboImage()` em nós do Compose | Integração do Roborazzi com Compose |
+| `io.github.takahirom.roborazzi:roborazzi` | `1.77.0` | Gera as capturas de tela no JVM | "Roborazzi tira a captura da tela" (catálogo) |
+| `io.github.takahirom.roborazzi:roborazzi-compose` | `1.77.0` | `captureRoboImage()` em nós do Compose | Integração do Roborazzi com Compose |
 | `androidx.test:core` | `1.7.0` | `ApplicationProvider` no `PreferenciasTest` (Robolectric) | Acesso ao `Context` em testes |
 | `androidx.test.ext:junit` | `1.3.0` | `AndroidJUnit4` nos testes no aparelho | Runner JUnit 4 do AndroidX Test |
 | `androidx.test:runner` | `1.7.0` | `AndroidJUnitRunner`, o `testInstrumentationRunner` dos testes no aparelho | Antes vinha por tabela com o Espresso; sem ele o `connectedAndroidTest` não começa |
@@ -5104,6 +5105,7 @@ Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesS
 - **Arquitetura profissional (out/2026):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta`; `UsuarioLogadoRepository`; teste do grafo. 497 testes de JVM e 15 instrumentados passando; app conferido no emulador (cadastro, propriedade, lançamento, edição, cópia e Worker). Em seguida, o domínio virou o módulo Gradle `:domain` (80 testes próprios) e o **baseline do detekt foi zerado** (115 achados resolvidos ou justificados).
 - **Auditoria de arquitetura e comentários técnicos (out/2026):** segunda rodada da auditoria (veja [Auditoria de arquitetura](#29-auditoria-de-arquitetura)) e KDoc técnico em entidades, DAOs, banco, mapeadores, modelos e repositórios. 499 testes de JVM e 15 instrumentados.
 - **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`):** dados reais do produtor fora do projeto; leitura resiliente (registros antigos lidos ajustados aos limites, sem migração; `.catch` em todas as leituras do banco; `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM (`src/sharedTest`); ano mês a mês e comparativo de propriedades no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer que devolve a ordem e a seleção; limpeza de build, CI, Lint e código sem uso. Em 02/11/2026, na mesma branch: teste do agendamento do WorkManager, fakes com sessão e posse (teste de contrato com o Room), ids de exemplo sem nomes antigos e o runner dos testes no aparelho declarado direto. 581 testes de JVM e 16 de DAO no aparelho, rodados no emulador.
+- **Bibliotecas (02/11/2026, branch `chore/atualiza-dependencias`, DEP-01):** AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, KSP 2.3.13, Compose BOM 2026.09.00, WorkManager 2.12.0 e as menores; testes de tela no `createComposeRule` do `junit4.v2`; Lint sem nenhum aviso.
 
 ---
 

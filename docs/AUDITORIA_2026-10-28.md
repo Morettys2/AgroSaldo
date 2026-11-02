@@ -2,7 +2,7 @@
 
 > **Atualização (28/10/2026):** os achados foram tratados na branch `fix/auditoria-2026-10-28`. O resultado de cada um está na coluna **Status** da seção 3, e os commits e conferências na seção 8.
 >
-> **Atualização (02/11/2026):** os dois parciais de teste (TST-01 e FAKE-01) foram fechados, e os testes de banco rodaram no emulador. Só o DEP-01 segue parcial, por decisão: as versões vão num PR próprio.
+> **Atualização (02/11/2026):** os dois parciais de teste (TST-01 e FAKE-01) foram fechados, e os testes de banco rodaram no emulador. O DEP-01 foi fechado num PR próprio (branch `chore/atualiza-dependencias`): todos os 22 achados estão corrigidos.
 
 > **Commit auditado:** `a735a1b` (docs: roadmap com os próximos passos do app), branch `prod`.
 > **Modo:** somente leitura. Nenhum arquivo de código foi alterado; este relatório é o único arquivo criado.
@@ -75,7 +75,7 @@ Ambiente: Windows 11, Gradle 9.5.0 com o daemon no JDK 25, execução em 28/10/2
 | CI-01 | 🔵 | 9 · CI | `.github/workflows/android.yml:39` | `vars.GRADLE_TASKS` troca o que o CI roda; `github.head_ref` interpolado no `run:` | ✅ corrigido |
 | UI-02 | 🔵 | 6 · Compose | `feature/lancamento/LancamentoListaScreen.kt:201` | `dp` soltos para margem em vez de `Espacos` | ✅ corrigido; ajustes de até 2 dp onde 14 e 18 dp viraram 12 e 20 dp |
 | LINT-01 | 🔵 | 9 · Qualidade | `feature/lancamento/LancamentoFormViewModel.kt:107` | Avisos do Lint: `VisibleForTests`, `InlinedApi`, `RedundantLabel` | ✅ corrigido: Lint de 27 para 10 avisos, só de versão |
-| DEP-01 | 🔵 | 9 · Dependências | `gradle/libs.versions.toml` | Dependências desatualizadas; nome de versão enganoso; artefato do Hilt indireto | ⚠️ parcial, por decisão: só o catálogo (`coroutines` e o artefato do Hilt); as versões não foram atualizadas |
+| DEP-01 | 🔵 | 9 · Dependências | `gradle/libs.versions.toml` | Dependências desatualizadas; nome de versão enganoso; artefato do Hilt indireto | ✅ corrigido: o catálogo na branch da auditoria e as versões num PR próprio (`chore/atualiza-dependencias`): AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, Compose BOM 2026.09.00 e as menores; Lint sem nenhum aviso |
 | MORTO-01 | 🔵 | 11 · Manutenção | vários | Funções, recursos, dependências e arquivos `.idea` sem uso | ✅ corrigido |
 | DOC-01 | 🔵 | 10 · Documentação | `CLAUDE.md`, comentários | Divergências menores e comentários desatualizados (detalhe na seção 5) | ✅ corrigido, com toda a tabela da seção 5 |
 
@@ -490,6 +490,7 @@ Branch `fix/auditoria-2026-10-28`, a partir da `prod` (`a735a1b`). Um commit por
 | `38b0d0f` | Fakes com sessão e posse, com teste de contrato | FAKE-01 |
 | `f3e9914` | Ids de exemplo sem os nomes antigos | SEG-02 |
 | `eb6c1c1` | Runner dos testes no aparelho declarado | MORTO-01 (regressão) |
+| `991f2ae`, `8498bcc`, `e71a04c` | Versões das bibliotecas, na branch `chore/atualiza-dependencias` | DEP-01 |
 | este commit | Status e documentação do fechamento | — |
 
 **O que apareceu durante a correção:**
