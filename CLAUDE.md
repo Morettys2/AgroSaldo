@@ -33,13 +33,13 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | Build | AGP 9.3.2 (Kotlin embutido no AGP), Gradle 9.5.0, Version Catalog (`gradle/libs.versions.toml`), KSP |
 | JDK | Gradle roda no JDK 25 (toolchain do daemon); o código compila para Java 11 |
 | Arquitetura | MVVM + Repository, com o domínio num **módulo Gradle próprio (`:domain`, Kotlin puro)**: o compilador recusa `android.*`, Room, Compose e Hilt ali |
-| Banco | Room 2.8.5, banco versão 3 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`), que é a base da produção: **sem migrações antigas**, a próxima parte da 3. Schema exportado em `app/schemas` |
+| Banco | Room 2.8.5, banco versão 4 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`). A versão 3 é a base da produção (**sem migrações antigas**); a 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da 4. Schema exportado em `app/schemas` |
 | DI | **Hilt** 2.60.1 (+ AndroidX Hilt 1.4.0): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` e `@HiltWorker`; módulos em `di/` (`TempoModule`, `BancoModule`, `PreferenciasModule`, `RepositoriosModule`, `ServicosModule`); processador via KSP. Antes era DI manual (`Dependencias`), trocado em out/2026 por decisão do João |
 | Rede | `HttpURLConnection` + `org.json` (`data/clima/FontePrevisao.kt`). Só a Open-Meteo, por HTTPS |
 | Preferências | `SharedPreferences` (`data/preferencias`, `data/sessao`) |
 | Segundo plano | WorkManager 2.11 (`aviso/VerificacaoChuvaWorker.kt`) |
 | Outros | Navigation Compose, Biometric, SplashScreen, fonte Plus Jakarta Sans embutida |
-| Testes | JUnit 4, kotlinx-coroutines-test, Robolectric 4.17, Roborazzi 1.76; Room em memória sobre o Robolectric para os DAOs (`src/sharedTest`); fakes em memória em `src/testFixtures` (sem MockK nem Turbine), que com uma sessão conferem posse como o Room (`ContratoDosRepositoriosTest` roda os mesmos cenários nos dois). O Worker é testado pela função `verificarChuva` e o agendamento pelo WorkManager de verdade no Robolectric, sem `work-testing` |
+| Testes | JUnit 4, kotlinx-coroutines-test, Robolectric 4.17, Roborazzi 1.76; Room sobre o Robolectric para os DAOs e a migração (`src/sharedTest`); fakes em memória em `src/testFixtures` (sem MockK nem Turbine), que com uma sessão conferem posse como o Room (`ContratoDosRepositoriosTest` roda os mesmos cenários nos dois). O Worker é testado pela função `verificarChuva` e o agendamento pelo WorkManager de verdade no Robolectric, sem `work-testing` |
 | Qualidade | ktlint (plugin 14.2, estilo `android_studio`, regras de Compose 0.6.8), detekt 1.23.8 **sem baseline (zero achados)**, Android Lint com `abortOnError` |
 
 `minSdk 26`, `compileSdk` e `targetSdk` 37.
@@ -75,8 +75,8 @@ domain/src/test/       testes do domínio (JVM puro, `./gradlew :domain:test`)
 domain/src/testFixtures/ fakes *Memoria das interfaces do domínio, DadosDeExemplo e relógios de teste
 app/src/testFixtures/  AjustesAvisoMemoria e Semeador (dependem do app); reexporta os fakes do :domain
 app/src/test/          testes JVM: ViewModels, dados, Worker, preferências, telas (Robolectric), capturas (Roborazzi), grafo do Hilt
-app/src/sharedTest/    testes de DAO do Room: rodam no JVM (Robolectric, também no CI) e no aparelho (connectedAndroidTest)
-app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; base dos testes de migração futuros)
+app/src/sharedTest/    testes de DAO e de migração do Room: rodam no JVM (Robolectric, também no CI) e no aparelho (connectedAndroidTest)
+app/schemas/           JSON do schema do Room (versão 3 em diante, um por versão; o MigracaoDoBancoTest monta o arquivo antigo com o SQL deles)
 config/detekt/         detekt.yml
 .editorconfig          regras do ktlint
 .github/workflows/android.yml  CI
@@ -160,7 +160,7 @@ config/detekt/         detekt.yml
 ```
 
 - Os testes de DAO ficam em `app/src/sharedTest` e rodam nos dois lugares: no JVM com Robolectric (dentro do `testDebugUnitTest`, também no CI) e no aparelho (`connectedAndroidTest`, que precisa de emulador e **não roda na nuvem**). Se mexer em DAO, entidade ou migração, avise para rodar também no Android Studio.
-- Mudou entidade do Room? Suba a versão do banco (a partir da 3), escreva a migração dela, exporte o schema e acrescente o teste de migração. Nunca use `fallbackToDestructiveMigration`.
+- Mudou entidade do Room? Suba a versão do banco (hoje 4), escreva a migração em `data/local/Migracoes.kt` (registrada no `comMigracoes()`), exporte o schema e acrescente o teste no `MigracaoDoBancoTest`. Nunca use `fallbackToDestructiveMigration`.
 
 ### Detalhes de ferramenta (não "conserte" sem entender)
 
@@ -196,7 +196,7 @@ config/detekt/         detekt.yml
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
 9. Não recrie README nem CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
-10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a próxima migração parte da 3.
+10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a migração 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da 4.
 ---
 
 ## 10. Histórico e próximos passos
@@ -212,9 +212,10 @@ config/detekt/         detekt.yml
 - **Documentação técnica em MDX (`docs/`)** para os devs do grupo, e branch `prod` como principal (a antiga `main` virou `desenvolvimento`, backup).
 - **Detekt sem baseline:** os 115 achados antigos foram resolvidos (constantes nomeadas, `aoSalvar` e `verificar` quebrados em funções menores, `Desfazer.desfazerExclusao`) ou justificados no `detekt.yml` (testes que capturam exceção de propósito, guardas, telas Compose) ou com `@Suppress` comentado no ponto exato. Achado novo = corrigir, não baselinar.
 - **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
-- **Auditoria de arquitetura (out/2026):** MVVM conferido de ponta a ponta. Corrigidos: Flow do nome do usuário sem tratamento de erro no Início; transação obrigatória nos repositórios (a `TransacaoDireta` foi para o `testFixtures`); despachante de E/S injetado na chamada de rede; nenhum valor padrão de relógio, despachantes ou `Desfazer` em produção (os testes passam relógio fixo); `FontePrevisao` pelo Hilt; `PropriedadeRepository.excluir(id)` sem uso removido; `SessaoViewModel` e `PrivacidadeViewModel` em `feature/sessao`. Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesSemDono` são legado dos dados de exemplo (mexer exige a migração 4).
+- **Auditoria de arquitetura (out/2026):** MVVM conferido de ponta a ponta. Corrigidos: Flow do nome do usuário sem tratamento de erro no Início; transação obrigatória nos repositórios (a `TransacaoDireta` foi para o `testFixtures`); despachante de E/S injetado na chamada de rede; nenhum valor padrão de relógio, despachantes ou `Desfazer` em produção (os testes passam relógio fixo); `FontePrevisao` pelo Hilt; `PropriedadeRepository.excluir(id)` sem uso removido; `SessaoViewModel` e `PrivacidadeViewModel` em `feature/sessao`. O legado dos dados de exemplo (`propriedades.usuario_id` anulável e `adotarPropriedadesSemDono`) saiu na migração 4.
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
 - **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`, relatório em `docs/AUDITORIA_2026-10-28.md`):** dados reais do produtor fora do projeto (o histórico antigo do Git ainda os tem: não tornar o repositório público sem limpar); leitura resiliente (registros antigos lidos ajustados aos limites, `.catch` em todas as leituras do banco, `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM; ano mês a mês e comparativo no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer com a ordem e a seleção originais; limpeza de build, CI, Lint e código sem uso. Versões das bibliotecas não foram atualizadas (fica para um PR próprio). Em 02/11/2026, na mesma branch: teste do `AgendaWorkManager`, fakes com sessão e posse e o `androidx.test:runner` declarado (sumira junto com o Espresso e o `connectedAndroidTest` não começava).
+- **Migração 4 (02/11/2026, branch `feat/migracao-4-dono-obrigatorio`):** `propriedades.usuario_id` obrigatório. Na migração, a propriedade sem dono vai para a conta mais antiga do aparelho; sem conta nenhuma, sai com o que é dela. Saiu o `adotarPropriedadesSemDono`: uma conta nova começa sem propriedades.
 
 ### R9 — Play Store (futuro, sem data)
 
