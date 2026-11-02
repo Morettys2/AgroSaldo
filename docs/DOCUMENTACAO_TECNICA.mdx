@@ -80,7 +80,7 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 | Arquivos Kotlin de produção | 119 no `:app` e 24 no `:domain` |
 | Telas (arquivos `*Screen.kt`) | 15, com 13 ViewModels de tela (o consentimento usa o `CadastroViewModel` e a política não tem estado) |
 | Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 3 |
-| Testes de JVM | 559: 89 no `:domain` e 470 no `:app` (com os 16 de DAO do `src/sharedTest`) |
+| Testes de JVM | 581: 89 no `:domain` e 492 no `:app` (com os 16 de DAO do `src/sharedTest`) |
 | Testes no aparelho | 16 (os mesmos DAOs do Room, que também rodam no JVM) |
 | Achados do detekt | 0, sem baseline |
 
@@ -2423,6 +2423,8 @@ O aviso de chuva roda **sem o app aberto**, usando o **WorkManager**. O trabalho
 | `desligar()` | `cancelUniqueWork("verificacao-de-chuva")` |
 | `verificarAgora()` | `OneTimeWorkRequest` com nome único `"verificacao-de-chuva-agora"` e política `ExistingWorkPolicy.REPLACE` |
 
+Os dois pedidos são montados por `pedidoPeriodico()` e `pedidoImediato()`, no `companion` `internal`, para o `AgendaWorkManagerTest` conferi-los e conferir a fila sem a biblioteca `work-testing`.
+
 #### `NotificadorDeChuva.kt`
 
 - **Canal:** id `CANAL = "aviso_chuva"`, nome "Aviso de chuva", descrição "Avisa quando há chuva prevista nas suas propriedades.", importância `IMPORTANCE_DEFAULT`. Por ser um canal próprio, pode ser silenciado separadamente nos ajustes do Android.
@@ -3805,11 +3807,11 @@ Um *source set* é uma pasta de código com o seu próprio classpath. O projeto 
 | Source set | Onde roda | O que vai lá | Comando |
 |---|---|---|---|
 | `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 80 testes | `./gradlew :domain:test` |
-| `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric), o grafo do Hilt e os DAOs do `src/sharedTest`: 470 testes | `./gradlew testDebugUnitTest` |
+| `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric), o grafo do Hilt, o contrato dos repositórios (Room e fakes) e os DAOs do `src/sharedTest`: 492 testes | `./gradlew testDebugUnitTest` |
 | `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` (no app). Fora do APK | (compilado junto com os testes) |
 | `app/src/sharedTest` | JVM com Robolectric, e aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras e CASCADE | `./gradlew testDebugUnitTest` e `./gradlew connectedAndroidTest` |
 
-Em números: **559 testes** de JVM (89 em `domain/src/test` e 470 no `:app`, contando os 16 de DAO do `src/sharedTest`), e os mesmos **16** de DAO também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
+Em números: **581 testes** de JVM (89 em `domain/src/test` e 492 no `:app`, contando os 16 de DAO do `src/sharedTest`), e os mesmos **16** de DAO também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
 
 Outros comandos úteis:
 
@@ -3842,6 +3844,7 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 | `data/RelogiosEUsuarioLogadoTest.kt` | `RelogioDoAparelho` (acompanha o fuso a cada leitura), relógios de teste, relógio monotônico e `UsuarioLogadoRoom` | JUnit, coroutines-test | 7 |
 | `di/GrafoDeDependenciasTest.kt` | O grafo do Hilt montado de verdade no Robolectric: o app começa vazio, os singletons são compartilhados e a previsão vem da Open-Meteo | JUnit, Robolectric, Hilt testing | 5 |
 | `data/CamadaDeDadosTest.kt` | Mapeadores entidade ↔ domínio, `Semeador` e repositórios Room sobre DAOs falsos: isolamento por conta, posse dos registros, transações e desfazer exclusão | JUnit, coroutines-test | 26 |
+| `data/ContratoDosRepositoriosTest.kt` | Os mesmos 9 cenários contra o Room de verdade (em memória) e contra os fakes do `testFixtures` (FAKE-01): sem sessão a lista vem vazia e gravar falha, cada conta vê só o que é dela, gravar o que é de outra conta falha, ordem das propriedades e dos lançamentos, desfazer no mesmo lugar | JUnit, coroutines-test, Robolectric, Room | 18 |
 | `data/DesfazerESelecaoTest.kt` | `Desfazer` (oferta de desfazer exclusão, prazo e falhas) e `SelecaoAtual` (propriedade e mês compartilhados entre abas, virada do mês) | JUnit, coroutines-test | 14 |
 | `data/PreferenciasTest.kt` | Preferências em `SharedPreferences` sobrevivem a "reiniciar o app" (instância nova sobre o mesmo arquivo): contador de senhas erradas, sessão, bloqueio por digital, valores escondidos | JUnit, Robolectric (`ApplicationProvider`) | 6 |
 
@@ -3853,6 +3856,7 @@ Legenda das ferramentas: **JUnit** = JUnit 4; **coroutines-test** = `kotlinx-cor
 | `clima/AjustesAvisoPorContaTest.kt` | Ajustes do aviso de chuva separados por conta, inclusive a migração dos ajustes antigos do aparelho | JUnit | 7 |
 | `clima/FontePrevisaoTest.kt` | Download da previsão: cancelamento fecha a conexão, tempo total estourado vira falta de conexão | JUnit, coroutines (`runBlocking`) | 3 |
 | `clima/PermissaoNotificacaoTest.kt` | Decisão do botão "Permitir notificações": pedir pelo diálogo do sistema ou abrir os ajustes | JUnit | 5 |
+| `aviso/AgendaWorkManagerTest.kt` | O agendamento (TST-01): a cada 12 h, só com internet, nova tentativa em 15 min; na fila do WorkManager de verdade (Robolectric, sem `work-testing`), ligar de novo mantém o horário, "verificar agora" substitui e desligar cancela | JUnit, Robolectric, WorkManager | 4 |
 | `aviso/VerificacaoChuvaWorkerTest.kt` | O que o Worker faz a cada 12 h, sem Android: notificar, tentar de novo sem internet (até 3 vezes), não notificar sem chuva | JUnit, coroutines-test, `ListenableWorker.Result` do WorkManager | 6 |
 
 **Núcleo** (`core/`)
@@ -3900,8 +3904,8 @@ Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `dom
 |---|---|
 | `data/DadosDeExemplo.kt` (`DadosDeExemplo`) | Massa fixa de dados fictícios: 2 propriedades ("Fazenda Modelo" e "Sítio Exemplo") e 9 lançamentos no mês de "hoje" e no anterior, sem datas futuras |
 | `data/local/Semeador.kt` (`Semeador`) | Gera os `INSERT` dos dados de exemplo (propriedades antes dos lançamentos, por causa da chave estrangeira, e sem dono). Recebe uma função `executar` em vez do banco, para servir tanto no SQLite real quanto na JVM |
-| `data/repository/PropriedadeRepositoryMemoria.kt` | `PropriedadeRepository` sem filtro por usuário; se receber o repositório de lançamentos, simula o CASCADE ao excluir e o desfazer |
-| `data/repository/LancamentoRepositoryMemoria.kt` | `LancamentoRepository` em memória (upsert por id, exclusão) |
+| `data/repository/PropriedadeRepositoryMemoria.kt` | `PropriedadeRepository` na ordem alfabética do Room. Sem sessão, não filtra por conta; com uma `SessaoRepository`, confere sessão e posse como o Room. Se receber o repositório de lançamentos, simula o CASCADE ao excluir e o desfazer, e diz a ele de quem é cada propriedade |
+| `data/repository/LancamentoRepositoryMemoria.kt` | `LancamentoRepository` em memória, na ordem do Room (data e última gravação; a ordem das gravações faz o papel do `atualizado_em`, e o desfazer volta ao mesmo lugar). Com uma `SessaoRepository`, confere sessão e posse como o Room |
 | `data/repository/UsuarioRepositoryMemoria.kt` | `UsuarioRepository`: recusa e-mail ou id repetido; troca de senha, consentimento e exclusão |
 | `data/RelogiosDeTeste.kt` | `relogioEm`, `relogioFixo` e `relogioPorMs` (um `java.time.Clock` controlado pelo teste), `RelogioMutavel` (que anda quando o teste manda), `RelogioMonotonicoFalso`, `DespachantesDeTeste` (todos os dispatchers no mesmo) e `UsuarioLogadoMemoria` |
 | `domain/RelogioMonotonicoIndisponivel.kt` | `RelogioMonotonico` sem boot conhecido (`instante()` devolve `null`) |
@@ -3918,6 +3922,13 @@ Todos ficam fora do APK. Os que implementam interfaces do domínio moram em `dom
 ### Lista completa dos testes
 
 Os nomes abaixo foram copiados dos arquivos.
+
+#### `src/test/…/aviso/AgendaWorkManagerTest.kt` (4)
+
+- verificacao periodica roda o worker da chuva a cada 12 horas so com internet
+- verificacao que falha tenta de novo em 15 minutos com espera crescente
+- verificar agora roda o worker da chuva uma vez so
+- na fila ligar mantem o horario, verificar agora substitui e desligar cancela
 
 #### `src/test/…/aviso/VerificacaoChuvaWorkerTest.kt` (6)
 
@@ -4088,6 +4099,20 @@ Os nomes abaixo foram copiados dos arquivos.
 - criar conta e adotar as propriedades sem dono e tudo ou nada
 - email repetido nao cria conta nem rouba propriedades
 - novo aceite grava a data e a versao do termo
+
+#### `src/test/…/data/ContratoDosRepositoriosTest.kt` (18: 9 cenários, no Room e nos fakes)
+
+Os cenários ficam na classe abstrata `ContratoDosRepositorios`; `ContratoNoRoomTest` (Robolectric, banco em memória) e `ContratoNoFakeTest` rodam os mesmos.
+
+- sem sessao a lista vem vazia e a busca nao acha nada
+- sem sessao gravar e excluir falham
+- cada conta ve so as suas propriedades e lancamentos
+- gravar por cima da propriedade de outra conta falha e nao muda nada
+- lancamento em propriedade de outra conta ou com id de outra conta falha
+- excluir o que e de outra conta nao apaga nada
+- propriedades vem em ordem alfabetica do portugues
+- lancamentos vem mais recentes primeiro, por data e depois pela ultima gravacao
+- desfazer a exclusao devolve o lancamento ao mesmo lugar da lista
 
 #### `src/test/…/data/DesfazerESelecaoTest.kt` (14)
 
@@ -4831,6 +4856,7 @@ Os plugins do catálogo aparecem no `build.gradle.kts` da raiz com `apply false`
 | `io.github.takahirom.roborazzi:roborazzi-compose` | `1.76.0` | `captureRoboImage()` em nós do Compose | Integração do Roborazzi com Compose |
 | `androidx.test:core` | `1.7.0` | `ApplicationProvider` no `PreferenciasTest` (Robolectric) | Acesso ao `Context` em testes |
 | `androidx.test.ext:junit` | `1.3.0` | `AndroidJUnit4` nos testes no aparelho | Runner JUnit 4 do AndroidX Test |
+| `androidx.test:runner` | `1.7.0` | `AndroidJUnitRunner`, o `testInstrumentationRunner` dos testes no aparelho | Antes vinha por tabela com o Espresso; sem ele o `connectedAndroidTest` não começa |
 
 ### Qualidade de código
 
@@ -5023,7 +5049,7 @@ Pendente, sem pressa: `propriedades.usuario_id` anulável e `adotarPropriedadesS
 - **Entrega (out/2026, branch `prod`):** migrações removidas (banco v3 como base), transições de tela sem fantasma, limites de texto e de área no domínio, exclusão de lançamento atômica (devolve o apagado), regra da lista do Histórico movida para o `HistoricoUiState`, auditoria de arquitetura (MVVM conferido). 480 testes de JVM e 15 instrumentados passando.
 - **Arquitetura profissional (out/2026):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta`; `UsuarioLogadoRepository`; teste do grafo. 497 testes de JVM e 15 instrumentados passando; app conferido no emulador (cadastro, propriedade, lançamento, edição, cópia e Worker). Em seguida, o domínio virou o módulo Gradle `:domain` (80 testes próprios) e o **baseline do detekt foi zerado** (115 achados resolvidos ou justificados).
 - **Auditoria de arquitetura e comentários técnicos (out/2026):** segunda rodada da auditoria (veja [Auditoria de arquitetura](#29-auditoria-de-arquitetura)) e KDoc técnico em entidades, DAOs, banco, mapeadores, modelos e repositórios. 499 testes de JVM e 15 instrumentados.
-- **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`):** dados reais do produtor fora do projeto; leitura resiliente (registros antigos lidos ajustados aos limites, sem migração; `.catch` em todas as leituras do banco; `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM (`src/sharedTest`); ano mês a mês e comparativo de propriedades no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer que devolve a ordem e a seleção; limpeza de build, CI, Lint e código sem uso. 559 testes de JVM e 16 de DAO no aparelho.
+- **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`):** dados reais do produtor fora do projeto; leitura resiliente (registros antigos lidos ajustados aos limites, sem migração; `.catch` em todas as leituras do banco; `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM (`src/sharedTest`); ano mês a mês e comparativo de propriedades no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer que devolve a ordem e a seleção; limpeza de build, CI, Lint e código sem uso. Em 02/11/2026, na mesma branch: teste do agendamento do WorkManager, fakes com sessão e posse (teste de contrato com o Room), ids de exemplo sem nomes antigos e o runner dos testes no aparelho declarado direto. 581 testes de JVM e 16 de DAO no aparelho, rodados no emulador.
 
 ---
 

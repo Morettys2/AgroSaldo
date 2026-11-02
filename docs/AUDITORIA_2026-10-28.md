@@ -1,6 +1,8 @@
 # Auditoria de código — AgroSaldo (`prod`, 28/10/2026)
 
 > **Atualização (28/10/2026):** os achados foram tratados na branch `fix/auditoria-2026-10-28`. O resultado de cada um está na coluna **Status** da seção 3, e os commits e conferências na seção 8.
+>
+> **Atualização (02/11/2026):** os dois parciais de teste (TST-01 e FAKE-01) foram fechados, e os testes de banco rodaram no emulador. Só o DEP-01 segue parcial, por decisão: as versões vão num PR próprio.
 
 > **Commit auditado:** `a735a1b` (docs: roadmap com os próximos passos do app), branch `prod`.
 > **Modo:** somente leitura. Nenhum arquivo de código foi alterado; este relatório é o único arquivo criado.
@@ -64,12 +66,12 @@ Ambiente: Windows 11, Gradle 9.5.0 com o daemon no JDK 25, execução em 28/10/2
 | ENT-01 | 🟡 | 5 · Entrada | `feature/conta/CadastroViewModel.kt:51` | Nome, e-mail e senha não são cortados ao digitar; `Usuario.init` sem limite de tamanho | ✅ corrigido |
 | REL-01 | 🟡 | 1 · Datas | `feature/*/*ViewModel.kt` (UiState) | `LocalDate.now()` sem `Clock` em 5 UiState e 2 pontos de UI | ✅ corrigido; o único `now()` de produção é o do `RelogioDoAparelho` |
 | ARQ-01 | 🟡 | 2 · Arquitetura | `feature/historico/HistoricoViewModel.kt:119` | Melhor/pior mês e comparativo de propriedades calculados no ViewModel | ✅ corrigido; `lerArea` e `ficaNoBrasil` ficaram no ViewModel, como a auditoria admitia |
-| TST-01 | 🟡 | 8 · Testes | `app/src/androidTest/...` | SQL real só roda no emulador (nunca no CI); faltam testes para FLW-01, SEG-01 e BUG-01 | ⚠️ parcial: DAOs no JVM e todos os testes da tabela feitos; o `AgendaWorkManager` segue sem teste, porque precisaria do `work-testing` (biblioteca nova) |
+| TST-01 | 🟡 | 8 · Testes | `app/src/androidTest/...` | SQL real só roda no emulador (nunca no CI); faltam testes para FLW-01, SEG-01 e BUG-01 | ✅ corrigido: DAOs no JVM, todos os testes da tabela e o `AgendaWorkManager` (a fila no WorkManager de verdade, no Robolectric, sem `work-testing`) |
 | UI-01 | 🟡 | 6 · Compose | 13 arquivos de tela | 13 de 17 telas sem `@Preview` escuro; 8 sem fonte 2× | ✅ corrigido: `@PreviasDaTela` nas 17 telas |
 | BLD-01 | 🟡 | 9 · Build | `app/build.gradle.kts:59` | Sobras de baseline: ktlint aponta para arquivo inexistente; detekt usa baseline se o arquivo aparecer | ✅ corrigido |
 | DAD-01 | 🔵 | 4 · Dados | `data/repository/PropriedadeRepositoryRoom.kt:82` | "Desfazer" não devolve `atualizado_em` nem a propriedade selecionada | ✅ corrigido: `LancamentoExcluido`, instantes originais e a seleção de volta |
 | BUG-02 | 🔵 | 1 · Bugs | `feature/propriedade/PropriedadeFormViewModel.kt:315` | Cultura vazia vira o texto "Não informada" gravado no banco | ✅ corrigido: cultura em branco gravada vazia; "Não informada" só na tela |
-| FAKE-01 | 🔵 | 8 · Testes | `domain/src/testFixtures/.../PropriedadeRepositoryMemoria.kt:21` | Fakes não ordenam nem conferem sessão/posse como o Room | ⚠️ parcial: o fake ordena como o Room; sessão e posse continuam fora dele (são testadas nos repositórios Room e nos DAOs) |
+| FAKE-01 | 🔵 | 8 · Testes | `domain/src/testFixtures/.../PropriedadeRepositoryMemoria.kt:21` | Fakes não ordenam nem conferem sessão/posse como o Room | ✅ corrigido: o fake ordena como o Room e, com uma sessão, confere sessão e posse; o `ContratoDosRepositoriosTest` roda os mesmos cenários no Room e nos fakes |
 | CI-01 | 🔵 | 9 · CI | `.github/workflows/android.yml:39` | `vars.GRADLE_TASKS` troca o que o CI roda; `github.head_ref` interpolado no `run:` | ✅ corrigido |
 | UI-02 | 🔵 | 6 · Compose | `feature/lancamento/LancamentoListaScreen.kt:201` | `dp` soltos para margem em vez de `Espacos` | ✅ corrigido; ajustes de até 2 dp onde 14 e 18 dp viraram 12 e 20 dp |
 | LINT-01 | 🔵 | 9 · Qualidade | `feature/lancamento/LancamentoFormViewModel.kt:107` | Avisos do Lint: `VisibleForTests`, `InlinedApi`, `RedundantLabel` | ✅ corrigido: Lint de 27 para 10 avisos, só de versão |
@@ -482,15 +484,23 @@ Branch `fix/auditoria-2026-10-28`, a partir da `prod` (`a735a1b`). Um commit por
 | `6721802` | Limpeza | BLD-01, CI-01, LINT-01, MORTO-01, DEP-01 |
 | `6da53c4` | Correção de build achada no fim | TST-01 |
 | `d1f5f25` | Documentação | DOC-01 e a tabela da seção 5 |
-| este commit | Status e correções neste relatório | — |
+| `bea83a1` | Status e correções neste relatório | — |
+| `6c484c2` | Padrão da busca de dados reais fora do relatório; contagens de data classes na doc | SEG-02, DOC-01 |
+| `03acbc8` | Teste do agendamento do WorkManager | TST-01 |
+| `38b0d0f` | Fakes com sessão e posse, com teste de contrato | FAKE-01 |
+| `f3e9914` | Ids de exemplo sem os nomes antigos | SEG-02 |
+| `eb6c1c1` | Runner dos testes no aparelho declarado | MORTO-01 (regressão) |
+| este commit | Status e documentação do fechamento | — |
 
 **O que apareceu durante a correção:**
 - O `precisaNovoAceite` do `SessaoViewModel` também lia o banco sem tratamento de erro (mesma família do FLW-01) e foi corrigido no mesmo commit.
 - Ordenar o fake como o Room (FAKE-01) deixou instável um teste do formulário de propriedade que dependia da ordem dos ids. O teste foi corrigido no commit do ARQ-01.
 - Com os testes de DAO em `src/sharedTest`, a pasta `src/androidTest/java` deixou de existir num checkout limpo e o detekt quebraria no CI. Corrigido em `6da53c4`.
+- A limpeza do MORTO-01 tirou o Espresso, que trazia por tabela o `androidx.test:runner`. Os testes no aparelho deixaram de começar, e só se viu ao rodá-los no emulador em 02/11. Corrigido em `eb6c1c1`.
+- Dois ids de teste ainda tinham nomes antigos de propriedade com hífen, que a busca com espaço não pegava. Corrigido em `f3e9914`.
 - Este relatório (que ainda citava os dados reais) entrou por engano no commit do grupo 3. Como nada tinha sido publicado, o commit local foi refeito sem ele antes do primeiro push.
 
-**Ferramentas no fim:** ktlint, detekt (zero achados, sem baseline), `testDebugUnitTest` (470 testes, incluindo os 16 de DAO no JVM), `:domain:test` (89 testes), `assembleDebug` e `lintDebug` (0 erros, 10 avisos, todos de versão de dependência) passaram. O `assembleRelease` com R8 compila. O `connectedAndroidTest` não rodou aqui, por falta de emulador.
+**Ferramentas no fim (02/11/2026):** ktlint, detekt (zero achados, sem baseline), `testDebugUnitTest` (492 testes, incluindo os 16 de DAO no JVM e os 18 do contrato), `:domain:test` (89 testes), `assembleDebug` e `lintDebug` (0 erros, 10 avisos, todos de versão de dependência) passaram. O `assembleRelease` com R8 compila (conferido em 28/10). O `connectedAndroidTest` rodou no emulador: 16 de 16 testes de DAO.
 
 **Busca de dados reais:** uma busca no repositório inteiro, sem diferenciar maiúsculas, pelo nome do produtor, os e-mails de exemplo antigos, a cidade e as coordenadas da região voltou **vazia**. O padrão da busca não fica escrito aqui, porque ele mesmo deixaria ler esses dados. Uma segunda busca, pelos nomes de propriedade das prévias antigas e pelas casas decimais das coordenadas antigas, também voltou vazia. O histórico do Git, por decisão, não foi reescrito: os commits antigos da `prod` ainda têm esses dados. O repositório é privado; antes de torná-lo público, é preciso limpar o histórico (está no roadmap).
 
