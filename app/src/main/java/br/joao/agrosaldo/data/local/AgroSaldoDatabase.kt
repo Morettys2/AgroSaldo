@@ -17,8 +17,8 @@ import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
  * Banco Room do app (`@Database`), gravado no arquivo [NOME_ARQUIVO] no armazenamento privado
  * do aplicativo. Registra as quatro entidades e expõe um DAO por tabela.
  *
- * Versão do schema: 3, exportado em `app/schemas`. Mudar o schema exige subir a versão e
- * escrever uma `Migration`.
+ * Versão do schema: 4, exportado em `app/schemas`. Mudar o schema exige subir a versão e
+ * escrever uma `Migration` (em `Migracoes.kt`), com o teste dela.
  */
 @Database(
     entities = [
@@ -27,7 +27,7 @@ import br.joao.agrosaldo.data.local.entidade.UsuarioEntity
         LancamentoEntity::class,
         PrevisaoEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AgroSaldoDatabase : RoomDatabase() {
@@ -50,6 +50,7 @@ abstract class AgroSaldoDatabase : RoomDatabase() {
             AgroSaldoDatabase::class.java,
             NOME_ARQUIVO
         )
+            .comMigracoes()
             // Sem fallbackToDestructiveMigration: sem a Migration, abrir o banco falha em vez de
             // recriá-lo vazio (o que apagaria os dados).
             .build()

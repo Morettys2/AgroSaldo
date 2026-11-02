@@ -25,14 +25,14 @@ interface PropriedadeDao {
     suspend fun buscarPorId(id: String, usuarioId: String): PropriedadeEntity?
 
     /**
-     * true se a propriedade [id] existe e não pertence a [usuarioId] (é de outra conta ou não tem
-     * dono). Checagem de posse antes do upsert, que casa só pelo id.
+     * true se a propriedade [id] existe e é de outra conta. Checagem de posse antes do upsert, que
+     * casa só pelo id.
      */
     @Query(
         """
         SELECT EXISTS(
             SELECT 1 FROM propriedades
-            WHERE id = :id AND (usuario_id IS NULL OR usuario_id <> :usuarioId)
+            WHERE id = :id AND usuario_id <> :usuarioId
         )
         """
     )
