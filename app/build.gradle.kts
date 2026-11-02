@@ -73,8 +73,8 @@ ktlint {
 //
 // Roda pela linha de comando do detekt numa JVM 21 separada, e não pelo plugin: o detekt
 // 1.23 não funciona no JDK 25 em que o Gradle do Android Studio roda.
-val detektCli: Configuration by configurations.creating {
-    // O detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.2 do app.
+val detektCli: Configuration = configurations.create("detektCli") {
+    // O detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.4 do app.
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") useVersion("2.0.21")
     }

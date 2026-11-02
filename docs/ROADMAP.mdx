@@ -58,6 +58,7 @@ Coisas pequenas, que dá para fazer logo depois da apresentação.
 - [ ] **Anotar as perguntas e sugestões da banca** e transformar cada uma num item deste roadmap (ou registrar por que não vamos fazer).
 - [x] **Limpar resquícios do baseline no `app/build.gradle.kts`.** Feito nas correções da auditoria (28/10/2026): o ktlint não aponta mais para um baseline, a tarefa `detektBaseline` saiu e o comentário foi corrigido.
 - [x] **Corrigir os achados da auditoria de código** (`docs/AUDITORIA_2026-10-28.md`), na branch `fix/auditoria-2026-10-28`, incluindo a remoção dos dados reais do produtor do projeto.
+- [x] **Atualizar as bibliotecas** (DEP-01), na branch `chore/atualiza-dependencias`: AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, Compose BOM 2026.09.00 e as menores. Testar no celular antes de mesclar.
 - [ ] **Rodar os testes de banco no aparelho** (`connectedAndroidTest`, os 19 testes de banco: 16 de DAO e 3 de migração). Desde as correções da auditoria eles também rodam no computador e no CI (Robolectric), mas o SQLite do aparelho ainda vale conferir antes de cada release. Última vez: 02/11/2026, no emulador, 19 de 19.
 - [ ] **Revisar o texto sobre `atualizado_em`.** O `CLAUDE.md` diz que a coluna é reservada para a sincronização futura, mas o comentário no código não diz mais isso. Decidir qual versão vale e deixar os dois iguais.
 
