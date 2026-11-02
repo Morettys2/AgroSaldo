@@ -208,8 +208,11 @@ dependencies {
     testImplementation(libs.androidx.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
-    // Os testes no aparelho são os de DAO (src/sharedTest): só precisam do runner do AndroidX.
+    // Os testes no aparelho são os de DAO (src/sharedTest): o AndroidJUnit4 e o runner do AndroidX.
+    // O runner é o testInstrumentationRunner do defaultConfig; antes vinha só por tabela, com o
+    // Espresso, e sem ele o connectedAndroidTest nem começa (ClassNotFoundException).
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

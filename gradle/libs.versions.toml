@@ -30,6 +30,8 @@ splashscreen = "1.0.1"
 robolectric = "4.17"
 roborazzi = "1.76.0"
 androidxTestCore = "1.7.0"
+# Runner dos testes no aparelho (testInstrumentationRunner)
+androidxTestRunner = "1.7.0"
 # Qualidade de código: formatação (ktlint, com as regras de Compose) e análise estática (detekt)
 ktlintGradle = "14.2.0"
 detekt = "1.23.8"
@@ -83,6 +85,7 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 
 detekt-cli = { group = "io.gitlab.arturbosch.detekt", name = "detekt-cli", version.ref = "detekt" }
 compose-rules-ktlint = { group = "io.nlopez.compose.rules", name = "ktlint", version.ref = "composeRules" }
