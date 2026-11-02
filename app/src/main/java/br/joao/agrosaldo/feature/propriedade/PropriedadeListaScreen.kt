@@ -40,15 +40,19 @@ import br.joao.agrosaldo.core.ui.EstadoVazio
 import br.joao.agrosaldo.core.ui.LocalValoresOcultos
 import br.joao.agrosaldo.core.ui.ValorGrande
 import br.joao.agrosaldo.core.ui.valorEscondido
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.rotulo
+import br.joao.agrosaldo.domain.financeiro.PropriedadeComSaldo
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
+import java.time.YearMonth
 import kotlin.math.abs
 
 @Composable
@@ -192,7 +196,7 @@ private fun BotaoNova(aoClicar: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.heightIn(min = 48.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = Espacos.medio),
+            modifier = Modifier.padding(horizontal = Espacos.largo, vertical = Espacos.medio),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -221,7 +225,7 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
     ) {
         Column(
             modifier = Modifier.padding(Espacos.largo),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(Espacos.medio)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -250,7 +254,9 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${item.propriedade.cultura} · ${item.propriedade.areaHectares.numeroBr(agrupar = true)} ha",
+                        text = "${TextosComuns.cultura(
+                            item.propriedade.cultura
+                        )} · ${item.propriedade.areaHectares.numeroBr(agrupar = true)} ha",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -289,34 +295,37 @@ private fun CartaoPropriedade(item: PropriedadeComSaldo, aoClicar: () -> Unit, m
 
 // ---------- Previews ----------
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1300, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 650)
+/** Mês fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val MES_DA_PREVIA: YearMonth = YearMonth.of(2026, 10)
+
+@PreviasDaTela
 @Composable
 private fun PreviewComDados() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
             uiState = PropriedadeListaUiState(
+                mes = MES_DA_PREVIA,
                 carregando = false,
                 totalCentavos = 1_418_000L,
                 itens = listOf(
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Fazenda Santa Clara",
+                            nome = "Fazenda Modelo",
                             cultura = "Milho",
                             areaHectares = 50.0,
-                            latitude = -21.7333,
-                            longitude = -46.9667
+                            latitude = -23.5,
+                            longitude = -48.5
                         ),
                         saldoCentavos = 1_247_000L,
                         proporcao = 1f
                     ),
                     PropriedadeComSaldo(
                         propriedade = Propriedade(
-                            nome = "Sítio Boa Vista",
+                            nome = "Sítio Exemplo",
                             cultura = "Soja",
                             areaHectares = 18.0,
-                            latitude = -21.8012,
-                            longitude = -46.9021
+                            latitude = -22.5,
+                            longitude = -47.5
                         ),
                         saldoCentavos = 171_000L,
                         proporcao = 0.14f
@@ -337,7 +346,7 @@ private fun PreviewComDados() {
 private fun PreviewVazio() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
-            uiState = PropriedadeListaUiState(carregando = false),
+            uiState = PropriedadeListaUiState(mes = MES_DA_PREVIA, carregando = false),
             aoVoltarMes = {},
             aoAvancarMes = {},
             aoAbrirNova = {},
@@ -352,7 +361,7 @@ private fun PreviewVazio() {
 private fun PreviewCarregando() {
     AgroSaldoTheme {
         PropriedadeListaScreen(
-            uiState = PropriedadeListaUiState(carregando = true),
+            uiState = PropriedadeListaUiState(mes = MES_DA_PREVIA, carregando = true),
             aoVoltarMes = {},
             aoAvancarMes = {},
             aoAbrirNova = {},

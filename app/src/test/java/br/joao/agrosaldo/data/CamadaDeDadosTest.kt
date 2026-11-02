@@ -13,13 +13,16 @@ import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
 import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryRoom
+import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryRoom
 import br.joao.agrosaldo.data.repository.UsuarioRepositoryRoom
 import br.joao.agrosaldo.data.sessao.SessaoMemoria
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.domain.model.Usuario
+import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -88,7 +91,7 @@ class CamadaDeDadosTest {
 
     @Test
     fun `usuario vai para o banco e volta igual com instantes em milissegundos`() {
-        val original = usuario("u1", "fabio@exemplo.com")
+        val original = usuario("u1", "maria@exemplo.com")
         val entidade = original.paraEntidade()
 
         assertEquals(original.consentimentoEm.toEpochMilli(), entidade.consentimentoEm)
@@ -101,6 +104,7 @@ class CamadaDeDadosTest {
         val comandos = mutableListOf<Comando>()
         Semeador.semear(
             executar = { sql, argumentos -> comandos += Comando(sql, argumentos.toList()) },
+            usuarioId = "u1",
             hoje = hoje,
             agora = 0L
         )
@@ -125,10 +129,10 @@ class CamadaDeDadosTest {
     }
 
     @Test
-    fun `exemplos nascem sem dono para a primeira conta adotar`() {
+    fun `exemplos nascem com o dono informado`() {
         val propriedades = comandosDoSemeador(LocalDate.of(2026, 9, 30))
             .filter { it.sql.startsWith("INSERT INTO propriedades") }
-        assertTrue(propriedades.none { "usuario_id" in it.sql })
+        assertTrue(propriedades.all { "usuario_id" in it.sql && it.argumentos.last() == "u1" })
     }
 
     @Test
@@ -153,7 +157,6 @@ class CamadaDeDadosTest {
         }
         override suspend fun excluir(id: String, usuarioId: String) =
             tabela.update { it.filterNot { p -> p.id == id && p.usuarioId == usuarioId } }
-        override suspend fun contarDoUsuario(usuarioId: String) = tabela.value.count { it.usuarioId == usuarioId }
     }
 
     /** Resolve o dono de cada lançamento pela propriedade, como o JOIN das queries reais. */
@@ -189,7 +192,7 @@ class CamadaDeDadosTest {
         }
     }
 
-    private class UsuarioDaoFalso(private val propriedades: PropriedadeDaoFalso) : UsuarioDao {
+    private class UsuarioDaoFalso : UsuarioDao {
         val tabela = MutableStateFlow<List<UsuarioEntity>>(emptyList())
         override suspend fun inserir(usuario: UsuarioEntity): Long {
             // Imita o índice único + IGNORE: e-mail repetido não entra e devolve -1.
@@ -207,18 +210,12 @@ class CamadaDeDadosTest {
             lista.map { if (it.id == id) it.copy(consentimentoEm = em, versaoTermo = versao) else it }
         }
         override suspend fun excluir(id: String) = tabela.update { it.filterNot { u -> u.id == id } }
-        override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int {
-            val orfas = propriedades.tabela.value.count { it.usuarioId == null }
-            propriedades.tabela.update { lista ->
-                lista.map { if (it.usuarioId == null) it.copy(usuarioId = usuarioId) else it }
-            }
-            return orfas
-        }
+        override suspend fun contar() = tabela.value.size
     }
 
     private fun usuario(id: String, email: String) = Usuario(
         id = id,
-        nome = "Fábio Moretti",
+        nome = "Maria Souza",
         email = email,
         senhaHash = "hash-de-teste",
         consentimentoEm = Instant.ofEpochMilli(1_000L),
@@ -230,7 +227,7 @@ class CamadaDeDadosTest {
     fun `propriedades vem em ordem alfabetica do portugues, com acento e minuscula no lugar certo`() = runTest {
         val dao = PropriedadeDaoFalso()
         val modelo = DadosDeExemplo.propriedades().first()
-        listOf("Sítio Boa Vista", "Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara").forEachIndexed { i, nome ->
+        listOf("Sítio Exemplo", "Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo").forEachIndexed { i, nome ->
             dao.salvar(modelo.copy(id = "p$i", nome = nome).paraEntidade(usuarioId = "u1", agora = 0L))
         }
         val repositorio =
@@ -244,7 +241,7 @@ class CamadaDeDadosTest {
 
         assertEquals(
             "a primeira da lista é a propriedade padrão",
-            listOf("Água Limpa", "chácara Três Irmãos", "Fazenda Santa Clara", "Sítio Boa Vista"),
+            listOf("Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo", "Sítio Exemplo"),
             repositorio.observarTodas().first().map { it.nome }
         )
     }
@@ -307,7 +304,7 @@ class CamadaDeDadosTest {
             repositorio.salvar(fazenda.copy(nome = "Tomada"))
             fail("Deveria recusar a gravação")
         } catch (esperado: IllegalArgumentException) {
-            assertEquals("Fazenda Santa Clara", dao.tabela.value.single().nome)
+            assertEquals("Fazenda Modelo", dao.tabela.value.single().nome)
         }
     }
 
@@ -323,30 +320,6 @@ class CamadaDeDadosTest {
             } finally {
                 aberta = false
             }
-        }
-    }
-
-    @Test
-    fun `propriedade sem dono nao e adotada por quem salva com o mesmo id`() = runTest {
-        val dao = PropriedadeDaoFalso()
-        val exemplo = DadosDeExemplo.propriedades().first()
-        dao.salvar(exemplo.paraEntidade(usuarioId = null, agora = 0L))
-        val repositorio =
-            PropriedadeRepositoryRoom(
-                dao,
-                LancamentoDaoFalso(dao),
-                SessaoMemoria("u1"),
-                TransacaoDireta,
-                relogio = relogioEm(LocalDate.of(2026, 9, 30))
-            )
-
-        try {
-            repositorio.salvar(exemplo.copy(nome = "Tomada"))
-            fail("Deveria recusar a gravação")
-        } catch (esperado: IllegalArgumentException) {
-            val linha = dao.tabela.value.single()
-            assertNull(linha.usuarioId)
-            assertEquals(exemplo.nome, linha.nome)
         }
     }
 
@@ -434,7 +407,7 @@ class CamadaDeDadosTest {
 
         val apagado = repositorio.excluir("exemplo-2")
 
-        assertEquals(antes, apagado)
+        assertEquals(antes, apagado?.lancamento)
         assertNull(repositorio.buscarPorId("exemplo-2"))
         assertEquals("ler e apagar dentro da transação", listOf(true, true), passos.take(2))
         assertEquals(1, transacao.execucoes)
@@ -551,76 +524,124 @@ class CamadaDeDadosTest {
     }
 
     @Test
-    fun `conta nova fica com as propriedades sem dono`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        DadosDeExemplo.propriedades().forEach { propriedades.salvar(it.paraEntidade(usuarioId = null, agora = 0L)) }
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
+    fun `email repetido nao cria conta`() = runTest {
+        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso())
+        repositorio.criar(usuario("u1", "maria@exemplo.com"))
 
-        assertTrue(repositorio.criar(usuario("u1", "fabio@exemplo.com")))
-
-        assertTrue(propriedades.tabela.value.all { it.usuarioId == "u1" })
-    }
-
-    /** Transação falsa com rollback: restaura as tabelas em memória se o bloco falhar. */
-    private class TransacaoEmMemoria(private val usuarios: UsuarioDaoFalso, private val propriedades: PropriedadeDaoFalso) : Transacao {
-        var execucoes = 0
-        override suspend fun <R> executar(bloco: suspend () -> R): R {
-            execucoes++
-            val usuariosAntes = usuarios.tabela.value
-            val propriedadesAntes = propriedades.tabela.value
-            try {
-                return bloco()
-            } catch (e: Exception) {
-                usuarios.tabela.value = usuariosAntes
-                propriedades.tabela.value = propriedadesAntes
-                throw e
-            }
-        }
-    }
-
-    @Test
-    fun `criar conta e adotar as propriedades sem dono e tudo ou nada`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
-        val usuarios = UsuarioDaoFalso(propriedades)
-        val adocaoQuebrada = object : UsuarioDao by usuarios {
-            override suspend fun adotarPropriedadesSemDono(usuarioId: String): Int = throw IllegalStateException("disco cheio")
-        }
-        val transacao = TransacaoEmMemoria(usuarios, propriedades)
-        val repositorio = UsuarioRepositoryRoom(adocaoQuebrada, transacao)
-
-        try {
-            repositorio.criar(usuario("u1", "fabio@exemplo.com"))
-            fail("A falha na adoção deveria chegar ao cadastro")
-        } catch (esperado: IllegalStateException) {
-            assertNull("a conta não fica criada pela metade", usuarios.buscarPorId("u1"))
-            assertNull(propriedades.tabela.value.single().usuarioId)
-            assertEquals(1, transacao.execucoes)
-        }
-    }
-
-    @Test
-    fun `email repetido nao cria conta nem rouba propriedades`() = runTest {
-        val propriedades = PropriedadeDaoFalso()
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(propriedades), TransacaoDireta)
-        repositorio.criar(usuario("u1", "fabio@exemplo.com"))
-        propriedades.salvar(DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = null, agora = 0L))
-
-        assertFalse(repositorio.criar(usuario("u2", "fabio@exemplo.com")))
+        assertFalse(repositorio.criar(usuario("u2", "maria@exemplo.com")))
 
         assertNull(repositorio.buscarPorId("u2"))
-        assertNull(propriedades.tabela.value.single().usuarioId)
     }
 
     @Test
     fun `novo aceite grava a data e a versao do termo`() = runTest {
-        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso(PropriedadeDaoFalso()), TransacaoDireta)
-        repositorio.criar(usuario("u1", "fabio@exemplo.com"))
+        val repositorio = UsuarioRepositoryRoom(UsuarioDaoFalso())
+        repositorio.criar(usuario("u1", "maria@exemplo.com"))
 
         repositorio.registrarConsentimento("u1", Instant.ofEpochMilli(5_000L), versao = 2)
 
         val gravado = repositorio.buscarPorId("u1")
         assertEquals(2, gravado?.versaoTermo)
         assertEquals(Instant.ofEpochMilli(5_000L), gravado?.consentimentoEm)
+    }
+
+    // ---------- registros gravados antes dos limites de 18/10/2026 (BUG-01) ----------
+
+    @Test
+    fun `lancamento antigo com descricao acima do limite e lido cortado`() {
+        val antigo = Lancamento(
+            propriedadeId = "p1",
+            tipo = TipoLancamento.DESPESA,
+            categoria = CategoriaLancamento.ADUBO,
+            valorCentavos = 100L,
+            data = LocalDate.of(2026, 1, 1)
+        ).paraEntidade(agora = 0L).copy(descricao = "x".repeat(250))
+
+        assertEquals(Lancamento.DESCRICAO_MAXIMA, antigo.paraDominio().descricao.length)
+    }
+
+    @Test
+    fun `propriedade antiga com nome, cultura e area fora dos limites e lida normalizada`() {
+        val antiga = DadosDeExemplo.propriedades().first().paraEntidade(usuarioId = "u1", agora = 0L)
+            .copy(nome = "N".repeat(90), cultura = "C".repeat(70), areaHectares = Double.POSITIVE_INFINITY)
+
+        val lida = antiga.paraDominio()
+
+        assertEquals(Propriedade.NOME_MAXIMO, lida.nome.length)
+        assertEquals(Propriedade.CULTURA_MAXIMA, lida.cultura.length)
+        assertEquals(Propriedade.AREA_MAXIMA_HECTARES, lida.areaHectares, 0.0)
+    }
+
+    @Test
+    fun `um lancamento antigo fora do limite nao esconde a lista inteira`() = runTest {
+        val propriedadesDao = PropriedadeDaoFalso()
+        val fazenda = DadosDeExemplo.propriedades().first()
+        propriedadesDao.salvar(fazenda.paraEntidade(usuarioId = "u1", agora = 0L))
+        val dao = LancamentoDaoFalso(propriedadesDao)
+        DadosDeExemplo.lancamentos(LocalDate.of(2026, 9, 30))
+            .filter { it.propriedadeId == fazenda.id }
+            .forEach { dao.salvar(it.paraEntidade(agora = 0L)) }
+        dao.salvar(dao.tabela.value.first().copy(descricao = "x".repeat(250)))
+        val repositorio = LancamentoRepositoryRoom(dao, SessaoMemoria("u1"), TransacaoDireta, relogioEm(LocalDate.of(2026, 9, 30)))
+
+        assertEquals(dao.tabela.value.size, repositorio.observarTodos().first().size)
+    }
+
+    @Test
+    fun `usuario antigo com nome acima do limite e lido cortado`() {
+        val antigo = usuario("u1", "maria@exemplo.com").paraEntidade().copy(nome = "N".repeat(120))
+
+        assertEquals(Usuario.NOME_MAXIMO, antigo.paraDominio().nome.length)
+    }
+
+    // ---------- fakes do testFixtures iguais ao Room (FAKE-01) ----------
+
+    @Test
+    fun `fake em memoria entrega as propriedades na mesma ordem do repositorio Room`() = runTest {
+        val modelo = DadosDeExemplo.propriedades().first()
+        val nomes = listOf("Sítio Exemplo", "Água Exemplo", "chácara Três Irmãos", "Fazenda Modelo")
+        val propriedades = nomes.mapIndexed { i, nome -> modelo.copy(id = "p$i", nome = nome) }
+
+        val fake = PropriedadeRepositoryMemoria(propriedades)
+
+        assertEquals(propriedades.emOrdemAlfabetica(), fake.observarTodas().first())
+    }
+
+    // ---------- desfazer devolve o atualizado_em original (DAD-01) ----------
+
+    @Test
+    fun `desfazer a exclusao de um lancamento devolve o atualizado_em original`() = runTest {
+        val (_, dao, sessao) = cenarioDeLancamentos()
+        val original = dao.tabela.value.first { it.id == "exemplo-2" }.copy(atualizadoEm = 111L)
+        dao.salvar(original)
+        val repositorio = LancamentoRepositoryRoom(dao, sessao, TransacaoDireta, relogio = relogioEm(LocalDate.of(2026, 9, 30)))
+
+        repositorio.restaurar(checkNotNull(repositorio.excluir("exemplo-2")))
+
+        assertEquals(original, dao.tabela.value.first { it.id == "exemplo-2" })
+    }
+
+    @Test
+    fun `desfazer a exclusao de uma propriedade devolve o atualizado_em original dela e dos lancamentos`() = runTest {
+        val (propriedadesDao, lancamentosDao, sessao) = cenarioDeLancamentos()
+        val sitio = DadosDeExemplo.ID_SITIO
+        propriedadesDao.salvar(propriedadesDao.tabela.value.first { it.id == sitio }.copy(atualizadoEm = 222L))
+        lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }
+            .forEachIndexed { i, lancamento -> lancamentosDao.salvar(lancamento.copy(atualizadoEm = 300L + i)) }
+        val antes = propriedadesDao.tabela.value.first { it.id == sitio }
+        val lancamentosAntes = lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }.sortedBy { it.id }
+        val repositorio =
+            PropriedadeRepositoryRoom(
+                propriedadesDao,
+                lancamentosDao,
+                sessao,
+                TransacaoDireta,
+                relogio = relogioEm(LocalDate.of(2026, 9, 30))
+            )
+
+        repositorio.restaurar(checkNotNull(repositorio.excluirComLancamentos(sitio)))
+
+        assertEquals(antes, propriedadesDao.tabela.value.first { it.id == sitio })
+        assertEquals(lancamentosAntes, lancamentosDao.tabela.value.filter { it.propriedadeId == sitio }.sortedBy { it.id })
     }
 }

@@ -50,22 +50,31 @@ android {
         // Robolectric precisa dos recursos (fontes, temas, strings) para desenhar as telas.
         unitTests.isIncludeAndroidResources = true
     }
+    // src/sharedTest: testes do banco (DAOs) que rodam nos dois lugares. No JVM, com Robolectric,
+    // entram no testDebugUnitTest e no CI; no aparelho, no connectedAndroidTest.
+    sourceSets {
+        listOf("test", "androidTest").forEach { nome ->
+            getByName(nome) {
+                // O Kotlin embutido no AGP 9 compila pelo conjunto `kotlin` do source set.
+                kotlin.directories.add("src/sharedTest/java")
+            }
+        }
+    }
 }
 
 // Formatação: `./gradlew ktlintCheck` confere, `./gradlew ktlintFormat` arruma sozinho.
 // As regras (estilo do Android Studio + regras de Compose) ficam no .editorconfig da raiz.
 ktlint {
     android.set(true)
-    baseline.set(file("ktlint-baseline.xml"))
 }
 
-// Análise estática: `./gradlew detekt`. O baseline guarda os achados antigos, para o CI
-// cobrar só código novo; ele encolhe conforme os arquivos são mexidos (`./gradlew detektBaseline`).
+// Análise estática: `./gradlew detekt`. Sem baseline: precisa dar zero achados, e achado novo se
+// corrige (ou se justifica no detekt.yml ou num @Suppress comentado), não se guarda num baseline.
 //
 // Roda pela linha de comando do detekt numa JVM 21 separada, e não pelo plugin: o detekt
 // 1.23 não funciona no JDK 25 em que o Gradle do Android Studio roda.
-val detektCli: Configuration by configurations.creating {
-    // O detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.2 do app.
+val detektCli: Configuration = configurations.create("detektCli") {
+    // O detekt 1.23 traz o compilador Kotlin 2.0; o Gradle tentaria alinhar com o 2.4 do app.
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") useVersion("2.0.21")
     }
@@ -82,10 +91,11 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
         "src/test/java",
         "src/testFixtures/java",
         "src/androidTest/java",
+        "src/sharedTest/java",
         "../domain/src/main/java",
         "../domain/src/test/java",
         "../domain/src/testFixtures/java"
-    )
+    ).filter { file(it).isDirectory } // a CLI do detekt recusa pasta que não existe (ex.: src/androidTest sem código)
     inputs.files(fontes.map { fileTree(it) })
     args(
         "--input", fontes.joinToString(",") { file(it).path },
@@ -97,16 +107,9 @@ fun JavaExec.configurarDetekt(vararg extras: String) {
     )
 }
 
-val baselineDoDetekt = file("detekt-baseline.xml")
-
 tasks.register<JavaExec>("detekt") {
     description = "Análise estática com o detekt."
-    configurarDetekt(*(if (baselineDoDetekt.exists()) arrayOf("--baseline", baselineDoDetekt.path) else emptyArray()))
-}
-
-tasks.register<JavaExec>("detektBaseline") {
-    description = "Grava os achados atuais do detekt no baseline."
-    configurarDetekt("--baseline", baselineDoDetekt.path, "--create-baseline")
+    configurarDetekt()
 }
 
 // Os testes de captura (CapturasDeTelaTest) gravam as imagens em app/build/capturas.
@@ -142,7 +145,6 @@ dependencies {
     // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
-    androidTestImplementation(composeBom)
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -163,7 +165,8 @@ dependencies {
     // Hilt: injeção de dependências (ViewModels, Worker e Application). O processador roda via KSP.
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation.compose)
+    // hiltViewModel() das telas (pacote androidx.hilt.lifecycle.viewmodel.compose).
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
 
     // WorkManager: verificação periódica de chuva em segundo plano.
     implementation(libs.androidx.work.runtime.ktx)
@@ -201,11 +204,15 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    // AndroidJUnit4 dos testes de src/sharedTest: no JVM ele delega para o Robolectric.
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // Os testes no aparelho são os de DAO (src/sharedTest): o AndroidJUnit4 e o runner do AndroidX.
+    // O runner é o testInstrumentationRunner do defaultConfig; antes vinha só por tabela, com o
+    // Espresso, e sem ele o connectedAndroidTest nem começa (ClassNotFoundException).
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

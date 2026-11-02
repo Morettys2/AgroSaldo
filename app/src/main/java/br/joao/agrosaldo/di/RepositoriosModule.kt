@@ -38,7 +38,7 @@ object RepositoriosModule {
 
     @Provides
     @Singleton
-    fun usuarios(dao: UsuarioDao, transacao: Transacao): UsuarioRepository = UsuarioRepositoryRoom(dao, transacao)
+    fun usuarios(dao: UsuarioDao): UsuarioRepository = UsuarioRepositoryRoom(dao)
 
     @Provides
     @Singleton

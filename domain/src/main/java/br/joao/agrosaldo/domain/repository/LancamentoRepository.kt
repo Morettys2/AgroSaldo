@@ -1,6 +1,7 @@
 package br.joao.agrosaldo.domain.repository
 
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.LancamentoExcluido
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -19,8 +20,12 @@ interface LancamentoRepository {
     suspend fun salvar(lancamento: Lancamento)
 
     /**
-     * Exclui o lançamento e devolve o registro apagado (ou null se não existia). A leitura e a
-     * exclusão rodam na mesma transação, então o valor devolvido é exatamente o que saiu do banco.
+     * Exclui o lançamento e devolve o registro apagado, com o instante da última gravação (ou null se
+     * não existia). A leitura e a exclusão rodam na mesma transação, então o valor devolvido é
+     * exatamente o que saiu do banco.
      */
-    suspend fun excluir(id: String): Lancamento?
+    suspend fun excluir(id: String): LancamentoExcluido?
+
+    /** Regrava o que [excluir] apagou, com o mesmo instante de gravação: o lançamento volta ao mesmo lugar. */
+    suspend fun restaurar(excluido: LancamentoExcluido)
 }

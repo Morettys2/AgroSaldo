@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +39,7 @@ import br.joao.agrosaldo.core.ui.rememberPermissaoNotificacao
 import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 /** Ajustes do aviso de chuva: ativação, limites e propriedades avisadas. */
@@ -72,7 +72,7 @@ fun AjustesAvisoRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, vie
         ferramentasDeTeste = if (ehDebug) {
             FerramentasDeTeste(
                 aoMostrarExemplo = {
-                    NotificadorDeChuva.mostrarExemplo(context, viewModel.propriedadeSelecionadaId())
+                    NotificadorDeChuva.mostrar(context, viewModel.avisoDeExemplo(), uiState.janelaHoras)
                 },
                 aoVerificarAgora = {
                     viewModel.aoVerificarAgora()
@@ -215,7 +215,7 @@ fun AjustesAvisoScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(Espacos.amplo))
 
         BotaoPrincipal(texto = "Salvar ajustes", aoClicar = aoSalvar, modifier = Modifier.fillMaxWidth())
 
@@ -267,15 +267,15 @@ private fun CartaoLimite(
     }
 }
 
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun AjustesAvisoPreview() {
     AgroSaldoTheme {
         AjustesAvisoScreen(
             uiState = AjustesAvisoUiState(
                 sitios = listOf(
-                    SitioDoAviso("1", "Fazenda Santa Clara", avisa = true),
-                    SitioDoAviso("2", "Sítio Boa Vista", avisa = false)
+                    SitioDoAviso("1", "Fazenda Modelo", avisa = true),
+                    SitioDoAviso("2", "Sítio Exemplo", avisa = false)
                 )
             ),
             permissao = PermissaoNotificacao(concedida = false, pedir = {}),

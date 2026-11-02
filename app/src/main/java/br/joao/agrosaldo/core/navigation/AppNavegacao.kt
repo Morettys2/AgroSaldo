@@ -69,6 +69,9 @@ import kotlinx.coroutines.launch
  */
 class PedidoDoClima(val propriedadeId: String?)
 
+/** Altura do rodapé com o botão de salvar do formulário de lançamento: a snackbar fica acima dele. */
+private val FOLGA_DO_BOTAO_SALVAR = 84.dp
+
 /** Chave do estado das telas guardado enquanto o app está bloqueado. */
 private const val CHAVE_CONTEUDO = "conteudo"
 
@@ -257,7 +260,7 @@ fun AppNavegacao(
                                 modifier = if (rotaAtual == Rotas.FORM_LANCAMENTO) {
                                     Modifier
                                         .navigationBarsPadding()
-                                        .padding(bottom = 84.dp)
+                                        .padding(bottom = FOLGA_DO_BOTAO_SALVAR)
                                 } else {
                                     Modifier
                                 }

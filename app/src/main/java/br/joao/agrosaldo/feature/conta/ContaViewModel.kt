@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.formatarDataHoraBr
 import br.joao.agrosaldo.core.util.formatarEspera
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.ResultadoExclusao
@@ -31,7 +34,9 @@ data class ContaUiState(
     /** Exige biometria ou credencial do aparelho ao abrir o app. */
     val bloqueioAtivo: Boolean = false,
     val excluindo: Boolean = false,
-    val erroExclusao: String? = null
+    val erroExclusao: String? = null,
+    /** Falha ao ler a conta; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
+    val erro: String? = null
 ) {
     val resumoPropriedades: String
         get() = when (quantidadePropriedades) {
@@ -83,6 +88,8 @@ class ContaViewModel @Inject constructor(
                         erroExclusao = exclusao.erro
                     )
                 }
+            }.repetirAposErro { erro ->
+                _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
             }.collect { estado -> _uiState.value = estado }
         }
     }
@@ -104,20 +111,29 @@ class ContaViewModel @Inject constructor(
 
         exclusaoEmAndamento.value = EstadoExclusao(excluindo = true)
         viewModelScope.launch {
-            exclusaoEmAndamento.value = when (val resultado = conta.excluirConta(senha)) {
-                // Sessão encerrada; a navegação leva ao login.
-                ResultadoExclusao.Sucesso -> EstadoExclusao()
-                ResultadoExclusao.SenhaIncorreta -> EstadoExclusao(erro = "Senha incorreta.")
-                is ResultadoExclusao.Bloqueado -> EstadoExclusao(
-                    erro = "Muitas tentativas. Tente de novo em ${formatarEspera(resultado.segundosRestantes)}."
-                )
-                ResultadoExclusao.SemSessao -> EstadoExclusao()
-            }
+            exclusaoEmAndamento.value = tentar { conta.excluirConta(senha) }.fold(
+                onSuccess = ::estadoDaExclusao,
+                onFailure = { erro -> EstadoExclusao(erro = erro.mensagemParaUsuario("Não foi possível excluir a conta. Tente de novo.")) }
+            )
         }
+    }
+
+    private fun estadoDaExclusao(resultado: ResultadoExclusao): EstadoExclusao = when (resultado) {
+        // Sessão encerrada; a navegação leva ao login.
+        ResultadoExclusao.Sucesso -> EstadoExclusao()
+        ResultadoExclusao.SenhaIncorreta -> EstadoExclusao(erro = "Senha incorreta.")
+        is ResultadoExclusao.Bloqueado -> EstadoExclusao(
+            erro = "Muitas tentativas. Tente de novo em ${formatarEspera(resultado.segundosRestantes)}."
+        )
+        ResultadoExclusao.SemSessao -> EstadoExclusao()
     }
 
     /** Limpa o erro para não reaparecer na próxima abertura do diálogo. */
     fun aoCancelarExclusao() = exclusaoEmAndamento.update { EstadoExclusao() }
 
     private data class EstadoExclusao(val excluindo: Boolean = false, val erro: String? = null)
+
+    companion object {
+        const val MENSAGEM_ERRO = "Não foi possível carregar a conta. Tentando de novo…"
+    }
 }

@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
@@ -23,6 +22,7 @@ import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 @Composable
 fun AlterarSenhaRoute(aoConcluir: () -> Unit, modifier: Modifier = Modifier, viewModel: AlterarSenhaViewModel = hiltViewModel()) {
@@ -104,7 +104,7 @@ fun AlterarSenhaScreen(
     }
 }
 
-@Preview(showBackground = true, heightDp = 800)
+@PreviasDaTela
 @Composable
 private fun AlterarSenhaPreview() {
     AgroSaldoTheme {

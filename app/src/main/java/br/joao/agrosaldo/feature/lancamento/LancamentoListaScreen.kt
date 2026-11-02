@@ -43,6 +43,7 @@ import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -198,7 +199,12 @@ private fun LazyListScope.itensDaLista(grupos: List<GrupoDoDia>, aoEditarLancame
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .padding(start = 20.dp, end = 20.dp, top = if (indiceDoGrupo == 0) 16.dp else 12.dp, bottom = 2.dp)
+                        .padding(
+                            start = Espacos.margemDaTela,
+                            end = Espacos.margemDaTela,
+                            top = if (indiceDoGrupo == 0) Espacos.padrao else Espacos.medio,
+                            bottom = 2.dp
+                        )
                         .semantics { heading() }
                 )
             }
@@ -213,10 +219,10 @@ private fun LazyListScope.itensDaLista(grupos: List<GrupoDoDia>, aoEditarLancame
                         apoio = lancamento.descricao,
                         aoClicar = { aoEditarLancamento(lancamento.id) },
                         margem = PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
+                            start = Espacos.margemDaTela,
+                            end = Espacos.margemDaTela,
                             top = 10.dp,
-                            bottom = if (posicaoDaLinha == total - 1) 16.dp else 10.dp
+                            bottom = if (posicaoDaLinha == total - 1) Espacos.padrao else 10.dp
                         )
                     )
                 }
@@ -248,15 +254,18 @@ private fun ItemDoCartao(posicao: Int, total: Int, conteudo: @Composable () -> U
 // ---------- prévias ----------
 
 private val PROPRIEDADE_DE_EXEMPLO = Propriedade(
-    nome = "Fazenda Santa Clara",
+    nome = "Fazenda Modelo",
     cultura = "Milho",
     areaHectares = 50.0,
-    latitude = -21.7333,
-    longitude = -46.9667
+    latitude = -23.5,
+    longitude = -48.5
 )
 
+/** Dia fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val HOJE_DA_PREVIA: LocalDate = LocalDate.of(2026, 10, 15)
+
 private fun estadoDeExemplo(): LancamentoListaUiState {
-    val hoje = LocalDate.now()
+    val hoje = HOJE_DA_PREVIA
     val lancamentos = listOf(
         Lancamento(
             propriedadeId = "p1",
@@ -283,6 +292,7 @@ private fun estadoDeExemplo(): LancamentoListaUiState {
         )
     )
     return LancamentoListaUiState(
+        mes = YearMonth.from(hoje),
         carregando = false,
         nomePropriedade = PROPRIEDADE_DE_EXEMPLO.nome,
         temPropriedade = true,
@@ -297,7 +307,7 @@ private fun estadoDeExemplo(): LancamentoListaUiState {
         saldoCentavos = 1_597_000L,
         receitasCentavos = 1_800_000L,
         despesasCentavos = 203_000L,
-        meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), hoje),
+        meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.from(hoje), hoje),
         propriedades = listOf(PROPRIEDADE_DE_EXEMPLO)
     )
 }
@@ -312,8 +322,7 @@ private fun ListaDeExemplo(uiState: LancamentoListaUiState) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun LancamentoListaPreview() {
     AgroSaldoTheme { ListaDeExemplo(estadoDeExemplo()) }
@@ -331,10 +340,11 @@ private fun LancamentoListaVazioPreview() {
     AgroSaldoTheme {
         ListaDeExemplo(
             LancamentoListaUiState(
+                mes = YearMonth.from(HOJE_DA_PREVIA),
                 carregando = false,
-                nomePropriedade = "Sítio Boa Vista",
+                nomePropriedade = "Sítio Exemplo",
                 temPropriedade = true,
-                meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.now(), LocalDate.now())
+                meses = LancamentoListaViewModel.mesesDoCabecalho(YearMonth.from(HOJE_DA_PREVIA), HOJE_DA_PREVIA)
             )
         )
     }

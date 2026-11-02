@@ -91,22 +91,22 @@ class RelogiosEUsuarioLogadoTest {
     @Test
     fun `usuario logado entrega o nome de quem esta na sessao`() = runTest {
         val usuarios = UsuarioRepositoryMemoria()
-        usuarios.criar(usuario("u1", "Fábio Moretti"))
+        usuarios.criar(usuario("u1", "Maria Souza"))
         val repositorio = UsuarioLogadoRoom(SessaoMemoria("u1"), usuarios)
 
-        assertEquals("Fábio Moretti", repositorio.observarNome().first())
+        assertEquals("Maria Souza", repositorio.observarNome().first())
     }
 
     @Test
     fun `usuario logado e nulo sem sessao e acompanha login e logout`() = runTest {
         val usuarios = UsuarioRepositoryMemoria()
-        usuarios.criar(usuario("u1", "Fábio Moretti"))
+        usuarios.criar(usuario("u1", "Maria Souza"))
         val sessao = SessaoMemoria()
         val repositorio = UsuarioLogadoRoom(sessao, usuarios)
 
         assertNull(repositorio.observarNome().first())
         sessao.iniciar("u1")
-        assertEquals("Fábio Moretti", repositorio.observarNome().first())
+        assertEquals("Maria Souza", repositorio.observarNome().first())
         sessao.encerrar()
         assertNull(repositorio.observarNome().first())
     }

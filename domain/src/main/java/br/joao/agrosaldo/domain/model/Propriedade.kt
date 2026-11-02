@@ -1,6 +1,7 @@
 package br.joao.agrosaldo.domain.model
 
 import java.text.Collator
+import java.time.Instant
 import java.util.Locale
 import java.util.UUID
 
@@ -41,10 +42,11 @@ data class Propriedade(
 }
 
 /**
- * Resultado de uma exclusão em cascata: a propriedade e os lançamentos removidos, com os ids
- * originais, para o desfazer reinserir exatamente o que saiu.
+ * Resultado de uma exclusão em cascata: a propriedade e os lançamentos removidos, com os ids e os
+ * instantes da última gravação originais ([gravadaEm] e [LancamentoExcluido.gravadoEm]), para o
+ * desfazer reinserir exatamente o que saiu.
  */
-data class PropriedadeExcluida(val propriedade: Propriedade, val lancamentos: List<Lancamento>)
+data class PropriedadeExcluida(val propriedade: Propriedade, val gravadaEm: Instant, val lancamentos: List<LancamentoExcluido>)
 
 /**
  * Ordena pela ordem alfabética do português (`Collator` pt-BR): acento e maiúscula não mandam o

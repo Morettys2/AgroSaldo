@@ -36,6 +36,7 @@ import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 /**
  * Tela de bloqueio do app, exibida no lugar do conteúdo. Abre o prompt biométrico ao
@@ -86,7 +87,7 @@ fun TelaBloqueioScreen(mensagem: String?, aoDesbloquear: () -> Unit, aoUsarSenha
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 28.dp)
+                .padding(horizontal = Espacos.amplo)
         ) {
             Surface(
                 shape = CircleShape,
@@ -145,7 +146,7 @@ fun TelaBloqueioScreen(mensagem: String?, aoDesbloquear: () -> Unit, aoUsarSenha
     }
 }
 
-@Preview(showBackground = true)
+@PreviasDaTela
 @Composable
 private fun TelaBloqueioPreview() {
     AgroSaldoTheme {

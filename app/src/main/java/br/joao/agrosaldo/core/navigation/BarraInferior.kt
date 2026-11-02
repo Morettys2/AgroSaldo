@@ -51,10 +51,15 @@ private val ABAS = listOf(
  * Rótulos usam autoSize para não truncar em telas estreitas.
  */
 @Composable
-internal fun BarraInferior(rotaAtual: NavDestination?, aoSelecionar: (String) -> Unit, aoNovoLancamento: () -> Unit) {
+internal fun BarraInferior(
+    rotaAtual: NavDestination?,
+    aoSelecionar: (String) -> Unit,
+    aoNovoLancamento: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(start = Espacos.medio, end = Espacos.medio, top = 6.dp, bottom = 10.dp)

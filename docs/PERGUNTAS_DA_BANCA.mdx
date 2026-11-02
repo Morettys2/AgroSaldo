@@ -118,14 +118,14 @@ Perguntas prováveis de uma banca sobre o AgroSaldo, com respostas para falar em
 
 **Se pedirem detalhe:**
 - O contador é **por e-mail**, fica salvo (sobrevive a fechar o app) e vale para o login, a troca de senha e a exclusão da conta.
-- O tempo do bloqueio é medido num **relógio monotônico**, então adiantar a hora do celular não destrava.
+- O tempo do bloqueio é medido num **relógio monotônico**, então adiantar a hora do celular não destrava. Se a pessoa reiniciar o celular, a espera recomeça inteira: reiniciar e mexer na hora nunca encurtam o bloqueio.
 - A mensagem de erro é a mesma para e-mail inexistente e senha errada, e o tempo de resposta também. Assim ninguém descobre quais e-mails têm conta.
 
 ### 2.3 "E se roubarem o celular desbloqueado?"
 
-**Resposta curta:** dá para ligar o **bloqueio por digital ou PIN**: o app pede a digital ao abrir e depois de 2 minutos fora. Com ele ligado, o app também **some das capturas de tela e da miniatura de Recentes** (`FLAG_SECURE`).
+**Resposta curta:** dá para ligar o **bloqueio por digital ou PIN**: o app pede a digital ao abrir e depois de 2 minutos fora. Com ele ligado, o app também **some das capturas de tela e da miniatura de Recentes** (`FLAG_SECURE`). Com ele desligado, a captura de tela é permitida, por decisão do projeto.
 
-**Se pedirem detalhe:** o app nunca vê a digital. Ele usa o `BiometricPrompt` do Android, que só responde "deu certo" ou "não deu". Ligar e desligar o bloqueio também pede a digital.
+**Se pedirem detalhe:** o app nunca vê a digital. Ele usa o `BiometricPrompt` do Android, que só responde "deu certo" ou "não deu". Ligar e desligar o bloqueio também pede a digital. O bloqueio vale para o aparelho: excluir uma conta só o desliga quando não sobra nenhuma conta, então ninguém tira a proteção criando e apagando uma conta.
 
 ### 2.4 "O banco de dados é criptografado?"
 
@@ -229,7 +229,7 @@ Perguntas prováveis de uma banca sobre o AgroSaldo, com respostas para falar em
 
 ### 6.2 "Vocês testaram com usuário real?"
 
-**Resposta curta:** sim. Um produtor de Itobi/SP usa o APK no dia a dia, e o retorno dele guia os ajustes do app.
+**Resposta curta:** sim. Um produtor rural real usa o APK no dia a dia, e o retorno dele guia os ajustes do app.
 
 ### 6.3 "O que diferencia de uma planilha ou de outro app financeiro?"
 
@@ -252,7 +252,7 @@ Pontos fracos ditos com segurança passam confiança. Admita o limite e mostre q
 
 | Pergunta | Resposta |
 | --- | --- |
-| "E se o produtor perder o celular?" | Os dados só voltam se o backup do Android estiver ligado. Por isso a sincronização online é o próximo passo natural quando o app crescer. |
+| "E se o produtor perder o celular?" | Os dados só voltam se o backup do Android estiver ligado. O próximo passo planejado é exportar os dados para um arquivo (está no roadmap). Sincronização online exigiria um servidor, e hoje isso está fora do escopo. |
 | "E se ele esquecer a senha?" | Hoje não há recuperação por e-mail, porque não existe servidor. O app avisa isso na tela de login. |
 | "Dá para exportar os dados?" | Ainda não. A portabilidade está no roadmap, junto com a publicação. |
 | "O banco não é criptografado?" | Não tem criptografia própria. Ele é protegido pelo isolamento e pela criptografia do Android, e tem o bloqueio por digital. O SQLCipher é uma evolução possível. |

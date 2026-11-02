@@ -2,6 +2,8 @@ package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
@@ -48,10 +50,13 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
     private val _uiState = MutableStateFlow(CadastroUiState())
     val uiState: StateFlow<CadastroUiState> = _uiState.asStateFlow()
 
-    fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v, erroNome = null) }
-    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim(), erroEmail = null) }
-    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v, erroSenha = null) }
-    fun aoMudarConfirmacao(v: String) = _uiState.update { it.copy(confirmacao = v, erroConfirmacao = null) }
+    // Cada campo é cortado no limite do domínio ao digitar ou colar; o domínio confere de novo ao criar a conta.
+    fun aoMudarNome(v: String) = _uiState.update { it.copy(nome = v.take(RegrasDeConta.NOME_MAXIMO), erroNome = null) }
+    fun aoMudarEmail(v: String) = _uiState.update { it.copy(email = v.trim().take(RegrasDeConta.EMAIL_MAXIMO), erroEmail = null) }
+    fun aoMudarSenha(v: String) = _uiState.update { it.copy(senha = v.take(RegrasDeConta.SENHA_MAXIMO), erroSenha = null) }
+    fun aoMudarConfirmacao(v: String) = _uiState.update {
+        it.copy(confirmacao = v.take(RegrasDeConta.SENHA_MAXIMO), erroConfirmacao = null)
+    }
 
     fun aoContinuar() {
         val estado = _uiState.value
@@ -66,7 +71,12 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
         _uiState.update { it.copy(verificando = true) }
         viewModelScope.launch {
             // Checa duplicidade antes do consentimento para não falhar só após o aceite.
-            val emUso = conta.emailEmUso(estado.email)
+            val emUso = tentar { conta.emailEmUso(estado.email) }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(verificando = false, erroEmail = erro.mensagemParaUsuario("Não foi possível conferir o e-mail. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 if (emUso) {
                     it.copy(verificando = false, erroEmail = "Já existe uma conta com este e-mail.")
@@ -94,12 +104,14 @@ class CadastroViewModel @Inject constructor(private val conta: ContaService) : V
 
         _uiState.update { it.copy(criando = true, erroGeral = null) }
         viewModelScope.launch {
-            val resultado = conta.cadastrar(
-                nome = estado.nome,
-                email = estado.email,
-                senha = estado.senha,
-                aceitouTermo = true
-            )
+            val resultado = tentar {
+                conta.cadastrar(nome = estado.nome, email = estado.email, senha = estado.senha, aceitouTermo = true)
+            }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(criando = false, erroGeral = erro.mensagemParaUsuario("Não foi possível criar a conta. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 when (resultado) {
                     // Sessão já iniciada pelo ContaService; a navegação segue ao início.

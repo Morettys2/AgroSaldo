@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.navigation.Rotas
+import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.numeroBr
 import br.joao.agrosaldo.core.util.tentar
@@ -46,6 +47,10 @@ data class PropriedadeFormUiState(
     /** A propriedade em edição não existe mais (ex.: foi excluída); a tela avisa e fecha. */
     val naoEncontrado: Boolean = false
 ) {
+    /** Gravando, já gravada ou sem registro para editar: salvar de novo não faz nada. */
+    val ocupado: Boolean
+        get() = salvando || salvo || naoEncontrado
+
     /** Como a área digitada será gravada ("= 1.000 ha"); nulo se vazia ou não reconhecida. */
     val leituraDaArea: String?
         get() = (lerArea(area) as? Area.Valida)?.let { "= ${it.hectares.numeroBr(agrupar = true)} ha" }
@@ -121,7 +126,7 @@ class PropriedadeFormViewModel(
     private val selecao: SelecaoAtual,
     private val propriedadeId: String?,
     private val desfazer: Desfazer,
-    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
+    private val estadoSalvo: SavedStateHandle
 ) : ViewModel() {
 
     /** Construtor do Hilt: o id da propriedade em edição vem do argumento da rota (nulo na criação). */
@@ -157,13 +162,19 @@ class PropriedadeFormViewModel(
      */
     private var coordenadasConferidas: Pair<String, String>? = null
 
+    /** false enquanto a edição não leu o banco (ou se a leitura falhou): salvar gravaria por cima do registro. */
+    private var podeSalvar = propriedadeId == null
+
     init {
         if (propriedadeId != null) carregar(propriedadeId)
     }
 
     private fun carregar(id: String) {
         viewModelScope.launch {
-            val propriedade = propriedadeRepository.buscarPorId(id)
+            val propriedade = tentar { propriedadeRepository.buscarPorId(id) }.getOrElse {
+                _uiState.update { it.copy(erroGeral = AVISO_FALHA_AO_CARREGAR) }
+                return@launch
+            }
             if (propriedade == null) {
                 // Salvar recriaria o registro com o id antigo.
                 _uiState.update { it.copy(naoEncontrado = true) }
@@ -172,11 +183,14 @@ class PropriedadeFormViewModel(
             val latitude = propriedade.latitude.paraCampo()
             val longitude = propriedade.longitude.paraCampo()
             coordenadasConferidas = latitude to longitude
+            podeSalvar = true
             // O que foi restaurado (ou digitado antes de carregar) vale mais que o banco.
             _uiState.update {
                 it.copy(
                     nome = restaurado(CHAVE_NOME) ?: propriedade.nome,
-                    cultura = restaurado(CHAVE_CULTURA) ?: propriedade.cultura,
+                    // "Não informada" gravado por versões antigas é texto da tela, não cultura digitada.
+                    cultura =
+                    restaurado(CHAVE_CULTURA) ?: propriedade.cultura.takeUnless { it == TextosComuns.CULTURA_NAO_INFORMADA }.orEmpty(),
                     area = restaurado(CHAVE_AREA) ?: propriedade.areaHectares.paraCampo(),
                     latitude = restaurado(CHAVE_LATITUDE) ?: latitude,
                     longitude = restaurado(CHAVE_LONGITUDE) ?: longitude
@@ -201,18 +215,21 @@ class PropriedadeFormViewModel(
     }
 
     fun aoMudarArea(v: String) {
-        estadoSalvo[CHAVE_AREA] = v
-        _uiState.update { it.copy(area = v, erroArea = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_AREA] = texto
+        _uiState.update { it.copy(area = texto, erroArea = null) }
     }
 
     fun aoMudarLatitude(v: String) {
-        estadoSalvo[CHAVE_LATITUDE] = v
-        _uiState.update { it.copy(latitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_LATITUDE] = texto
+        _uiState.update { it.copy(latitude = texto, erroCoordenadas = null, avisoCoordenadas = null) }
     }
 
     fun aoMudarLongitude(v: String) {
-        estadoSalvo[CHAVE_LONGITUDE] = v
-        _uiState.update { it.copy(longitude = v, erroCoordenadas = null, avisoCoordenadas = null) }
+        val texto = v.take(TEXTO_NUMERICO_MAXIMO)
+        estadoSalvo[CHAVE_LONGITUDE] = texto
+        _uiState.update { it.copy(longitude = texto, erroCoordenadas = null, avisoCoordenadas = null) }
     }
 
     /** Botão ±: o teclado numérico de alguns aparelhos não tem o sinal de menos. */
@@ -242,7 +259,7 @@ class PropriedadeFormViewModel(
 
     private fun formatarCoordenada(valor: Double): String = String.format(Locale.ROOT, "%.6f", valor).replace('.', ',')
 
-    /** Formata para o campo: "18", "12,5", "-21,7333" (sem notação científica nem agrupamento). */
+    /** Formata para o campo: "18", "12,5", "-23,5" (sem notação científica nem agrupamento). */
     private fun Double.paraCampo(): String = numeroBr(agrupar = false)
 
     /** Coordenada: aceita vírgula ou ponto decimal; rejeita NaN e infinito. */
@@ -251,7 +268,7 @@ class PropriedadeFormViewModel(
     fun aoSalvar() {
         val estado = _uiState.value
         // Ignora toques repetidos durante ou após a gravação.
-        if (estado.salvando || estado.salvo || estado.naoEncontrado) return
+        if (estado.ocupado || !podeSalvar) return
 
         when (val validacao = validar(estado)) {
             is Validacao.Invalida -> _uiState.value = validacao.estado
@@ -312,7 +329,8 @@ class PropriedadeFormViewModel(
                     // Mesmo id na edição: o repositório faz upsert.
                     id = propriedadeId ?: UUID.randomUUID().toString(),
                     nome = estado.nome.trim(),
-                    cultura = estado.cultura.trim().ifBlank { "Não informada" },
+                    // Cultura em branco fica vazia no banco; "Não informada" é só o texto da tela.
+                    cultura = estado.cultura.trim(),
                     areaHectares = entradas.area,
                     latitude = entradas.latitude,
                     longitude = entradas.longitude
@@ -341,7 +359,11 @@ class PropriedadeFormViewModel(
                 .onSuccess { excluida ->
                     selecao.limparSeFor(id)
                     if (excluida != null) {
-                        desfazer.oferecer("Propriedade excluída") { propriedadeRepository.restaurar(excluida) }
+                        desfazer.oferecer("Propriedade excluída") {
+                            propriedadeRepository.restaurar(excluida)
+                            // A propriedade volta a ser a escolhida, como estava antes de excluir.
+                            selecao.selecionar(excluida.propriedade.id)
+                        }
                     }
                     _uiState.update { it.copy(excluido = true) }
                 }
@@ -356,6 +378,15 @@ class PropriedadeFormViewModel(
     companion object {
         /** Aviso exibido quando [PropriedadeFormUiState.naoEncontrado]. */
         const val AVISO_NAO_ENCONTRADO = "Esta propriedade não existe mais."
+
+        /**
+         * Teto de caracteres dos campos de área, latitude e longitude. Sobra para "1.000.000,5" e
+         * para as 6 casas do GPS ("-23,123457"), e barra um texto enorme colado por engano.
+         */
+        const val TEXTO_NUMERICO_MAXIMO = 20
+
+        /** Falha ao ler o banco ao abrir a edição; salvar fica bloqueado para não gravar por cima. */
+        const val AVISO_FALHA_AO_CARREGAR = "Não foi possível carregar a propriedade. Volte e tente de novo."
 
         // Chaves do SavedStateHandle; os valores são o texto dos campos.
         internal const val CHAVE_NOME = "nome"

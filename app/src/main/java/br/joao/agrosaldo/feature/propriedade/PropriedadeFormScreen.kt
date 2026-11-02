@@ -51,6 +51,7 @@ import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 @Composable
@@ -312,8 +313,7 @@ private fun BotaoSinal(campo: String, aoClicar: () -> Unit) {
     }
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1700, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 850)
+@PreviasDaTela
 @Composable
 private fun PropriedadeFormNovaPreview() {
     AgroSaldoTheme {
@@ -337,8 +337,8 @@ private fun PropriedadeFormComErroPreview() {
                 nome = "",
                 cultura = "Milho",
                 area = "abc",
-                latitude = "-21,7333",
-                longitude = "-46,9667",
+                latitude = "-23,5",
+                longitude = "-48,5",
                 erroNome = "Informe o nome da propriedade.",
                 erroArea = "A área deve ser um número maior que zero.",
                 ehEdicao = true

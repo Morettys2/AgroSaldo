@@ -10,11 +10,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.joao.agrosaldo.domain.model.TermoDePrivacidade
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 private data class Secao(val titulo: String, val texto: String)
 
@@ -105,7 +105,7 @@ fun PoliticaScreen(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true, heightDp = 1200)
+@PreviasDaTela
 @Composable
 private fun PoliticaPreview() {
     AgroSaldoTheme { PoliticaScreen() }

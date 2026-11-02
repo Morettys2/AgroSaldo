@@ -48,8 +48,6 @@ fun YearMonth.rotulo(): String {
     return nomeDoMes.replaceFirstChar { it.uppercase(BRASIL) } + " de " + year
 }
 
-fun LocalDate.pertenceAo(mes: YearMonth): Boolean = YearMonth.from(this) == mes
-
 /**
  * Conversões para o DatePicker do Material 3, que usa epoch millis em UTC.
  * Usar o fuso local deslocaria a data em um dia em fusos negativos.

@@ -72,7 +72,8 @@ fun rememberPermissaoNotificacao(): PermissaoNotificacao {
             destino == null -> {
                 concedida = NotificadorDeChuva.podeNotificar(context)
             }
-            destino == DestinoDaPermissao.DIALOGO -> {
+            // O diálogo de permissão só existe a partir do Android 13 (é quando o destino vira DIALOGO).
+            destino == DestinoDaPermissao.DIALOGO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
                 explicarAntes = deveExplicar(context)
                 pedido.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -99,6 +100,8 @@ private fun destinoAtual(context: Context): DestinoDaPermissao? {
 }
 
 private fun deveExplicar(context: Context): Boolean {
+    // Antes do Android 13 a permissão de notificação não é pedida em tempo de execução.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
     val activity = context.activity() ?: return false
     return ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
 }

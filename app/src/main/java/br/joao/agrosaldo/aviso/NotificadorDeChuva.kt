@@ -13,11 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import br.joao.agrosaldo.MainActivity
 import br.joao.agrosaldo.R
-import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.AvisoDeChuva
-import br.joao.agrosaldo.domain.clima.MotivoChuva
-import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 
 /**
  * Notificação do aviso de chuva, no canal próprio [CANAL] (silenciável
@@ -35,7 +31,6 @@ object NotificadorDeChuva {
     /** Id comum a todos os avisos; cada propriedade é a tag da sua notificação. */
     private const val ID_AVISO = 1
     private const val ESQUEMA = "agrosaldo"
-    private const val HORAS_ATE_A_CHUVA_DE_EXEMPLO = 3L
 
     fun criarCanal(context: Context) {
         val canal = NotificationChannelCompat.Builder(CANAL, NotificationManagerCompat.IMPORTANCE_DEFAULT)
@@ -106,26 +101,5 @@ object NotificadorDeChuva {
         // Tag = propriedade: um aviso novo substitui o anterior da mesma propriedade, e
         // propriedades diferentes nunca colidem (o hashCode do id podia colidir).
         NotificationManagerCompat.from(context).notify(aviso.propriedadeId, ID_AVISO, notificacao)
-    }
-
-    /**
-     * Exibe uma notificação com dados fictícios. Usado só pelas ferramentas de teste de builds debug.
-     * Recebe a propriedade selecionada para o toque abrir o Clima como num aviso real (um id
-     * que não é do usuário conectado seria ignorado).
-     */
-    fun mostrarExemplo(context: Context, propriedadeId: String?) {
-        val aviso = AvisoDeChuva(
-            propriedadeId = propriedadeId ?: "exemplo",
-            nomePropriedade = "Propriedade de exemplo",
-            avaliacao = AvaliacaoChuva(
-                vaiChover = true,
-                probabilidadeMaxima = 85,
-                chuvaTotalMm = 6.0,
-                inicioPrevisto = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).plusHours(HORAS_ATE_A_CHUVA_DE_EXEMPLO),
-                motivo = MotivoChuva.AMBOS,
-                temDados = true
-            )
-        )
-        mostrar(context, aviso, janelaHoras = 12)
     }
 }

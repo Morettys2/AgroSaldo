@@ -3,10 +3,10 @@ package br.joao.agrosaldo.feature.conta
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 /**
  * Exibida quando a versão da política mudou desde o último aceite. LGPD: mudança
@@ -53,7 +53,7 @@ fun NovoConsentimentoScreen(
     )
 }
 
-@Preview(showBackground = true, heightDp = 1100)
+@PreviasDaTela
 @Composable
 private fun NovoConsentimentoPreview() {
     AgroSaldoTheme {

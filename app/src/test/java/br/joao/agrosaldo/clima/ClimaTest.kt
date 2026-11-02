@@ -195,8 +195,6 @@ class ClimaTest {
         assertEquals(CondicaoTempo.TEMPESTADE, CondicaoTempo.doCodigoWmo(95))
         assertEquals(CondicaoTempo.DESCONHECIDA, CondicaoTempo.doCodigoWmo(null))
         assertEquals(CondicaoTempo.DESCONHECIDA, CondicaoTempo.doCodigoWmo(42))
-        assertTrue(CondicaoTempo.TEMPESTADE.molhado)
-        assertFalse(CondicaoTempo.NEBLINA.molhado)
     }
 
     @Test
@@ -204,9 +202,9 @@ class ClimaTest {
         val original = Locale.getDefault()
         try {
             Locale.setDefault(Locale.forLanguageTag("pt-BR"))
-            val url = OpenMeteo.endereco(-21.7049, -46.9312)
-            assertTrue(url, url.contains("latitude=-21.70&longitude=-46.93"))
-            assertFalse(url.contains("-21,70") || url.contains("-46,93"))
+            val url = OpenMeteo.endereco(-23.4049, -48.5312)
+            assertTrue(url, url.contains("latitude=-23.40&longitude=-48.53"))
+            assertFalse(url.contains("-23,40") || url.contains("-48,53"))
         } finally {
             Locale.setDefault(original)
         }
@@ -214,7 +212,7 @@ class ClimaTest {
 
     @Test
     fun `endereco pede so o necessario e usa HTTPS`() {
-        val url = OpenMeteo.endereco(-21.7, -46.9)
+        val url = OpenMeteo.endereco(-23.7, -48.9)
         assertTrue(url.startsWith("https://api.open-meteo.com/v1/forecast?"))
         assertTrue(url.contains("hourly=precipitation_probability,precipitation"))
         assertTrue(url.contains("timezone=auto"))
@@ -223,9 +221,9 @@ class ClimaTest {
 
     @Test
     fun `coordenada sai do celular arredondada em 2 casas`() {
-        assertEquals(-21.70, OpenMeteo.arredondar(-21.70491), 0.0)
-        assertEquals(-46.94, OpenMeteo.arredondar(-46.9351), 0.0)
-        assertEquals(-21.71, OpenMeteo.arredondar(-21.705), 0.0)
+        assertEquals(-23.40, OpenMeteo.arredondar(-23.40491), 0.0)
+        assertEquals(-48.54, OpenMeteo.arredondar(-48.5351), 0.0)
+        assertEquals(-23.41, OpenMeteo.arredondar(-23.405), 0.0)
     }
 
     @Test
@@ -320,11 +318,11 @@ class ClimaTest {
 
     private val fazenda = Propriedade(
         id = "p1",
-        nome = "Fazenda Santa Clara",
+        nome = "Fazenda Modelo",
         cultura = "Café",
         areaHectares = 42.0,
-        latitude = -21.7049,
-        longitude = -46.9312
+        latitude = -23.4049,
+        longitude = -48.5312
     )
 
     private var agoraMs = AGORA.toEpochMilli()
@@ -344,7 +342,7 @@ class ClimaTest {
 
         assertTrue(r is ResultadoAtualizacao.Sucesso)
         val guardada = dao.tabela.value.getValue("p1")
-        assertEquals(-21.70, guardada.latitude, 0.0)
+        assertEquals(-23.40, guardada.latitude, 0.0)
         assertNotNull(repositorio.observar(fazenda).first())
     }
 
@@ -451,11 +449,11 @@ class ClimaTest {
 
     private val sitio = Propriedade(
         id = "p2",
-        nome = "Sítio Boa Vista",
+        nome = "Sítio Exemplo",
         cultura = "Milho",
         areaHectares = 10.0,
-        latitude = -21.8,
-        longitude = -46.8
+        latitude = -23.8,
+        longitude = -48.8
     )
 
     private fun verificador(
@@ -697,9 +695,9 @@ class ClimaTest {
 
     @Test
     fun `texto da notificacao traz chance, volume, hora e a recomendacao`() {
-        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(comChuva, AGORA))
+        val aviso = AvisoDeChuva("p1", "Fazenda Modelo", RegraDeChuva.avaliar(comChuva, AGORA))
 
-        assertEquals("Chuva prevista: Fazenda Santa Clara", TextosDoAviso.titulo(aviso))
+        assertEquals("Chuva prevista: Fazenda Modelo", TextosDoAviso.titulo(aviso))
         assertEquals(
             "85% de chance de chuva nas próximas 12 horas, com 6 mm previstos a partir das 18h. " +
                 "Dá para adiar a irrigação do pivô e economizar energia.",
@@ -711,7 +709,7 @@ class ClimaTest {
     fun `notificacao diz o dia quando a chuva comeca depois da meia-noite e nao fala 0 mm`() {
         val madrugada = previsao(mapOf(25 to (90 to 0.0)))
         val agoraLocal = madrugada.horaLocal(AGORA)
-        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(madrugada, AGORA), agoraLocal)
+        val aviso = AvisoDeChuva("p1", "Fazenda Modelo", RegraDeChuva.avaliar(madrugada, AGORA), agoraLocal)
 
         assertEquals(
             "90% de chance de chuva nas próximas 12 horas a partir da 1h de amanhã. " +
@@ -750,13 +748,13 @@ class ClimaTest {
 
     @Test
     fun `tela bloqueada nao mostra o nome da propriedade nem os numeros da previsao`() {
-        val aviso = AvisoDeChuva("p1", "Fazenda Santa Clara", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
+        val aviso = AvisoDeChuva("p1", "Fazenda Modelo", RegraDeChuva.avaliar(comChuva, AGORA), comChuva.horaLocal(AGORA))
         val completo = TextosDoAviso.titulo(aviso) + " " + TextosDoAviso.corpo(aviso, 12)
         val publico = TextosDoAviso.TITULO_PUBLICO + " " + TextosDoAviso.CORPO_PUBLICO
 
-        val sensiveis = listOf("Fazenda Santa Clara", "85%", "6 mm", "18h")
+        val sensiveis = listOf("Fazenda Modelo", "85%", "6 mm", "18h")
         sensiveis.forEach { assertTrue("o texto completo deveria trazer '$it': $completo", completo.contains(it)) }
-        listOf("Fazenda", "Santa Clara", "%", "mm", "18h").forEach {
+        listOf("Fazenda", "Modelo", "%", "mm", "18h").forEach {
             assertFalse("a versão pública mostra '$it': $publico", publico.contains(it))
         }
         assertFalse("a versão pública tem números: $publico", publico.any { it.isDigit() })

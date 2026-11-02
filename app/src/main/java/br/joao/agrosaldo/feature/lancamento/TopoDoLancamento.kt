@@ -72,7 +72,12 @@ internal fun Topo(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = if (reduzido) 16.dp else 28.dp),
+            .padding(
+                start = Espacos.margemDaTela,
+                end = Espacos.margemDaTela,
+                top = Espacos.medio,
+                bottom = if (reduzido) Espacos.padrao else Espacos.amplo
+            ),
         verticalArrangement = Arrangement.spacedBy(if (reduzido) 12.dp else 20.dp)
     ) {
         Row(
