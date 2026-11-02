@@ -184,13 +184,12 @@ class AgroSaldoDatabaseTest {
     }
 
     @Test
-    fun semeadorGeraSqlValidoEAPrimeiraContaAdotaOsExemplos() {
+    fun semeadorGeraSqlValidoComODonoInformado() {
         val sqlite = banco.openHelper.writableDatabase
-        Semeador.semear(executar = { sql, args -> sqlite.execSQL(sql, args) }, hoje = hoje)
+        runBlocking { usuarioDao.inserir(usuario("u1", "maria@exemplo.com")) }
+        Semeador.semear(executar = { sql, args -> sqlite.execSQL(sql, args) }, usuarioId = "u1", hoje = hoje)
 
         runBlocking {
-            usuarioDao.inserir(usuario("u1", "maria@exemplo.com"))
-            assertEquals(2, usuarioDao.adotarPropriedadesSemDono("u1"))
             assertEquals(2, propriedadeDao.observarDoUsuario("u1").first().size)
             assertEquals(9, lancamentoDao.observarDoUsuario("u1").first().size)
         }
@@ -234,15 +233,12 @@ class AgroSaldoDatabaseTest {
 
     /** Checagem de posse feita pelos repositórios antes do upsert, que casa só pelo id. */
     @Test
-    fun idDeOutraContaOuSemDonoNaoContaComoDoUsuario() = runBlocking {
+    fun idDeOutraContaNaoContaComoDoUsuario() = runBlocking {
         semearExemplos()
         usuarioDao.inserir(usuario("u2", "outra@exemplo.com"))
-        val semDono = DadosDeExemplo.propriedades().first().copy(id = "sem-dono").paraEntidade(usuarioId = null, agora = 0L)
-        propriedadeDao.salvar(semDono)
 
         assertFalse(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u1"))
         assertTrue(propriedadeDao.existeSemSerDoUsuario(DadosDeExemplo.ID_FAZENDA, "u2"))
-        assertTrue("sem dono não é de ninguém", propriedadeDao.existeSemSerDoUsuario("sem-dono", "u1"))
         assertFalse("id novo pode ser gravado", propriedadeDao.existeSemSerDoUsuario("nao-existe", "u1"))
 
         assertFalse(lancamentoDao.existeSemSerDoUsuario("exemplo-1", "u1"))

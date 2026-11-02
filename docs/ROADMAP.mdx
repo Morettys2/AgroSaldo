@@ -29,8 +29,8 @@ O app está **pronto para uso**: a versão 1.5 roda no celular do produtor, com 
 | --- | --- |
 | Funcionalidades | Contas, sítios, lançamentos, histórico do ano, clima e aviso de chuva: tudo pronto |
 | Arquitetura | MVVM + Repository, módulo `:domain` em Kotlin puro e Hilt |
-| Banco | Room versão 3, base da produção, sem migrações antigas |
-| Qualidade | 597 testes (581 no computador, contando os 16 de banco, e os mesmos 16 de banco no aparelho), detekt com zero achados e CI em todo push na `prod` |
+| Banco | Room versão 4 (a 3 é a base da produção, sem migrações antigas; a 3 → 4 deixou o dono da propriedade obrigatório) |
+| Qualidade | 600 testes (581 no computador, contando os 19 de banco, e os mesmos 19 de banco no aparelho), detekt com zero achados e CI em todo push na `prod` |
 | Segurança e LGPD | Senha com PBKDF2, bloqueio por tentativas e por digital, consentimento com versão, exclusão da conta e backup só criptografado |
 | Distribuição | APK instalado à mão no celular do produtor. Ainda não está na Play Store |
 | Documentação | `CLAUDE.md` (regras), `docs/DOCUMENTACAO_TECNICA.mdx` (técnica) e `docs/PERGUNTAS_DA_BANCA.mdx` |
@@ -58,7 +58,7 @@ Coisas pequenas, que dá para fazer logo depois da apresentação.
 - [ ] **Anotar as perguntas e sugestões da banca** e transformar cada uma num item deste roadmap (ou registrar por que não vamos fazer).
 - [x] **Limpar resquícios do baseline no `app/build.gradle.kts`.** Feito nas correções da auditoria (28/10/2026): o ktlint não aponta mais para um baseline, a tarefa `detektBaseline` saiu e o comentário foi corrigido.
 - [x] **Corrigir os achados da auditoria de código** (`docs/AUDITORIA_2026-10-28.md`), na branch `fix/auditoria-2026-10-28`, incluindo a remoção dos dados reais do produtor do projeto.
-- [ ] **Rodar os testes de banco no aparelho** (`connectedAndroidTest`, os 16 testes de DAO). Desde as correções da auditoria eles também rodam no computador e no CI (Robolectric), mas o SQLite do aparelho ainda vale conferir antes de cada release. Última vez: 02/11/2026, no emulador, 16 de 16.
+- [ ] **Rodar os testes de banco no aparelho** (`connectedAndroidTest`, os 19 testes de banco: 16 de DAO e 3 de migração). Desde as correções da auditoria eles também rodam no computador e no CI (Robolectric), mas o SQLite do aparelho ainda vale conferir antes de cada release. Última vez: 02/11/2026, no emulador, 19 de 19.
 - [ ] **Revisar o texto sobre `atualizado_em`.** O `CLAUDE.md` diz que a coluna é reservada para a sincronização futura, mas o comentário no código não diz mais isso. Decidir qual versão vale e deixar os dois iguais.
 
 ---
@@ -70,7 +70,7 @@ Hoje, se o celular for perdido sem o backup do Android ligado, **os dados se per
 - [ ] **Exportar os dados** para um arquivo (CSV para abrir no Excel, ou JSON). O arquivo sai pelo compartilhar do Android: WhatsApp, e-mail ou Drive.
   - Resolve dois problemas de uma vez: é o **backup manual** do produtor e atende a **portabilidade da LGPD** (art. 18, V), o único direito do titular que ainda falta.
 - [ ] **Importar** esse mesmo arquivo num celular novo, com conferência para não duplicar lançamentos. Os ids são UUID, então dá para detectar o que já existe.
-- [ ] **Migração 4 do banco:**
+- [x] **Migração 4 do banco** (feita em 02/11/2026, branch `feat/migracao-4-dono-obrigatorio`):
   - deixar `propriedades.usuario_id` obrigatório;
   - remover o `adotarPropriedadesSemDono`, que só servia para os dados de exemplo antigos;
   - seguir a regra da casa: subir a versão, escrever a migração, exportar o schema e criar o teste de migração.

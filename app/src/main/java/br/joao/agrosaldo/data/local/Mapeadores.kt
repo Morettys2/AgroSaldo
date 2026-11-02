@@ -40,7 +40,7 @@ fun PropriedadeEntity.paraDominio(): Propriedade = Propriedade(
  * @param usuarioId dono, vindo da sessão (não faz parte do modelo de domínio).
  * @param agora valor de `atualizado_em`, em epoch ms.
  */
-fun Propriedade.paraEntidade(usuarioId: String?, agora: Long): PropriedadeEntity = PropriedadeEntity(
+fun Propriedade.paraEntidade(usuarioId: String, agora: Long): PropriedadeEntity = PropriedadeEntity(
     id = id,
     nome = nome,
     cultura = cultura,
