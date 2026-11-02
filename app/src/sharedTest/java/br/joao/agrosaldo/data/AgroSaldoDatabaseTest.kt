@@ -99,7 +99,7 @@ class AgroSaldoDatabaseTest {
     @Test
     fun listaDePropriedadesVemEmOrdemAlfabeticaDoPortugues() = runBlocking {
         semearExemplos()
-        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-limpa", nome = "Água Exemplo")
+        val agua = DadosDeExemplo.propriedades().first().copy(id = "agua-exemplo", nome = "Água Exemplo")
         propriedadeDao.salvar(agua.paraEntidade(usuarioId = "u1", agora = 0L))
         val repositorio =
             PropriedadeRepositoryRoom(

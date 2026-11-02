@@ -15,7 +15,7 @@ import java.time.YearMonth
 object DadosDeExemplo {
 
     const val ID_FAZENDA = "exemplo-fazenda"
-    const val ID_SITIO = "exemplo-sitio-boa-vista"
+    const val ID_SITIO = "exemplo-sitio"
 
     fun propriedades(): List<Propriedade> = listOf(
         Propriedade(
