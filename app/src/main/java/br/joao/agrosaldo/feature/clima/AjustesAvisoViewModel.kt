@@ -2,13 +2,20 @@ package br.joao.agrosaldo.feature.clima
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.SelecaoAtual
+import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
+import br.joao.agrosaldo.domain.clima.AvisoDeChuva
 import br.joao.agrosaldo.domain.clima.LimitesChuva
+import br.joao.agrosaldo.domain.clima.MotivoChuva
 import br.joao.agrosaldo.domain.repository.AgendaDeVerificacao
 import br.joao.agrosaldo.domain.repository.AjustesAviso
 import br.joao.agrosaldo.domain.repository.AjustesAvisoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,11 +52,27 @@ class AjustesAvisoViewModel @Inject constructor(
     private val ajustes: AjustesAvisoRepository,
     private val agenda: AgendaDeVerificacao,
     private val propriedades: PropriedadeRepository,
-    private val selecao: SelecaoAtual
+    private val selecao: SelecaoAtual,
+    private val relogio: Clock
 ) : ViewModel() {
 
     /** Propriedade escolhida no app, para a notificação de exemplo (ferramenta de teste do debug). */
-    fun propriedadeSelecionadaId(): String? = selecao.propriedadeId.value
+    /**
+     * Aviso com dados fictícios para a notificação de exemplo (ferramenta de teste do debug). Usa a
+     * propriedade escolhida no app, para o toque abrir o Clima como num aviso real, e o relógio injetado.
+     */
+    fun avisoDeExemplo(): AvisoDeChuva = AvisoDeChuva(
+        propriedadeId = selecao.propriedadeId.value ?: "exemplo",
+        nomePropriedade = "Propriedade de exemplo",
+        avaliacao = AvaliacaoChuva(
+            vaiChover = true,
+            probabilidadeMaxima = PROBABILIDADE_DO_EXEMPLO,
+            chuvaTotalMm = CHUVA_DO_EXEMPLO_MM,
+            inicioPrevisto = LocalDateTime.now(relogio).truncatedTo(ChronoUnit.HOURS).plusHours(HORAS_ATE_A_CHUVA_DE_EXEMPLO),
+            motivo = MotivoChuva.AMBOS,
+            temDados = true
+        )
+    )
 
     private val _uiState = MutableStateFlow(
         ajustes.ajustes.value.let {
@@ -69,7 +92,8 @@ class AjustesAvisoViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val lista = propriedades.observarTodas().first()
+            // Banco travado: a lista fica vazia, e salvar preserva os sítios desligados (ver aoSalvar).
+            val lista = tentar { propriedades.observarTodas().first() }.getOrDefault(emptyList())
             _uiState.update { estado ->
                 estado.copy(sitios = lista.map { SitioDoAviso(it.id, it.nome, avisa = it.id !in semAvisoAoAbrir) })
             }
@@ -127,5 +151,10 @@ class AjustesAvisoViewModel @Inject constructor(
         const val PROBABILIDADE_MAX = 90
         const val CHUVA_MIN = 1.0
         const val CHUVA_MAX = 10.0
+
+        // Valores do aviso de exemplo.
+        private const val PROBABILIDADE_DO_EXEMPLO = 85
+        private const val CHUVA_DO_EXEMPLO_MM = 6.0
+        private const val HORAS_ATE_A_CHUVA_DE_EXEMPLO = 3L
     }
 }

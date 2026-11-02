@@ -24,11 +24,11 @@ class VerificacaoChuvaWorkerTest {
 
     private val fazenda = Propriedade(
         id = "p1",
-        nome = "Fazenda Santa Clara",
+        nome = "Fazenda Modelo",
         cultura = "Milho",
         areaHectares = 50.0,
-        latitude = -21.7,
-        longitude = -46.9
+        latitude = -23.7,
+        longitude = -48.9
     )
     private val comChuva = previsao(mapOf(18 to (85 to 6.0)))
 

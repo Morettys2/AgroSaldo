@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.navigation.Rotas
 import br.joao.agrosaldo.core.util.DIGITOS_MAXIMOS_DO_VALOR
-import br.joao.agrosaldo.core.util.TextosComuns
 import br.joao.agrosaldo.core.util.digitosParaCentavos
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
@@ -40,7 +39,8 @@ data class LancamentoFormUiState(
     val categoria: CategoriaLancamento = CategoriaLancamento.ENERGIA,
     /** Valor em centavos como string de dígitos: "125050" = R$ 1.250,50. */
     val valorDigitos: String = "",
-    val data: String = LocalDate.now().formatarBr(),
+    /** Data digitada ("dd/MM/aaaa"); sem valor padrão: o ViewModel a monta pelo relógio injetado. */
+    val data: String,
     val propriedadeId: String = "",
     val descricao: String = "",
     val propriedades: List<Propriedade> = emptyList(),
@@ -58,14 +58,18 @@ data class LancamentoFormUiState(
     val carregado: Boolean = false,
     /** O lançamento em edição não existe mais (ex.: foi excluído); a tela avisa e fecha. */
     val naoEncontrado: Boolean = false,
-    /** Referência para os rótulos relativos de data ("Hoje", "Ontem"). */
-    val hoje: LocalDate = LocalDate.now()
+    /** Referência para os rótulos relativos de data ("Hoje", "Ontem"); vem do relógio injetado. */
+    val hoje: LocalDate
 ) {
     val categoriasDisponiveis: List<CategoriaLancamento>
         get() = CategoriaLancamento.porTipo(tipo)
 
-    val nomePropriedadeSelecionada: String
-        get() = propriedades.firstOrNull { it.id == propriedadeId }?.nome ?: TextosComuns.ESCOLHA_A_PROPRIEDADE
+    /**
+     * false durante ou depois da gravação, sem registro para editar ou antes de os dados chegarem
+     * do banco (inclusive se a leitura falhou): salvar então gravaria por cima do registro.
+     */
+    val aceitaSalvar: Boolean
+        get() = carregado && !salvando && !salvo && !naoEncontrado
 
     val valorCentavos: Long
         get() = valorDigitos.digitosParaCentavos() ?: 0L
@@ -74,7 +78,7 @@ data class LancamentoFormUiState(
     val rotuloData: String
         get() = data.paraLocalDateOuNulo()?.rotuloDeData(hoje) ?: data
 
-    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda Santa Clara". */
+    /** Resumo exibido sob o valor: "Combustível · Hoje · Fazenda Modelo". */
     val resumo: String
         get() = listOfNotNull(
             categoria.rotulo,
@@ -104,7 +108,7 @@ class LancamentoFormViewModel(
     private val desfazer: Desfazer,
     private val relogio: Clock,
     tipoInicial: TipoLancamento? = null,
-    private val estadoSalvo: SavedStateHandle = SavedStateHandle()
+    private val estadoSalvo: SavedStateHandle
 ) : ViewModel() {
 
     /**
@@ -154,41 +158,47 @@ class LancamentoFormViewModel(
 
     init {
         viewModelScope.launch {
-            val propriedades = propriedadeRepository.observarTodas().first()
-            // A propriedade selecionada pode ter sido excluída; cai para a primeira da lista.
-            val selecionada = selecao.propriedadeId.value
-                ?.takeIf { id -> propriedades.any { it.id == id } }
-                ?: propriedades.firstOrNull()?.id.orEmpty()
+            // Banco travado: avisa e mantém carregado = false, que bloqueia salvar por cima do registro.
+            tentar { carregar() }.onFailure { _uiState.update { it.copy(erroGeral = AVISO_FALHA_AO_CARREGAR) } }
+        }
+    }
 
-            val origem = (lancamentoId ?: copiaDe)?.let { lancamentoRepository.buscarPorId(it) }
-            if (lancamentoId != null && origem == null) {
-                // Salvar recriaria o registro com o id antigo.
-                _uiState.update { it.copy(propriedades = propriedades, carregado = true, naoEncontrado = true) }
-                return@launch
-            }
-            if (origem != null) {
-                val ehCopia = lancamentoId == null
-                if (!ehCopia) mesOriginal = YearMonth.from(origem.data)
-                _uiState.value = LancamentoFormUiState(
-                    tipo = origem.tipo,
-                    categoria = origem.categoria,
-                    valorDigitos = origem.valorCentavos.toString(),
-                    data = if (ehCopia) hoje().formatarBr() else origem.data.formatarBr(),
-                    propriedadeId = origem.propriedadeId,
-                    descricao = origem.descricao,
-                    propriedades = propriedades,
-                    ehEdicao = !ehCopia,
-                    ehCopia = ehCopia,
-                    hoje = hoje(),
-                    carregado = true
-                ).comCamposRestaurados()
-                return@launch
-            }
+    /** Lê as propriedades e, na edição ou cópia, o lançamento de origem. */
+    private suspend fun carregar() {
+        val propriedades = propriedadeRepository.observarTodas().first()
+        // A propriedade selecionada pode ter sido excluída; cai para a primeira da lista.
+        val selecionada = selecao.propriedadeId.value
+            ?.takeIf { id -> propriedades.any { it.id == id } }
+            ?: propriedades.firstOrNull()?.id.orEmpty()
 
-            _uiState.update {
-                it.copy(propriedades = propriedades, propriedadeId = selecionada, carregado = true)
-                    .comCamposRestaurados()
-            }
+        val origem = (lancamentoId ?: copiaDe)?.let { lancamentoRepository.buscarPorId(it) }
+        if (lancamentoId != null && origem == null) {
+            // Salvar recriaria o registro com o id antigo.
+            _uiState.update { it.copy(propriedades = propriedades, carregado = true, naoEncontrado = true) }
+            return
+        }
+        if (origem != null) {
+            val ehCopia = lancamentoId == null
+            if (!ehCopia) mesOriginal = YearMonth.from(origem.data)
+            _uiState.value = LancamentoFormUiState(
+                tipo = origem.tipo,
+                categoria = origem.categoria,
+                valorDigitos = origem.valorCentavos.toString(),
+                data = if (ehCopia) hoje().formatarBr() else origem.data.formatarBr(),
+                propriedadeId = origem.propriedadeId,
+                descricao = origem.descricao,
+                propriedades = propriedades,
+                ehEdicao = !ehCopia,
+                ehCopia = ehCopia,
+                hoje = hoje(),
+                carregado = true
+            ).comCamposRestaurados()
+            return
+        }
+
+        _uiState.update {
+            it.copy(propriedades = propriedades, propriedadeId = selecionada, carregado = true)
+                .comCamposRestaurados()
         }
     }
 
@@ -268,8 +278,8 @@ class LancamentoFormViewModel(
 
     fun aoSalvar() {
         val estado = _uiState.value
-        // Ignora toques repetidos durante ou após a gravação.
-        if (estado.salvando || estado.salvo || estado.naoEncontrado) return
+        // Ignora toques repetidos durante ou após a gravação, e salvar antes de carregar.
+        if (!estado.aceitaSalvar) return
         val centavos = estado.valorDigitos.digitosParaCentavos()
         val data = estado.data.paraLocalDateOuNulo()
 
@@ -340,7 +350,7 @@ class LancamentoFormViewModel(
                 lancamentoRepository.excluir(id)
             }.onSuccess { apagado ->
                 if (apagado != null) {
-                    desfazer.oferecer("Lançamento excluído") { lancamentoRepository.salvar(apagado) }
+                    desfazer.oferecer("Lançamento excluído") { lancamentoRepository.restaurar(apagado) }
                 }
                 _uiState.update { it.copy(excluido = true) }
             }.onFailure { erro ->
@@ -352,6 +362,9 @@ class LancamentoFormViewModel(
     companion object {
         /** Aviso exibido quando [LancamentoFormUiState.naoEncontrado]. */
         const val AVISO_NAO_ENCONTRADO = "Este lançamento não existe mais."
+
+        /** Falha ao ler o banco ao abrir o formulário; salvar fica bloqueado para não gravar por cima. */
+        const val AVISO_FALHA_AO_CARREGAR = "Não foi possível carregar os dados. Volte e tente de novo."
 
         /** Limite de data futura, definido em [Lancamento]; usado para limitar o calendário. */
         const val MESES_NO_FUTURO = Lancamento.MESES_NO_FUTURO

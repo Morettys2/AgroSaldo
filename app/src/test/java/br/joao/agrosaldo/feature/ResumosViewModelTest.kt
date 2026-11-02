@@ -11,10 +11,12 @@ import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.ClimaRepositoryMemoria
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
+import br.joao.agrosaldo.domain.clima.Previsao
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.repository.ClimaRepository
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.UsuarioLogadoRepository
@@ -26,6 +28,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -42,7 +45,7 @@ import org.junit.Test
 /**
  * Cálculos das telas de resumo: Início, Lançamentos e Sítios.
  *
- * Com [DadosDeExemplo], a Fazenda Santa Clara no mês corrente tem:
+ * Com [DadosDeExemplo], a Fazenda Modelo no mês corrente tem:
  *   entrou  R$ 18.000   (venda de milho)
  *   saiu    R$  2.350   (energia 1.250 + adubo 780 + combustível 320)
  *   saldo   R$ 15.650
@@ -97,7 +100,7 @@ class ResumosViewModelTest {
         val estado = inicio().uiState.value
 
         assertFalse(estado.carregando)
-        assertEquals("Fazenda Santa Clara", estado.nomePropriedade)
+        assertEquals("Fazenda Modelo", estado.nomePropriedade)
         assertEquals(1_800_000L, estado.receitasCentavos)
         assertEquals(235_000L, estado.despesasCentavos)
         assertEquals(1_565_000L, estado.saldoCentavos)
@@ -132,7 +135,7 @@ class ResumosViewModelTest {
         vm.aoSelecionarPropriedade(DadosDeExemplo.ID_SITIO)
 
         val estado = vm.uiState.value
-        assertEquals("Sítio Boa Vista", estado.nomePropriedade)
+        assertEquals("Sítio Exemplo", estado.nomePropriedade)
         assertEquals(450_000L - 210_000L, estado.saldoCentavos)
     }
 
@@ -436,5 +439,99 @@ class ResumosViewModelTest {
         assertEquals(mesPassado, lista.uiState.value.mes)
         assertEquals(mesPassado, sitios.uiState.value.mes)
         assertEquals(2, lista.uiState.value.quantidade)
+    }
+
+    // ---------- leituras do banco que não podem fechar o app (FLW-01) ----------
+
+    @Test
+    fun `erro ao ler as propriedades no inicio vira mensagem e nao fecha o app`() = runTest {
+        var quebrado = true
+        val instavel = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> = flow {
+                if (quebrado) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(propriedades.observarTodas())
+            }
+        }
+        val vm = InicioViewModel(
+            lancamentos,
+            instavel,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertEquals(InicioViewModel.MENSAGEM_ERRO, vm.uiState.value.erro)
+
+        quebrado = false
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.erro)
+        assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    @Test
+    fun `erro ao ler a previsao guardada no inicio nao fecha o app`() = runTest {
+        var quebrado = true
+        val base = ClimaRepositoryMemoria()
+        val instavel = object : ClimaRepository by base {
+            override fun observar(propriedade: Propriedade): Flow<Previsao?> = flow {
+                if (quebrado) throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+                emitAll(base.observar(propriedade))
+            }
+        }
+        val vm = InicioViewModel(
+            lancamentos,
+            propriedades,
+            instavel,
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertNull(vm.uiState.value.chuva)
+        assertEquals("o resto da tela não é afetado", 1_565_000L, vm.uiState.value.saldoCentavos)
+
+        quebrado = false
+        advanceUntilIdle()
+        assertEquals(1_565_000L, vm.uiState.value.saldoCentavos)
+    }
+
+    // ---------- estado inicial pelo relógio injetado, e não pelo do sistema (REL-01) ----------
+
+    /** Propriedades que ainda não responderam: a tela fica no estado inicial. */
+    private val semResposta = object : PropriedadeRepository by PropriedadeRepositoryMemoria() {
+        override fun observarTodas(): Flow<List<Propriedade>> = flow { awaitCancellation() }
+    }
+
+    @Test
+    fun `antes da primeira leitura o inicio ja usa o mes escolhido e o dia do relogio do app`() {
+        val vm = InicioViewModel(
+            lancamentos,
+            semResposta,
+            ClimaRepositoryMemoria(),
+            AjustesAvisoMemoria(),
+            selecao = selecao,
+            usuarioLogado = UsuarioLogadoMemoria(),
+            relogio = relogioEm(hoje)
+        )
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
+        assertEquals(hoje, vm.uiState.value.hoje)
+    }
+
+    @Test
+    fun `antes da primeira leitura a lista de lancamentos ja usa o mes escolhido`() {
+        val vm = LancamentoListaViewModel(lancamentos, semResposta, selecao, relogioEm(hoje), DespachantesDeTeste(Dispatchers.Unconfined))
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
+    }
+
+    @Test
+    fun `antes da primeira leitura a lista de propriedades ja usa o mes escolhido`() {
+        val vm = PropriedadeListaViewModel(semResposta, lancamentos, selecao)
+
+        assertEquals(mesDeHoje, vm.uiState.value.mes)
     }
 }

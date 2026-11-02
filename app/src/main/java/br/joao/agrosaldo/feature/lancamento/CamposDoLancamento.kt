@@ -152,7 +152,7 @@ internal fun CampoDeEscolha(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = Espacos.medio, vertical = 10.dp)
         ) {
             Icon(icone, contentDescription = null, modifier = Modifier.size(20.dp))
             Column {
@@ -273,10 +273,17 @@ internal fun CampoDescricao(texto: String, aoMudar: (String) -> Unit) {
 /** DatePicker com datas após [ultimaPermitida] desabilitadas. Datas em millis UTC. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CalendarioDialogo(dataAtual: LocalDate?, ultimaPermitida: LocalDate, aoEscolher: (LocalDate) -> Unit, aoFechar: () -> Unit) {
+internal fun CalendarioDialogo(
+    dataAtual: LocalDate?,
+    hoje: LocalDate,
+    ultimaPermitida: LocalDate,
+    aoEscolher: (LocalDate) -> Unit,
+    aoFechar: () -> Unit
+) {
     val limite = ultimaPermitida.emMillisUtc()
     val estado = rememberDatePickerState(
-        initialSelectedDateMillis = (dataAtual ?: LocalDate.now()).emMillisUtc(),
+        // Sem data válida no campo, abre no "hoje" do ViewModel (relógio injetado), não no do sistema.
+        initialSelectedDateMillis = (dataAtual ?: hoje).emMillisUtc(),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= limite
             override fun isSelectableYear(year: Int): Boolean = year <= ultimaPermitida.year

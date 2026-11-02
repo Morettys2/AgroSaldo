@@ -43,10 +43,20 @@ class PropriedadeFormViewModelTest {
         propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
     }
 
-    private fun novo() =
-        PropriedadeFormViewModel(propriedades, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
-    private fun editando(id: String) =
-        PropriedadeFormViewModel(propriedades, propriedadeId = id, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+    private fun novo() = PropriedadeFormViewModel(
+        propriedades,
+        propriedadeId = null,
+        selecao = selecao,
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        estadoSalvo = SavedStateHandle()
+    )
+    private fun editando(id: String) = PropriedadeFormViewModel(
+        propriedades,
+        propriedadeId = id,
+        selecao = selecao,
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        estadoSalvo = SavedStateHandle()
+    )
 
     private fun preencher(vm: PropriedadeFormViewModel, area: String = "3") {
         vm.aoMudarNome("Sítio Novo")
@@ -158,18 +168,18 @@ class PropriedadeFormViewModelTest {
         val vm = novo()
         vm.aoMudarNome("Chácara Três Irmãos")
         vm.aoMudarArea("12,5")
-        vm.aoMudarLatitude("-21,70")
-        vm.aoMudarLongitude("-46,90")
+        vm.aoMudarLatitude("-23,70")
+        vm.aoMudarLongitude("-48,90")
         vm.aoSalvar()
 
         assertTrue(vm.uiState.value.salvo)
         val gravada = propriedades.observarTodas().first().first { it.nome == "Chácara Três Irmãos" }
         assertEquals(12.5, gravada.areaHectares, 0.0001)
-        assertEquals(-21.70, gravada.latitude, 0.0001)
+        assertEquals(-23.70, gravada.latitude, 0.0001)
     }
 
     @Test
-    fun `cultura vazia vira Nao informada`() = runTest {
+    fun `cultura nao digitada fica vazia no banco e Nao informada so aparece na tela`() = runTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Novo")
         vm.aoMudarArea("3")
@@ -178,7 +188,7 @@ class PropriedadeFormViewModelTest {
         vm.aoSalvar()
 
         val gravada = propriedades.observarTodas().first().first { it.nome == "Sítio Novo" }
-        assertEquals("Não informada", gravada.cultura)
+        assertEquals("", gravada.cultura)
     }
 
     @Test
@@ -197,17 +207,17 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `edicao carrega os dados e mantem o mesmo id ao salvar`() = runTest {
         val vm = editando(DadosDeExemplo.ID_SITIO)
-        assertEquals("Sítio Boa Vista", vm.uiState.value.nome)
+        assertEquals("Sítio Exemplo", vm.uiState.value.nome)
         // Área inteira volta sem casa decimal ("18", não "18,0").
         assertEquals("18", vm.uiState.value.area)
         assertTrue(vm.uiState.value.ehEdicao)
 
-        vm.aoMudarNome("Sítio Boa Vista II")
+        vm.aoMudarNome("Sítio Exemplo II")
         vm.aoSalvar()
 
         val todas = propriedades.observarTodas().first()
         assertEquals("editar não pode criar uma cópia", 2, todas.size)
-        assertEquals("Sítio Boa Vista II", todas.first { it.id == DadosDeExemplo.ID_SITIO }.nome)
+        assertEquals("Sítio Exemplo II", todas.first { it.id == DadosDeExemplo.ID_SITIO }.nome)
     }
 
     @Test
@@ -227,7 +237,14 @@ class PropriedadeFormViewModelTest {
         val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         val antes = lancamentos.observarTodos().first().filter { it.propriedadeId == DadosDeExemplo.ID_SITIO }
         val propriedadeAntes = propriedades.buscarPorId(DadosDeExemplo.ID_SITIO)
-        val vm = PropriedadeFormViewModel(propriedades, propriedadeId = DadosDeExemplo.ID_SITIO, desfazer = desfazer, selecao = selecao)
+        val vm =
+            PropriedadeFormViewModel(
+                propriedades,
+                propriedadeId = DadosDeExemplo.ID_SITIO,
+                desfazer = desfazer,
+                selecao = selecao,
+                estadoSalvo = SavedStateHandle()
+            )
 
         vm.aoExcluir()
         val oferta = checkNotNull(desfazer.pendente.value)
@@ -247,10 +264,10 @@ class PropriedadeFormViewModelTest {
         vm.aoMudarNome("Sítio Teste")
         vm.aoSalvar() // Gera o erro de coordenadas que a localização deve limpar.
 
-        vm.aoUsarLocalizacao(latitude = -21.73694049, longitude = -46.9316)
+        vm.aoUsarLocalizacao(latitude = -23.12345678, longitude = -48.5)
 
-        assertEquals("-21,736940", vm.uiState.value.latitude)
-        assertEquals("-46,931600", vm.uiState.value.longitude)
+        assertEquals("-23,123457", vm.uiState.value.latitude)
+        assertEquals("-48,500000", vm.uiState.value.longitude)
         assertNull(vm.uiState.value.erroCoordenadas)
     }
 
@@ -267,7 +284,13 @@ class PropriedadeFormViewModelTest {
     fun `dois toques em salvar criam uma propriedade so`() = runTest {
         val lentas = PropriedadesLentas(propriedades)
         val vm =
-            PropriedadeFormViewModel(lentas, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+            PropriedadeFormViewModel(
+                lentas,
+                propriedadeId = null,
+                selecao = selecao,
+                desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+                estadoSalvo = SavedStateHandle()
+            )
         preencher(vm)
 
         vm.aoSalvar()
@@ -298,7 +321,13 @@ class PropriedadeFormViewModelTest {
             override suspend fun salvar(propriedade: Propriedade) = throw IllegalStateException("disco cheio")
         }
         val vm =
-            PropriedadeFormViewModel(quebrado, propriedadeId = null, selecao = selecao, desfazer = Desfazer(RelogioMonotonicoIndisponivel))
+            PropriedadeFormViewModel(
+                quebrado,
+                propriedadeId = null,
+                selecao = selecao,
+                desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+                estadoSalvo = SavedStateHandle()
+            )
         preencher(vm)
         vm.aoSalvar()
 
@@ -317,14 +346,14 @@ class PropriedadeFormViewModelTest {
                 cultura = "Soja",
                 areaHectares = 1_000_000.0,
                 latitude = -0.0001,
-                longitude = -46.5
+                longitude = -48.5
             )
         )
         val vm = editando("grande")
 
         assertEquals("1000000", vm.uiState.value.area)
         assertEquals("-0,0001", vm.uiState.value.latitude)
-        assertEquals("-46,5", vm.uiState.value.longitude)
+        assertEquals("-48,5", vm.uiState.value.longitude)
     }
 
     private suspend fun gravada(nome: String = "Sítio Novo") = propriedades.observarTodas().first().first { it.nome == nome }
@@ -342,12 +371,14 @@ class PropriedadeFormViewModelTest {
     @Test
     fun `area no formato brasileiro com milhar e decimais`() = runTest {
         for ((texto, esperado) in listOf("1.250,5" to 1_250.5, "123.456,25" to 123_456.25, "1250,5" to 1_250.5)) {
+            // Repositório novo a cada caso: só um "Sítio Novo" na lista, sem depender da ordem dos ids.
+            propriedades = PropriedadeRepositoryMemoria(lancamentos = lancamentos)
             val vm = novo()
             preencher(vm, area = texto)
             vm.aoSalvar()
 
             assertTrue(texto, vm.uiState.value.salvo)
-            assertEquals(texto, esperado, propriedades.observarTodas().first().last().areaHectares, 0.0001)
+            assertEquals(texto, esperado, gravada().areaHectares, 0.0001)
         }
     }
 
@@ -398,23 +429,23 @@ class PropriedadeFormViewModelTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Novo")
         vm.aoMudarArea("3")
-        vm.aoMudarLatitude("-21.7333")
-        vm.aoMudarLongitude("-46.9667")
+        vm.aoMudarLatitude("-23.5")
+        vm.aoMudarLongitude("-48.5")
         vm.aoSalvar()
 
         assertTrue(vm.uiState.value.salvo)
-        assertEquals(-21.7333, gravada().latitude, 0.00001)
-        assertEquals(-46.9667, gravada().longitude, 0.00001)
+        assertEquals(-23.5, gravada().latitude, 0.00001)
+        assertEquals(-48.5, gravada().longitude, 0.00001)
     }
 
     @Test
     fun `botao de sinal poe e tira o menos da coordenada`() {
         val vm = novo()
-        vm.aoMudarLatitude("21,73")
+        vm.aoMudarLatitude("23,73")
         vm.aoInverterSinalLatitude()
-        assertEquals("-21,73", vm.uiState.value.latitude)
+        assertEquals("-23,73", vm.uiState.value.latitude)
         vm.aoInverterSinalLatitude()
-        assertEquals("21,73", vm.uiState.value.latitude)
+        assertEquals("23,73", vm.uiState.value.latitude)
 
         vm.aoInverterSinalLongitude()
         assertEquals("campo vazio recebe o sinal para digitar depois", "-", vm.uiState.value.longitude)
@@ -428,11 +459,11 @@ class PropriedadeFormViewModelTest {
             -7.5 to -73.9, // Serra do Divisor
             -7.15 to -34.8, // Ponta do Seixas
             -3.85 to -32.4, // Fernando de Noronha
-            -21.7333 to -46.9667
+            -23.5 to -48.5
         )
         noBrasil.forEach { (lat, lon) -> assertTrue("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
 
-        val fora = listOf(21.7333 to 46.9667, -21.7333 to 46.9667, 21.7333 to -46.9667, 38.7 to -9.1)
+        val fora = listOf(23.5 to 48.5, -23.5 to 48.5, 23.5 to -48.5, 38.7 to -9.1)
         fora.forEach { (lat, lon) -> assertFalse("$lat, $lon", PropriedadeFormViewModel.ficaNoBrasil(lat, lon)) }
     }
 
@@ -441,8 +472,8 @@ class PropriedadeFormViewModelTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Novo")
         vm.aoMudarArea("3")
-        vm.aoMudarLatitude("21,73")
-        vm.aoMudarLongitude("46,93")
+        vm.aoMudarLatitude("23,73")
+        vm.aoMudarLongitude("48,93")
 
         vm.aoSalvar()
         assertNotNull(vm.uiState.value.avisoCoordenadas)
@@ -451,7 +482,7 @@ class PropriedadeFormViewModelTest {
 
         vm.aoSalvar()
         assertTrue("é aviso, não bloqueio: pode haver sítio do outro lado da fronteira", vm.uiState.value.salvo)
-        assertEquals(21.73, gravada().latitude, 0.0001)
+        assertEquals(23.73, gravada().latitude, 0.0001)
     }
 
     @Test
@@ -459,8 +490,8 @@ class PropriedadeFormViewModelTest {
         val vm = novo()
         vm.aoMudarNome("Sítio Novo")
         vm.aoMudarArea("3")
-        vm.aoMudarLatitude("21,73")
-        vm.aoMudarLongitude("46,93")
+        vm.aoMudarLatitude("23,73")
+        vm.aoMudarLongitude("48,93")
         vm.aoSalvar()
 
         vm.aoInverterSinalLatitude()
@@ -469,7 +500,7 @@ class PropriedadeFormViewModelTest {
 
         vm.aoSalvar()
         assertTrue(vm.uiState.value.salvo)
-        assertEquals(-46.93, gravada().longitude, 0.0001)
+        assertEquals(-48.93, gravada().longitude, 0.0001)
     }
 
     @Test
@@ -509,9 +540,9 @@ class PropriedadeFormViewModelTest {
         antes.aoMudarNome("Chácara Três Irmãos")
         antes.aoMudarCultura("Café")
         antes.aoMudarArea("1.250,5")
-        antes.aoMudarLatitude("21,7")
+        antes.aoMudarLatitude("23,7")
         antes.aoInverterSinalLatitude()
-        antes.aoMudarLongitude("-46,9")
+        antes.aoMudarLongitude("-48,9")
 
         // O handle vai para um Bundle: só tipos simples atravessam a morte do processo.
         assertTrue(guardado.keys().all { guardado.get<Any?>(it) is String })
@@ -529,8 +560,8 @@ class PropriedadeFormViewModelTest {
         assertEquals("Chácara Três Irmãos", estado.nome)
         assertEquals("Café", estado.cultura)
         assertEquals("1.250,5", estado.area)
-        assertEquals("-21,7", estado.latitude)
-        assertEquals("-46,9", estado.longitude)
+        assertEquals("-23,7", estado.latitude)
+        assertEquals("-48,9", estado.longitude)
     }
 
     @Test
@@ -543,7 +574,7 @@ class PropriedadeFormViewModelTest {
             selecao = selecao,
             desfazer = Desfazer(RelogioMonotonicoIndisponivel)
         )
-            .aoUsarLocalizacao(latitude = -21.7, longitude = -46.9)
+            .aoUsarLocalizacao(latitude = -23.7, longitude = -48.9)
 
         val depois =
             PropriedadeFormViewModel(
@@ -554,13 +585,13 @@ class PropriedadeFormViewModelTest {
                 desfazer = Desfazer(RelogioMonotonicoIndisponivel)
             )
 
-        assertEquals("-21,700000", depois.uiState.value.latitude)
-        assertEquals("-46,900000", depois.uiState.value.longitude)
+        assertEquals("-23,700000", depois.uiState.value.latitude)
+        assertEquals("-48,900000", depois.uiState.value.longitude)
     }
 
     @Test
     fun `na edicao o valor restaurado vale mais que o do banco`() {
-        val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Boa Vista II"))
+        val restaurado = SavedStateHandle(mapOf(PropriedadeFormViewModel.CHAVE_NOME to "Sítio Exemplo II"))
         val vm =
             PropriedadeFormViewModel(
                 propriedades,
@@ -570,8 +601,100 @@ class PropriedadeFormViewModelTest {
                 desfazer = Desfazer(RelogioMonotonicoIndisponivel)
             )
 
-        assertEquals("Sítio Boa Vista II", vm.uiState.value.nome)
+        assertEquals("Sítio Exemplo II", vm.uiState.value.nome)
         assertEquals("o que não foi guardado vem do banco", "18", vm.uiState.value.area)
         assertTrue(vm.uiState.value.ehEdicao)
+    }
+
+    // ---------- banco travado ao abrir o formulário (FLW-02) ----------
+
+    @Test
+    fun `banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima`() = runTest {
+        val original = propriedades.buscarPorId(DadosDeExemplo.ID_FAZENDA)
+        val quebradas = object : PropriedadeRepository by propriedades {
+            override suspend fun buscarPorId(id: String): Propriedade? =
+                throw IllegalStateException("SQLiteDatabaseLockedException: database is locked")
+        }
+        val vm = PropriedadeFormViewModel(
+            quebradas,
+            propriedadeId = DadosDeExemplo.ID_FAZENDA,
+            selecao = selecao,
+            desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+            estadoSalvo = SavedStateHandle()
+        )
+
+        assertEquals(PropriedadeFormViewModel.AVISO_FALHA_AO_CARREGAR, vm.uiState.value.erroGeral)
+
+        preencher(vm)
+        vm.aoSalvar()
+        assertFalse(vm.uiState.value.salvo)
+        val noBanco = propriedades.observarTodas().first().first { it.id == DadosDeExemplo.ID_FAZENDA }
+        assertEquals("o registro do banco continua igual", original, noBanco)
+    }
+
+    // ---------- teto de caracteres dos campos numéricos (ENT-01) ----------
+
+    @Test
+    fun `area e coordenadas tem teto de caracteres ao colar`() {
+        val vm = novo()
+
+        vm.aoMudarArea("1".repeat(500))
+        vm.aoMudarLatitude("-2" + "3".repeat(500))
+        vm.aoMudarLongitude("-4" + "8".repeat(500))
+
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.area.length)
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.latitude.length)
+        assertEquals(PropriedadeFormViewModel.TEXTO_NUMERICO_MAXIMO, vm.uiState.value.longitude.length)
+    }
+
+    // ---------- cultura vazia (BUG-02) e desfazer que volta a selecionar (DAD-01) ----------
+
+    @Test
+    fun `cultura em branco e gravada vazia e nao como texto`() = runTest {
+        val vm = novo()
+        preencher(vm)
+        vm.aoMudarCultura("   ")
+        vm.aoSalvar()
+
+        assertTrue(vm.uiState.value.salvo)
+        assertEquals("", gravada().cultura)
+    }
+
+    @Test
+    fun `propriedade antiga com Nao informada gravado abre com a cultura vazia`() = runTest {
+        propriedades.salvar(
+            Propriedade(
+                id = "antiga",
+                nome = "Sítio Antigo",
+                cultura = "Não informada",
+                areaHectares = 3.0,
+                latitude = -23.0,
+                longitude = -48.0
+            )
+        )
+
+        val vm = editando("antiga")
+
+        assertEquals("", vm.uiState.value.cultura)
+    }
+
+    @Test
+    fun `desfazer a exclusao da propriedade volta a seleciona-la`() = runTest {
+        val desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+        selecao.selecionar(DadosDeExemplo.ID_SITIO)
+        val vm =
+            PropriedadeFormViewModel(
+                propriedades,
+                propriedadeId = DadosDeExemplo.ID_SITIO,
+                selecao = selecao,
+                desfazer = desfazer,
+                estadoSalvo = SavedStateHandle()
+            )
+
+        vm.aoExcluir()
+        assertNull("a seleção não aponta para a propriedade excluída", selecao.propriedadeId.value)
+
+        assertTrue(desfazer.desfazerExclusao(checkNotNull(desfazer.pendente.value)))
+        assertEquals(DadosDeExemplo.ID_SITIO, selecao.propriedadeId.value)
     }
 }

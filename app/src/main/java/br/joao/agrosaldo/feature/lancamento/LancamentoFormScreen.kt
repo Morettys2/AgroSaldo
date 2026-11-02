@@ -45,13 +45,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.joao.agrosaldo.core.ui.BotaoDestaque
 import br.joao.agrosaldo.core.ui.BotaoTonal
+import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.core.util.paraLocalDateOuNulo
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
+import java.time.LocalDate
 
 @Composable
 fun LancamentoFormRoute(
@@ -222,6 +225,7 @@ fun LancamentoFormScreen(uiState: LancamentoFormUiState, titulo: String, acoes: 
     if (escolhendoData) {
         CalendarioDialogo(
             dataAtual = uiState.data.paraLocalDateOuNulo(),
+            hoje = uiState.hoje,
             ultimaPermitida = uiState.hoje.plusMonths(LancamentoFormViewModel.MESES_NO_FUTURO),
             aoEscolher = acoes.aoEscolherData,
             aoFechar = { escolhendoData = false }
@@ -292,7 +296,7 @@ private fun SemPropriedade(aoCadastrar: () -> Unit) {
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Falta cadastrar um sítio", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = "Todo lançamento pertence a uma propriedade. Cadastre a primeira e depois volte aqui.",
@@ -346,9 +350,12 @@ private val ALTURA_PARA_TECLADO_FIXO = 760.dp
 
 // ---------- prévias ----------
 
+/** Dia fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val HOJE_DA_PREVIA: LocalDate = LocalDate.of(2026, 10, 15)
+
 private val SITIOS_DE_EXEMPLO = listOf(
-    Propriedade(id = "p1", nome = "Fazenda Santa Clara", cultura = "Milho", areaHectares = 50.0, latitude = -21.7, longitude = -46.9),
-    Propriedade(id = "p2", nome = "Sítio Boa Vista", cultura = "Café", areaHectares = 12.0, latitude = -21.7, longitude = -46.9)
+    Propriedade(id = "p1", nome = "Fazenda Modelo", cultura = "Milho", areaHectares = 50.0, latitude = -23.7, longitude = -48.9),
+    Propriedade(id = "p2", nome = "Sítio Exemplo", cultura = "Café", areaHectares = 12.0, latitude = -23.7, longitude = -48.9)
 )
 
 @Composable
@@ -356,13 +363,14 @@ private fun FormDeExemplo(uiState: LancamentoFormUiState) {
     LancamentoFormScreen(uiState = uiState, titulo = "Novo lançamento", acoes = LancamentoFormAcoes())
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun LancamentoFormPreview() {
     AgroSaldoTheme {
         FormDeExemplo(
             LancamentoFormUiState(
+                data = HOJE_DA_PREVIA.formatarBr(),
+                hoje = HOJE_DA_PREVIA,
                 tipo = TipoLancamento.DESPESA,
                 categoria = CategoriaLancamento.COMBUSTIVEL,
                 valorDigitos = "32000",
@@ -380,6 +388,8 @@ private fun LancamentoFormReceitaEscuroPreview() {
     AgroSaldoTheme(escuro = true) {
         FormDeExemplo(
             LancamentoFormUiState(
+                data = HOJE_DA_PREVIA.formatarBr(),
+                hoje = HOJE_DA_PREVIA,
                 tipo = TipoLancamento.RECEITA,
                 categoria = CategoriaLancamento.VENDA_SAFRA,
                 valorDigitos = "1800000",

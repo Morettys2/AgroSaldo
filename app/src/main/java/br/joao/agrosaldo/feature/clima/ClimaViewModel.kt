@@ -9,6 +9,7 @@ import br.joao.agrosaldo.core.util.emMilimetros
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
 import br.joao.agrosaldo.core.util.rotuloDoDia
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.AvaliacaoChuva
 import br.joao.agrosaldo.domain.clima.CondicaoTempo
@@ -128,11 +129,15 @@ class ClimaViewModel @Inject constructor(
     init {
         // A cada troca de propriedade, atualiza o cache se estiver vencido.
         viewModelScope.launch {
-            listaESelecionada.map { it.second }.distinctUntilChanged().collectLatest { propriedade ->
-                // A mensagem pertencia à propriedade anterior.
-                ultimaFalha.value = null
-                if (propriedade != null) buscar(propriedade, forcar = false)
-            }
+            listaESelecionada.map { it.second }.distinctUntilChanged()
+                // Erro ao ler as propriedades vira mensagem e a leitura recomeça, sem fechar o app.
+                .repetirAposErro { erro ->
+                    _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) }
+                }.collectLatest { propriedade ->
+                    // A mensagem pertencia à propriedade anterior.
+                    ultimaFalha.value = null
+                    if (propriedade != null) buscar(propriedade, forcar = false)
+                }
         }
 
         viewModelScope.launch {
@@ -195,18 +200,21 @@ class ClimaViewModel @Inject constructor(
             // finally cobre o cancelamento (troca de propriedade); sem ele
             // "atualizando" poderia ficar preso em true.
             try {
-                val resultado = if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade)
+                val resultado = tentar { if (forcar) clima.atualizar(propriedade) else clima.atualizarSeNecessario(propriedade) }
                 if (minha == geracao) {
-                    ultimaFalha.value = when (resultado) {
-                        ResultadoAtualizacao.SemConexao -> FalhaDeAtualizacao.SEM_INTERNET
-                        is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> FalhaDeAtualizacao.SERVICO
-                        is ResultadoAtualizacao.Sucesso, null -> null
-                    }
+                    // Falha inesperada (ex.: disco cheio ao gravar o cache) aparece como falha do serviço.
+                    ultimaFalha.value = resultado.fold(onSuccess = ::falhaDoResultado, onFailure = { FalhaDeAtualizacao.SERVICO })
                 }
             } finally {
                 if (minha == geracao) atualizandoAgora.value = false
             }
         }
+    }
+
+    private fun falhaDoResultado(resultado: ResultadoAtualizacao?): FalhaDeAtualizacao? = when (resultado) {
+        ResultadoAtualizacao.SemConexao -> FalhaDeAtualizacao.SEM_INTERNET
+        is ResultadoAtualizacao.Indisponivel, is ResultadoAtualizacao.Falha -> FalhaDeAtualizacao.SERVICO
+        is ResultadoAtualizacao.Sucesso, null -> null
     }
 
     /** Tudo que o estado da tela depende, reunido para montar o [ClimaUiState] de uma vez. */

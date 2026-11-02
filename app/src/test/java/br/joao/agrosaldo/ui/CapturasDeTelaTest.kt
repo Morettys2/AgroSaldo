@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
+import androidx.lifecycle.SavedStateHandle
 import br.joao.agrosaldo.clima.ApoioClima
 import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.data.DadosDeExemplo
@@ -147,7 +148,8 @@ class CapturasDeTelaTest {
         selecao = selecao,
         lancamentoId = null,
         relogio = relogioEm(hoje),
-        desfazer = Desfazer(RelogioMonotonicoIndisponivel)
+        desfazer = Desfazer(RelogioMonotonicoIndisponivel),
+        estadoSalvo = SavedStateHandle()
     ).apply {
         aoTeclar("3")
         aoTeclar("2")
@@ -180,7 +182,7 @@ class CapturasDeTelaTest {
         val estado = ClimaUiState(
             carregando = false,
             temPropriedade = true,
-            nomePropriedade = "Fazenda Santa Clara",
+            nomePropriedade = "Fazenda Modelo",
             temPrevisao = true,
             temperaturaAtual = "26°",
             condicaoAtual = CondicaoTempo.NUBLADO,

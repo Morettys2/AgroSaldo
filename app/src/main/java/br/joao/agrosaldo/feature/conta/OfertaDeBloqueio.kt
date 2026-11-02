@@ -9,11 +9,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 /**
  * Oferta, logo depois do cadastro, de pedir a digital ou o PIN do celular ao abrir o app.
@@ -22,7 +23,7 @@ import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
  * de a pessoa confirmar no prompt, como ao ligar pela tela de Conta.
  */
 @Composable
-fun OfertaDeBloqueioRoute(aoLigar: () -> Unit, aoDispensar: () -> Unit) {
+fun OfertaDeBloqueioRoute(aoLigar: () -> Unit, aoDispensar: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val disponivel = remember(context) { Biometria.disponivel(context) }
     if (!disponivel) return
@@ -32,14 +33,16 @@ fun OfertaDeBloqueioRoute(aoLigar: () -> Unit, aoDispensar: () -> Unit) {
             val activity = context.acharFragmentActivity()
             if (activity != null) Biometria.confirmarMudancaDoBloqueio(activity, ativar = true, aoConfirmar = aoLigar)
         },
-        aoDispensar = aoDispensar
+        aoDispensar = aoDispensar,
+        modifier = modifier
     )
 }
 
 @Composable
-fun OfertaDeBloqueioDialog(aoLigar: () -> Unit, aoDispensar: () -> Unit) {
+fun OfertaDeBloqueioDialog(aoLigar: () -> Unit, aoDispensar: () -> Unit, modifier: Modifier = Modifier) {
     AlertDialog(
         onDismissRequest = aoDispensar,
+        modifier = modifier,
         icon = { Icon(Icons.Outlined.Fingerprint, contentDescription = null) },
         title = { Text("Proteger o app com a digital?") },
         text = {
@@ -54,7 +57,7 @@ fun OfertaDeBloqueioDialog(aoLigar: () -> Unit, aoDispensar: () -> Unit) {
     )
 }
 
-@Preview(showBackground = true)
+@PreviasDaTela
 @Composable
 private fun OfertaDeBloqueioPreview() {
     AgroSaldoTheme {

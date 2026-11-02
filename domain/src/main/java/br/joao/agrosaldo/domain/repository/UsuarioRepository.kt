@@ -30,4 +30,7 @@ interface UsuarioRepository {
 
     /** Remove a conta e, em cascata, suas propriedades e lançamentos. */
     suspend fun excluir(id: String)
+
+    /** Quantas contas existem no aparelho. */
+    suspend fun contar(): Int
 }

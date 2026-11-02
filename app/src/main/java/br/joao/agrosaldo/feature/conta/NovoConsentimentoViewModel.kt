@@ -2,6 +2,8 @@ package br.joao.agrosaldo.feature.conta
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -27,7 +29,12 @@ class NovoConsentimentoViewModel @Inject constructor(private val conta: ContaSer
         if (_uiState.value.processando) return
         _uiState.update { it.copy(processando = true, erro = null) }
         viewModelScope.launch {
-            val gravou = conta.registrarNovoAceite()
+            val gravou = tentar { conta.registrarNovoAceite() }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(processando = false, erro = erro.mensagemParaUsuario("Não foi possível registrar o aceite. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 if (gravou) {
                     it.copy(processando = false)

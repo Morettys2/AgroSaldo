@@ -3,6 +3,8 @@ package br.joao.agrosaldo.feature.conta
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.formatarEspera
+import br.joao.agrosaldo.core.util.mensagemParaUsuario
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.domain.conta.ContaService
 import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.domain.conta.RequisitosSenha
@@ -45,16 +47,20 @@ class AlterarSenhaViewModel @Inject constructor(private val conta: ContaService)
 
     init {
         viewModelScope.launch {
-            val usuario = conta.observarUsuarioLogado().first()
+            // Banco travado: valida só pelas regras gerais; o ContaService confere de novo ao salvar.
+            val usuario = tentar { conta.observarUsuarioLogado().first() }.getOrNull()
             if (usuario != null) {
                 _uiState.update { it.copy(email = usuario.email, nome = usuario.nome) }
             }
         }
     }
 
-    fun aoMudarSenhaAtual(v: String) = _uiState.update { it.copy(senhaAtual = v, erroSenhaAtual = null) }
-    fun aoMudarNovaSenha(v: String) = _uiState.update { it.copy(novaSenha = v, erroNovaSenha = null) }
-    fun aoMudarConfirmacao(v: String) = _uiState.update { it.copy(confirmacao = v, erroConfirmacao = null) }
+    // Cortadas no limite do domínio ao digitar ou colar.
+    fun aoMudarSenhaAtual(v: String) = _uiState.update { it.copy(senhaAtual = v.take(RegrasDeConta.SENHA_MAXIMO), erroSenhaAtual = null) }
+    fun aoMudarNovaSenha(v: String) = _uiState.update { it.copy(novaSenha = v.take(RegrasDeConta.SENHA_MAXIMO), erroNovaSenha = null) }
+    fun aoMudarConfirmacao(v: String) = _uiState.update {
+        it.copy(confirmacao = v.take(RegrasDeConta.SENHA_MAXIMO), erroConfirmacao = null)
+    }
 
     fun aoSalvar() {
         val estado = _uiState.value
@@ -81,7 +87,12 @@ class AlterarSenhaViewModel @Inject constructor(private val conta: ContaService)
 
         _uiState.update { it.copy(salvando = true) }
         viewModelScope.launch {
-            val resultado = conta.alterarSenha(estado.senhaAtual, estado.novaSenha)
+            val resultado = tentar { conta.alterarSenha(estado.senhaAtual, estado.novaSenha) }.getOrElse { erro ->
+                _uiState.update {
+                    it.copy(salvando = false, erroSenhaAtual = erro.mensagemParaUsuario("Não foi possível trocar a senha. Tente de novo."))
+                }
+                return@launch
+            }
             _uiState.update {
                 when (resultado) {
                     ResultadoAlteracaoSenha.Sucesso ->

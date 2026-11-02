@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import br.joao.agrosaldo.core.util.TextosDaChuva
 import br.joao.agrosaldo.core.util.mensagemParaUsuario
 import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.clima.LimitesChuva
 import br.joao.agrosaldo.domain.clima.Previsao
@@ -42,7 +43,8 @@ data class InicioUiState(
     val temPropriedade: Boolean = false,
     val nomePropriedade: String = "",
     val propriedades: List<Propriedade> = emptyList(),
-    val mes: YearMonth = YearMonth.now(),
+    /** Sem valor padrão: vem da seleção, que segue o relógio injetado. */
+    val mes: YearMonth,
     val saldoCentavos: Long = 0L,
     val receitasCentavos: Long = 0L,
     val despesasCentavos: Long = 0L,
@@ -52,10 +54,10 @@ data class InicioUiState(
     val ultimosLancamentos: List<Lancamento> = emptyList(),
     /** Nulo enquanto não há previsão em cache para a propriedade. */
     val chuva: CartaoChuvaUi? = null,
-    /** Iniciais do usuário para o botão da conta (ex.: "FM"); vazio se o nome não estiver disponível. */
+    /** Iniciais do usuário para o botão da conta (ex.: "MS"); vazio se o nome não estiver disponível. */
     val iniciais: String = "",
-    /** Referência para os rótulos relativos de data. */
-    val hoje: LocalDate = LocalDate.now(),
+    /** Referência para os rótulos relativos de data; vem do relógio injetado. */
+    val hoje: LocalDate,
     /** Falha ao ler os dados; a leitura é tentada de novo sozinha e a mensagem some quando volta. */
     val erro: String? = null
 )
@@ -89,7 +91,7 @@ class InicioViewModel @Inject constructor(
 
     private fun hoje(): LocalDate = LocalDate.now(relogio)
 
-    private val _uiState = MutableStateFlow(InicioUiState())
+    private val _uiState = MutableStateFlow(InicioUiState(mes = selecao.mes.value, hoje = hoje()))
     val uiState: StateFlow<InicioUiState> = _uiState.asStateFlow()
 
     /**
@@ -127,15 +129,19 @@ class InicioViewModel @Inject constructor(
                 .collect { iniciais -> _uiState.update { it.copy(iniciais = iniciais) } }
         }
 
-        // Previsão vem do cache; atualizarSeNecessario busca nova se estiver vencida.
+        // Previsão vem do cache; atualizarSeNecessario busca nova se estiver vencida. Erro ao ler as
+        // propriedades vira a mensagem da tela e a leitura recomeça sozinha, em vez de escapar do
+        // launch e fechar o app.
         val propriedadeAtual = combine(propriedadeRepository.observarTodas(), selecao.propriedadeId) { lista, id ->
             ResumoFinanceiro.propriedadeAtual(lista, id)
         }.distinctUntilChanged()
+            .repetirAposErro { erro -> _uiState.update { it.copy(carregando = false, erro = erro.mensagemParaUsuario(MENSAGEM_ERRO)) } }
 
         viewModelScope.launch {
             propriedadeAtual.collectLatest { propriedade ->
                 propriedadeDaPrevisao = propriedade
-                if (propriedade != null) clima.atualizarSeNecessario(propriedade)
+                // Uma falha inesperada da atualização não fecha o app: o cartão segue com o cache.
+                if (propriedade != null) tentar { clima.atualizarSeNecessario(propriedade) }
             }
         }
 
@@ -144,6 +150,8 @@ class InicioViewModel @Inject constructor(
                 .flatMapLatest { propriedade -> if (propriedade == null) flowOf(null) else clima.observar(propriedade) }
                 .combine(ajustes.ajustes) { previsao, aj -> previsao to aj }
                 .combine(voltasATela) { (previsao, aj), _ -> previsao?.let { cartaoChuva(it, aj.limites) } }
+                // Sem previsão legível, o cartão some até a leitura voltar.
+                .repetirAposErro { _uiState.update { it.copy(chuva = null) } }
                 .collect { cartao -> _uiState.update { it.copy(chuva = cartao) } }
         }
     }
@@ -161,7 +169,7 @@ class InicioViewModel @Inject constructor(
         }
         voltasATela.update { it + 1 }
         val propriedade = propriedadeDaPrevisao ?: return
-        viewModelScope.launch { clima.atualizarSeNecessario(propriedade) }
+        viewModelScope.launch { tentar { clima.atualizarSeNecessario(propriedade) } }
     }
 
     private fun cartaoChuva(previsao: Previsao, limites: LimitesChuva): CartaoChuvaUi {

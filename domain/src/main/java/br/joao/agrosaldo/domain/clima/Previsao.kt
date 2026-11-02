@@ -9,17 +9,17 @@ import java.time.ZoneOffset
  * Condição do tempo derivada do código WMO (weather code) da Open-Meteo.
  * Códigos não mapeados viram [DESCONHECIDA].
  */
-enum class CondicaoTempo(val rotulo: String, val molhado: Boolean) {
-    CEU_LIMPO("Céu limpo", false),
-    POUCAS_NUVENS("Poucas nuvens", false),
-    NUBLADO("Nublado", false),
-    NEBLINA("Neblina", false),
-    GAROA("Garoa", true),
-    CHUVA("Chuva", true),
-    PANCADAS("Pancadas de chuva", true),
-    TEMPESTADE("Tempestade", true),
-    NEVE("Neve", true),
-    DESCONHECIDA("Sem informação", false);
+enum class CondicaoTempo(val rotulo: String) {
+    CEU_LIMPO("Céu limpo"),
+    POUCAS_NUVENS("Poucas nuvens"),
+    NUBLADO("Nublado"),
+    NEBLINA("Neblina"),
+    GAROA("Garoa"),
+    CHUVA("Chuva"),
+    PANCADAS("Pancadas de chuva"),
+    TEMPESTADE("Tempestade"),
+    NEVE("Neve"),
+    DESCONHECIDA("Sem informação");
 
     companion object {
         /** Converte o código WMO da Open-Meteo na condição do tempo. */

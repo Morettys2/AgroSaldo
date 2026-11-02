@@ -96,7 +96,7 @@ internal fun Atalho(rotulo: String, descricao: String, icone: ImageVector, corDo
             .semantics { contentDescription = descricao }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = Espacos.medio),
+            modifier = Modifier.padding(horizontal = Espacos.largo, vertical = Espacos.medio),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -163,7 +163,7 @@ internal fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = 
     val oculto = LocalValoresOcultos.current
     CartaoSafra(modifier = modifier) {
         TituloDeCartao("Pra onde foi o dinheiro")
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(Espacos.medio))
         Column(verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
             gastos.forEach { gasto ->
                 Column(

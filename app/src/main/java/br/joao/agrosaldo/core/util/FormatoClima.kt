@@ -2,7 +2,6 @@ package br.joao.agrosaldo.core.util
 
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -29,9 +28,6 @@ fun Double.emMilimetros(): String {
 
 /** "31°". */
 fun Double.emGraus(): String = "${roundToInt()}°"
-
-/** "18h". */
-fun LocalDateTime.horaCurta(): String = "${hour}h"
 
 /**
  * Quando algo aconteceu, relativo a [agora] no fuso [zona]: "às 14:05" hoje, "ontem às 14:05"

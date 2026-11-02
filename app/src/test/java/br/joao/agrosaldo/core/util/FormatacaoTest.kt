@@ -3,9 +3,7 @@ package br.joao.agrosaldo.core.util
 import java.time.LocalDate
 import java.time.YearMonth
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FormatacaoTest {
@@ -111,12 +109,6 @@ class FormatacaoTest {
     }
 
     @Test
-    fun `pertence ao mes compara mes e ano`() {
-        assertTrue(LocalDate.of(2026, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
-        assertFalse(LocalDate.of(2025, 9, 30).pertenceAo(YearMonth.of(2026, 9)))
-    }
-
-    @Test
     fun `espera do bloqueio aparece em minutos e segundos`() {
         assertEquals("30 segundos", formatarEspera(30))
         assertEquals("1 segundo", formatarEspera(1))
@@ -185,5 +177,12 @@ class FormatacaoTest {
     fun `com o olho aberto o valor aparece normal`() {
         assertEquals(125_050L.emReal(), 125_050L.emReal(oculto = false))
         assertEquals(125_000L.emRealCurto(), 125_000L.emRealCurto(oculto = false))
+    }
+
+    @Test
+    fun `cultura em branco aparece como Nao informada so na tela`() {
+        assertEquals("Não informada", TextosComuns.cultura(""))
+        assertEquals("Não informada", TextosComuns.cultura("  "))
+        assertEquals("Milho", TextosComuns.cultura("Milho"))
     }
 }

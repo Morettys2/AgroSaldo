@@ -55,6 +55,7 @@ import br.joao.agrosaldo.domain.model.TipoLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.IconesAgro
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.LocalDate
 import java.time.YearMonth
@@ -354,11 +355,16 @@ private fun InicioVazio(aoCadastrarPropriedade: () -> Unit, modifier: Modifier =
 
 // ---------- prévias ----------
 
+/** Dia fixo das prévias: a imagem não muda com a data em que o Android Studio as desenha. */
+private val HOJE_DA_PREVIA: LocalDate = LocalDate.of(2026, 10, 15)
+
 private val ESTADO_DE_EXEMPLO = InicioUiState(
+    mes = YearMonth.from(HOJE_DA_PREVIA),
+    hoje = HOJE_DA_PREVIA,
     carregando = false,
     temPropriedade = true,
-    nomePropriedade = "Fazenda Santa Clara",
-    iniciais = "FM",
+    nomePropriedade = "Fazenda Modelo",
+    iniciais = "MS",
     saldoCentavos = 1_565_000L,
     receitasCentavos = 1_800_000L,
     despesasCentavos = 235_000L,
@@ -380,7 +386,7 @@ private val ESTADO_DE_EXEMPLO = InicioUiState(
             tipo = TipoLancamento.RECEITA,
             categoria = CategoriaLancamento.VENDA_SAFRA,
             valorCentavos = 1_800_000L,
-            data = LocalDate.now().minusDays(1),
+            data = HOJE_DA_PREVIA.minusDays(1),
             descricao = "Venda de milho"
         ),
         Lancamento(
@@ -388,7 +394,7 @@ private val ESTADO_DE_EXEMPLO = InicioUiState(
             tipo = TipoLancamento.DESPESA,
             categoria = CategoriaLancamento.ENERGIA,
             valorCentavos = 125_000L,
-            data = LocalDate.now().minusDays(2),
+            data = HOJE_DA_PREVIA.minusDays(2),
             descricao = "Conta do pivô"
         )
     )
@@ -405,8 +411,7 @@ private fun InicioDeExemplo(uiState: InicioUiState) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2200, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 1100)
+@PreviasDaTela
 @Composable
 private fun InicioPreview() {
     AgroSaldoTheme { InicioDeExemplo(ESTADO_DE_EXEMPLO) }
@@ -421,5 +426,9 @@ private fun InicioEscuroPreview() {
 @Preview(showBackground = true, heightDp = 700)
 @Composable
 private fun InicioVazioPreview() {
-    AgroSaldoTheme { InicioDeExemplo(InicioUiState(carregando = false, temPropriedade = false)) }
+    AgroSaldoTheme {
+        InicioDeExemplo(
+            InicioUiState(mes = YearMonth.from(HOJE_DA_PREVIA), hoje = HOJE_DA_PREVIA, carregando = false, temPropriedade = false)
+        )
+    }
 }

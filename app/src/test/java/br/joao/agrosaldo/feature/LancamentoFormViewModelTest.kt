@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -135,7 +136,7 @@ class LancamentoFormViewModelTest {
             )
 
         assertEquals("31/02/2026", vm.uiState.value.rotuloData)
-        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda Santa Clara", vm.uiState.value.resumo)
+        assertEquals("sem o dia no resumo", "Energia elétrica · Fazenda Modelo", vm.uiState.value.resumo)
 
         vm.aoTeclar("1000")
         vm.aoSalvar()
@@ -382,7 +383,7 @@ class LancamentoFormViewModelTest {
         selecao.selecionar("propriedade-apagada")
         val estado = novo().uiState.value
         assertEquals(DadosDeExemplo.ID_FAZENDA, estado.propriedadeId)
-        assertEquals("Fazenda Santa Clara", estado.nomePropriedadeSelecionada)
+        assertEquals("Fazenda Modelo", estado.propriedades.first { it.id == estado.propriedadeId }.nome)
     }
 
     @Test
@@ -510,7 +511,7 @@ class LancamentoFormViewModelTest {
     fun `linha de resumo junta categoria, dia e sitio`() {
         val vm = novo()
         vm.aoMudarCategoria(CategoriaLancamento.COMBUSTIVEL)
-        assertEquals("Combustível · Hoje · Fazenda Santa Clara", vm.uiState.value.resumo)
+        assertEquals("Combustível · Hoje · Fazenda Modelo", vm.uiState.value.resumo)
     }
 
     /** Segura `salvar` até [portao] ser completado, simulando gravação lenta. */
@@ -719,5 +720,23 @@ class LancamentoFormViewModelTest {
 
         aindaCarregando.tryEmit(DadosDeExemplo.propriedades())
         assertEquals("777", vm.uiState.value.valorDigitos)
+    }
+
+    // ---------- banco travado ao abrir o formulário (FLW-02) ----------
+
+    @Test
+    fun `banco travado ao abrir a edicao vira mensagem e nao deixa salvar por cima`() = runTest {
+        val existente = lancamentos.observarTodos().first().first()
+        val quebradas = object : PropriedadeRepository by propriedades {
+            override fun observarTodas(): Flow<List<Propriedade>> =
+                flow { throw IllegalStateException("SQLiteDatabaseLockedException: database is locked") }
+        }
+        val vm = formulario(lancamentos, quebradas, lancamentoId = existente.id, selecao = selecao)
+
+        assertEquals(LancamentoFormViewModel.AVISO_FALHA_AO_CARREGAR, vm.uiState.value.erroGeral)
+
+        vm.aoSalvar()
+        assertEquals("o registro do banco continua igual", existente, lancamentos.buscarPorId(existente.id))
+        assertFalse(vm.uiState.value.salvo)
     }
 }

@@ -24,12 +24,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
@@ -68,7 +68,7 @@ fun ConsentimentoScreen(
             // Scroll antes do padding: a área rolável ocupa a largura toda.
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Espacos.margemDaTela)
-            .padding(top = 28.dp, bottom = Espacos.enorme),
+            .padding(top = Espacos.amplo, bottom = Espacos.enorme),
         verticalArrangement = Arrangement.spacedBy(Espacos.padrao)
     ) {
         Surface(
@@ -168,7 +168,7 @@ private fun CartaoPonto(titulo: String, texto: String, modifier: Modifier = Modi
     }
 }
 
-@Preview(showBackground = true, heightDp = 1000)
+@PreviasDaTela
 @Composable
 private fun ConsentimentoPreview() {
     AgroSaldoTheme {

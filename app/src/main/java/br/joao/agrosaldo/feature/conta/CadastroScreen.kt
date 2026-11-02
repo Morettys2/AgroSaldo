@@ -25,6 +25,7 @@ import br.joao.agrosaldo.core.ui.CampoTexto
 import br.joao.agrosaldo.core.ui.CartaoRequisitosSenha
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 
 /**
  * Formulário de criação de conta. O [viewModel] é injetado pela AppNavegacao,
@@ -143,14 +144,14 @@ fun CadastroScreen(
     }
 }
 
-@Preview(showBackground = true, heightDp = 900)
+@PreviasDaTela
 @Composable
 private fun CadastroPreview() {
     AgroSaldoTheme {
         CadastroScreen(
             uiState = CadastroUiState(
-                nome = "Fábio Moretti",
-                email = "fabio@exemplo.com",
+                nome = "Maria Souza",
+                email = "maria@exemplo.com",
                 senha = "milho20",
                 confirmacao = ""
             ),

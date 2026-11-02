@@ -38,14 +38,19 @@ class LimpezaDaConta(
     }
 
     /**
-     * O que a conta excluída deixa fora das tabelas: os ajustes do aparelho que ela definiu
-     * (valores ocultos e bloqueio por digital voltam ao padrão), os ajustes do aviso de chuva e
-     * as páginas livres do SQLite, que guardam os registros apagados até o VACUUM. Avisa o
-     * backup do Android para a próxima cópia já sair sem a conta.
+     * O que a conta excluída deixa fora das tabelas: os ajustes do aviso de chuva dela e as páginas
+     * livres do SQLite, que guardam os registros apagados até o VACUUM. Avisa o backup do Android
+     * para a próxima cópia já sair sem a conta.
+     *
+     * Os ajustes do aparelho (valores ocultos e bloqueio por digital) só voltam ao padrão com
+     * [ultimaConta]. Com outra conta no aparelho, excluir uma conta qualquer (o cadastro é livre)
+     * desligaria a proteção de quem continua usando o celular, sem pedir a digital.
      */
-    suspend fun apagarRastrosDaConta(usuarioId: String) {
-        privacidade.definir(false)
-        bloqueio.definir(false)
+    suspend fun apagarRastrosDaConta(usuarioId: String, ultimaConta: Boolean) {
+        if (ultimaConta) {
+            privacidade.definir(false)
+            bloqueio.definir(false)
+        }
         ajustesAviso.excluirDadosDoUsuario(usuarioId)
         BackupManager(contexto).dataChanged()
         compactarBanco()

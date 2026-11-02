@@ -101,7 +101,7 @@ private fun LinhaLancamentoPreview() {
                     tipo = TipoLancamento.RECEITA,
                     categoria = CategoriaLancamento.VENDA_SAFRA,
                     valorCentavos = 1_800_000L,
-                    data = LocalDate.now(),
+                    data = LocalDate.of(2026, 10, 14),
                     descricao = "Venda de milho"
                 ),
                 apoio = "Ontem · Venda de milho",
@@ -113,7 +113,7 @@ private fun LinhaLancamentoPreview() {
                     tipo = TipoLancamento.DESPESA,
                     categoria = CategoriaLancamento.ENERGIA,
                     valorCentavos = 125_000L,
-                    data = LocalDate.now(),
+                    data = LocalDate.of(2026, 10, 2),
                     descricao = "Conta do pivô"
                 ),
                 apoio = "2 out · Conta do pivô",

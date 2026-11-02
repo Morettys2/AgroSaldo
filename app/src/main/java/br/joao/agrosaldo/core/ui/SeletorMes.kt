@@ -57,6 +57,6 @@ fun SeletorMes(mes: YearMonth, aoVoltar: () -> Unit, aoAvancar: () -> Unit, modi
 @Composable
 private fun SeletorMesPreview() {
     AgroSaldoTheme {
-        SeletorMes(mes = YearMonth.now(), aoVoltar = {}, aoAvancar = {})
+        SeletorMes(mes = YearMonth.of(2026, 10), aoVoltar = {}, aoAvancar = {})
     }
 }

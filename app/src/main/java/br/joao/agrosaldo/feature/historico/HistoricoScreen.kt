@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,9 +56,11 @@ import br.joao.agrosaldo.core.util.emRealCurto
 import br.joao.agrosaldo.core.util.nomeDoMes
 import br.joao.agrosaldo.core.util.siglaDoMes
 import br.joao.agrosaldo.domain.financeiro.GastoPorCategoria
+import br.joao.agrosaldo.domain.financeiro.MesDoAno
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 import java.time.YearMonth
 
@@ -228,7 +229,7 @@ private fun CartaoDoAno(uiState: HistoricoUiState, modifier: Modifier = Modifier
  * Para acessibilidade, o contentDescription traz o resumo textual dos meses com movimento.
  */
 @Composable
-private fun CartaoGrafico(meses: List<MesDoHistorico>, maiorValor: Long, modifier: Modifier = Modifier) {
+private fun CartaoGrafico(meses: List<MesDoAno>, maiorValor: Long, modifier: Modifier = Modifier) {
     val oculto = LocalValoresOcultos.current
     val corReceita = MaterialTheme.agro.receita
     val corDespesa = MaterialTheme.agro.despesa
@@ -327,7 +328,7 @@ private fun Legenda(texto: String, cor: Color) {
 }
 
 @Composable
-private fun Destaques(melhor: MesDoHistorico, pior: MesDoHistorico?, modifier: Modifier = Modifier) {
+private fun Destaques(melhor: MesDoAno, pior: MesDoAno?, modifier: Modifier = Modifier) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Espacos.medio)) {
         Destaque("Melhor mês", melhor, Modifier.weight(1f))
         if (pior != null) Destaque("Mês mais fraco", pior, Modifier.weight(1f))
@@ -335,14 +336,14 @@ private fun Destaques(melhor: MesDoHistorico, pior: MesDoHistorico?, modifier: M
 }
 
 @Composable
-private fun Destaque(titulo: String, mes: MesDoHistorico, modifier: Modifier = Modifier) {
+private fun Destaque(titulo: String, mes: MesDoAno, modifier: Modifier = Modifier) {
     val oculto = LocalValoresOcultos.current
     Card(
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.padding(Espacos.medio), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(mes.mes.nomeDoMes(), style = MaterialTheme.typography.titleMedium)
             Text(
@@ -363,7 +364,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
             gastos.forEach { gasto ->
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -388,7 +389,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
 }
 
 @Composable
-private fun LinhaMes(mes: MesDoHistorico, aoClicar: () -> Unit) {
+private fun LinhaMes(mes: MesDoAno, aoClicar: () -> Unit) {
     val oculto = LocalValoresOcultos.current
     Column {
         Row(
@@ -446,22 +447,21 @@ private fun Secao(titulo: String) {
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 2800, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 1400)
+@PreviasDaTela
 @Composable
 private fun HistoricoPreview() {
     val ano = 2026
     val receitas = listOf(0L, 0L, 1_200_000L, 0L, 3_500_000L, 900_000L, 0L, 0L, 1_800_000L, 0L, 0L, 0L)
     val despesas = listOf(180_000L, 210_000L, 260_000L, 190_000L, 420_000L, 240_000L, 200_000L, 230_000L, 235_000L, 0L, 0L, 0L)
     val meses = (1..12).map {
-        MesDoHistorico(YearMonth.of(ano, it), receitas[it - 1], despesas[it - 1], futuro = it > 9)
+        MesDoAno(YearMonth.of(ano, it), receitas[it - 1], despesas[it - 1], futuro = it > 9)
     }
     AgroSaldoTheme {
         HistoricoScreen(
             uiState = HistoricoUiState(
                 carregando = false,
                 temPropriedade = true,
-                nomePropriedade = "Fazenda Santa Clara",
+                nomePropriedade = "Fazenda Modelo",
                 ano = ano,
                 meses = meses,
                 receitasCentavos = receitas.sum(),

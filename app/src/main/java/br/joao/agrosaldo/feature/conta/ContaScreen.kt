@@ -46,7 +46,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,8 +53,10 @@ import br.joao.agrosaldo.core.seguranca.Biometria
 import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoSenha
+import br.joao.agrosaldo.core.ui.EstadoErro
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
+import br.joao.agrosaldo.ui.theme.PreviasDaTela
 import br.joao.agrosaldo.ui.theme.agro
 
 /**
@@ -129,6 +130,11 @@ fun ContaScreen(
             nome = uiState.nome,
             email = uiState.email
         )
+
+        // Falha ao ler a conta: a leitura recomeça sozinha e a faixa some quando ela volta.
+        uiState.erro?.let { erro ->
+            EstadoErro(erro, Modifier.padding(bottom = Espacos.medio))
+        }
 
         ItemConta(
             icone = Icons.Outlined.NotificationsActive,
@@ -244,7 +250,7 @@ private fun ItemConta(icone: ImageVector, titulo: String, apoio: String, aoClica
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(Espacos.medio),
             modifier = Modifier
                 .fillMaxWidth()
                 // role: o leitor de tela anuncia "botão", e não só o texto.
@@ -289,7 +295,7 @@ private fun ItemBloqueio(ativo: Boolean, aoMudar: (Boolean) -> Unit) {
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(Espacos.medio),
             modifier = Modifier
                 .fillMaxWidth()
                 // toggleable na linha inteira: área de toque maior e TalkBack anuncia como Switch.
@@ -367,17 +373,16 @@ private fun DialogoExclusao(excluindo: Boolean, erro: String?, aoConfirmar: (Str
     )
 }
 
-@Preview(name = "Fonte 2x", showBackground = true, heightDp = 1600, fontScale = 2f)
-@Preview(showBackground = true, heightDp = 800)
+@PreviasDaTela
 @Composable
 private fun ContaPreview() {
     AgroSaldoTheme {
         ContaScreen(
             uiState = ContaUiState(
                 carregando = false,
-                nome = "Fábio Moretti",
-                email = "fabio@exemplo.com",
-                iniciais = "FM",
+                nome = "Maria Souza",
+                email = "maria@exemplo.com",
+                iniciais = "MS",
                 consentimentoEm = "30/09/2026 às 19:40",
                 versaoTermo = 1,
                 quantidadePropriedades = 2,

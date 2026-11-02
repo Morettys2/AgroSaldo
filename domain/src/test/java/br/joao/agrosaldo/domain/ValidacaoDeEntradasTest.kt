@@ -5,6 +5,8 @@ import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.TipoLancamento
+import br.joao.agrosaldo.domain.model.Usuario
+import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -67,5 +69,31 @@ class ValidacaoDeEntradasTest {
         val local = "a".repeat(RegrasDeConta.EMAIL_MAXIMO - "@x.com".length)
         assertTrue(RegrasDeConta.emailValido("$local@x.com"))
         assertFalse(RegrasDeConta.emailValido("${local}a@x.com"))
+    }
+
+    // ---------- conta (ENT-01) ----------
+
+    private fun usuario(nome: String = "Maria Souza", email: String = "maria@exemplo.com") = Usuario(
+        nome = nome,
+        email = email,
+        senhaHash = "hash",
+        consentimentoEm = Instant.EPOCH,
+        versaoTermo = 1,
+        criadoEm = Instant.EPOCH
+    )
+
+    @Test
+    fun `nome do usuario de 80 caracteres passa e de 81 e recusado`() {
+        usuario(nome = "N".repeat(Usuario.NOME_MAXIMO))
+        recusa("O nome pode ter no máximo 80 caracteres.") { usuario(nome = "N".repeat(Usuario.NOME_MAXIMO + 1)) }
+    }
+
+    @Test
+    fun `e-mail do usuario de 254 caracteres passa e de 255 e recusado`() {
+        val dominio = "@exemplo.com"
+        usuario(email = "a".repeat(Usuario.EMAIL_MAXIMO - dominio.length) + dominio)
+        recusa("O e-mail pode ter no máximo 254 caracteres.") {
+            usuario(email = "a".repeat(Usuario.EMAIL_MAXIMO - dominio.length + 1) + dominio)
+        }
     }
 }

@@ -1,5 +1,6 @@
 package br.joao.agrosaldo.domain
 
+import br.joao.agrosaldo.domain.financeiro.ResumoFinanceiro
 import br.joao.agrosaldo.domain.model.CategoriaLancamento
 import br.joao.agrosaldo.domain.model.Lancamento
 import br.joao.agrosaldo.domain.model.Propriedade
@@ -84,9 +85,9 @@ class RegrasDeNegocioTest {
             valor = 1_000_00L
         )
         val despesa = lancamento(valor = 300_00L)
-        assertEquals(1_000_00L, receita.valorComSinal)
-        assertEquals(-300_00L, despesa.valorComSinal)
-        assertEquals(700_00L, listOf(receita, despesa).sumOf { it.valorComSinal })
+        // RN06: o valor é sempre positivo; o sinal vem do tipo na hora de somar.
+        assertEquals(300_00L, despesa.valorCentavos)
+        assertEquals(700_00L, ResumoFinanceiro.totais(listOf(receita, despesa)).saldoCentavos)
     }
 
     @Test

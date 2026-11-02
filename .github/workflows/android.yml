@@ -36,7 +36,7 @@ jobs:
           set -o pipefail
           chmod +x gradlew
           ./gradlew --no-configuration-cache --stacktrace \
-            ${{ vars.GRADLE_TASKS || 'ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug' }} 2>&1 | tee build.log
+            ktlintCheck detekt testDebugUnitTest :domain:test assembleDebug lintDebug 2>&1 | tee build.log
 
       - name: Erros como anotações
         if: failure()
@@ -84,13 +84,17 @@ jobs:
         # As imagens das telas (CapturasDeTelaTest) vão para a branch ci/capturas, para revisar o
         # visual de um PR sem emulador: é só abrir a branch no GitHub.
         if: always() && hashFiles('app/build/capturas/*.png') != ''
+        # O nome do ramo vem do PR: entra por variável de ambiente, nunca colado dentro do script.
+        env:
+          RAMO: ${{ github.head_ref || github.ref_name }}
+          COMMIT: ${{ github.sha }}
         run: |
           mkdir -p /tmp/capturas && cp app/build/capturas/*.png /tmp/capturas/
           cd /tmp/capturas
           git init -q -b ci/capturas
           git add .
           git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
-            commit -qm "Capturas de ${{ github.head_ref || github.ref_name }} (${{ github.sha }})"
+            commit -qm "Capturas de $RAMO ($COMMIT)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci/capturas
 
       - name: Relatórios

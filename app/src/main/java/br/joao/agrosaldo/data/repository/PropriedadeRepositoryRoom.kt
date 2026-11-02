@@ -5,12 +5,14 @@ import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.dao.PropriedadeDao
 import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.local.paraExcluido
 import br.joao.agrosaldo.domain.model.Propriedade
 import br.joao.agrosaldo.domain.model.PropriedadeExcluida
 import br.joao.agrosaldo.domain.model.emOrdemAlfabetica
 import br.joao.agrosaldo.domain.repository.PropriedadeRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import java.time.Clock
+import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -51,14 +53,14 @@ class PropriedadeRepositoryRoom(
 
     override suspend fun salvar(propriedade: Propriedade) {
         val usuarioId = usuarioConectado()
-        transacao.executar { gravar(propriedade, usuarioId) }
+        transacao.executar { gravar(propriedade, usuarioId, agora = relogio.millis()) }
     }
 
-    /** Checagem de posse e upsert; quem chama abre a transação. */
-    private suspend fun gravar(propriedade: Propriedade, usuarioId: String) {
+    /** Checagem de posse e upsert, com [agora] em `atualizado_em`; quem chama abre a transação. */
+    private suspend fun gravar(propriedade: Propriedade, usuarioId: String, agora: Long) {
         // O upsert casa só pelo id; impede sobrescrever a propriedade de outra conta ou adotar uma sem dono.
         require(!dao.existeSemSerDoUsuario(propriedade.id, usuarioId)) { "Esta propriedade pertence a outra conta." }
-        dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId, agora = relogio.millis()))
+        dao.salvar(propriedade.paraEntidade(usuarioId = usuarioId, agora = agora))
     }
 
     /** Numa transação: lê a propriedade e os lançamentos, apaga os dois e devolve o que saiu. */
@@ -69,17 +71,24 @@ class PropriedadeRepositoryRoom(
             val lancamentos = lancamentoDao.daPropriedade(id, usuarioId)
             lancamentoDao.excluirDaPropriedade(id, usuarioId)
             dao.excluir(id, usuarioId)
-            PropriedadeExcluida(propriedade.paraDominio(), lancamentos.map { it.paraDominio() })
+            PropriedadeExcluida(
+                propriedade = propriedade.paraDominio(),
+                gravadaEm = Instant.ofEpochMilli(propriedade.atualizadoEm),
+                lancamentos = lancamentos.map { it.paraExcluido() }
+            )
         }
     }
 
-    /** Regrava a propriedade e os lançamentos numa transação. */
+    /**
+     * Regrava a propriedade e os lançamentos numa transação, com o `atualizado_em` que cada um tinha:
+     * os lançamentos voltam na mesma ordem dentro do dia.
+     */
     override suspend fun restaurar(excluida: PropriedadeExcluida) {
         val usuarioId = usuarioConectado()
         transacao.executar {
             // Propriedade antes dos lançamentos por causa da foreign key.
-            gravar(excluida.propriedade, usuarioId)
-            lancamentoDao.salvarTodos(excluida.lancamentos.map { it.paraEntidade(agora = relogio.millis()) })
+            gravar(excluida.propriedade, usuarioId, agora = excluida.gravadaEm.toEpochMilli())
+            lancamentoDao.salvarTodos(excluida.lancamentos.map { it.lancamento.paraEntidade(agora = it.gravadoEm.toEpochMilli()) })
         }
     }
 

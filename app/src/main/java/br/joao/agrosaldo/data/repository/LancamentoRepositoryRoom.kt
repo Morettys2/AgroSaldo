@@ -4,7 +4,9 @@ import br.joao.agrosaldo.data.local.Transacao
 import br.joao.agrosaldo.data.local.dao.LancamentoDao
 import br.joao.agrosaldo.data.local.paraDominio
 import br.joao.agrosaldo.data.local.paraEntidade
+import br.joao.agrosaldo.data.local.paraExcluido
 import br.joao.agrosaldo.domain.model.Lancamento
+import br.joao.agrosaldo.domain.model.LancamentoExcluido
 import br.joao.agrosaldo.domain.repository.LancamentoRepository
 import br.joao.agrosaldo.domain.repository.SessaoRepository
 import java.time.Clock
@@ -47,7 +49,13 @@ class LancamentoRepositoryRoom(
      * @throws IllegalArgumentException se a propriedade ou o lançamento com o mesmo id é de outra conta.
      * @throws IllegalStateException sem sessão.
      */
-    override suspend fun salvar(lancamento: Lancamento) {
+    override suspend fun salvar(lancamento: Lancamento) = gravar(lancamento, agora = relogio.millis())
+
+    /** Regrava o lançamento apagado com o `atualizado_em` que ele tinha: volta ao mesmo lugar da lista. */
+    override suspend fun restaurar(excluido: LancamentoExcluido) = gravar(excluido.lancamento, agora = excluido.gravadoEm.toEpochMilli())
+
+    /** Checagem de posse e upsert numa transação, com [agora] em `atualizado_em`. */
+    private suspend fun gravar(lancamento: Lancamento, agora: Long) {
         val usuarioId = usuarioConectado()
         transacao.executar {
             require(dao.propriedadeEhDoUsuario(lancamento.propriedadeId, usuarioId)) {
@@ -57,15 +65,15 @@ class LancamentoRepositoryRoom(
             require(!dao.existeSemSerDoUsuario(lancamento.id, usuarioId)) {
                 "Este lançamento pertence a outra conta."
             }
-            dao.salvar(lancamento.paraEntidade(agora = relogio.millis()))
+            dao.salvar(lancamento.paraEntidade(agora = agora))
         }
     }
 
-    /** Lê e apaga na mesma transação e devolve o lançamento apagado. */
-    override suspend fun excluir(id: String): Lancamento? {
+    /** Lê e apaga na mesma transação e devolve o que saiu, com o instante da última gravação. */
+    override suspend fun excluir(id: String): LancamentoExcluido? {
         val usuarioId = usuarioConectado()
         return transacao.executar {
-            val apagado = dao.buscarPorId(id, usuarioId)?.paraDominio()
+            val apagado = dao.buscarPorId(id, usuarioId)?.paraExcluido()
             dao.excluir(id, usuarioId)
             apagado
         }

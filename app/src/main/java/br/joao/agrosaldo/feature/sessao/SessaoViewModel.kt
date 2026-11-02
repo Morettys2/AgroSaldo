@@ -2,6 +2,8 @@ package br.joao.agrosaldo.feature.sessao
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.joao.agrosaldo.core.util.repetirAposErro
+import br.joao.agrosaldo.core.util.tentar
 import br.joao.agrosaldo.data.SelecaoAtual
 import br.joao.agrosaldo.domain.RelogioMonotonico
 import br.joao.agrosaldo.domain.conta.ContaService
@@ -52,6 +54,8 @@ class SessaoViewModel @Inject constructor(
      * nenhuma tela, para o Início não aparecer antes do desvio para o novo aceite.
      */
     val precisaNovoAceite: StateFlow<Boolean?> = conta.precisaNovoAceite()
+        // Banco travado ao abrir: a navegação segue coberta (null) e a leitura recomeça sozinha.
+        .repetirAposErro {}
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // Começa bloqueado: sessão restaurada exige biometria.
@@ -73,7 +77,8 @@ class SessaoViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     init {
-        viewModelScope.launch { conta.validarSessao() }
+        // Banco travado: a sessão é conferida de novo na próxima abertura do app.
+        viewModelScope.launch { tentar { conta.validarSessao() } }
 
         // drop(1) ignora a sessão restaurada. Login com senha desbloqueia; logout bloqueia.
         viewModelScope.launch {
@@ -105,7 +110,8 @@ class SessaoViewModel @Inject constructor(
         val aceitePendente = precisaNovoAceite.first { it != null }
         if (!logado.value || aceitePendente == true) return false
         if (propriedadeId != null) {
-            propriedades.buscarPorId(propriedadeId) ?: return false
+            // Banco travado: ignora o pedido em vez de fechar o app.
+            tentar { propriedades.buscarPorId(propriedadeId) }.getOrNull() ?: return false
             selecao.selecionar(propriedadeId)
         }
         return true
