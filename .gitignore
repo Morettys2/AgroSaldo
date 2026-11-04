@@ -22,3 +22,9 @@ Thumbs.db
 /app/release/
 *.apk
 *.aab
+# Documentos locais (só no PC do João): no Git, a docs/ guarda apenas a documentação técnica.
+/docs/*
+!/docs/DOCUMENTACAO_TECNICA.mdx
+!/docs/assets/
+# Material de estudo da P2, local.
+/ESTUDO_*.html
