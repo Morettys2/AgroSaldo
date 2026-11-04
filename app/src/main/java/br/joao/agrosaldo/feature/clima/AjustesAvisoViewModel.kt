@@ -56,7 +56,6 @@ class AjustesAvisoViewModel @Inject constructor(
     private val relogio: Clock
 ) : ViewModel() {
 
-    /** Propriedade escolhida no app, para a notificação de exemplo (ferramenta de teste do debug). */
     /**
      * Aviso com dados fictícios para a notificação de exemplo (ferramenta de teste do debug). Usa a
      * propriedade escolhida no app, para o toque abrir o Clima como num aviso real, e o relógio injetado.
@@ -87,7 +86,7 @@ class AjustesAvisoViewModel @Inject constructor(
     val uiState: StateFlow<AjustesAvisoUiState> = _uiState.asStateFlow()
 
     // Ids desligados ao abrir. Preservados no salvamento mesmo que não estejam na
-    // lista atual (propriedades de outra conta ou exclusão desfeita).
+    // lista atual (lista que não carregou ou exclusão desfeita).
     private val semAvisoAoAbrir = ajustes.ajustes.value.propriedadesSemAviso
 
     init {

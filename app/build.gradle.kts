@@ -141,7 +141,7 @@ dependencies {
     // O domínio é um módulo Kotlin puro: o compilador impede que ele importe Android.
     implementation(project(":domain"))
 
-    // BOM em variável para reutilizar em implementation e androidTestImplementation
+    // BOM em variável para reutilizar em implementation, testFixtures e testImplementation
     // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
