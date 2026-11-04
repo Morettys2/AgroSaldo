@@ -27,7 +27,7 @@ class ValidacaoDeEntradasTest {
     )
 
     private fun propriedade(nome: String = "Sítio", cultura: String = "Milho", area: Double = 3.0): Propriedade =
-        Propriedade(nome = nome, cultura = cultura, areaHectares = area, latitude = -21.0, longitude = -46.0)
+        Propriedade(nome = nome, cultura = cultura, areaHectares = area, latitude = -23.5, longitude = -48.0)
 
     private fun recusa(mensagem: String, bloco: () -> Unit) {
         try {

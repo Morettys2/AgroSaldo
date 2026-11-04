@@ -13,7 +13,7 @@ App Android nativo para o pequeno produtor rural controlar **receitas e despesas
 - Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: um produtor rural real (pai do João), que já usa o APK.
 - A professora cobra **MVVM** e **persistência local com Room**. Há um protótipo no Figma que o app precisa seguir.
 - O app é **100% local**: Room no celular, sem backend e sem sincronização. A única chamada de rede é a previsão da Open-Meteo.
-- Versão atual: `versionCode 6` / `versionName 1.5`.
+- Versão atual: `versionCode 7` / `versionName 1.6` (a 1.5, `versionCode 6`, é a que está no celular do produtor).
 
 ## 2. Quem está aprendendo
 
@@ -173,7 +173,7 @@ config/detekt/         detekt.yml
 - **Testes no aparelho:** o `androidx.test:runner` (o `testInstrumentationRunner`) fica declarado no `androidTestImplementation`. Ele vinha por tabela com o Espresso; sem ele o `connectedAndroidTest` nem começa.
 - **src/sharedTest:** entra nos source sets `test` e `androidTest` pelo `kotlin.directories` (o Kotlin embutido no AGP 9 compila pelo conjunto `kotlin`). O detekt isenta essa pasta como os outros diretórios de teste.
 - **Módulo `:domain`:** o plugin é `org.jetbrains.kotlin.jvm` (no app o Kotlin vem embutido no AGP), com `java-test-fixtures`. O detekt do app analisa também as pastas do domínio. Propriedade pública de outro módulo não permite *smart cast*: copie para uma `val` local antes do `!= null`.
-- **Hilt:** `hiltViewModel()` vem de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto). Os formulários (`LancamentoFormViewModel`, `PropriedadeFormViewModel`) têm um construtor secundário `@Inject` que lê os argumentos da rota do `SavedStateHandle`; por isso as chaves do rascunho levam o prefixo `rascunho_` (o handle também recebe `tipo` e `id` da rota). O iniciador do WorkManager foi removido do manifesto: o `AgroSaldoApp` é o `Configuration.Provider` com a fábrica de Workers do Hilt. `GrafoDeDependenciasTest` sobe o grafo de verdade no Robolectric (`kspTest` + `hilt-android-testing`).
+- **Hilt:** `hiltViewModel()` vem de `androidx.hilt.lifecycle.viewmodel.compose` (o pacote `navigation.compose` está obsoleto). Os formulários (`LancamentoFormViewModel`, `PropriedadeFormViewModel`) têm um construtor secundário `@Inject` que lê os argumentos da rota do `SavedStateHandle`; por isso as chaves do rascunho do lançamento levam o prefixo `rascunho_` (o handle também recebe `tipo` e `id` da rota); as do formulário de propriedade (`nome`, `cultura`, `area`, `latitude`, `longitude`) não colidem com o `id`. O iniciador do WorkManager foi removido do manifesto: o `AgroSaldoApp` é o `Configuration.Provider` com a fábrica de Workers do Hilt. `GrafoDeDependenciasTest` sobe o grafo de verdade no Robolectric (`kspTest` + `hilt-android-testing`).
 - Rodar o `lintDebug` em paralelo com `compileDebugAndroidTestKotlin` ou `assembleRelease` pode falhar por corrida nos arquivos gerados do Hilt; o conjunto do CI (`ktlintCheck detekt testDebugUnitTest assembleDebug lintDebug`) roda limpo.
 - O `testFixtures` precisa do Compose runtime no classpath (`testFixturesImplementation` do BOM e do runtime), por causa do compilador do Compose.
 

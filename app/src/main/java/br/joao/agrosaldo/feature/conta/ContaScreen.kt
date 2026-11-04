@@ -54,6 +54,7 @@ import br.joao.agrosaldo.core.seguranca.acharFragmentActivity
 import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoSenha
 import br.joao.agrosaldo.core.ui.EstadoErro
+import br.joao.agrosaldo.domain.conta.RegrasDeConta
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.PreviasDaTela
@@ -348,7 +349,7 @@ private fun DialogoExclusao(excluindo: Boolean, erro: String?, aoConfirmar: (Str
                 )
                 CampoSenha(
                     valor = senha,
-                    aoMudar = { senha = it },
+                    aoMudar = { senha = it.take(RegrasDeConta.SENHA_MAXIMO) },
                     rotulo = "Sua senha",
                     erro = erro != null,
                     apoio = erro,

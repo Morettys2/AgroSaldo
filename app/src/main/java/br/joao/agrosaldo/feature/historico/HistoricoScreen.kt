@@ -366,7 +366,7 @@ private fun CartaoGastos(gastos: List<GastoPorCategoria>, modifier: Modifier = M
     ) {
         Column(Modifier.padding(Espacos.largo), verticalArrangement = Arrangement.spacedBy(Espacos.medio)) {
             gastos.forEach { gasto ->
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Espacos.pequeno)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(gasto.categoria.rotulo, style = MaterialTheme.typography.bodyMedium)
                         Text(

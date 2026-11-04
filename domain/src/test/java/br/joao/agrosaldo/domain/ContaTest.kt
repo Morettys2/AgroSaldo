@@ -102,7 +102,7 @@ class ContaTest {
     @Test
     fun `iniciais usam primeiro e ultimo nome`() {
         assertEquals("MS", RegrasDeConta.iniciais("Maria Lima Souza"))
-        assertEquals("F", RegrasDeConta.iniciais("fábio"))
+        assertEquals("M", RegrasDeConta.iniciais("márcia"))
         assertEquals("?", RegrasDeConta.iniciais("   "))
     }
 
@@ -127,6 +127,24 @@ class ContaTest {
     fun `hash gravado com outro numero de iteracoes continua valendo`() {
         val antigo = HashDeSenha(iteracoes = 500).gerar("milho2026")
         assertTrue(hashRapido.confere("milho2026", antigo))
+    }
+
+    /**
+     * Os celulares que já usam o app têm hashes gravados neste formato. Os valores esperados foram
+     * calculados fora do Kotlin (hashlib do Python: PBKDF2-HMAC-SHA256, senha em NFKC e UTF-8, sal
+     * 00..0F, Base64 sem padding). Se o formato, a normalização ou a codificação mudarem, o produtor
+     * não entra mais depois de atualizar o app, e este teste falha antes.
+     */
+    @Test
+    fun `hash gravado por versoes anteriores continua conferindo`() {
+        val gravadoSimples = "pbkdf2_sha256\$1000\$AAECAwQFBgcICQoLDA0ODw\$B442Q6glvpaMnJXJlBQI/RFLr+DWyuR8CbLMGM4FgG0"
+        val gravadoComAcento = "pbkdf2_sha256\$1000\$AAECAwQFBgcICQoLDA0ODw\$MabRVi7nCkYznk+Tp+bwUrljzXf0XL3mcDjs8GE6CPU"
+
+        assertTrue(hashRapido.confere("milho2026", gravadoSimples))
+        assertFalse(hashRapido.confere("milho2027", gravadoSimples))
+        assertTrue(hashRapido.confere("Açaí na colheita 2026", gravadoComAcento))
+        // A mesma senha digitada com os acentos decompostos (NFD) confere pelo NFKC.
+        assertTrue(hashRapido.confere("Açaí na colheita 2026", gravadoComAcento))
     }
 
     @Test
@@ -159,7 +177,7 @@ class ContaTest {
 
     @Test
     fun `RNF10 - sem aceite do termo nao existe conta`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = false)
+        val resultado = conta.cadastrar("Maria", "maria@exemplo.com", "milho2026", aceitouTermo = false)
 
         assertEquals(ResultadoCadastro.TermoNaoAceito, resultado)
         assertTrue(usuarios.todos.isEmpty())
@@ -179,7 +197,7 @@ class ContaTest {
 
     @Test
     fun `cadastro recusa senha fraca mesmo que a tela deixe passar`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "123", aceitouTermo = true)
+        val resultado = conta.cadastrar("Maria", "maria@exemplo.com", "123", aceitouTermo = true)
         assertTrue(resultado is ResultadoCadastro.DadosInvalidos)
         assertTrue(usuarios.todos.isEmpty())
     }

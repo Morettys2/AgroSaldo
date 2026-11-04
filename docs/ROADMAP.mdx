@@ -5,7 +5,7 @@ description: "O que falta fazer no AgroSaldo e em que ordem, a partir da versão
 
 # AgroSaldo — Roadmap
 
-O app está **pronto para uso**: a versão 1.5 roda no celular do produtor, com o CI verde e 514 testes. Daqui pra frente o caminho tem quatro etapas: arrumar o que ficou pendente, proteger os dados do produtor, publicar na Play Store e, só se fizer sentido, crescer para a nuvem.
+O app está **pronto para uso**: a versão 1.5 roda no celular do produtor, com o CI verde e 606 testes. Daqui pra frente o caminho tem quatro etapas: arrumar o que ficou pendente, proteger os dados do produtor, publicar na Play Store e, só se fizer sentido, crescer para a nuvem.
 
 *Atualizado em 27/10/2026. Os prazos são estimativas de esforço, não datas marcadas.*
 
@@ -30,7 +30,7 @@ O app está **pronto para uso**: a versão 1.5 roda no celular do produtor, com 
 | Funcionalidades | Contas, sítios, lançamentos, histórico do ano, clima e aviso de chuva: tudo pronto |
 | Arquitetura | MVVM + Repository, módulo `:domain` em Kotlin puro e Hilt |
 | Banco | Room versão 4 (a 3 é a base da produção, sem migrações antigas; a 3 → 4 deixou o dono da propriedade obrigatório) |
-| Qualidade | 600 testes (581 no computador, contando os 19 de banco, e os mesmos 19 de banco no aparelho), detekt com zero achados e CI em todo push na `prod` |
+| Qualidade | 606 testes (585 no computador, contando os 21 de banco, e os mesmos 21 de banco no aparelho), detekt com zero achados e CI em todo push na `prod` |
 | Segurança e LGPD | Senha com PBKDF2, bloqueio por tentativas e por digital, consentimento com versão, exclusão da conta e backup só criptografado |
 | Distribuição | APK instalado à mão no celular do produtor. Ainda não está na Play Store |
 | Documentação | `CLAUDE.md` (regras), `docs/DOCUMENTACAO_TECNICA.mdx` (técnica) e `docs/PERGUNTAS_DA_BANCA.mdx` |
@@ -59,7 +59,7 @@ Coisas pequenas, que dá para fazer logo depois da apresentação.
 - [x] **Limpar resquícios do baseline no `app/build.gradle.kts`.** Feito nas correções da auditoria (28/10/2026): o ktlint não aponta mais para um baseline, a tarefa `detektBaseline` saiu e o comentário foi corrigido.
 - [x] **Corrigir os achados da auditoria de código** (`docs/AUDITORIA_2026-10-28.md`), na branch `fix/auditoria-2026-10-28`, incluindo a remoção dos dados reais do produtor do projeto.
 - [x] **Atualizar as bibliotecas** (DEP-01), na branch `chore/atualiza-dependencias`: AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, Compose BOM 2026.09.00 e as menores. Testar no celular antes de mesclar.
-- [ ] **Rodar os testes de banco no aparelho** (`connectedAndroidTest`, os 19 testes de banco: 16 de DAO e 3 de migração). Desde as correções da auditoria eles também rodam no computador e no CI (Robolectric), mas o SQLite do aparelho ainda vale conferir antes de cada release. Última vez: 02/11/2026, no emulador, 19 de 19.
+- [ ] **Rodar os testes de banco no aparelho** (`connectedAndroidTest`, os 21 testes de banco: 16 de DAO e 5 de migração). Desde as correções da auditoria eles também rodam no computador e no CI (Robolectric), mas o SQLite do aparelho ainda vale conferir antes de cada release. Última vez: 02/11/2026, no emulador, 19 de 19.
 - [ ] **Revisar o texto sobre `atualizado_em`.** O `CLAUDE.md` diz que a coluna é reservada para a sincronização futura, mas o comentário no código não diz mais isso. Decidir qual versão vale e deixar os dois iguais.
 
 ---

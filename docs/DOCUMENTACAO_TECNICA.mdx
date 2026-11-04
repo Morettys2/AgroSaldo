@@ -80,8 +80,8 @@ Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abr
 | Arquivos Kotlin de produção | 120 no `:app` e 24 no `:domain` |
 | Telas (arquivos `*Screen.kt`) | 15, com 13 ViewModels de tela (o consentimento usa o `CadastroViewModel` e a política não tem estado) |
 | Tabelas no banco | 4 (`usuarios`, `propriedades`, `lancamentos`, `previsoes`), banco na versão 4 |
-| Testes de JVM | 581: 89 no `:domain` e 492 no `:app` (com os 19 de banco do `src/sharedTest`: 16 de DAO e 3 de migração) |
-| Testes no aparelho | 19 (os mesmos testes de banco do `src/sharedTest`, que também rodam no JVM) |
+| Testes de JVM | 585: 90 no `:domain` e 495 no `:app` (com os 21 de banco do `src/sharedTest`: 16 de DAO e 5 de migração) |
+| Testes no aparelho | 21 (os mesmos testes de banco do `src/sharedTest`, que também rodam no JVM) |
 | Achados do detekt | 0, sem baseline |
 
 ### Stack
@@ -486,7 +486,7 @@ domain/
     │   ├── clima/                  Previsao, RegraDeChuva, VerificadorDeChuva
     │   ├── conta/                  ContaService, HashDeSenha, RegrasDeConta, SenhasComuns
     │   └── repository/             10 interfaces de repositório
-    ├── test/                       80 testes do domínio (JVM puro)
+    ├── test/                       90 testes do domínio (JVM puro)
     └── testFixtures/               fakes em memória (*Memoria), DadosDeExemplo e relógios de teste
 ```
 
@@ -3813,12 +3813,12 @@ Um *source set* é uma pasta de código com o seu próprio classpath. O projeto 
 
 | Source set | Onde roda | O que vai lá | Comando |
 |---|---|---|---|
-| `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 80 testes | `./gradlew :domain:test` |
+| `domain/src/test` | JVM do computador, sem Android | Testes do domínio (contas, regras de negócio, resumo financeiro, validações): 90 testes | `./gradlew :domain:test` |
 | `app/src/test` | JVM do computador, sem emulador | Dados (com DAOs falsos), ViewModels, telas Compose (via Robolectric), o grafo do Hilt, o contrato dos repositórios (Room e fakes) e os DAOs do `src/sharedTest`: 492 testes | `./gradlew testDebugUnitTest` |
 | `domain/src/testFixtures` e `app/src/testFixtures` | Não é teste: é código de apoio | Fakes em memória das interfaces do domínio, dados de exemplo e relógios de teste (no `:domain`); `AjustesAvisoMemoria`, `Semeador` e `TransacaoDireta` (no app). Fora do APK | (compilado junto com os testes) |
 | `app/src/sharedTest` | JVM com Robolectric, e aparelho ou emulador conectado | Testes do Room real: SQL, chaves estrangeiras, CASCADE e a migração 3 → 4 | `./gradlew testDebugUnitTest` e `./gradlew connectedAndroidTest` |
 
-Em números: **581 testes** de JVM (89 em `domain/src/test` e 492 no `:app`, contando os 19 do `src/sharedTest`), e os mesmos **19** (16 de DAO e 3 de migração) também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
+Em números: **585 testes** de JVM (90 em `domain/src/test` e 495 no `:app`, contando os 21 do `src/sharedTest`), e os mesmos **21** (16 de DAO e 5 de migração) também no aparelho. Os nomes dos testes de JVM são frases entre crases (por exemplo, `` `RN04 - exatamente 60 por cento ja avisa` ``), o que o `.editorconfig` e o detekt liberam de propósito. Quando um teste falha, o nome já explica a regra quebrada. Vários nomes citam o requisito coberto (`RF01`, `RN04`, `RNF10`...).
 
 Outros comandos úteis:
 
@@ -4736,8 +4736,8 @@ Não há o plugin `org.jetbrains.kotlin.android` na lista: no AGP 9 o suporte a 
 | `compileSdk` | `release(37)` | Versão da API do Android usada para compilar (sintaxe nova do AGP 9: `compileSdk { version = release(37) }`) |
 | `minSdk` | `26` | Android mais antigo em que o app instala (Android 8.0) |
 | `targetSdk` | `37` | Versão cujo comportamento o app declara seguir |
-| `versionCode` | `6` | Número inteiro que a loja usa para saber qual build é mais nova |
-| `versionName` | `"1.5"` | Versão mostrada ao usuário |
+| `versionCode` | `7` | Número inteiro que a loja usa para saber qual build é mais nova |
+| `versionName` | `"1.6"` | Versão mostrada ao usuário |
 | `testInstrumentationRunner` | `androidx.test.runner.AndroidJUnitRunner` | Executor dos testes que rodam no aparelho (`androidTest`) |
 
 ### Tipos de build
@@ -4966,8 +4966,8 @@ O arquivo `.github/workflows/android.yml` roda em **todo push na `prod`** e em *
 A versão fica em `app/build.gradle.kts`:
 
 ```kotlin
-versionCode = 6
-versionName = "1.5"
+versionCode = 7
+versionName = "1.6"
 ```
 
 - `versionCode` é um inteiro que **só sobe**. O Android recusa instalar uma versão com `versionCode` menor que a instalada.

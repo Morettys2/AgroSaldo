@@ -66,7 +66,8 @@ fun TelaBloqueioRoute(aoDesbloquear: () -> Unit, aoUsarSenha: () -> Unit, modifi
         }
     }
 
-    LaunchedEffect(Unit) { pedirDigital() }
+    val pedirDigitalAtual by rememberUpdatedState(pedirDigital)
+    LaunchedEffect(Unit) { pedirDigitalAtual() }
 
     // Botão voltar com o app bloqueado é tratado na AppNavegacao.
 

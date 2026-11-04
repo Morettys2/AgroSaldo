@@ -16,8 +16,8 @@ android {
         applicationId = "br.joao.agrosaldo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 7
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -141,7 +141,7 @@ dependencies {
     // O domínio é um módulo Kotlin puro: o compilador impede que ele importe Android.
     implementation(project(":domain"))
 
-    // BOM em variável para reutilizar em implementation e androidTestImplementation
+    // BOM em variável para reutilizar em implementation, testFixtures e testImplementation
     // sem o aviso "declared multiple times".
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

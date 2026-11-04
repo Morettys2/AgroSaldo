@@ -105,6 +105,11 @@ fun ClimaScreen(
         when {
             uiState.carregando -> item(key = "carregando") { Carregando() }
 
+            // Falha na primeira leitura: sem isto, a tela diria "cadastre uma propriedade" a quem já tem.
+            uiState.erro != null && !uiState.temPropriedade -> item(key = "erro") {
+                EstadoErro(uiState.erro, Modifier.padding(horizontal = Espacos.margemDaTela))
+            }
+
             !uiState.temPropriedade -> item(key = "sem_propriedade") {
                 EstadoVazio(
                     icone = IconesAgro.Gota,

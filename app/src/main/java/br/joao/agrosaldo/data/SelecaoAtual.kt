@@ -59,7 +59,7 @@ class SelecaoAtual(
     /**
      * Virada do mês com o processo vivo: se o calendário avançou desde a última chamada e a
      * seleção estava no mês corrente de então, passa para [agora]. Um mês escolhido pela
-     * pessoa é mantido. Chamado ao voltar para as telas (ON_RESUME).
+     * pessoa é mantido. Chamado ao voltar para o app, no onStart da MainActivity.
      */
     fun acompanharMesCorrente(agora: YearMonth = YearMonth.now(relogio)) {
         if (agora <= mesCorrente) return

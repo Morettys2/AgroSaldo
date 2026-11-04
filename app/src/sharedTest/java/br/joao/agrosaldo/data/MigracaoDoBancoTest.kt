@@ -85,6 +85,71 @@ class MigracaoDoBancoTest {
         }
     }
 
+    /** O celular do produtor: todas as linhas de todas as tabelas saem da migração com todos os campos iguais. */
+    @Test
+    fun migracao3Para4PreservaTodosOsCamposDeTodasAsLinhas() {
+        criarNaVersao3 { db ->
+            db.execSQL(usuario("dono", criadoEm = 100))
+            db.execSQL(
+                "INSERT INTO propriedades VALUES ('p1', 'Sítio Exemplo d''Água', '', 12.75, -23.512345, -48.187654, 1700000000123, 'dono')"
+            )
+            db.execSQL("INSERT INTO propriedades VALUES ('p2', 'Fazenda Modelo', 'Café', 1000000.0, -22.0, -47.0, 1700000000456, 'dono')")
+            db.execSQL(
+                "INSERT INTO lancamentos VALUES ('l1', 'p1', 'DESPESA', 'ADUBO', 999999999, 20400, 'Adubo com acento é ç', 1700000000789)"
+            )
+            db.execSQL("INSERT INTO lancamentos VALUES ('l2', 'p2', 'RECEITA', 'VENDA_SAFRA', 1, 20500, '', 1700000000999)")
+            db.execSQL("INSERT INTO previsoes VALUES ('p1', -23.51, -48.19, '{\"hourly\":{}}', 1700000001000)")
+        }
+        val antes = TABELAS.associateWith { lerTudo(it) }
+
+        comBancoMigrado { banco ->
+            TABELAS.forEach { tabela -> assertEquals(tabela, antes.getValue(tabela), lerTudo(banco, tabela)) }
+        }
+    }
+
+    /**
+     * A migração recria a tabela de propriedades. Os lançamentos e a previsão precisam continuar
+     * presos à tabela nova: excluir a propriedade ou a conta ainda apaga o que é delas (RN02).
+     */
+    @Test
+    fun depoisDaMigracao3Para4ExcluirPropriedadeEContaApagaEmCascata() {
+        criarNaVersao3 { db ->
+            db.execSQL(usuario("dono", criadoEm = 100))
+            db.execSQL(propriedade("p1", dono = "'dono'"))
+            db.execSQL(propriedade("p2", dono = "'dono'"))
+            db.execSQL(lancamento("l1", "p1"))
+            db.execSQL(lancamento("l2", "p2"))
+            db.execSQL(previsao("p1"))
+        }
+
+        comBancoMigrado { banco ->
+            val sqlite = banco.openHelper.writableDatabase
+            sqlite.query("PRAGMA foreign_key_check").use { assertEquals("chaves estrangeiras quebradas", 0, it.count) }
+
+            sqlite.execSQL("DELETE FROM propriedades WHERE id = 'p1'")
+            assertEquals(1, contarLinhas(banco, "lancamentos"))
+            assertEquals(0, contarLinhas(banco, "previsoes"))
+
+            sqlite.execSQL("DELETE FROM usuarios WHERE id = 'dono'")
+            TABELAS.forEach { tabela -> assertEquals(tabela, 0, contarLinhas(banco, tabela)) }
+        }
+    }
+
+    /** Todas as linhas da [tabela], ordenadas pela 1ª coluna, como texto (cada coluna com o nome). */
+    private fun lerTudo(tabela: String): List<String> =
+        SQLiteDatabase.openDatabase(contexto.getDatabasePath(ARQUIVO).path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            db.rawQuery("SELECT * FROM $tabela ORDER BY 1", null).use { it.linhas() }
+        }
+
+    private fun lerTudo(banco: AgroSaldoDatabase, tabela: String): List<String> =
+        banco.openHelper.readableDatabase.query("SELECT * FROM $tabela ORDER BY 1").use { it.linhas() }
+
+    private fun android.database.Cursor.linhas(): List<String> = buildList {
+        while (moveToNext()) {
+            add(columnNames.sorted().joinToString { coluna -> "$coluna=${getString(getColumnIndexOrThrow(coluna))}" })
+        }
+    }
+
     /** Cria o arquivo como o app da versão 3 deixaria, com os [dados] de cada teste. */
     private fun criarNaVersao3(dados: (SQLiteDatabase) -> Unit) {
         val arquivo = contexto.getDatabasePath(ARQUIVO)
@@ -128,6 +193,7 @@ class MigracaoDoBancoTest {
 
     private companion object {
         const val ARQUIVO = "migracao-teste.db"
+        val TABELAS = listOf("usuarios", "propriedades", "lancamentos", "previsoes")
 
         /** O `createSql` de cada tabela e índice do `3.json`, com a tabela do Room (`room_master_table`). */
         val ESQUEMA_3 = listOf(
