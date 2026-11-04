@@ -197,7 +197,7 @@ config/detekt/         detekt.yml
 6. **Antes do PR**, o CI precisa ficar verde (ktlint, detekt, testes, build e lint) e sem warning novo do Kotlin.
 7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
-9. Não recrie README nem CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
+9. O `README.md` é a vitrine do repositório (pedido do João em 04/11/2026): mantenha os números e a stack em dia. Não crie CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
 10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a migração 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da 4.
 ---
 
