@@ -129,6 +129,24 @@ class ContaTest {
         assertTrue(hashRapido.confere("milho2026", antigo))
     }
 
+    /**
+     * Os celulares que já usam o app têm hashes gravados neste formato. Os valores esperados foram
+     * calculados fora do Kotlin (hashlib do Python: PBKDF2-HMAC-SHA256, senha em NFKC e UTF-8, sal
+     * 00..0F, Base64 sem padding). Se o formato, a normalização ou a codificação mudarem, o produtor
+     * não entra mais depois de atualizar o app, e este teste falha antes.
+     */
+    @Test
+    fun `hash gravado por versoes anteriores continua conferindo`() {
+        val gravadoSimples = "pbkdf2_sha256\$1000\$AAECAwQFBgcICQoLDA0ODw\$B442Q6glvpaMnJXJlBQI/RFLr+DWyuR8CbLMGM4FgG0"
+        val gravadoComAcento = "pbkdf2_sha256\$1000\$AAECAwQFBgcICQoLDA0ODw\$MabRVi7nCkYznk+Tp+bwUrljzXf0XL3mcDjs8GE6CPU"
+
+        assertTrue(hashRapido.confere("milho2026", gravadoSimples))
+        assertFalse(hashRapido.confere("milho2027", gravadoSimples))
+        assertTrue(hashRapido.confere("Açaí na colheita 2026", gravadoComAcento))
+        // A mesma senha digitada com os acentos decompostos (NFD) confere pelo NFKC.
+        assertTrue(hashRapido.confere("Açaí na colheita 2026", gravadoComAcento))
+    }
+
     @Test
     fun `hash corrompido conta como senha errada em vez de travar o app`() {
         assertFalse(hashRapido.confere("milho2026", "lixo"))
