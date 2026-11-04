@@ -172,7 +172,7 @@ private fun Cabecalho(uiState: PropriedadeListaUiState, aoVoltarMes: () -> Unit,
                         modifier = Modifier.weight(1f)
                     )
                     BotaoCabecalho(icone = IconesAgro.SetaEsquerda, descricao = "Mês anterior", aoClicar = aoVoltarMes)
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(Espacos.pequeno))
                     BotaoCabecalho(icone = IconesAgro.SetaDireita, descricao = "Próximo mês", aoClicar = aoAvancarMes)
                 }
                 ValorGrande(

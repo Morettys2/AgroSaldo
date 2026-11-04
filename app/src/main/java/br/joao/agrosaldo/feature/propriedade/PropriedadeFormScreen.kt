@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
@@ -21,11 +18,9 @@ import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +44,7 @@ import br.joao.agrosaldo.core.localizacao.rememberBuscaDeLocalizacao
 import br.joao.agrosaldo.core.ui.BotaoPrincipal
 import br.joao.agrosaldo.core.ui.BotaoSecundario
 import br.joao.agrosaldo.core.ui.CampoTexto
+import br.joao.agrosaldo.core.ui.TamanhoBotao
 import br.joao.agrosaldo.ui.theme.AgroSaldoTheme
 import br.joao.agrosaldo.ui.theme.Espacos
 import br.joao.agrosaldo.ui.theme.PreviasDaTela
@@ -178,20 +174,14 @@ fun PropriedadeFormScreen(
             acaoNoFim = { BotaoSinal(campo = "longitude", aoClicar = aoInverterSinalLongitude) }
         )
 
-        OutlinedButton(
-            onClick = aoUsarMinhaLocalizacao,
-            enabled = !buscandoLocalizacao,
-            shape = CircleShape,
-            modifier = Modifier.fillMaxWidth().heightIn(min = Espacos.alvoDeToque)
-        ) {
-            if (buscandoLocalizacao) {
-                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                Text("Procurando…", modifier = Modifier.padding(start = Espacos.pequeno))
-            } else {
-                Icon(Icons.Outlined.MyLocation, contentDescription = null)
-                Text("Usar minha localização", modifier = Modifier.padding(start = Espacos.pequeno))
-            }
-        }
+        BotaoSecundario(
+            texto = "Usar minha localização",
+            aoClicar = aoUsarMinhaLocalizacao,
+            carregando = buscandoLocalizacao,
+            icone = Icons.Outlined.MyLocation,
+            tamanho = TamanhoBotao.COMPACTO,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         mensagemLocalizacao?.let { mensagem ->
             Text(

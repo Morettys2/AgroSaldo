@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -122,7 +123,8 @@ private fun BotaoNovoLancamento(aoClicar: () -> Unit) {
         color = MaterialTheme.agro.destaque,
         contentColor = MaterialTheme.agro.sobreDestaque,
         modifier = Modifier
-            .size(width = 60.dp, height = 52.dp)
+            .width(60.dp)
+            .heightIn(min = 52.dp)
             .semantics { contentDescription = "Novo lançamento" }
     ) {
         Box(contentAlignment = Alignment.Center) {

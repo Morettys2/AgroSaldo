@@ -237,7 +237,7 @@ private fun Cabecalho(
                 )
                 // Botões de mês agrupados longe do botão de ocultar valores, evitando toque acidental.
                 BotaoMes(IconesAgro.SetaEsquerda, "Mês anterior", aoVoltarMes)
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(Espacos.pequeno))
                 BotaoMes(IconesAgro.SetaDireita, "Próximo mês", aoAvancarMes)
             }
             ValorGrande(
