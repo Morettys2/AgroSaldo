@@ -134,19 +134,6 @@ Ou abra a pasta no Android Studio e clique em **Run**. O app começa vazio: crie
 - **Atualização sem perder dados:** a migração é testada campo a campo sobre o schema exato da versão anterior.
 - **CI:** cada push na `prod` e cada pull request rodam ktlint, detekt, os testes, o build e o Lint. As capturas de tela dos testes ficam na branch [`ci/capturas`](https://github.com/Morettys2/AgroSaldo/tree/ci/capturas).
 
-## Regras de negócio
-
-| Regra | Descrição |
-| --- | --- |
-| RN01 | Todo lançamento pertence a exatamente uma propriedade |
-| RN02 | Excluir uma propriedade apaga os lançamentos e a previsão dela, com “Desfazer” |
-| RN03 | Saldo do período = receitas − despesas |
-| RN04 | Aviso de chuva quando, nas próximas 12 h, a chance chega a 60% **ou** a chuva somada chega a 2 mm (limites ajustáveis) |
-| RN06 | O valor é sempre positivo; o sinal vem do tipo (receita ou despesa) |
-| RN07 | A data pode ser no máximo 12 meses no futuro |
-
-Dinheiro é sempre `Long` em centavos (sem erro de ponto flutuante); datas usam `java.time`.
-
 ## Privacidade e segurança
 
 - Os dados ficam **só no aparelho**; a previsão do tempo recebe coordenadas arredondadas, por HTTPS.
@@ -158,9 +145,3 @@ Dinheiro é sempre `Long` em centavos (sem erro de ponto flutuante); datas usam 
 ## Documentação
 
 A documentação técnica completa (arquitetura, cada pasta e arquivo, banco, testes, build e decisões) está em [`docs/DOCUMENTACAO_TECNICA.mdx`](docs/DOCUMENTACAO_TECNICA.mdx).
-
-## Créditos
-
-- Desenvolvido por **João Pedro** ([@Morettys2](https://github.com/Morettys2)): Engenharia de Software, UNIFAE.
-- Previsão do tempo: [Open-Meteo](https://open-meteo.com/), dados sob licença [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-- Fonte: [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans), sob a SIL Open Font License.
