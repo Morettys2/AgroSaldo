@@ -116,7 +116,7 @@ class RegrasDeNegocioTest {
 
     @Test
     fun `propriedade valida nome, area e coordenadas`() {
-        fun propriedade(nome: String = "Sítio", area: Double = 10.0, lat: Double = -21.0, lon: Double = -46.0) =
+        fun propriedade(nome: String = "Sítio", area: Double = 10.0, lat: Double = -23.5, lon: Double = -48.0) =
             Propriedade(nome = nome, cultura = "Milho", areaHectares = area, latitude = lat, longitude = lon)
 
         assertTrue(recusa { propriedade(nome = "") })
