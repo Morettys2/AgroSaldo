@@ -94,7 +94,9 @@ class MigracaoDoBancoTest {
                 "INSERT INTO propriedades VALUES ('p1', 'Sítio Exemplo d''Água', '', 12.75, -23.512345, -48.187654, 1700000000123, 'dono')"
             )
             db.execSQL("INSERT INTO propriedades VALUES ('p2', 'Fazenda Modelo', 'Café', 1000000.0, -22.0, -47.0, 1700000000456, 'dono')")
-            db.execSQL("INSERT INTO lancamentos VALUES ('l1', 'p1', 'DESPESA', 'ADUBO', 999999999, 20400, 'Adubo com acento é ç', 1700000000789)")
+            db.execSQL(
+                "INSERT INTO lancamentos VALUES ('l1', 'p1', 'DESPESA', 'ADUBO', 999999999, 20400, 'Adubo com acento é ç', 1700000000789)"
+            )
             db.execSQL("INSERT INTO lancamentos VALUES ('l2', 'p2', 'RECEITA', 'VENDA_SAFRA', 1, 20500, '', 1700000000999)")
             db.execSQL("INSERT INTO previsoes VALUES ('p1', -23.51, -48.19, '{\"hourly\":{}}', 1700000001000)")
         }
