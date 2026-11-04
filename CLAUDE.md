@@ -13,7 +13,7 @@ App Android nativo para o pequeno produtor rural controlar **receitas e despesas
 - Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: um produtor rural real (pai do João), que já usa o APK.
 - A professora cobra **MVVM** e **persistência local com Room**. Há um protótipo no Figma que o app precisa seguir.
 - O app é **100% local**: Room no celular, sem backend e sem sincronização. A única chamada de rede é a previsão da Open-Meteo.
-- Versão atual: `versionCode 6` / `versionName 1.5`.
+- Versão atual: `versionCode 7` / `versionName 1.6` (a 1.5, `versionCode 6`, é a que está no celular do produtor).
 
 ## 2. Quem está aprendendo
 
