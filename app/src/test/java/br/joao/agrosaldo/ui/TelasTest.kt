@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.SavedStateHandle
+import br.joao.agrosaldo.core.ui.PermissaoNotificacao
 import br.joao.agrosaldo.core.util.emReal
 import br.joao.agrosaldo.core.util.formatarBr
 import br.joao.agrosaldo.data.DadosDeExemplo
@@ -19,6 +20,8 @@ import br.joao.agrosaldo.data.relogioEm
 import br.joao.agrosaldo.data.repository.LancamentoRepositoryMemoria
 import br.joao.agrosaldo.data.repository.PropriedadeRepositoryMemoria
 import br.joao.agrosaldo.domain.RelogioMonotonicoIndisponivel
+import br.joao.agrosaldo.feature.clima.ClimaScreen
+import br.joao.agrosaldo.feature.clima.ClimaUiState
 import br.joao.agrosaldo.feature.inicio.InicioScreen
 import br.joao.agrosaldo.feature.inicio.InicioUiState
 import br.joao.agrosaldo.feature.lancamento.FiltroLancamento
@@ -157,6 +160,25 @@ class TelasTest {
                     aoVoltarMes = {}, aoAvancarMes = {}, aoSelecionarPropriedade = {},
                     aoNovoLancamento = {}, aoEditarLancamento = {}, aoAbrirClima = {}, aoAbrirHistorico = {},
                     aoAbrirLancamentos = {}, aoAbrirConta = {}, aoAlternarValores = {}, aoCadastrarPropriedade = {}
+                )
+            }
+        }
+
+        compose.onNodeWithText("Deu ruim.").assertExists()
+        compose.onNodeWithText("Cadastrar propriedade").assertDoesNotExist()
+    }
+
+    @Test
+    fun `erro na primeira leitura aparece no clima no lugar do convite ao cadastro`() {
+        compose.setContent {
+            AgroSaldoTheme(escuro = false) {
+                ClimaScreen(
+                    uiState = ClimaUiState(carregando = false, temPropriedade = false, erro = "Deu ruim."),
+                    permissao = PermissaoNotificacao(concedida = true, pedir = {}),
+                    aoSelecionarPropriedade = {},
+                    aoAtualizar = {},
+                    aoAbrirAjustes = {},
+                    aoCadastrarPropriedade = {}
                 )
             }
         }
