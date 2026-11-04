@@ -102,7 +102,7 @@ class ContaTest {
     @Test
     fun `iniciais usam primeiro e ultimo nome`() {
         assertEquals("MS", RegrasDeConta.iniciais("Maria Lima Souza"))
-        assertEquals("F", RegrasDeConta.iniciais("fábio"))
+        assertEquals("M", RegrasDeConta.iniciais("márcia"))
         assertEquals("?", RegrasDeConta.iniciais("   "))
     }
 
@@ -159,7 +159,7 @@ class ContaTest {
 
     @Test
     fun `RNF10 - sem aceite do termo nao existe conta`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "milho2026", aceitouTermo = false)
+        val resultado = conta.cadastrar("Maria", "maria@exemplo.com", "milho2026", aceitouTermo = false)
 
         assertEquals(ResultadoCadastro.TermoNaoAceito, resultado)
         assertTrue(usuarios.todos.isEmpty())
@@ -179,7 +179,7 @@ class ContaTest {
 
     @Test
     fun `cadastro recusa senha fraca mesmo que a tela deixe passar`() = runTest {
-        val resultado = conta.cadastrar("Fábio", "maria@exemplo.com", "123", aceitouTermo = true)
+        val resultado = conta.cadastrar("Maria", "maria@exemplo.com", "123", aceitouTermo = true)
         assertTrue(resultado is ResultadoCadastro.DadosInvalidos)
         assertTrue(usuarios.todos.isEmpty())
     }

@@ -109,7 +109,7 @@ fun AlterarSenhaScreen(
 private fun AlterarSenhaPreview() {
     AgroSaldoTheme {
         AlterarSenhaScreen(
-            uiState = AlterarSenhaUiState(senhaAtual = "milho2026", novaSenha = "soja20", nome = "Fábio"),
+            uiState = AlterarSenhaUiState(senhaAtual = "milho2026", novaSenha = "soja20", nome = "Maria"),
             aoMudarSenhaAtual = {},
             aoMudarNovaSenha = {},
             aoMudarConfirmacao = {},
