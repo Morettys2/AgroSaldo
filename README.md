@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🌱 AgroSaldo
+# AgroSaldo
 
 **Controle financeiro e aviso de chuva para o pequeno produtor rural.**
 
-App Android nativo para registrar receitas e despesas por propriedade, acompanhar o saldo do mês e do ano e receber um aviso quando vai chover (“dá para adiar o pivô”).
+App Android nativo para registrar receitas e despesas por propriedade, acompanhar o saldo do mês e do ano e receber um aviso quando vai chover, para adiar a irrigação do pivô.
 
 [![CI](https://github.com/Morettys2/AgroSaldo/actions/workflows/android.yml/badge.svg?branch=prod)](https://github.com/Morettys2/AgroSaldo/actions/workflows/android.yml)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
@@ -21,28 +21,41 @@ App Android nativo para registrar receitas e despesas por propriedade, acompanha
 
 ---
 
+## Sumário
+
+- [Sobre o projeto](#sobre-o-projeto)
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Tecnologias](#tecnologias)
+- [Estrutura](#estrutura)
+- [Como rodar](#como-rodar)
+- [Testes e qualidade](#testes-e-qualidade)
+- [Privacidade e segurança](#privacidade-e-segurança)
+- [Status e próximos passos](#status-e-próximos-passos)
+- [Documentação](#documentação)
+
 ## Sobre o projeto
 
-O AgroSaldo nasceu de um problema real: um produtor rural que precisava saber **quanto entrou e quanto saiu em cada sítio** e **não ligar a irrigação quando a chuva já vem**. O app é usado por ele no dia a dia.
+O AgroSaldo resolve um problema real do campo: saber **quanto entrou e quanto saiu em cada propriedade** e **evitar ligar a irrigação quando a chuva já está prevista**. O app está em uso por um produtor rural no dia a dia.
 
-Projeto acadêmico da disciplina de Engenharia de Software (UCE, UNIFAE), com dois requisitos centrais: arquitetura **MVVM** e persistência local com **Room**.
+Desenvolvido como projeto acadêmico do curso de Engenharia de Software da UNIFAE, com dois requisitos centrais: arquitetura **MVVM** e persistência local com **Room**.
 
 - **100% local:** os dados ficam no celular, sem servidor e sem conta na nuvem.
 - **Funciona offline:** só a previsão do tempo usa a internet ([Open-Meteo](https://open-meteo.com/)).
-- **Feito para o campo:** fonte grande, alvos de toque de 48 dp, alto contraste e modo escuro.
+- **Pensado para o campo:** textos simples, alvos de toque de 48 dp, alto contraste, suporte a fonte grande e modo escuro.
 
 ## Funcionalidades
 
-| | |
+| Funcionalidade | Descrição |
 | --- | --- |
-| 💰 **Lançamentos** | Receitas e despesas por categoria, com teclado numérico de calculadora, busca e filtros |
-| 🏡 **Propriedades** | Vários sítios por conta, com cultura, área e localização pelo GPS |
-| 📊 **Resumo do mês** | Saldo, entradas e saídas, para onde foi o dinheiro e os últimos lançamentos |
-| 📅 **Histórico** | O ano mês a mês, melhor e pior mês e maiores gastos |
-| 🌧️ **Clima** | Previsão das próximas horas e dos 7 dias para cada propriedade |
-| 🔔 **Aviso de chuva** | Notificação em segundo plano quando vai chover, com limites ajustáveis |
-| ↩️ **Desfazer** | Excluiu sem querer? O lançamento ou o sítio volta exatamente como estava |
-| 🔒 **Privacidade** | Bloqueio por digital, valores ocultos com um toque, senha com hash forte e consentimento LGPD |
+| **Lançamentos** | Receitas e despesas por categoria, com teclado numérico de calculadora, busca e filtros |
+| **Propriedades** | Vários sítios por conta, com cultura, área e localização pelo GPS |
+| **Resumo do mês** | Saldo, entradas e saídas, para onde foi o dinheiro e os últimos lançamentos |
+| **Histórico** | O ano mês a mês, melhor e pior mês e maiores gastos |
+| **Clima** | Previsão das próximas horas e dos 7 dias para cada propriedade |
+| **Aviso de chuva** | Notificação em segundo plano quando vai chover, com limites ajustáveis |
+| **Desfazer** | Exclusões de lançamentos e propriedades podem ser desfeitas, restaurando exatamente o que foi removido |
+| **Privacidade** | Bloqueio por digital ou PIN, valores ocultos com um toque, senha com hash forte e consentimento LGPD |
 
 <div align="center">
 <img src="docs/assets/tela-lancamentos.png" width="200" alt="Lista de lançamentos" />
@@ -107,7 +120,12 @@ AgroSaldo/
 
 ## Como rodar
 
-**Requisitos:** Android Studio recente e um aparelho ou emulador com Android 8.0+. O Gradle baixa sozinho o JDK que o build usa.
+**Requisitos**
+
+- Android Studio atualizado (o projeto usa AGP 9.5 e `compileSdk` 37).
+- Aparelho ou emulador com Android 8.0 (API 26) ou superior.
+- O JDK do build é baixado automaticamente pelo Gradle.
+- No Windows, clone o projeto num caminho sem acentos ou espaços (por exemplo, `C:\dev\AgroSaldo`).
 
 ```bash
 git clone https://github.com/Morettys2/AgroSaldo.git
@@ -116,7 +134,7 @@ cd AgroSaldo
 ./gradlew installDebug         # instala no aparelho conectado
 ```
 
-Ou abra a pasta no Android Studio e clique em **Run**. O app começa vazio: crie uma conta, cadastre um sítio e faça os primeiros lançamentos.
+Ou abra a pasta no Android Studio e clique em **Run**. O app começa vazio: crie uma conta, cadastre uma propriedade e registre os primeiros lançamentos. Nenhuma chave de API ou configuração extra é necessária.
 
 ## Testes e qualidade
 
@@ -142,6 +160,25 @@ Ou abra a pasta no Android Studio e clique em **Run**. O app começa vazio: crie
 - Backup do Android só com criptografia de ponta a ponta; sessão e segurança nunca saem do aparelho.
 - Consentimento LGPD versionado, e excluir a conta apaga todos os dados.
 
+## Status e próximos passos
+
+A versão **1.6** está estável e em uso real. Próxima etapa prevista:
+
+- publicação na Google Play Store;
+- política de privacidade pública;
+- exportação dos dados (portabilidade prevista na LGPD).
+
+Uma API própria com sincronização entre aparelhos está fora do escopo desta versão. O app foi mantido 100% local por decisão de produto.
+
 ## Documentação
 
-A documentação técnica completa (arquitetura, cada pasta e arquivo, banco, testes, build e decisões) está em [`docs/DOCUMENTACAO_TECNICA.mdx`](docs/DOCUMENTACAO_TECNICA.mdx).
+| Documento | Conteúdo |
+| --- | --- |
+| [`docs/DOCUMENTACAO_TECNICA.mdx`](docs/DOCUMENTACAO_TECNICA.mdx) | Documentação técnica completa: arquitetura, cada pasta e arquivo, banco, testes, build e decisões |
+| [`CLAUDE.md`](CLAUDE.md) | Guia de contribuição: convenções obrigatórias, segurança, regras de negócio e fluxo de trabalho |
+
+---
+
+<div align="center">
+Desenvolvido por <a href="https://github.com/Morettys2">Morettys2</a> · Engenharia de Software · UNIFAE
+</div>
