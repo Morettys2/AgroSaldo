@@ -33,6 +33,7 @@ App Android nativo para registrar receitas e despesas por propriedade, acompanha
 - [Privacidade e segurança](#privacidade-e-segurança)
 - [Status e próximos passos](#status-e-próximos-passos)
 - [Documentação](#documentação)
+- [Base de conhecimento](#base-de-conhecimento)
 
 ## Sobre o projeto
 
@@ -176,6 +177,26 @@ Uma API própria com sincronização entre aparelhos está fora do escopo desta 
 | --- | --- |
 | [`docs/DOCUMENTACAO_TECNICA.mdx`](docs/DOCUMENTACAO_TECNICA.mdx) | Documentação técnica completa: arquitetura, cada pasta e arquivo, banco, testes, build e decisões |
 | [`CLAUDE.md`](CLAUDE.md) | Guia de contribuição: convenções obrigatórias, segurança, regras de negócio e fluxo de trabalho |
+
+## Base de conhecimento
+
+A documentação também é mantida como uma base de conhecimento no [Obsidian](https://obsidian.md/), gerada a partir deste repositório: 37 notas interligadas (produto, arquitetura, código, data classes, qualidade, regras do projeto e estudo), usadas como contexto de consulta no desenvolvimento.
+
+<div align="center">
+<img src="docs/assets/base-de-conhecimento.png" width="720" alt="Grafo das notas da base de conhecimento do AgroSaldo no Obsidian" />
+</div>
+
+| Cor | Grupo de notas |
+| --- | --- |
+| Amarelo | Produto: visão geral, regras de negócio, decisões, roadmap |
+| Roxo | Arquitetura e fluxos das telas |
+| Azul | Código: domínio, dados, banco, navegação, telas, tema |
+| Verde-água | Data classes |
+| Laranja | Qualidade: testes, CI, build, bibliotecas |
+| Rosa | Regras do projeto: convenções, segurança, fluxo de trabalho |
+| Verde | Estudo: perguntas e respostas |
+
+A fonte da verdade continua sendo este repositório: as notas espelham o `CLAUDE.md` e a `docs/DOCUMENTACAO_TECNICA.mdx`.
 
 ---
 
