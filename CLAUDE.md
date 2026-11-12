@@ -10,14 +10,14 @@ A documentação técnica detalhada (pasta por pasta, arquivo por arquivo, bibli
 
 App Android nativo para o pequeno produtor rural controlar **receitas e despesas por propriedade** (sítio) e receber **aviso de chuva**, que recomenda adiar a irrigação do pivô.
 
-- Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: um produtor rural real (pai do João), que já usa o APK.
+- Projeto acadêmico (UCE, Engenharia de Software, UNIFAE) com usuário real: um produtor rural que já usa o APK no dia a dia.
 - A professora cobra **MVVM** e **persistência local com Room**. Há um protótipo no Figma que o app precisa seguir.
 - O app é **100% local**: Room no celular, sem backend e sem sincronização. A única chamada de rede é a previsão da Open-Meteo.
 - Versão atual: `versionCode 7` / `versionName 1.6` (a 1.5, `versionCode 6`, é a que está no celular do produtor).
 
-## 2. Quem está aprendendo
+## 2. Mantenedor e estilo das respostas
 
-O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/NestJS/Next.js e está **aprendendo Kotlin e Android neste projeto**.
+O mantenedor (GitHub **Morettys2**, dono do repositório) vem de PHP/Oracle/NestJS/Next.js e usa este projeto para aprofundar **Kotlin e Android**.
 
 - Explique o **porquê** das decisões de Android. Analogias com NestJS/React ajudam: ViewModel ≈ service com estado; Room ≈ TypeORM; Compose ≈ React com state; DAO ≈ repository do TypeORM.
 - Comentários de código em **português**, explicando a intenção, como o resto do código já faz.
@@ -34,7 +34,7 @@ O João Pedro (GitHub **Morettys2**, dono do repo) é desenvolvedor PHP/Oracle/N
 | JDK | Gradle roda no JDK 25 (toolchain do daemon); o código compila para Java 11 |
 | Arquitetura | MVVM + Repository, com o domínio num **módulo Gradle próprio (`:domain`, Kotlin puro)**: o compilador recusa `android.*`, Room, Compose e Hilt ali |
 | Banco | Room 2.8.5, banco versão 4 (tabelas `usuarios`, `propriedades`, `lancamentos`, `previsoes`). A versão 3 é a base da produção (**sem migrações antigas**); a 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da 4. Schema exportado em `app/schemas` |
-| DI | **Hilt** 2.60.1 (+ AndroidX Hilt 1.4.0): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` e `@HiltWorker`; módulos em `di/` (`TempoModule`, `BancoModule`, `PreferenciasModule`, `RepositoriosModule`, `ServicosModule`); processador via KSP. Antes era DI manual (`Dependencias`), trocado em out/2026 por decisão do João |
+| DI | **Hilt** 2.60.1 (+ AndroidX Hilt 1.4.0): `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel` e `@HiltWorker`; módulos em `di/` (`TempoModule`, `BancoModule`, `PreferenciasModule`, `RepositoriosModule`, `ServicosModule`); processador via KSP. Antes era DI manual (`Dependencias`), trocado em out/2026 por decisão do mantenedor |
 | Rede | `HttpURLConnection` + `org.json` (`data/clima/FontePrevisao.kt`). Só a Open-Meteo, por HTTPS |
 | Preferências | `SharedPreferences` (`data/preferencias`, `data/sessao`) |
 | Segundo plano | WorkManager 2.12 (`aviso/VerificacaoChuvaWorker.kt`) |
@@ -116,7 +116,7 @@ config/detekt/         detekt.yml
 ## 6. Segurança e privacidade — não negociável
 
 - **Nenhum segredo no repositório.** `local.properties` fica no `.gitignore`.
-- **A chave de assinatura (`C:\chaves\agrosaldo.jks`) NUNCA entra no Git, e nunca se gera uma chave nova**: com outra chave o APK não instala por cima do antigo e o produtor perde os dados.
+- **A chave de assinatura (guardada fora do repositório) NUNCA entra no Git, e nunca se gera uma chave nova**: com outra chave o APK não instala por cima do antigo e o produtor perde os dados.
 - `.gitignore` precisa ter `*.jks`, `*.keystore`, `/app/release/`, `*.apk`, `*.aab`, `local.properties`.
 - **Dados pessoais reais do produtor não entram em código, testes nem docs**: nada de CNPJ, endereço, telefone, e-mail, nome ou coordenadas da fazenda. Use dados fictícios.
 - Senha: PBKDF2 (`domain/conta/HashDeSenha.kt`). Não enfraqueça.
@@ -190,14 +190,14 @@ config/detekt/         detekt.yml
 ## 9. Como trabalhar neste repo
 
 1. **Plano primeiro.** Antes de editar, apresente o plano: arquivos que vão mudar e por quê. Espere o OK.
-2. **Uma tarefa por branch** (ex.: `rodada/r9-play-store`, `fix/...`). Nada direto na `prod` (a principal) sem o João pedir.
+2. **Uma tarefa por branch** (ex.: `rodada/r9-play-store`, `fix/...`). Nada direto na `prod` (a principal) sem pedido do mantenedor.
 3. **Commits pequenos** em Conventional Commits, em português: `refactor(inicio): usa ResumoFinanceiro do domínio`.
-4. **Autor dos commits: sempre o João.** `user.name "Morettys2"` e `user.email "m0rettyy20@gmail.com"`, **sem** `Co-Authored-By` do Claude nem outro trailer de atribuição. Ele não quer que o histórico pareça feito pelo Claude.
+4. **Autoria dos commits:** sempre a conta do mantenedor (`Morettys2`, já configurada no `git config` local), **sem** `Co-Authored-By` nem outro trailer de atribuição.
 5. **Teste junto:** cada regra nova ganha teste. Cada bug corrigido ganha um teste que falharia antes.
 6. **Antes do PR**, o CI precisa ficar verde (ktlint, detekt, testes, build e lint) e sem warning novo do Kotlin.
-7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o João revisa e testa no celular primeiro.
+7. **Abra o PR** com o resumo e **não faça merge** sem o OK: o mantenedor revisa e testa no celular primeiro.
 8. Se algo depende de decisão de produto (texto, comportamento visível ao produtor), **pergunte** em vez de assumir.
-9. O `README.md` é a vitrine do repositório (pedido do João em 04/11/2026): mantenha os números e a stack em dia. Não crie CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
+9. O `README.md` é a vitrine do repositório (decisão de 04/11/2026): mantenha os números e a stack em dia. Não crie CHANGELOG. O arquivo `docs/DOCUMENTACAO_TECNICA.mdx` é a documentação técnica para os devs do grupo e este arquivo continua sendo a referência de regras e decisões.
 10. **Branches:** `prod` é a principal (padrão no GitHub): todo trabalho parte dela e volta para ela por PR, e o CI roda em push nela e em todo PR. `desenvolvimento` é a antiga `main`, congelada como backup (tem as migrações antigas do banco e a documentação técnica de 15/10): não receba commits nela. O banco parte da versão 3 na `prod`; a migração 3 → 4 deixou o dono da propriedade obrigatório, e a próxima parte da 4.
 ---
 
@@ -216,7 +216,7 @@ config/detekt/         detekt.yml
 - **Arquitetura profissional (branch `refactor/arquitetura-profissional`):** relógio, relógio monotônico e dispatchers injetáveis; DI manual trocada por Hilt (módulos em `di/`, `@HiltViewModel`, `@HiltWorker`); `LimpezaDaConta` saiu de dentro do container.
 - **Auditoria de arquitetura (out/2026):** MVVM conferido de ponta a ponta. Corrigidos: Flow do nome do usuário sem tratamento de erro no Início; transação obrigatória nos repositórios (a `TransacaoDireta` foi para o `testFixtures`); despachante de E/S injetado na chamada de rede; nenhum valor padrão de relógio, despachantes ou `Desfazer` em produção (os testes passam relógio fixo); `FontePrevisao` pelo Hilt; `PropriedadeRepository.excluir(id)` sem uso removido; `SessaoViewModel` e `PrivacidadeViewModel` em `feature/sessao`. O legado dos dados de exemplo (`propriedades.usuario_id` anulável e `adotarPropriedadesSemDono`) saiu na migração 4.
 - **R8:** arquivos grandes quebrados, `LancamentoFormAcoes`, ktlint + detekt + Lint `abortOnError`, CI, testes de tela (Robolectric), capturas (Roborazzi), testes do Worker e das preferências.
-- **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`, relatório guardado só no PC do João, fora do Git):** dados reais do produtor fora do projeto (o histórico antigo do Git ainda os tem: não tornar o repositório público sem limpar); leitura resiliente (registros antigos lidos ajustados aos limites, `.catch` em todas as leituras do banco, `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM; ano mês a mês e comparativo no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer com a ordem e a seleção originais; limpeza de build, CI, Lint e código sem uso. As versões das bibliotecas ficaram para um PR próprio (abaixo). Em 02/11/2026, na mesma branch: teste do `AgendaWorkManager`, fakes com sessão e posse e o `androidx.test:runner` declarado (sumira junto com o Espresso e o `connectedAndroidTest` não começava).
+- **Correções da auditoria de código (28/10/2026, branch `fix/auditoria-2026-10-28`):** dados pessoais reais removidos do projeto (código, testes e documentação usam só dados fictícios); leitura resiliente (registros antigos lidos ajustados aos limites, `.catch` em todas as leituras do banco, `tentar` nas chamadas suspensas); bloqueio do aparelho que não cai ao excluir uma conta nem ao reiniciar o celular; limites cortados ao digitar e relógio sempre injetado; DAOs testados também no JVM; ano mês a mês e comparativo no `ResumoFinanceiro`; `@PreviasDaTela` e `Espacos` em todas as telas; cultura vazia gravada vazia; desfazer com a ordem e a seleção originais; limpeza de build, CI, Lint e código sem uso. As versões das bibliotecas ficaram para um PR próprio (abaixo). Em 02/11/2026, na mesma branch: teste do `AgendaWorkManager`, fakes com sessão e posse e o `androidx.test:runner` declarado (sumira junto com o Espresso e o `connectedAndroidTest` não começava).
 - **Migração 4 (02/11/2026, branch `feat/migracao-4-dono-obrigatorio`):** `propriedades.usuario_id` obrigatório. Na migração, a propriedade sem dono vai para a conta mais antiga do aparelho; sem conta nenhuma, sai com o que é dela. Saiu o `adotarPropriedadesSemDono`: uma conta nova começa sem propriedades.
 - **Bibliotecas (02/11/2026, branch `chore/atualiza-dependencias`, DEP-01):** AGP 9.5.0 com Gradle 9.8.2, Kotlin 2.4.21, KSP 2.3.13, Compose BOM 2026.09.00, WorkManager 2.12.0, core-ktx 1.19.1, splashscreen 1.2.0, Roborazzi 1.77.0 e org.json 20260814. Os testes de tela usam o `createComposeRule` do pacote `junit4.v2`. Lint sem nenhum aviso.
 

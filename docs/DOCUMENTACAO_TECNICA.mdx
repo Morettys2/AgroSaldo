@@ -3792,7 +3792,7 @@ data class CoresCategorias(
 ## 22. Segurança e privacidade
 
 - **Nenhum segredo no repositório.** `local.properties` fica no `.gitignore`.
-- **A chave de assinatura (`C:\chaves\agrosaldo.jks`) NUNCA entra no Git, e nunca se gera uma chave nova**: com outra chave o APK não instala por cima do antigo e o produtor perde os dados.
+- **A chave de assinatura (guardada fora do repositório) NUNCA entra no Git, e nunca se gera uma chave nova**: com outra chave o APK não instala por cima do antigo e o produtor perde os dados.
 - `.gitignore` precisa ter `*.jks`, `*.keystore`, `/app/release/`, `*.apk`, `*.aab`, `local.properties`.
 - **Dados pessoais reais do produtor não entram em código, testes nem docs**: nada de CNPJ, endereço, telefone, e-mail, nome ou coordenadas da fazenda. Use dados fictícios.
 - Senha: PBKDF2 (`domain/conta/HashDeSenha.kt`). Não enfraqueça.
