@@ -5,7 +5,7 @@ description: "Documentação técnica completa do AgroSaldo em um único arquivo
 
 # AgroSaldo: documentação técnica
 
-Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, para os desenvolvedores do grupo. Ela descreve a branch `prod` (a principal), versão `1.5` (`versionCode 6`), em 28/10/2026, já com as correções da auditoria de código.
+Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, para quem desenvolve o projeto. Ela descreve a branch `prod` (a principal), versão `1.6` (`versionCode 7`), banco na versão 4.
 
 ## Sumário
 
@@ -48,7 +48,7 @@ Esta é a documentação técnica completa do AgroSaldo, em um único arquivo, p
 
 O AgroSaldo é um app Android nativo, em Kotlin, que o pequeno produtor rural usa para controlar **receitas e despesas por propriedade** (sítio) e para receber **aviso de chuva**, que recomenda adiar a irrigação do pivô.
 
-Esta documentação foi escrita para os desenvolvedores do grupo: quem nunca abriu o projeto consegue entender **o que existe, onde fica e por que foi feito assim**. Ela descreve a branch `prod` (a principal) na versão `1.5` (`versionCode 6`), em 28/10/2026, já com as correções da auditoria de código.
+Esta documentação foi escrita para quem desenvolve o projeto: quem nunca abriu o projeto consegue entender **o que existe, onde fica e por que foi feito assim**. Ela descreve a branch `prod` (a principal) na versão `1.6` (`versionCode 7`), com o banco na versão 4.
 
 > **Dica:** se você vem de NestJS ou React, procure as analogias nos textos e no [Glossário](#32-glossário). Exemplo: o ViewModel é como um service com estado, e o Compose é como React com state.
 
@@ -5036,7 +5036,7 @@ Ainda não está feita. O plano (política de privacidade pública, troca da loc
 
 ### Decisões de out/2026 (entrega à professora)
 
-- **Branch `prod`:** versão de apresentação, igual à `main` mas sem as migrações 1→2 e 2→3 (banco v3 como base). Motivo: o app no celular do pai era só teste, sem dados reais a preservar. Testes, fakes e CI continuam no repo, e já ficam fora do APK. Depois, a `prod` virou a branch principal (padrão no GitHub) e a antiga `main` foi renomeada para `desenvolvimento`, congelada como backup.
+- **Branch `prod`:** versão de apresentação, igual à `main` mas sem as migrações 1→2 e 2→3 (banco v3 como base). Motivo: o app instalado no aparelho do produtor ainda era de teste, sem dados reais a preservar. Testes, fakes e CI continuam no repo, e já ficam fora do APK. Depois, a `prod` virou a branch principal (padrão no GitHub) e a antiga `main` foi renomeada para `desenvolvimento`, congelada como backup.
 - **Regra de senha mantida com 3 requisitos** (8 caracteres, letra e número, "difícil de adivinhar"). Foi pedido tirar o terceiro, mas a decisão final foi **não enfraquecer** a senha.
 - **Coil não é usado.** A Open-Meteo devolve só JSON, sem imagens, e os ícones de clima são desenhados no código. Pendente: confirmar com a professora se a exigência de usar o Coil vale mesmo assim. Se valer, a opção honesta é carregar de uma URL um recurso de imagem real.
 - **Transições de tela:** trocar de aba é instantâneo e as demais telas deslizam, para não ficar a tela antiga "fantasma" por baixo da nova (ver [Ponto de entrada e navegação](#12-ponto-de-entrada-e-navegação)).
@@ -5046,7 +5046,7 @@ Ainda não está feita. O plano (política de privacidade pública, troca da loc
 
 ### Arquitetura profissional (out/2026)
 
-- **Hilt no lugar da DI manual.** A decisão antiga ("sem Hilt/Koin, por ser projeto de aprendizado") foi revista pelo João: Hilt é o padrão do mercado e remove as 16 `Factory` e o container gigante. Compatível com o AGP 9 desde o Hilt 2.59.
+- **Hilt no lugar da DI manual.** A decisão antiga ("sem Hilt/Koin, por ser projeto de aprendizado") foi revista pelo mantenedor: Hilt é o padrão do mercado e remove as 16 `Factory` e o container gigante. Compatível com o AGP 9 desde o Hilt 2.59.
 - **`java.time.Clock`** no lugar de lambdas de relógio, e `RelogioMonotonico` e `Despachantes` como interfaces do domínio.
 - **Módulo `:domain`** (Kotlin JVM puro): "o domínio não importa Android" deixou de ser convenção e virou garantia do compilador.
 - Itens ainda previstos nessa linha: navegação tipada (decidido adiar), textos em `strings.xml` e DataStore (não recomendado). O baseline do detekt foi **zerado**.
@@ -5134,7 +5134,7 @@ O legado dos dados de exemplo (`propriedades.usuario_id` anulável e `adotarProp
 
 > **Informação:** Nada da R9 tem data. Antes de começar, abra uma branch `rodada/r9-play-store`.
 
-O roadmap completo, com as etapas antes e depois da R9, fica fora do repositório, com o João.
+O roadmap completo, com as etapas antes e depois da R9, é mantido fora do repositório.
 
 ---
 
